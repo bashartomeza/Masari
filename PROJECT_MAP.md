@@ -3,7 +3,7 @@
 [PROJECT_OVERVIEW]
 Masari is a Palestine-focused smart route-sharing logistics MVP.
 
-Current implementation status: M2B Backend Matching, Parcel Batching, and Comparison Metrics.
+Current implementation status: M3A Backend Trip Acceptance, Status Flow, and Deterministic Tracking Foundation.
 
 Locked MVP corridor:
 Hebron / PPU / Bab Al-Zawiya -> Bethlehem.
@@ -33,6 +33,21 @@ Implemented in M2B:
 - Deterministic Haversine-based demo metrics.
 - Audit events for match decisions, parcel batches, and comparison runs.
 
+Implemented in M3A:
+- Driver/admin match accept and reject APIs.
+- Trip creation on match acceptance.
+- Trip visibility and status update APIs.
+- Deterministic simulated tracking API.
+- Latest trip location polling API.
+- Status side effects across driver route, passenger request, merchant order, parcel batch, and parcels.
+- Audit events for match accept/reject, trip status updates, and tracking events.
+
+Migration integrity result:
+- M2B accidentally modified committed `0001_init` to add M2B audit enum values.
+- This was unnecessary because those values belong in `0002_matching_batching_comparison`.
+- Corrected by restoring `0001_init` and keeping M2B changes in `0002`.
+- Corrective commit created: `chore: normalize Prisma migrations`.
+
 Not implemented yet:
 - Flutter app flows.
 - React admin dashboard.
@@ -40,7 +55,7 @@ Not implemented yet:
 - Parcel batching algorithm.
 - Comparison dashboard.
 - AI parser.
-- Live tracking.
+- Live GPS tracking.
 - Socket.IO.
 
 [TECH_STACK]
@@ -128,12 +143,14 @@ Actual folder structure:
             │   ├── matching.ts
             │   ├── merchant.ts
             │   ├── passenger.ts
+            │   ├── trips.ts
             │   └── demoReset.ts
             └── tests
                 ├── auth.test.ts
                 ├── demoReset.test.ts
                 ├── matchingBatchingComparison.test.ts
-                └── manualRoleApis.test.ts
+                ├── manualRoleApis.test.ts
+                └── tripsTracking.test.ts
 ```
 
 [DATA_MODEL]
@@ -147,6 +164,8 @@ Implemented Prisma models:
 - ParcelBatch.
 - Match.
 - ComparisonRun.
+- Trip.
+- LocationEvent.
 - DemoScenario.
 - AuditEvent.
 
@@ -169,6 +188,11 @@ AuditEvent covers:
 - merchant order created.
 - parcel batch created.
 - comparison run created.
+- match accepted.
+- match rejected.
+- trip status updated.
+- location recorded.
+- tracking simulation step.
 - driver verification later.
 - match decisions later.
 - admin actions.
@@ -185,6 +209,12 @@ M2B schema changes:
 - Added `ComparisonRun` model.
 - Expanded `AuditAction` with `parcel_batch_created` and `comparison_run_created`.
 
+M3A schema changes:
+- Added `TripStatus` enum.
+- Added `Trip` model.
+- Added `LocationEvent` model.
+- Expanded `AuditAction` with `match_accepted`, `match_rejected`, `trip_status_updated`, `location_recorded`, and `tracking_simulation_step`.
+
 [STATE_MACHINES]
 M1 defines schema enum values only. Business state transition enforcement is not implemented yet.
 
@@ -196,7 +226,8 @@ Current enum support:
 - ParcelStatus: pending, batched, assigned, picked_up, in_transit, delivered.
 - ParcelBatchStatus: created, proposed, assigned, picked_up, in_transit, delivered.
 - MatchStatus: proposed, sent_to_driver, accepted, rejected, expired.
-- AuditAction: auth_login, demo_reset, passenger_request_created, passenger_request_cancelled, driver_route_created, driver_route_deactivated, merchant_order_created, parcel_batch_created, comparison_run_created, driver_verification, match_decision, admin_action.
+- TripStatus: created, accepted, pickup_started, picked_up, in_transit, delivered, completed, cancelled.
+- AuditAction: auth_login, demo_reset, passenger_request_created, passenger_request_cancelled, driver_route_created, driver_route_deactivated, merchant_order_created, parcel_batch_created, comparison_run_created, match_accepted, match_rejected, trip_status_updated, location_recorded, tracking_simulation_step, driver_verification, match_decision, admin_action.
 
 [API_CONTRACTS]
 Implemented endpoints:
@@ -226,6 +257,14 @@ Implemented endpoints:
 - `POST /api/v1/merchant/orders/:id/batch`.
 - `POST /api/v1/compare/run`.
 - `GET /api/v1/compare/runs/:id`.
+- `POST /api/v1/matches/:id/accept`.
+- `POST /api/v1/matches/:id/reject`.
+- `GET /api/v1/trips`.
+- `GET /api/v1/trips/:id`.
+- `POST /api/v1/trips/:id/status`.
+- `POST /api/v1/trips/:id/simulate/step`.
+- `POST /api/v1/trips/:id/simulate/reset`.
+- `GET /api/v1/trips/:id/location`.
 
 Demo reset protection:
 - Admin JWT accepted if admin already exists.
@@ -355,6 +394,41 @@ Comparison response includes:
 }
 ```
 
+Accept match:
+```http
+POST /api/v1/matches/<match_id>/accept
+```
+
+Reject match:
+```http
+POST /api/v1/matches/<match_id>/reject
+```
+
+Update trip status:
+```json
+{
+  "status": "pickup_started"
+}
+```
+
+Simulate tracking step:
+```http
+POST /api/v1/trips/<trip_id>/simulate/step
+```
+
+Latest location response:
+```json
+{
+  "location": {
+    "trip_id": "<trip_id>",
+    "source": "simulated",
+    "sequence": 1,
+    "lat": "31.550000",
+    "lng": "35.100000"
+  }
+}
+```
+
 Role and ownership rules:
 - Passenger role only can create/list/view/cancel passenger requests.
 - Passenger can only access own requests.
@@ -373,6 +447,14 @@ Role and ownership rules:
 - Merchant can batch only own order.
 - Admin can batch seeded/demo order.
 - Admin only can run and read comparison runs.
+- Driver can accept/reject only matches for own driver route.
+- Admin can accept/reject demo matches.
+- Driver can see/update own trips.
+- Passenger can see trips connected to own request.
+- Merchant can see trips connected to own order.
+- Admin can see all trips.
+- Only driver owner or admin can update trip status or trigger simulated tracking.
+- Passenger, merchant, driver owner, and admin can read latest location when connected to the trip.
 
 [MATCHING_LOGIC]
 Implemented in M2B.
@@ -430,6 +512,50 @@ Comparison formulas:
 - `driver_utilization = (parcel_count + passenger_count) / (parcel_count + 1)` clamped by deterministic demand formula.
 - Winner is `masari` when Masari cost and trips are less than or equal to nearest-driver baseline.
 
+[TRIP_STATUS_LOGIC]
+Implemented in M3A.
+
+Match accept side effects:
+- Match status becomes `accepted`.
+- Trip status becomes `accepted`.
+- DriverRoute status becomes `assigned`.
+- PassengerRequest status becomes `accepted` if present.
+- ParcelBatch status becomes `assigned` if present.
+- MerchantOrder status becomes `assigned` if present.
+- Parcels become `assigned` if merchant order is present.
+
+Match reject side effects:
+- Match status becomes `rejected`.
+- No trip is created.
+
+Approved trip flow:
+```text
+accepted -> pickup_started -> picked_up -> in_transit -> delivered -> completed
+```
+
+Allowed cancellation path:
+```text
+accepted/pickup_started/picked_up/in_transit -> cancelled
+```
+
+Status side effects:
+- `pickup_started`: DriverRoute becomes `on_trip`.
+- `picked_up`: PassengerRequest, ParcelBatch, and Parcels become `picked_up` when present.
+- `in_transit`: PassengerRequest, MerchantOrder, ParcelBatch, and Parcels become `in_transit` when present.
+- `delivered`: PassengerRequest, ParcelBatch, and Parcels become `delivered`; MerchantOrder becomes `completed`.
+- `completed`: DriverRoute becomes `completed`; Trip `completed_at` is set.
+
+[TRACKING_SIMULATION]
+Implemented in M3A.
+
+Behavior:
+- Uses fixed route points for Hebron / PPU / Bab Al-Zawiya -> Bethlehem.
+- `POST /api/v1/trips/:id/simulate/step` creates exactly one `LocationEvent`.
+- Sequence starts at `0` and increments by one per simulated step.
+- Coordinates repeat deterministically if sequence exceeds route path length.
+- `GET /api/v1/trips/:id/location` returns latest event by sequence.
+- No Socket.IO and no live GPS integration yet.
+
 [DEMO_MODE]
 Implemented endpoint:
 - `POST /api/v1/demo/reset`.
@@ -486,6 +612,12 @@ Implemented minimal tests:
 - Comparison admin run succeeds and persists.
 - Comparison rejects non-admin.
 - Comparison GET returns saved run.
+- Match accept/reject tests.
+- Trip visibility tests for driver, passenger, merchant, admin, and unrelated user.
+- Trip status transition tests.
+- Status side-effect tests.
+- Simulated tracking step tests.
+- Latest location polling tests.
 
 Required validation commands:
 - `npm install`.
@@ -547,6 +679,19 @@ M2B validation results:
 - `npm run db:push`: passed against local PostgreSQL.
 - Real M2B smoke validation passed for demo reset, match run/read, merchant batch, comparison run/read.
 - Real smoke output included match score `0.9317`, batch status `created`, estimated distance saved `86.12`, comparison winner `masari`, Masari trips `1`, nearest-driver trips `6`.
+
+M3A validation results:
+- Migration integrity check completed.
+- Corrective migration commit created: `chore: normalize Prisma migrations`.
+- Pre-step validation passed: `npm run prisma:validate`, `npm run prisma:generate`, `npm run typecheck`, `npm run test`, `npm run build`.
+- `npm run prisma:validate`: passed.
+- `npm run prisma:generate`: passed.
+- `npm run typecheck`: passed.
+- `npm run test`: passed, 5 files and 47 tests.
+- `npm run build`: passed.
+- `npm run db:push`: passed against local PostgreSQL.
+- Real M3A smoke validation passed for demo reset, match run, parcel batch, combined match accept, trip read, full status progression to completed, simulated tracking steps, and latest location polling.
+- Real smoke output included trip status `accepted`, final status `completed`, simulated location sequences `0` and `1`, latest sequence `1`.
 
 [SUCCESS_CRITERIA]
 M1 success criteria:

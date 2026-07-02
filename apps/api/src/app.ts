@@ -8,6 +8,7 @@ import { adminRouter } from "./modules/admin.js";
 import { matchingRouter } from "./modules/matching.js";
 import { batchingRouter } from "./modules/batching.js";
 import { comparisonRouter } from "./modules/comparison.js";
+import { tripsRouter } from "./modules/trips.js";
 import { errorHandler } from "./middleware/error.js";
 
 export function createApp() {
@@ -26,6 +27,7 @@ export function createApp() {
   app.use("/api/v1", batchingRouter);
   app.use("/api/v1", merchantRouter);
   app.use("/api/v1", matchingRouter);
+  app.use("/api/v1", tripsRouter);
   app.use("/api/v1", comparisonRouter);
   app.use("/api/v1", adminRouter);
 

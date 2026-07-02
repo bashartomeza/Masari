@@ -6,6 +6,16 @@ export type Point = {
 export const LOCKED_ORIGIN = { lat: 31.5326, lng: 35.0998 };
 export const LOCKED_DESTINATION = { lat: 31.7054, lng: 35.2024 };
 
+export const DEMO_ROUTE_POINTS: Point[] = [
+  { lat: 31.5326, lng: 35.0998 },
+  { lat: 31.55, lng: 35.1 },
+  { lat: 31.585, lng: 35.123 },
+  { lat: 31.62, lng: 35.145 },
+  { lat: 31.655, lng: 35.168 },
+  { lat: 31.685, lng: 35.19 },
+  { lat: 31.7054, lng: 35.2024 }
+];
+
 export function toNumber(value: unknown) {
   if (typeof value === "number") return value;
   if (typeof value === "string") return Number(value);

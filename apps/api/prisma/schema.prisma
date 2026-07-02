@@ -68,6 +68,17 @@ enum MatchStatus {
   expired
 }
 
+enum TripStatus {
+  created
+  accepted
+  pickup_started
+  picked_up
+  in_transit
+  delivered
+  completed
+  cancelled
+}
+
 enum AuditAction {
   auth_login
   demo_reset
@@ -78,6 +89,11 @@ enum AuditAction {
   merchant_order_created
   parcel_batch_created
   comparison_run_created
+  match_accepted
+  match_rejected
+  trip_status_updated
+  location_recorded
+  tracking_simulation_step
   driver_verification
   match_decision
   admin_action
@@ -135,6 +151,7 @@ model DriverRoute {
   driver DriverProfile @relation(fields: [driver_id], references: [id], onDelete: Cascade)
   parcel_batches ParcelBatch[]
   matches Match[]
+  trips Trip[]
 
   @@index([corridor_key])
   @@map("driver_routes")
@@ -157,6 +174,7 @@ model PassengerRequest {
 
   passenger User @relation(fields: [passenger_id], references: [id], onDelete: Cascade)
   matches Match[]
+  trips Trip[]
 
   @@map("passenger_requests")
 }
@@ -174,6 +192,7 @@ model MerchantOrder {
   parcels  Parcel[]
   parcel_batches ParcelBatch[]
   matches Match[]
+  trips Trip[]
 
   @@map("merchant_orders")
 }
@@ -206,6 +225,7 @@ model ParcelBatch {
   merchant_order MerchantOrder @relation(fields: [merchant_order_id], references: [id], onDelete: Cascade)
   driver_route   DriverRoute?   @relation(fields: [driver_route_id], references: [id], onDelete: SetNull)
   matches        Match[]
+  trips          Trip[]
 
   @@map("parcel_batches")
 }
@@ -246,6 +266,44 @@ model ComparisonRun {
   created_at                 DateTime @default(now())
 
   @@map("comparison_runs")
+}
+
+model Trip {
+  id                   String     @id @default(cuid())
+  driver_id            String
+  driver_route_id      String
+  passenger_request_id String?
+  merchant_order_id    String?
+  parcel_batch_id      String?
+  status               TripStatus @default(created)
+  started_at           DateTime?
+  completed_at         DateTime?
+  created_at           DateTime   @default(now())
+
+  driver_route      DriverRoute       @relation(fields: [driver_route_id], references: [id], onDelete: Cascade)
+  passenger_request PassengerRequest? @relation(fields: [passenger_request_id], references: [id], onDelete: SetNull)
+  merchant_order    MerchantOrder?    @relation(fields: [merchant_order_id], references: [id], onDelete: SetNull)
+  parcel_batch      ParcelBatch?      @relation(fields: [parcel_batch_id], references: [id], onDelete: SetNull)
+  location_events   LocationEvent[]
+
+  @@index([driver_id])
+  @@map("trips")
+}
+
+model LocationEvent {
+  id          String   @id @default(cuid())
+  trip_id     String
+  driver_id   String
+  lat         Decimal  @db.Decimal(9, 6)
+  lng         Decimal  @db.Decimal(9, 6)
+  source      String
+  sequence    Int
+  recorded_at DateTime @default(now())
+
+  trip Trip @relation(fields: [trip_id], references: [id], onDelete: Cascade)
+
+  @@index([trip_id, sequence])
+  @@map("location_events")
 }
 
 model DemoScenario {
