@@ -1,0 +1,249 @@
+import { Router } from "express";
+import bcrypt from "bcryptjs";
+import type { Prisma, PrismaClient, UserRole } from "../generated/prisma/client.js";
+import { config } from "../config.js";
+import { prisma } from "../lib/prisma.js";
+import { auditEvent } from "../lib/audit.js";
+import { verifyAuthToken } from "../middleware/auth.js";
+import { HttpError } from "../middleware/error.js";
+
+export const LOCKED_CORRIDOR_KEY = "hebron-ppu-bab-al-zawiya-to-bethlehem";
+export const LOCKED_CORRIDOR_LABEL = "Hebron / PPU / Bab Al-Zawiya -> Bethlehem";
+
+export const DEMO_ACCOUNTS = {
+  passenger: { name: "Demo Passenger", phone: "+970590000001", password: "demo-passenger-123" },
+  driver1: { name: "Demo Driver Hebron Route", phone: "+970590000002", password: "demo-driver-123" },
+  driver2: { name: "Demo Driver Alternate", phone: "+970590000003", password: "demo-driver-123" },
+  merchant: { name: "Demo Merchant", phone: "+970590000004", password: "demo-merchant-123" },
+  admin: { name: "Demo Admin", phone: "+970590000005", password: "demo-admin-123" }
+} as const;
+
+async function hashPassword(password: string) {
+  return bcrypt.hash(password, 10);
+}
+
+async function createDemoUser(
+  tx: Prisma.TransactionClient,
+  input: { name: string; phone: string; password: string; role: UserRole }
+) {
+  return tx.user.create({
+    data: {
+      name: input.name,
+      phone: input.phone,
+      password_hash: await hashPassword(input.password),
+      role: input.role,
+      demo_account: true
+    }
+  });
+}
+
+export async function resetDemoData(db: PrismaClient = prisma) {
+  return db.$transaction(async (tx) => {
+    await tx.auditEvent.deleteMany();
+    await tx.parcel.deleteMany();
+    await tx.merchantOrder.deleteMany();
+    await tx.passengerRequest.deleteMany();
+    await tx.driverRoute.deleteMany();
+    await tx.driverProfile.deleteMany();
+    await tx.demoScenario.deleteMany();
+    await tx.user.deleteMany({ where: { demo_account: true } });
+
+    const passenger = await createDemoUser(tx, { ...DEMO_ACCOUNTS.passenger, role: "passenger" });
+    const driver1User = await createDemoUser(tx, { ...DEMO_ACCOUNTS.driver1, role: "driver" });
+    const driver2User = await createDemoUser(tx, { ...DEMO_ACCOUNTS.driver2, role: "driver" });
+    const merchant = await createDemoUser(tx, { ...DEMO_ACCOUNTS.merchant, role: "merchant" });
+    const admin = await createDemoUser(tx, { ...DEMO_ACCOUNTS.admin, role: "admin" });
+
+    const driver1 = await tx.driverProfile.create({
+      data: {
+        user_id: driver1User.id,
+        vehicle_type: "sedan",
+        seats_total: 3,
+        parcel_capacity: 5,
+        verified: true,
+        trust_score: 86
+      }
+    });
+
+    const driver2 = await tx.driverProfile.create({
+      data: {
+        user_id: driver2User.id,
+        vehicle_type: "van",
+        seats_total: 2,
+        parcel_capacity: 8,
+        verified: true,
+        trust_score: 74
+      }
+    });
+
+    await tx.driverRoute.create({
+      data: {
+        driver_id: driver1.id,
+        origin_label: "Hebron / PPU / Bab Al-Zawiya",
+        origin_lat: "31.532600",
+        origin_lng: "35.099800",
+        destination_label: "Bethlehem",
+        destination_lat: "31.705400",
+        destination_lng: "35.202400",
+        corridor_key: LOCKED_CORRIDOR_KEY,
+        seats_available: 2,
+        parcel_capacity_available: 5,
+        status: "active",
+        activated_at: new Date()
+      }
+    });
+
+    await tx.driverRoute.create({
+      data: {
+        driver_id: driver2.id,
+        origin_label: "Bethlehem",
+        origin_lat: "31.705400",
+        origin_lng: "35.202400",
+        destination_label: "Hebron / PPU / Bab Al-Zawiya",
+        destination_lat: "31.532600",
+        destination_lng: "35.099800",
+        corridor_key: LOCKED_CORRIDOR_KEY,
+        seats_available: 1,
+        parcel_capacity_available: 8,
+        status: "inactive"
+      }
+    });
+
+    await tx.passengerRequest.create({
+      data: {
+        passenger_id: passenger.id,
+        pickup_label: "PPU Main Gate",
+        pickup_lat: "31.550000",
+        pickup_lng: "35.100000",
+        destination_label: "Bethlehem Center",
+        destination_lat: "31.705400",
+        destination_lng: "35.202400",
+        preferred_time: new Date("2026-07-02T09:00:00.000Z"),
+        passenger_count: 1,
+        status: "pending",
+        source: "seed"
+      }
+    });
+
+    const order = await tx.merchantOrder.create({
+      data: {
+        merchant_id: merchant.id,
+        pickup_label: "Hebron Merchant Pickup",
+        pickup_lat: "31.532600",
+        pickup_lng: "35.099800",
+        status: "submitted"
+      }
+    });
+
+    const parcelDestinations = [
+      "Bethlehem Market",
+      "Bethlehem University Area",
+      "Manger Street",
+      "Beit Jala Junction",
+      "Bethlehem Center"
+    ];
+
+    for (const [index, destination] of parcelDestinations.entries()) {
+      await tx.parcel.create({
+        data: {
+          order_id: order.id,
+          destination_label: destination,
+          destination_lat: "31.705400",
+          destination_lng: "35.202400",
+          size: index === 0 ? "M" : "S",
+          priority: index < 2 ? "high" : "normal",
+          status: "pending"
+        }
+      });
+    }
+
+    await tx.demoScenario.createMany({
+      data: [
+        {
+          scenario_key: "masari_batch_wins",
+          corridor_key: LOCKED_CORRIDOR_KEY,
+          description: "Masari batches five parcels into one compatible corridor trip.",
+          seed_version: "m1"
+        },
+        {
+          scenario_key: "nearest_wrong_direction",
+          corridor_key: LOCKED_CORRIDOR_KEY,
+          description: "Nearest driver is not the best route fit because direction is wrong.",
+          seed_version: "m1"
+        },
+        {
+          scenario_key: "driver_utilization_wins",
+          corridor_key: LOCKED_CORRIDOR_KEY,
+          description: "Masari improves utilization by combining passenger and parcel demand.",
+          seed_version: "m1"
+        }
+      ]
+    });
+
+    await tx.auditEvent.create({
+      data: {
+        user_id: admin.id,
+        action: "demo_reset",
+        entity_type: "DemoScenario",
+        metadata: {
+          corridor_key: LOCKED_CORRIDOR_KEY,
+          corridor_label: LOCKED_CORRIDOR_LABEL,
+          seed_version: "m1"
+        }
+      }
+    });
+
+    return {
+      corridor: LOCKED_CORRIDOR_LABEL,
+      users: {
+        passenger: passenger.phone,
+        drivers: [driver1User.phone, driver2User.phone],
+        merchant: merchant.phone,
+        admin: admin.phone
+      },
+      parcels: parcelDestinations.length,
+      scenarios: 3
+    };
+  });
+}
+
+async function canReset(req: { header(name: string): string | undefined }) {
+  const resetKey = req.header("x-demo-reset-key");
+  if (config.DEMO_RESET_KEY && resetKey === config.DEMO_RESET_KEY) {
+    return true;
+  }
+
+  const authHeader = req.header("authorization");
+  const token = authHeader?.startsWith("Bearer ") ? authHeader.slice("Bearer ".length) : undefined;
+  if (!token) {
+    return false;
+  }
+
+  try {
+    const user = verifyAuthToken(token);
+    return user.role === "admin";
+  } catch {
+    return false;
+  }
+}
+
+export const demoRouter = Router();
+
+demoRouter.post("/demo/reset", async (req, res, next) => {
+  try {
+    if (!(await canReset(req))) {
+      throw new HttpError(403, "demo_reset_forbidden");
+    }
+
+    const result = await resetDemoData(prisma);
+    await auditEvent(prisma, {
+      action: "demo_reset",
+      entityType: "DemoScenario",
+      metadata: { source: "api", corridor: LOCKED_CORRIDOR_LABEL }
+    });
+
+    res.json({ ok: true, seed: result });
+  } catch (error) {
+    next(error);
+  }
+});

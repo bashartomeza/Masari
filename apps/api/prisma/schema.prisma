@@ -1,0 +1,193 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  passenger
+  driver
+  merchant
+  admin
+}
+
+enum DriverRouteStatus {
+  inactive
+  active
+  assigned
+  on_trip
+  completed
+}
+
+enum RequestStatus {
+  draft
+  pending
+  matched
+  accepted
+  picked_up
+  in_transit
+  delivered
+  cancelled
+}
+
+enum MerchantOrderStatus {
+  draft
+  submitted
+  batched
+  assigned
+  in_transit
+  completed
+}
+
+enum ParcelStatus {
+  pending
+  batched
+  assigned
+  picked_up
+  in_transit
+  delivered
+}
+
+enum AuditAction {
+  auth_login
+  demo_reset
+  driver_verification
+  match_decision
+  admin_action
+}
+
+model User {
+  id             String             @id @default(cuid())
+  name           String
+  phone          String             @unique
+  password_hash  String
+  role           UserRole
+  demo_account   Boolean            @default(false)
+  created_at     DateTime           @default(now())
+
+  driver_profile DriverProfile?
+  passenger_requests PassengerRequest[]
+  merchant_orders MerchantOrder[]
+  audit_events    AuditEvent[]
+
+  @@map("users")
+}
+
+model DriverProfile {
+  id              String   @id @default(cuid())
+  user_id         String   @unique
+  vehicle_type    String
+  seats_total     Int
+  parcel_capacity Int
+  verified        Boolean  @default(false)
+  trust_score     Int      @default(70)
+  created_at      DateTime @default(now())
+
+  user   User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  routes DriverRoute[]
+
+  @@map("driver_profiles")
+}
+
+model DriverRoute {
+  id                        String            @id @default(cuid())
+  driver_id                 String
+  origin_label              String
+  origin_lat                Decimal           @db.Decimal(9, 6)
+  origin_lng                Decimal           @db.Decimal(9, 6)
+  destination_label         String
+  destination_lat           Decimal           @db.Decimal(9, 6)
+  destination_lng           Decimal           @db.Decimal(9, 6)
+  corridor_key              String
+  seats_available           Int
+  parcel_capacity_available Int
+  status                    DriverRouteStatus @default(inactive)
+  activated_at              DateTime?
+  completed_at              DateTime?
+
+  driver DriverProfile @relation(fields: [driver_id], references: [id], onDelete: Cascade)
+
+  @@index([corridor_key])
+  @@map("driver_routes")
+}
+
+model PassengerRequest {
+  id                String        @id @default(cuid())
+  passenger_id      String
+  pickup_label      String
+  pickup_lat        Decimal       @db.Decimal(9, 6)
+  pickup_lng        Decimal       @db.Decimal(9, 6)
+  destination_label String
+  destination_lat   Decimal       @db.Decimal(9, 6)
+  destination_lng   Decimal       @db.Decimal(9, 6)
+  preferred_time    DateTime
+  passenger_count   Int
+  status            RequestStatus @default(pending)
+  source            String        @default("seed")
+  created_at        DateTime      @default(now())
+
+  passenger User @relation(fields: [passenger_id], references: [id], onDelete: Cascade)
+
+  @@map("passenger_requests")
+}
+
+model MerchantOrder {
+  id           String              @id @default(cuid())
+  merchant_id  String
+  pickup_label String
+  pickup_lat   Decimal             @db.Decimal(9, 6)
+  pickup_lng   Decimal             @db.Decimal(9, 6)
+  status       MerchantOrderStatus @default(submitted)
+  created_at   DateTime            @default(now())
+
+  merchant User     @relation(fields: [merchant_id], references: [id], onDelete: Cascade)
+  parcels  Parcel[]
+
+  @@map("merchant_orders")
+}
+
+model Parcel {
+  id                String       @id @default(cuid())
+  order_id          String
+  destination_label String
+  destination_lat   Decimal      @db.Decimal(9, 6)
+  destination_lng   Decimal      @db.Decimal(9, 6)
+  size              String
+  priority          String
+  status            ParcelStatus @default(pending)
+  batch_id          String?
+
+  order MerchantOrder @relation(fields: [order_id], references: [id], onDelete: Cascade)
+
+  @@map("parcels")
+}
+
+model DemoScenario {
+  id           String   @id @default(cuid())
+  scenario_key String   @unique
+  corridor_key String
+  description  String
+  seed_version String
+  created_at   DateTime @default(now())
+
+  @@map("demo_scenarios")
+}
+
+model AuditEvent {
+  id          String      @id @default(cuid())
+  user_id     String?
+  action      AuditAction
+  entity_type String?
+  entity_id   String?
+  metadata    Json?
+  created_at  DateTime    @default(now())
+
+  user User? @relation(fields: [user_id], references: [id], onDelete: SetNull)
+
+  @@index([action])
+  @@index([user_id])
+  @@map("audit_events")
+}

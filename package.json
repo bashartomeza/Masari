@@ -1,0 +1,20 @@
+{
+  "name": "masari",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev -w @masari/api",
+    "build": "npm run build -w @masari/api",
+    "typecheck": "npm run typecheck -w @masari/api",
+    "test": "npm run test -w @masari/api",
+    "prisma:validate": "npm run prisma:validate -w @masari/api",
+    "db:push": "npm run db:push -w @masari/api"
+  },
+  "engines": {
+    "node": ">=22.17.1",
+    "npm": ">=10.9.2"
+  }
+}
