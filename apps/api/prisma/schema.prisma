@@ -51,6 +51,23 @@ enum ParcelStatus {
   delivered
 }
 
+enum ParcelBatchStatus {
+  created
+  proposed
+  assigned
+  picked_up
+  in_transit
+  delivered
+}
+
+enum MatchStatus {
+  proposed
+  sent_to_driver
+  accepted
+  rejected
+  expired
+}
+
 enum AuditAction {
   auth_login
   demo_reset
@@ -59,6 +76,8 @@ enum AuditAction {
   driver_route_created
   driver_route_deactivated
   merchant_order_created
+  parcel_batch_created
+  comparison_run_created
   driver_verification
   match_decision
   admin_action
@@ -114,6 +133,8 @@ model DriverRoute {
   completed_at              DateTime?
 
   driver DriverProfile @relation(fields: [driver_id], references: [id], onDelete: Cascade)
+  parcel_batches ParcelBatch[]
+  matches Match[]
 
   @@index([corridor_key])
   @@map("driver_routes")
@@ -135,6 +156,7 @@ model PassengerRequest {
   created_at        DateTime      @default(now())
 
   passenger User @relation(fields: [passenger_id], references: [id], onDelete: Cascade)
+  matches Match[]
 
   @@map("passenger_requests")
 }
@@ -150,6 +172,8 @@ model MerchantOrder {
 
   merchant User     @relation(fields: [merchant_id], references: [id], onDelete: Cascade)
   parcels  Parcel[]
+  parcel_batches ParcelBatch[]
+  matches Match[]
 
   @@map("merchant_orders")
 }
@@ -168,6 +192,60 @@ model Parcel {
   order MerchantOrder @relation(fields: [order_id], references: [id], onDelete: Cascade)
 
   @@map("parcels")
+}
+
+model ParcelBatch {
+  id                       String            @id @default(cuid())
+  merchant_order_id        String
+  driver_route_id          String?
+  status                   ParcelBatchStatus @default(created)
+  estimated_distance_saved Decimal           @db.Decimal(10, 2)
+  explanation              String
+  created_at               DateTime          @default(now())
+
+  merchant_order MerchantOrder @relation(fields: [merchant_order_id], references: [id], onDelete: Cascade)
+  driver_route   DriverRoute?   @relation(fields: [driver_route_id], references: [id], onDelete: SetNull)
+  matches        Match[]
+
+  @@map("parcel_batches")
+}
+
+model Match {
+  id                   String      @id @default(cuid())
+  driver_route_id      String
+  passenger_request_id String?
+  merchant_order_id    String?
+  parcel_batch_id      String?
+  score                Decimal     @db.Decimal(5, 4)
+  method               String
+  explanation          String
+  scoring_breakdown    Json
+  status               MatchStatus @default(proposed)
+  created_at           DateTime    @default(now())
+
+  driver_route      DriverRoute       @relation(fields: [driver_route_id], references: [id], onDelete: Cascade)
+  passenger_request PassengerRequest? @relation(fields: [passenger_request_id], references: [id], onDelete: Cascade)
+  merchant_order    MerchantOrder?    @relation(fields: [merchant_order_id], references: [id], onDelete: Cascade)
+  parcel_batch      ParcelBatch?      @relation(fields: [parcel_batch_id], references: [id], onDelete: SetNull)
+
+  @@map("matches")
+}
+
+model ComparisonRun {
+  id                         String   @id @default(cuid())
+  scenario_key               String
+  masari_trips               Int
+  nearest_driver_trips       Int
+  masari_estimated_distance  Decimal  @db.Decimal(10, 2)
+  nearest_estimated_distance Decimal  @db.Decimal(10, 2)
+  masari_estimated_cost      Decimal  @db.Decimal(10, 2)
+  nearest_estimated_cost     Decimal  @db.Decimal(10, 2)
+  parcel_batching_benefit    String
+  driver_utilization         Decimal  @db.Decimal(5, 2)
+  winner                     String
+  created_at                 DateTime @default(now())
+
+  @@map("comparison_runs")
 }
 
 model DemoScenario {

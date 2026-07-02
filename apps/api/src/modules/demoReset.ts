@@ -41,6 +41,9 @@ async function createDemoUser(
 export async function resetDemoData(db: PrismaClient = prisma) {
   return db.$transaction(async (tx) => {
     await tx.auditEvent.deleteMany();
+    await tx.match.deleteMany();
+    await tx.comparisonRun.deleteMany();
+    await tx.parcelBatch.deleteMany();
     await tx.parcel.deleteMany();
     await tx.merchantOrder.deleteMany();
     await tx.passengerRequest.deleteMany();

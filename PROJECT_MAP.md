@@ -3,7 +3,7 @@
 [PROJECT_OVERVIEW]
 Masari is a Palestine-focused smart route-sharing logistics MVP.
 
-Current implementation status: M2A Backend Manual Role APIs.
+Current implementation status: M2B Backend Matching, Parcel Batching, and Comparison Metrics.
 
 Locked MVP corridor:
 Hebron / PPU / Bab Al-Zawiya -> Bethlehem.
@@ -24,6 +24,14 @@ Implemented in M2A:
 - Admin read-only dashboard/list APIs.
 - Role guards and ownership checks.
 - Audit events for manual role actions.
+
+Implemented in M2B:
+- Route-based matching API.
+- Merchant parcel batching API.
+- Masari vs nearest-driver comparison API.
+- Persistent `ParcelBatch`, `Match`, and `ComparisonRun` records.
+- Deterministic Haversine-based demo metrics.
+- Audit events for match decisions, parcel batches, and comparison runs.
 
 Not implemented yet:
 - Flutter app flows.
@@ -106,6 +114,7 @@ Actual folder structure:
             ├── config.ts
             ├── lib
             │   ├── audit.ts
+            │   ├── geo.ts
             │   └── prisma.ts
             ├── middleware
             │   ├── auth.ts
@@ -113,13 +122,17 @@ Actual folder structure:
             ├── modules
             │   ├── admin.ts
             │   ├── auth.ts
+            │   ├── batching.ts
+            │   ├── comparison.ts
             │   ├── driver.ts
+            │   ├── matching.ts
             │   ├── merchant.ts
             │   ├── passenger.ts
             │   └── demoReset.ts
             └── tests
                 ├── auth.test.ts
                 ├── demoReset.test.ts
+                ├── matchingBatchingComparison.test.ts
                 └── manualRoleApis.test.ts
 ```
 
@@ -131,6 +144,9 @@ Implemented Prisma models:
 - PassengerRequest.
 - MerchantOrder.
 - Parcel.
+- ParcelBatch.
+- Match.
+- ComparisonRun.
 - DemoScenario.
 - AuditEvent.
 
@@ -151,6 +167,8 @@ AuditEvent covers:
 - driver route created.
 - driver route deactivated.
 - merchant order created.
+- parcel batch created.
+- comparison run created.
 - driver verification later.
 - match decisions later.
 - admin actions.
@@ -158,6 +176,14 @@ AuditEvent covers:
 M2A schema changes:
 - Expanded `AuditAction` enum with M2A action values.
 - No new tables were required.
+
+M2B schema changes:
+- Added `ParcelBatchStatus` enum.
+- Added `MatchStatus` enum.
+- Added `ParcelBatch` model.
+- Added `Match` model with persisted `scoring_breakdown` JSON.
+- Added `ComparisonRun` model.
+- Expanded `AuditAction` with `parcel_batch_created` and `comparison_run_created`.
 
 [STATE_MACHINES]
 M1 defines schema enum values only. Business state transition enforcement is not implemented yet.
@@ -168,7 +194,9 @@ Current enum support:
 - RequestStatus: draft, pending, matched, accepted, picked_up, in_transit, delivered, cancelled.
 - MerchantOrderStatus: draft, submitted, batched, assigned, in_transit, completed.
 - ParcelStatus: pending, batched, assigned, picked_up, in_transit, delivered.
-- AuditAction: auth_login, demo_reset, passenger_request_created, passenger_request_cancelled, driver_route_created, driver_route_deactivated, merchant_order_created, driver_verification, match_decision, admin_action.
+- ParcelBatchStatus: created, proposed, assigned, picked_up, in_transit, delivered.
+- MatchStatus: proposed, sent_to_driver, accepted, rejected, expired.
+- AuditAction: auth_login, demo_reset, passenger_request_created, passenger_request_cancelled, driver_route_created, driver_route_deactivated, merchant_order_created, parcel_batch_created, comparison_run_created, driver_verification, match_decision, admin_action.
 
 [API_CONTRACTS]
 Implemented endpoints:
@@ -193,6 +221,11 @@ Implemented endpoints:
 - `GET /api/v1/admin/requests`.
 - `GET /api/v1/admin/orders`.
 - `GET /api/v1/admin/routes`.
+- `POST /api/v1/matches/run`.
+- `GET /api/v1/matches/:id`.
+- `POST /api/v1/merchant/orders/:id/batch`.
+- `POST /api/v1/compare/run`.
+- `GET /api/v1/compare/runs/:id`.
 
 Demo reset protection:
 - Admin JWT accepted if admin already exists.
@@ -265,6 +298,63 @@ Merchant create order example:
 }
 ```
 
+Run match example:
+```json
+{
+  "passengerRequestId": "<passenger_request_id>"
+}
+```
+
+Run match response includes:
+```json
+{
+  "match": {
+    "score": "0.9317",
+    "method": "masari_route_score",
+    "explanation": "Driver selected because the route matches the Hebron / PPU / Bab Al-Zawiya -> Bethlehem corridor, pickup is near the route, capacity is available, and trust score is high."
+  },
+  "scoringBreakdown": {
+    "corridorOverlap": 0.95,
+    "pickupDistanceScore": 0.827,
+    "timingFit": 0.9,
+    "trustScore": 0.86,
+    "capacityFit": 1,
+    "finalScore": 0.9317
+  }
+}
+```
+
+Create parcel batch:
+```http
+POST /api/v1/merchant/orders/<order_id>/batch
+```
+
+Run comparison example:
+```json
+{
+  "scenarioKey": "masari_batch_wins",
+  "passengerRequestId": "<passenger_request_id>",
+  "merchantOrderId": "<merchant_order_id>"
+}
+```
+
+Comparison response includes:
+```json
+{
+  "comparison": {
+    "masari_trips": 1,
+    "nearest_driver_trips": 6,
+    "masari_estimated_distance": "21.53",
+    "nearest_estimated_distance": "129.18",
+    "masari_estimated_cost": "43.06",
+    "nearest_estimated_cost": "258.36",
+    "parcel_batching_benefit": "5 parcels can use 1 Masari corridor trip instead of 5 nearest-driver parcel trips.",
+    "driver_utilization": "1.00",
+    "winner": "masari"
+  }
+}
+```
+
 Role and ownership rules:
 - Passenger role only can create/list/view/cancel passenger requests.
 - Passenger can only access own requests.
@@ -277,14 +367,68 @@ Role and ownership rules:
 - Merchant can only access own orders.
 - Merchant order creation accepts 1 to 10 parcels.
 - Admin role only can access admin read-only endpoints.
+- Passenger can run/view match results for own passenger request.
+- Merchant can run/view match results for own merchant order.
+- Admin can run/view matches for seeded or explicit demo records.
+- Merchant can batch only own order.
+- Admin can batch seeded/demo order.
+- Admin only can run and read comparison runs.
 
 [MATCHING_LOGIC]
-Not implemented in M2A.
+Implemented in M2B.
 
 Seed data includes the locked corridor and demo route prerequisites needed for later matching work.
 
-M2A note:
-- Manual APIs intentionally do not assign trips, match drivers, batch parcels, or compare algorithms.
+M2B matching filters:
+- Driver route must be active.
+- Driver route must use `hebron-ppu-bab-al-zawiya-to-bethlehem`.
+- Driver profile must exist and be verified.
+- Passenger count must fit `seats_available` when a passenger request is present.
+- Parcel count must fit `parcel_capacity_available` when a merchant order is present.
+- Inactive routes are ignored.
+
+M2B scoring formula:
+```text
+score =
+  0.40 * corridor_overlap
++ 0.25 * pickup_distance_score
++ 0.15 * timing_fit
++ 0.10 * trust_score
++ 0.10 * capacity_fit
+```
+
+Scoring breakdown fields:
+- `corridorOverlap`.
+- `pickupDistanceScore`.
+- `timingFit`.
+- `trustScore`.
+- `capacityFit`.
+- `finalScore`.
+- `estimatedDeviationKm`.
+
+Tie-breaks:
+- Higher score.
+- Lower estimated deviation.
+- Higher trust score.
+- Stable route id order for deterministic demo.
+
+Batching rules:
+- Uses parcels from the merchant order.
+- Allows 1 to 10 parcels.
+- Uses only the locked corridor.
+- Requires a verified active driver route with enough parcel capacity.
+- Produces one deterministic batch when capacity allows.
+- Updates order status to `batched`.
+- Produces judge-friendly explanation and estimated distance saved.
+
+Comparison formulas:
+- Corridor distance uses Haversine between Hebron/PPU/Bab Al-Zawiya and Bethlehem.
+- `masari_trips = 1` when passenger or parcel demand exists.
+- `nearest_driver_trips = passenger_request_count + parcel_count`.
+- `estimated_cost = estimated_distance * 2`.
+- `parcel_batching_benefit` explains trip reduction.
+- `driver_utilization = (parcel_count + passenger_count) / (parcel_count + 1)` clamped by deterministic demand formula.
+- Winner is `masari` when Masari cost and trips are less than or equal to nearest-driver baseline.
 
 [DEMO_MODE]
 Implemented endpoint:
@@ -330,6 +474,18 @@ Implemented minimal tests:
 - Driver route create/locked-corridor/deactivate ownership tests.
 - Merchant order create/ownership/parcel-count tests.
 - Admin dashboard/list authorization tests.
+- Matching route-compatible route beats wrong-direction route.
+- Matching ignores inactive/unverified routes through candidate query.
+- Matching rejects capacity mismatch.
+- Matching rejects non-owner access.
+- Matching returns persisted scoring breakdown.
+- Batching own order succeeds.
+- Batching rejects non-merchant/non-admin.
+- Batching rejects another merchant's order.
+- Batching rejects invalid order state.
+- Comparison admin run succeeds and persists.
+- Comparison rejects non-admin.
+- Comparison GET returns saved run.
 
 Required validation commands:
 - `npm install`.
@@ -379,6 +535,18 @@ M2A validation results:
 - `npm run build`: passed.
 - `npm run db:push`: passed against local PostgreSQL.
 - Real M2A smoke validation passed for health, demo reset, auth, `/me`, passenger request create/list-active/read/cancel, driver route create/list/list-active/deactivate, merchant order create/list/detail, and admin dashboard/list endpoints.
+
+M2B validation results:
+- Pre-step git status: clean.
+- Pre-step validation passed: `npm run prisma:validate`, `npm run prisma:generate`, `npm run typecheck`, `npm run test`, `npm run build`.
+- `npm run prisma:validate`: passed.
+- `npm run prisma:generate`: passed.
+- `npm run typecheck`: passed.
+- `npm run test`: passed, 4 files and 34 tests.
+- `npm run build`: passed.
+- `npm run db:push`: passed against local PostgreSQL.
+- Real M2B smoke validation passed for demo reset, match run/read, merchant batch, comparison run/read.
+- Real smoke output included match score `0.9317`, batch status `created`, estimated distance saved `86.12`, comparison winner `masari`, Masari trips `1`, nearest-driver trips `6`.
 
 [SUCCESS_CRITERIA]
 M1 success criteria:
