@@ -50,4 +50,15 @@ describe("auth", () => {
       .send({ phone: "+970590000001", password: "bad" })
       .expect(401);
   });
+
+  it("allows local admin console CORS preflight", async () => {
+    const response = await request(createApp())
+      .options("/api/v1/auth/login")
+      .set("Origin", "http://localhost:5175")
+      .set("Access-Control-Request-Method", "POST")
+      .set("Access-Control-Request-Headers", "content-type")
+      .expect(204);
+
+    expect(response.headers["access-control-allow-origin"]).toBe("http://localhost:5175");
+  });
 });

@@ -9,11 +9,13 @@ import { matchingRouter } from "./modules/matching.js";
 import { batchingRouter } from "./modules/batching.js";
 import { comparisonRouter } from "./modules/comparison.js";
 import { tripsRouter } from "./modules/trips.js";
+import { localDevCors } from "./middleware/cors.js";
 import { errorHandler } from "./middleware/error.js";
 
 export function createApp() {
   const app = express();
 
+  app.use(localDevCors);
   app.use(express.json());
 
   app.get("/api/v1/health", (_req, res) => {

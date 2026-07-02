@@ -649,6 +649,11 @@ M3C QA/polish changes:
 - API was served locally against PostgreSQL.
 - Browser automation/visual inspection was not available in the current tool environment, so visual review must still be performed by opening the console in a browser.
 
+Local admin CORS fix:
+- API supports env-based `CORS_ORIGINS`.
+- Default local origins include `http://localhost:5173`, `http://localhost:5174`, `http://localhost:5175`, and matching `127.0.0.1` origins.
+- CORS preflight and login responses include `Access-Control-Allow-Origin` for allowed admin console origins.
+
 [DEMO_MODE]
 Implemented endpoint:
 - `POST /api/v1/demo/reset`.
