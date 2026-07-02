@@ -3,7 +3,7 @@ CREATE TYPE "DriverRouteStatus" AS ENUM ('inactive', 'active', 'assigned', 'on_t
 CREATE TYPE "RequestStatus" AS ENUM ('draft', 'pending', 'matched', 'accepted', 'picked_up', 'in_transit', 'delivered', 'cancelled');
 CREATE TYPE "MerchantOrderStatus" AS ENUM ('draft', 'submitted', 'batched', 'assigned', 'in_transit', 'completed');
 CREATE TYPE "ParcelStatus" AS ENUM ('pending', 'batched', 'assigned', 'picked_up', 'in_transit', 'delivered');
-CREATE TYPE "AuditAction" AS ENUM ('auth_login', 'demo_reset', 'passenger_request_created', 'passenger_request_cancelled', 'driver_route_created', 'driver_route_deactivated', 'merchant_order_created', 'parcel_batch_created', 'comparison_run_created', 'driver_verification', 'match_decision', 'admin_action');
+CREATE TYPE "AuditAction" AS ENUM ('auth_login', 'demo_reset', 'passenger_request_created', 'passenger_request_cancelled', 'driver_route_created', 'driver_route_deactivated', 'merchant_order_created', 'driver_verification', 'match_decision', 'admin_action');
 
 CREATE TABLE "users" (
   "id" TEXT NOT NULL,
