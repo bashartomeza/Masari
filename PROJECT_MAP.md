@@ -3,7 +3,7 @@
 [PROJECT_OVERVIEW]
 Masari is a Palestine-focused smart route-sharing logistics MVP.
 
-Current implementation status: M3A Backend Trip Acceptance, Status Flow, and Deterministic Tracking Foundation.
+Current implementation status: M3B React Admin / Judge Demo Console.
 
 Locked MVP corridor:
 Hebron / PPU / Bab Al-Zawiya -> Bethlehem.
@@ -42,6 +42,18 @@ Implemented in M3A:
 - Status side effects across driver route, passenger request, merchant order, parcel batch, and parcels.
 - Audit events for match accept/reject, trip status updates, and tracking events.
 
+Implemented in M3B:
+- React/Vite admin demo console under `apps/admin`.
+- Admin login and current-admin session loading.
+- Demo reset panel with reset-key and admin-JWT support.
+- Dashboard overview for seeded users, routes, requests, orders, parcels, and trips.
+- Matching panel with selected route, score, scoring breakdown, and explanation.
+- Parcel batching panel with batch id, parcel count, distance saved, and explanation.
+- Comparison table for Masari vs nearest-driver metrics.
+- Trip control panel for match accept/reject and valid status progression.
+- Deterministic tracking simulation panel with latest location and route-progress trail.
+- Full demo sequence button using existing deterministic APIs.
+
 Migration integrity result:
 - M2B accidentally modified committed `0001_init` to add M2B audit enum values.
 - This was unnecessary because those values belong in `0002_matching_batching_comparison`.
@@ -50,10 +62,6 @@ Migration integrity result:
 
 Not implemented yet:
 - Flutter app flows.
-- React admin dashboard.
-- Matching algorithm.
-- Parcel batching algorithm.
-- Comparison dashboard.
 - AI parser.
 - Live GPS tracking.
 - Socket.IO.
@@ -82,6 +90,12 @@ Package versions checked via `npm view` before pinning:
 - supertest: 7.2.2.
 - @types/supertest: 7.2.0.
 - tsx: 4.22.4.
+- react: 19.2.7.
+- react-dom: 19.2.7.
+- vite: 8.1.3.
+- @vitejs/plugin-react: 6.0.3.
+- @types/react: 19.2.17.
+- @types/react-dom: 19.2.3.
 
 Backend:
 - Node.js.
@@ -93,6 +107,15 @@ Backend:
 - JWT.
 - bcryptjs.
 
+Admin console:
+- React.
+- Vite.
+- TypeScript.
+- Plain CSS.
+
+Required admin env:
+- `VITE_API_BASE_URL`, for example `http://localhost:3000`.
+
 [SYSTEM_FLOW]
 M1 flow:
 1. Operator configures `DATABASE_URL`, `JWT_SECRET`, and `DEMO_RESET_KEY`.
@@ -103,6 +126,25 @@ M1 flow:
 6. Seeded users can login through `POST /api/v1/auth/login`.
 7. Authenticated users can call `GET /api/v1/me`.
 
+M3B admin console flow:
+1. Operator starts API and admin app.
+2. Admin app reads `VITE_API_BASE_URL`.
+3. Judge signs in with seeded admin credentials.
+4. Console loads dashboard, routes, passenger requests, merchant orders, and trips.
+5. Judge can reset demo data and the console re-authenticates because seeded users are recreated.
+6. Judge can run matching, batching, comparison, match accept/reject, trip status progression, and deterministic tracking simulation.
+
+Workspace scripts:
+- `npm run dev:api` starts the API workspace.
+- `npm run dev:admin` starts the admin Vite app.
+- `npm run build:api` builds the API workspace.
+- `npm run build:admin` builds the admin workspace.
+- `npm run build` builds all workspaces.
+- `npm run typecheck:api` typechecks the API workspace.
+- `npm run typecheck:admin` typechecks the admin workspace.
+- `npm run typecheck` typechecks all workspaces.
+- `npm run prisma:generate` generates the API Prisma client from the root workspace.
+
 [ARCHITECTURE]
 Actual folder structure:
 
@@ -112,6 +154,18 @@ Actual folder structure:
 ├── README.md
 ├── PROJECT_MAP.md
 └── apps
+    ├── admin
+    │   ├── package.json
+    │   ├── tsconfig.json
+    │   ├── vite.config.ts
+    │   ├── index.html
+    │   ├── .env.example
+    │   └── src
+    │       ├── api.ts
+    │       ├── App.tsx
+    │       ├── main.tsx
+    │       ├── styles.css
+    │       └── vite-env.d.ts
     └── api
         ├── package.json
         ├── tsconfig.json
@@ -121,8 +175,9 @@ Actual folder structure:
         ├── prisma
         │   ├── schema.prisma
         │   └── migrations
-        │       └── 0001_init
-        │           └── migration.sql
+        │       ├── 0001_init
+        │       ├── 0002_matching_batching_comparison
+        │       └── 0003_trips_tracking
         └── src
             ├── app.ts
             ├── server.ts
@@ -556,6 +611,27 @@ Behavior:
 - `GET /api/v1/trips/:id/location` returns latest event by sequence.
 - No Socket.IO and no live GPS integration yet.
 
+[ADMIN_DEMO_CONSOLE]
+Implemented in M3B under `apps/admin`.
+
+Features:
+- One login screen using `POST /api/v1/auth/login`.
+- Stores admin JWT in `localStorage` for hackathon demo use.
+- Loads current admin via `GET /api/v1/me`.
+- Demo Control panel can call `POST /api/v1/demo/reset` with reset key and/or admin JWT.
+- Reset flow re-authenticates the admin because demo reset recreates seeded users.
+- System Overview panel uses admin dashboard/list endpoints for counts and seeded records.
+- Matching panel calls `POST /api/v1/matches/run` and displays selected route, score, breakdown, and explanation.
+- Parcel Batch panel calls `POST /api/v1/merchant/orders/:id/batch` and displays batch id, parcel count, estimated distance saved, and explanation.
+- Comparison panel calls `POST /api/v1/compare/run` and displays Masari vs nearest-driver metrics in a simple table.
+- Trip Flow panel calls match accept/reject, lists trips, and advances the valid trip lifecycle.
+- Tracking Simulation panel calls simulate step/reset and latest location polling.
+- Full Demo Sequence button runs reset, login, dashboard inputs, match, batch, comparison, accept, complete status progression, and one tracking step.
+
+Backend changes for M3B:
+- No backend permission changes were required.
+- Existing M3A permissions already allow admin to batch demo orders, accept/reject matches, update demo trips, and simulate tracking.
+
 [DEMO_MODE]
 Implemented endpoint:
 - `POST /api/v1/demo/reset`.
@@ -618,6 +694,8 @@ Implemented minimal tests:
 - Status side-effect tests.
 - Simulated tracking step tests.
 - Latest location polling tests.
+- Admin console TypeScript typecheck.
+- Admin console production build.
 
 Required validation commands:
 - `npm install`.
@@ -627,6 +705,8 @@ Required validation commands:
 - `npm run test`.
 - `npm run db:push` requires a live PostgreSQL `DATABASE_URL`.
 - `npm run build`.
+- `npm run typecheck:admin`.
+- `npm run build:admin`.
 - Endpoint validation against local API and PostgreSQL.
 - `npm audit --omit=dev`.
 
@@ -692,6 +772,20 @@ M3A validation results:
 - `npm run db:push`: passed against local PostgreSQL.
 - Real M3A smoke validation passed against local PostgreSQL for `GET /api/v1/health`, `POST /api/v1/demo/reset`, login as admin/passenger/driver/merchant, `GET /api/v1/me`, match run, parcel batch, comparison run/read, match accept, full trip status progression to `completed`, simulated tracking step, and latest location polling.
 - Real smoke output included dashboard users `5`, match status `proposed`, match score `0.9317`, batch status `created`, comparison winner `masari`, accepted trip status `accepted`, final trip status `completed`, simulated location sequence `0`, latest sequence `0`, latest source `simulated`.
+
+M3B validation results:
+- `npm install`: passed; reported existing 3 moderate audit findings, and `npm audit fix --force` was not run.
+- `npm run prisma:validate`: passed.
+- `npm run prisma:generate`: passed.
+- `npm run typecheck:api`: passed.
+- `npm run test`: passed, 5 files and 47 tests.
+- `npm run build:api`: passed.
+- `npm run typecheck:admin`: passed.
+- `npm run build:admin`: passed.
+- `npm run typecheck`: passed for admin and API workspaces.
+- `npm run build`: passed for admin and API workspaces.
+- Real M3B smoke validation passed against local PostgreSQL for demo reset, admin login, dashboard load, admin routes/requests/orders load, match run/read, parcel batch, comparison run/read, match accept, full status progression to `completed`, trips list, simulated tracking step, and latest location polling.
+- Real smoke output included dashboard users `5`, routes `2`, requests `1`, orders `1`, match score `0.9317`, batch status `created`, distance saved `86.12`, comparison winner `masari`, trip count `1`, final status `completed`, location sequence `0`, latest source `simulated`.
 
 [SUCCESS_CRITERIA]
 M1 success criteria:
