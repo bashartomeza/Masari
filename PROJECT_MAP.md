@@ -3,7 +3,7 @@
 [PROJECT_OVERVIEW]
 Masari is a Palestine-focused smart route-sharing logistics MVP.
 
-Current implementation status: M1 Foundation + Demo Reset.
+Current implementation status: M2A Backend Manual Role APIs.
 
 Locked MVP corridor:
 Hebron / PPU / Bab Al-Zawiya -> Bethlehem.
@@ -16,6 +16,14 @@ Implemented in M1:
 - Auth login endpoint.
 - Protected `/api/v1/me` endpoint.
 - Structured audit events for login and demo reset.
+
+Implemented in M2A:
+- Passenger manual request APIs.
+- Driver locked-corridor route APIs.
+- Merchant order/parcels APIs.
+- Admin read-only dashboard/list APIs.
+- Role guards and ownership checks.
+- Audit events for manual role actions.
 
 Not implemented yet:
 - Flutter app flows.
@@ -103,11 +111,16 @@ Actual folder structure:
             │   ├── auth.ts
             │   └── error.ts
             ├── modules
+            │   ├── admin.ts
             │   ├── auth.ts
+            │   ├── driver.ts
+            │   ├── merchant.ts
+            │   ├── passenger.ts
             │   └── demoReset.ts
             └── tests
                 ├── auth.test.ts
-                └── demoReset.test.ts
+                ├── demoReset.test.ts
+                └── manualRoleApis.test.ts
 ```
 
 [DATA_MODEL]
@@ -133,9 +146,18 @@ User includes:
 AuditEvent covers:
 - auth login.
 - demo reset.
+- passenger request created.
+- passenger request cancelled.
+- driver route created.
+- driver route deactivated.
+- merchant order created.
 - driver verification later.
 - match decisions later.
 - admin actions.
+
+M2A schema changes:
+- Expanded `AuditAction` enum with M2A action values.
+- No new tables were required.
 
 [STATE_MACHINES]
 M1 defines schema enum values only. Business state transition enforcement is not implemented yet.
@@ -146,7 +168,7 @@ Current enum support:
 - RequestStatus: draft, pending, matched, accepted, picked_up, in_transit, delivered, cancelled.
 - MerchantOrderStatus: draft, submitted, batched, assigned, in_transit, completed.
 - ParcelStatus: pending, batched, assigned, picked_up, in_transit, delivered.
-- AuditAction: auth_login, demo_reset, driver_verification, match_decision, admin_action.
+- AuditAction: auth_login, demo_reset, passenger_request_created, passenger_request_cancelled, driver_route_created, driver_route_deactivated, merchant_order_created, driver_verification, match_decision, admin_action.
 
 [API_CONTRACTS]
 Implemented endpoints:
@@ -154,6 +176,23 @@ Implemented endpoints:
 - `POST /api/v1/auth/login`.
 - `GET /api/v1/me`.
 - `POST /api/v1/demo/reset`.
+- `POST /api/v1/passenger/requests`.
+- `GET /api/v1/passenger/requests`.
+- `GET /api/v1/passenger/requests/active`.
+- `GET /api/v1/passenger/requests/:id`.
+- `PATCH /api/v1/passenger/requests/:id/cancel`.
+- `POST /api/v1/driver/routes`.
+- `GET /api/v1/driver/routes`.
+- `GET /api/v1/driver/routes/active`.
+- `PATCH /api/v1/driver/routes/:id/deactivate`.
+- `POST /api/v1/merchant/orders`.
+- `GET /api/v1/merchant/orders`.
+- `GET /api/v1/merchant/orders/:id`.
+- `GET /api/v1/admin/dashboard`.
+- `GET /api/v1/admin/drivers`.
+- `GET /api/v1/admin/requests`.
+- `GET /api/v1/admin/orders`.
+- `GET /api/v1/admin/routes`.
 
 Demo reset protection:
 - Admin JWT accepted if admin already exists.
@@ -182,10 +221,70 @@ Auth login response:
 }
 ```
 
+Passenger create request example:
+```json
+{
+  "pickup_label": "PPU Main Gate",
+  "pickup_lat": 31.55,
+  "pickup_lng": 35.1,
+  "destination_label": "Bethlehem Center",
+  "destination_lat": 31.7054,
+  "destination_lng": 35.2024,
+  "preferred_time": "2026-07-02T10:00:00.000Z",
+  "passenger_count": 1
+}
+```
+
+Driver create route example:
+```json
+{
+  "seats_available": 2,
+  "parcel_capacity_available": 5
+}
+```
+
+Driver route rules:
+- Route is automatically locked to Hebron / PPU / Bab Al-Zawiya -> Bethlehem.
+- If optional route labels or corridor key are supplied and do not match the locked corridor, the API rejects the request.
+
+Merchant create order example:
+```json
+{
+  "pickup_label": "Hebron Merchant Pickup",
+  "pickup_lat": 31.5326,
+  "pickup_lng": 35.0998,
+  "parcels": [
+    {
+      "destination_label": "Bethlehem Market",
+      "destination_lat": 31.7054,
+      "destination_lng": 35.2024,
+      "size": "S",
+      "priority": "normal"
+    }
+  ]
+}
+```
+
+Role and ownership rules:
+- Passenger role only can create/list/view/cancel passenger requests.
+- Passenger can only access own requests.
+- Passenger cancellation is allowed only for `pending` or `matched` requests.
+- Driver role only can create/list/deactivate routes.
+- Driver can only access own routes through their driver profile.
+- Driver route creation is locked to the single MVP corridor.
+- Driver deactivation is allowed only for active routes.
+- Merchant role only can create/list/view merchant orders.
+- Merchant can only access own orders.
+- Merchant order creation accepts 1 to 10 parcels.
+- Admin role only can access admin read-only endpoints.
+
 [MATCHING_LOGIC]
-Not implemented in M1.
+Not implemented in M2A.
 
 Seed data includes the locked corridor and demo route prerequisites needed for later matching work.
+
+M2A note:
+- Manual APIs intentionally do not assign trips, match drivers, batch parcels, or compare algorithms.
 
 [DEMO_MODE]
 Implemented endpoint:
@@ -227,6 +326,10 @@ Implemented minimal tests:
 - Auth login validation and JWT issue path with mocked Prisma.
 - Demo reset rejects missing reset key.
 - Demo reset succeeds with valid reset key and mocked Prisma transaction.
+- Passenger request create/read ownership/cancel tests.
+- Driver route create/locked-corridor/deactivate ownership tests.
+- Merchant order create/ownership/parcel-count tests.
+- Admin dashboard/list authorization tests.
 
 Required validation commands:
 - `npm install`.
@@ -265,6 +368,17 @@ M1 validation results:
 - `npm run db:push`: passed against `postgresql://postgres:postgres@localhost:5432/masari?schema=public`; database `masari` was created/synced.
 - Real API validation: passed for `GET /api/v1/health`, `POST /api/v1/demo/reset`, `POST /api/v1/auth/login` for passenger/driver/merchant/admin, and `GET /api/v1/me` for each role.
 - `npm audit --omit=dev`: reports 3 moderate findings through Prisma CLI transitive `@hono/node-server`; `npm audit fix --force` would install `prisma@6.19.3`, a breaking downgrade, so it was not applied.
+
+M2A validation results:
+- Pre-step M1 validation passed: `npm run prisma:validate`, `npm run prisma:generate`, `npm run typecheck`, `npm run test`, `npm run build`.
+- Git initialized and M1 committed as `chore: initialize Masari foundation`.
+- `npm run prisma:validate`: passed.
+- `npm run prisma:generate`: passed.
+- `npm run typecheck`: passed.
+- `npm run test`: passed, 3 files and 21 tests.
+- `npm run build`: passed.
+- `npm run db:push`: passed against local PostgreSQL.
+- Real M2A smoke validation passed for health, demo reset, auth, `/me`, passenger request create/list-active/read/cancel, driver route create/list/list-active/deactivate, merchant order create/list/detail, and admin dashboard/list endpoints.
 
 [SUCCESS_CRITERIA]
 M1 success criteria:

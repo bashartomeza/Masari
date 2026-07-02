@@ -51,3 +51,21 @@ export async function requireAuth(req: AuthenticatedRequest, _res: Response, nex
     next(error);
   }
 }
+
+export function requireRole(...roles: AuthUser["role"][]) {
+  return (req: AuthenticatedRequest, _res: Response, next: NextFunction) => {
+    try {
+      if (!req.user) {
+        throw new HttpError(401, "missing_auth_user");
+      }
+
+      if (!roles.includes(req.user.role)) {
+        throw new HttpError(403, "forbidden");
+      }
+
+      next();
+    } catch (error) {
+      next(error);
+    }
+  };
+}

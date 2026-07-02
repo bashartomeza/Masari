@@ -6,6 +6,7 @@ import { prisma } from "../lib/prisma.js";
 import { auditEvent } from "../lib/audit.js";
 import { verifyAuthToken } from "../middleware/auth.js";
 import { HttpError } from "../middleware/error.js";
+import { AuditAction } from "../generated/prisma/enums.js";
 
 export const LOCKED_CORRIDOR_KEY = "hebron-ppu-bab-al-zawiya-to-bethlehem";
 export const LOCKED_CORRIDOR_LABEL = "Hebron / PPU / Bab Al-Zawiya -> Bethlehem";
@@ -183,7 +184,7 @@ export async function resetDemoData(db: PrismaClient = prisma) {
     await tx.auditEvent.create({
       data: {
         user_id: admin.id,
-        action: "demo_reset",
+        action: AuditAction.demo_reset,
         entity_type: "DemoScenario",
         metadata: {
           corridor_key: LOCKED_CORRIDOR_KEY,
@@ -237,7 +238,7 @@ demoRouter.post("/demo/reset", async (req, res, next) => {
 
     const result = await resetDemoData(prisma);
     await auditEvent(prisma, {
-      action: "demo_reset",
+      action: AuditAction.demo_reset,
       entityType: "DemoScenario",
       metadata: { source: "api", corridor: LOCKED_CORRIDOR_LABEL }
     });

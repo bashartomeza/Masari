@@ -54,6 +54,11 @@ enum ParcelStatus {
 enum AuditAction {
   auth_login
   demo_reset
+  passenger_request_created
+  passenger_request_cancelled
+  driver_route_created
+  driver_route_deactivated
+  merchant_order_created
   driver_verification
   match_decision
   admin_action

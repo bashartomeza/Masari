@@ -5,6 +5,7 @@ import { prisma } from "../lib/prisma.js";
 import { auditEvent } from "../lib/audit.js";
 import { requireAuth, signAuthToken, type AuthenticatedRequest } from "../middleware/auth.js";
 import { HttpError } from "../middleware/error.js";
+import { AuditAction } from "../generated/prisma/enums.js";
 
 const loginSchema = z.object({
   phone: z.string().min(5),
@@ -44,7 +45,7 @@ authRouter.post("/auth/login", async (req, res, next) => {
 
     await auditEvent(prisma, {
       userId: user.id,
-      action: "auth_login",
+      action: AuditAction.auth_login,
       entityType: "User",
       entityId: user.id,
       metadata: { role: user.role, demo_account: user.demo_account }
