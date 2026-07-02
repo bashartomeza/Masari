@@ -237,6 +237,29 @@ th {
   color: #8f1f10;
 }
 
+.credential-hint {
+  background: #f7f0df;
+  border-radius: 16px;
+  color: #163f2d;
+  font-weight: 800;
+  padding: 0.75rem 0.9rem;
+}
+
+.demo-steps {
+  background: #f7f0df;
+  border-radius: 18px;
+  color: #344236;
+  display: grid;
+  gap: 0.35rem;
+  margin: 1rem 0 0;
+  padding: 0.9rem 0.9rem 0.9rem 2rem;
+}
+
+.demo-steps li::marker {
+  color: #d69028;
+  font-weight: 900;
+}
+
 .metric-grid {
   display: grid;
   gap: 0.7rem;

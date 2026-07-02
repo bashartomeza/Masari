@@ -46,6 +46,7 @@ export function App() {
   const [activeTrip, setActiveTrip] = useState<Trip | null>(null);
   const [latestLocation, setLatestLocation] = useState<LocationEvent | null>(null);
   const [locationTrail, setLocationTrail] = useState<LocationEvent[]>([]);
+  const [demoSteps, setDemoSteps] = useState<string[]>([]);
 
   const selectedRequest = requests[0];
   const selectedOrder = orders[0];
@@ -112,6 +113,7 @@ export function App() {
     setActiveTrip(null);
     setLatestLocation(null);
     setLocationTrail([]);
+    setDemoSteps([]);
     await refreshOverview(session.token);
   }
 
@@ -205,24 +207,39 @@ export function App() {
 
   async function runFullDemoSequence() {
     await runAction("full-demo", async () => {
+      const steps: string[] = [];
+      const mark = (step: string) => {
+        steps.push(step);
+        setDemoSteps([...steps]);
+      };
+
+      mark("Resetting deterministic judge scenario");
       await api.reset(token || undefined, resetKey);
+      mark("Signing back in after reset");
       const session = await api.login(phone, password);
       localStorage.setItem("masari_admin_token", session.token);
       setToken(session.token);
       setAdmin(session.user);
       const currentToken = session.token;
+      mark("Loading seeded request and merchant order");
       const overview = await Promise.all([api.requests(currentToken), api.orders(currentToken)]);
       const request = overview[0].requests[0];
       const order = overview[1].orders[0];
       if (!request || !order) throw new Error("Seeded request/order not found after reset.");
+      mark("Running route-based matching");
       const match = await api.runMatch(currentToken, request.id, order.id);
+      mark("Creating parcel batch");
       const batch = await api.batchOrder(currentToken, order.id);
+      mark("Comparing Masari vs nearest-driver baseline");
       const comparisonRun = await api.runComparison(currentToken, request.id, order.id);
+      mark("Accepting match and creating trip");
       const accepted = await api.acceptMatch(currentToken, match.match.id);
       let trip = accepted.trip;
       for (const status of ["pickup_started", "picked_up", "in_transit", "delivered", "completed"]) {
+        mark(`Advancing trip to ${status}`);
         trip = (await api.updateTripStatus(currentToken, trip.id, status)).trip;
       }
+      mark("Recording deterministic tracking step");
       const location = await api.simulateStep(currentToken, trip.id);
       setMatchResult(match);
       setBatchResult(batch);
@@ -231,6 +248,7 @@ export function App() {
       setLatestLocation(location.location);
       setLocationTrail([location.location]);
       await refreshOverview(currentToken);
+      mark("Demo sequence complete");
     }, "Full demo sequence completed.");
   }
 
@@ -246,6 +264,7 @@ export function App() {
           <p className="eyebrow">Masari Judge Console</p>
           <h1>Route-sharing logistics, in one demo flow.</h1>
           <p>Connect to `{API_BASE_URL}` and sign in with the seeded admin account.</p>
+          <p className="credential-hint">Demo admin: +970590000005 / demo-admin-123</p>
           <label>Admin phone<input value={phone} onChange={(event) => setPhone(event.target.value)} /></label>
           <label>Password<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} /></label>
           <button disabled={busy === "login"}>{busy === "login" ? "Signing in..." : "Sign in"}</button>
@@ -279,7 +298,8 @@ export function App() {
             <button onClick={resetDemo} disabled={!canAct}>{busy === "reset" ? "Resetting..." : "Reset Demo"}</button>
             <button onClick={() => refreshOverview()} disabled={!canAct}>Refresh Data</button>
           </div>
-          <p className="muted">Reset uses the admin JWT, the reset key, or both depending on backend configuration.</p>
+          <p className="muted">Reset recreates the same judge scenario: seeded users, one active corridor route, one passenger request, one merchant order, and five parcels.</p>
+          {demoSteps.length > 0 && <ol className="demo-steps">{demoSteps.map((step) => <li key={step}>{step}</li>)}</ol>}
         </Section>
 
         <Section title="System Overview">
@@ -303,7 +323,7 @@ export function App() {
           {matchResult ? (
             <div className="result-card">
               <p><strong>Match:</strong> {matchResult.match.id} <Badge>{matchResult.match.status}</Badge></p>
-              <p><strong>Selected route:</strong> {matchResult.match.driver_route_id}</p>
+              <p><strong>Selected driver:</strong> {matchResult.match.driver_route?.driver_id ?? "driver route"} on route {matchResult.match.driver_route_id}</p>
               <p><strong>Score:</strong> {matchResult.scoringBreakdown.finalScore}</p>
               <p>{matchResult.match.explanation}</p>
               <div className="breakdown">{Object.entries(matchResult.scoringBreakdown).map(([key, value]) => <span key={key}>{key}: {value}</span>)}</div>

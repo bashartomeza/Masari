@@ -42,6 +42,7 @@ export type DashboardResponse = {
 
 export type DriverRoute = {
   id: string;
+  driver_id?: string;
   status: string;
   origin_label: string;
   destination_label: string;

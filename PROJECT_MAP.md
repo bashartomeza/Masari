@@ -3,7 +3,7 @@
 [PROJECT_OVERVIEW]
 Masari is a Palestine-focused smart route-sharing logistics MVP.
 
-Current implementation status: M3B React Admin / Judge Demo Console.
+Current implementation status: M3C Visual Judge Demo QA and Admin Console Polish.
 
 Locked MVP corridor:
 Hebron / PPU / Bab Al-Zawiya -> Bethlehem.
@@ -53,6 +53,14 @@ Implemented in M3B:
 - Trip control panel for match accept/reject and valid status progression.
 - Deterministic tracking simulation panel with latest location and route-progress trail.
 - Full demo sequence button using existing deterministic APIs.
+
+Implemented in M3C:
+- Admin console demo-path QA pass from local dev servers.
+- Login screen now shows demo admin credentials.
+- Demo reset copy now explains that reset recreates the deterministic judge scenario.
+- Full Demo Sequence now shows step-by-step progress.
+- Matching panel now labels the selected driver/route more clearly.
+- Local API smoke sequence revalidated the full judge demo path.
 
 Migration integrity result:
 - M2B accidentally modified committed `0001_init` to add M2B audit enum values.
@@ -616,9 +624,11 @@ Implemented in M3B under `apps/admin`.
 
 Features:
 - One login screen using `POST /api/v1/auth/login`.
+- Login screen displays seeded demo admin credentials for judge/demo use.
 - Stores admin JWT in `localStorage` for hackathon demo use.
 - Loads current admin via `GET /api/v1/me`.
 - Demo Control panel can call `POST /api/v1/demo/reset` with reset key and/or admin JWT.
+- Demo Control explains that reset recreates the deterministic judge scenario.
 - Reset flow re-authenticates the admin because demo reset recreates seeded users.
 - System Overview panel uses admin dashboard/list endpoints for counts and seeded records.
 - Matching panel calls `POST /api/v1/matches/run` and displays selected route, score, breakdown, and explanation.
@@ -627,10 +637,17 @@ Features:
 - Trip Flow panel calls match accept/reject, lists trips, and advances the valid trip lifecycle.
 - Tracking Simulation panel calls simulate step/reset and latest location polling.
 - Full Demo Sequence button runs reset, login, dashboard inputs, match, batch, comparison, accept, complete status progression, and one tracking step.
+- Full Demo Sequence displays step-by-step progress and stops with a clear surfaced error if a step fails.
 
 Backend changes for M3B:
 - No backend permission changes were required.
 - Existing M3A permissions already allow admin to batch demo orders, accept/reject matches, update demo trips, and simulate tracking.
+
+M3C QA/polish changes:
+- No backend changes were required.
+- Admin app HTML was served locally by Vite.
+- API was served locally against PostgreSQL.
+- Browser automation/visual inspection was not available in the current tool environment, so visual review must still be performed by opening the console in a browser.
 
 [DEMO_MODE]
 Implemented endpoint:
@@ -787,6 +804,26 @@ M3B validation results:
 - Real M3B smoke validation passed against local PostgreSQL for demo reset, admin login, dashboard load, admin routes/requests/orders load, match run/read, parcel batch, comparison run/read, match accept, full status progression to `completed`, trips list, simulated tracking step, and latest location polling.
 - Real smoke output included dashboard users `5`, routes `2`, requests `1`, orders `1`, match score `0.9317`, batch status `created`, distance saved `86.12`, comparison winner `masari`, trip count `1`, final status `completed`, location sequence `0`, latest source `simulated`.
 
+M3C validation results:
+- Pre-step `git status`: clean.
+- Pre-step `npm run prisma:validate`: passed.
+- Pre-step `npm run prisma:generate`: passed.
+- Pre-step `npm run typecheck`: passed for admin and API workspaces.
+- Pre-step `npm run test`: passed, 5 files and 47 tests.
+- Pre-step `npm run build`: passed for admin and API workspaces.
+- Local API dev server started with PostgreSQL on port `3100`.
+- Local admin Vite server started and served the app HTML on port `5174` via IPv6 loopback.
+- Local full demo API sequence passed for demo reset, admin login, dashboard/routes/requests/orders load, match run, parcel batch, comparison run, match accept, trip progression to `completed`, tracking step, and latest location.
+- Local smoke output included users `5`, routes `2`, requests `1`, orders `1`, match score `0.9317`, batch status `created`, comparison winner `masari`, final status `completed`, location sequence `0`, latest sequence `0`.
+- Final `npm run prisma:validate`: passed.
+- Final `npm run prisma:generate`: passed.
+- Final `npm run typecheck`: passed for admin and API workspaces.
+- Final `npm run test`: passed, 5 files and 47 tests.
+- Final `npm run build`: passed for admin and API workspaces.
+- Final `npm run typecheck:admin`: passed.
+- Final `npm run build:admin`: passed.
+- Visual browser inspection could not be performed from the current tool environment; remaining manual check is to open the admin app in a browser and click through the full demo path.
+
 [SUCCESS_CRITERIA]
 M1 success criteria:
 - API can start.
@@ -800,6 +837,7 @@ M1 success criteria:
 [ORPHANS & PENDING]
 Current pending items:
 - npm audit reports 3 moderate findings through Prisma CLI transitive `@hono/node-server`. The available force fix would downgrade Prisma from 7.8.0 to 6.19.3, so this needs a Prisma upstream patch or explicit approval to downgrade.
+- Manual browser visual QA remains pending because this tool environment cannot visually inspect the interactive browser. Required manual check: run `npm run dev:api`, run `npm run dev:admin`, open the admin console, login as admin, run full demo sequence, and verify the judge-facing layout and copy.
 
 Commands to run locally:
 ```bash
