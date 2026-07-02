@@ -683,15 +683,15 @@ M2B validation results:
 M3A validation results:
 - Migration integrity check completed.
 - Corrective migration commit created: `chore: normalize Prisma migrations`.
-- Pre-step validation passed: `npm run prisma:validate`, `npm run prisma:generate`, `npm run typecheck`, `npm run test`, `npm run build`.
+- Pre-step validation passed: `npm run prisma:validate`, `npm run prisma:generate`, `npm run db:push`, `npm run typecheck`, `npm run test`, `npm run build`.
 - `npm run prisma:validate`: passed.
 - `npm run prisma:generate`: passed.
 - `npm run typecheck`: passed.
 - `npm run test`: passed, 5 files and 47 tests.
 - `npm run build`: passed.
 - `npm run db:push`: passed against local PostgreSQL.
-- Real M3A smoke validation passed for demo reset, match run, parcel batch, combined match accept, trip read, full status progression to completed, simulated tracking steps, and latest location polling.
-- Real smoke output included trip status `accepted`, final status `completed`, simulated location sequences `0` and `1`, latest sequence `1`.
+- Real M3A smoke validation passed against local PostgreSQL for `GET /api/v1/health`, `POST /api/v1/demo/reset`, login as admin/passenger/driver/merchant, `GET /api/v1/me`, match run, parcel batch, comparison run/read, match accept, full trip status progression to `completed`, simulated tracking step, and latest location polling.
+- Real smoke output included dashboard users `5`, match status `proposed`, match score `0.9317`, batch status `created`, comparison winner `masari`, accepted trip status `accepted`, final trip status `completed`, simulated location sequence `0`, latest sequence `0`, latest source `simulated`.
 
 [SUCCESS_CRITERIA]
 M1 success criteria:
