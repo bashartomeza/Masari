@@ -199,6 +199,204 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'تشخيصات تقنية'**
   String get diagnostics;
+
+  /// No description provided for @loadingSession.
+  ///
+  /// In ar, this message translates to:
+  /// **'جارٍ استعادة الجلسة...'**
+  String get loadingSession;
+
+  /// No description provided for @sessionRestoreFailed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذرت استعادة الجلسة. يرجى إعادة المحاولة.'**
+  String get sessionRestoreFailed;
+
+  /// No description provided for @retry.
+  ///
+  /// In ar, this message translates to:
+  /// **'إعادة المحاولة'**
+  String get retry;
+
+  /// No description provided for @signInWelcome.
+  ///
+  /// In ar, this message translates to:
+  /// **'سجل الدخول للمتابعة إلى مساحة عمل دورك.'**
+  String get signInWelcome;
+
+  /// No description provided for @signIn.
+  ///
+  /// In ar, this message translates to:
+  /// **'تسجيل الدخول'**
+  String get signIn;
+
+  /// No description provided for @phone.
+  ///
+  /// In ar, this message translates to:
+  /// **'رقم الهاتف'**
+  String get phone;
+
+  /// No description provided for @password.
+  ///
+  /// In ar, this message translates to:
+  /// **'كلمة المرور'**
+  String get password;
+
+  /// No description provided for @showPassword.
+  ///
+  /// In ar, this message translates to:
+  /// **'إظهار كلمة المرور'**
+  String get showPassword;
+
+  /// No description provided for @hidePassword.
+  ///
+  /// In ar, this message translates to:
+  /// **'إخفاء كلمة المرور'**
+  String get hidePassword;
+
+  /// No description provided for @demoAccounts.
+  ///
+  /// In ar, this message translates to:
+  /// **'حسابات تجريبية'**
+  String get demoAccounts;
+
+  /// No description provided for @passenger.
+  ///
+  /// In ar, this message translates to:
+  /// **'مسافر'**
+  String get passenger;
+
+  /// No description provided for @driver.
+  ///
+  /// In ar, this message translates to:
+  /// **'سائق'**
+  String get driver;
+
+  /// No description provided for @merchant.
+  ///
+  /// In ar, this message translates to:
+  /// **'تاجر'**
+  String get merchant;
+
+  /// No description provided for @admin.
+  ///
+  /// In ar, this message translates to:
+  /// **'مسؤول'**
+  String get admin;
+
+  /// No description provided for @unsupportedRole.
+  ///
+  /// In ar, this message translates to:
+  /// **'دور غير مدعوم'**
+  String get unsupportedRole;
+
+  /// No description provided for @logout.
+  ///
+  /// In ar, this message translates to:
+  /// **'تسجيل الخروج'**
+  String get logout;
+
+  /// No description provided for @sessionExpired.
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت الجلسة. يرجى تسجيل الدخول مرة أخرى.'**
+  String get sessionExpired;
+
+  /// No description provided for @invalidCredentials.
+  ///
+  /// In ar, this message translates to:
+  /// **'رقم الهاتف أو كلمة المرور غير صحيحة.'**
+  String get invalidCredentials;
+
+  /// No description provided for @networkUnavailable.
+  ///
+  /// In ar, this message translates to:
+  /// **'الشبكة غير متاحة. تحقق من اتصال واجهة API ثم أعد المحاولة.'**
+  String get networkUnavailable;
+
+  /// No description provided for @requestTimedOut.
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت مهلة الطلب. يرجى إعادة المحاولة.'**
+  String get requestTimedOut;
+
+  /// No description provided for @validationError.
+  ///
+  /// In ar, this message translates to:
+  /// **'يرجى التحقق من البيانات المدخلة.'**
+  String get validationError;
+
+  /// No description provided for @forbidden.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا الحساب غير مسموح له بتنفيذ هذا الإجراء.'**
+  String get forbidden;
+
+  /// No description provided for @serverError.
+  ///
+  /// In ar, this message translates to:
+  /// **'حدث خطأ في الخادم. يرجى المحاولة لاحقاً.'**
+  String get serverError;
+
+  /// No description provided for @requestFailed.
+  ///
+  /// In ar, this message translates to:
+  /// **'فشل الطلب. يرجى إعادة المحاولة.'**
+  String get requestFailed;
+
+  /// No description provided for @roleWorkspace.
+  ///
+  /// In ar, this message translates to:
+  /// **'مساحة عمل الدور'**
+  String get roleWorkspace;
+
+  /// No description provided for @currentUser.
+  ///
+  /// In ar, this message translates to:
+  /// **'المستخدم الحالي'**
+  String get currentUser;
+
+  /// No description provided for @role.
+  ///
+  /// In ar, this message translates to:
+  /// **'الدور'**
+  String get role;
+
+  /// No description provided for @lockedCorridorLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'المسار المثبت'**
+  String get lockedCorridorLabel;
+
+  /// No description provided for @workspaceReadyMessage.
+  ///
+  /// In ar, this message translates to:
+  /// **'مساحة عمل هذا الدور جاهزة للمرحلة التالية.'**
+  String get workspaceReadyMessage;
+
+  /// No description provided for @comingNext.
+  ///
+  /// In ar, this message translates to:
+  /// **'قريباً'**
+  String get comingNext;
+
+  /// No description provided for @businessFeaturesComingNext.
+  ///
+  /// In ar, this message translates to:
+  /// **'ستضاف إجراءات الدور التجارية في مراحل لاحقة. لا توجد حالياً تدفقات طلبات أو مسارات أو طلبات تاجر أو مطابقات أو رحلات أو تتبع.'**
+  String get businessFeaturesComingNext;
+
+  /// No description provided for @unsupportedRoleTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'الدور غير مدعوم على الهاتف'**
+  String get unsupportedRoleTitle;
+
+  /// No description provided for @adminWebConsoleMessage.
+  ///
+  /// In ar, this message translates to:
+  /// **'لوحة تحكم المسؤول متاحة عبر تطبيق الويب.'**
+  String get adminWebConsoleMessage;
 }
 
 class _AppLocalizationsDelegate

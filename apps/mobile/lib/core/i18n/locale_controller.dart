@@ -18,13 +18,17 @@ class LocaleController extends AsyncNotifier<Locale> {
   Future<Locale> build() async {
     _preferences = await ref.watch(sharedPreferencesProvider.future);
     final saved = _preferences.getString(DomainLabels.localeStorageKey);
-    if (DomainLabels.isSupported(saved)) return Locale(saved!);
+    if (DomainLabels.isSupported(saved)) {
+      return Locale(saved!);
+    }
     return DomainLabels.defaultLocale;
   }
 
   Future<void> setLocale(Locale locale) async {
     final languageCode = locale.languageCode;
-    if (!DomainLabels.isSupported(languageCode)) return;
+    if (!DomainLabels.isSupported(languageCode)) {
+      return;
+    }
     state = AsyncData(locale);
     await _preferences.setString(DomainLabels.localeStorageKey, languageCode);
   }

@@ -28,7 +28,7 @@ class MasariApp extends ConsumerWidget {
         GlobalCupertinoLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
       ],
-      routerConfig: appRouter,
+      routerConfig: ref.watch(appRouterProvider),
     );
   }
 }

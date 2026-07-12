@@ -62,4 +62,108 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get diagnostics => 'تشخيصات تقنية';
+
+  @override
+  String get loadingSession => 'جارٍ استعادة الجلسة...';
+
+  @override
+  String get sessionRestoreFailed =>
+      'تعذرت استعادة الجلسة. يرجى إعادة المحاولة.';
+
+  @override
+  String get retry => 'إعادة المحاولة';
+
+  @override
+  String get signInWelcome => 'سجل الدخول للمتابعة إلى مساحة عمل دورك.';
+
+  @override
+  String get signIn => 'تسجيل الدخول';
+
+  @override
+  String get phone => 'رقم الهاتف';
+
+  @override
+  String get password => 'كلمة المرور';
+
+  @override
+  String get showPassword => 'إظهار كلمة المرور';
+
+  @override
+  String get hidePassword => 'إخفاء كلمة المرور';
+
+  @override
+  String get demoAccounts => 'حسابات تجريبية';
+
+  @override
+  String get passenger => 'مسافر';
+
+  @override
+  String get driver => 'سائق';
+
+  @override
+  String get merchant => 'تاجر';
+
+  @override
+  String get admin => 'مسؤول';
+
+  @override
+  String get unsupportedRole => 'دور غير مدعوم';
+
+  @override
+  String get logout => 'تسجيل الخروج';
+
+  @override
+  String get sessionExpired => 'انتهت الجلسة. يرجى تسجيل الدخول مرة أخرى.';
+
+  @override
+  String get invalidCredentials => 'رقم الهاتف أو كلمة المرور غير صحيحة.';
+
+  @override
+  String get networkUnavailable =>
+      'الشبكة غير متاحة. تحقق من اتصال واجهة API ثم أعد المحاولة.';
+
+  @override
+  String get requestTimedOut => 'انتهت مهلة الطلب. يرجى إعادة المحاولة.';
+
+  @override
+  String get validationError => 'يرجى التحقق من البيانات المدخلة.';
+
+  @override
+  String get forbidden => 'هذا الحساب غير مسموح له بتنفيذ هذا الإجراء.';
+
+  @override
+  String get serverError => 'حدث خطأ في الخادم. يرجى المحاولة لاحقاً.';
+
+  @override
+  String get requestFailed => 'فشل الطلب. يرجى إعادة المحاولة.';
+
+  @override
+  String get roleWorkspace => 'مساحة عمل الدور';
+
+  @override
+  String get currentUser => 'المستخدم الحالي';
+
+  @override
+  String get role => 'الدور';
+
+  @override
+  String get lockedCorridorLabel => 'المسار المثبت';
+
+  @override
+  String get workspaceReadyMessage =>
+      'مساحة عمل هذا الدور جاهزة للمرحلة التالية.';
+
+  @override
+  String get comingNext => 'قريباً';
+
+  @override
+  String get businessFeaturesComingNext =>
+      'ستضاف إجراءات الدور التجارية في مراحل لاحقة. لا توجد حالياً تدفقات طلبات أو مسارات أو طلبات تاجر أو مطابقات أو رحلات أو تتبع.';
+
+  @override
+  String get unsupportedRoleTitle => 'الدور غير مدعوم على الهاتف';
+
+  @override
+  String get adminWebConsoleMessage =>
+      'لوحة تحكم المسؤول متاحة عبر تطبيق الويب.';
 }

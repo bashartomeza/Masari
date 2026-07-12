@@ -3,7 +3,7 @@
 [PROJECT_OVERVIEW]
 Masari is a Palestine-focused smart route-sharing logistics MVP.
 
-Current implementation status: M4B Flutter Toolchain Setup and Arabic-Default Android App Shell.
+Current implementation status: M4C Mobile Authentication, Session Restoration, and Role Routing.
 
 Locked MVP corridor:
 Hebron / PPU / Bab Al-Zawiya -> Bethlehem.
@@ -85,6 +85,21 @@ Implemented in M4B:
 - Locale persists with `masari_locale`.
 - `API_BASE_URL` configured through `String.fromEnvironment`.
 - Debug APK builds successfully.
+- Android runtime validation passed on emulator `Medium_Phone_API_36.0` / `emulator-5554`, Android 16 API 36.
+
+Implemented in M4C:
+- Mobile API client for `POST /api/v1/auth/login` and `GET /api/v1/me` only.
+- JWT storage uses `flutter_secure_storage` only.
+- Locale storage remains in `shared_preferences` only.
+- Startup session restoration reads saved JWT and validates it with `/api/v1/me`.
+- 401/invalid token clears secure token and returns to login.
+- Temporary network/timeout restore failure preserves the possibly valid token and shows retry.
+- Login screen with passenger, driver, and merchant demo presets.
+- Logout clears secure token and preserves selected language.
+- Role-aware routing for passenger, driver, merchant, and unsupported admin mobile role.
+- Passenger, driver, and merchant home shells added as role workspaces only.
+- Admin mobile login routes to unsupported-role screen with web-admin guidance.
+- No mobile business flows were added.
 
 Migration integrity result:
 - M2B accidentally modified committed `0001_init` to add M2B audit enum values.
@@ -94,6 +109,7 @@ Migration integrity result:
 
 Not implemented yet:
 - Flutter passenger/driver/merchant business flows.
+- Mobile registration.
 - AI parser.
 - Live GPS tracking.
 - Socket.IO.
@@ -138,6 +154,8 @@ Package versions checked via `npm view` before pinning:
 - flutter_riverpod: 3.3.2.
 - go_router: 17.3.0.
 - shared_preferences: 2.5.5.
+- http: 1.6.0.
+- flutter_secure_storage: 10.3.1.
 - intl: 0.20.2, pinned by Flutter 3.44.6 `flutter_localizations`.
 - flutter_lints: 6.0.0.
 
@@ -165,6 +183,8 @@ Mobile Android app:
 - Riverpod.
 - go_router.
 - shared_preferences.
+- http.
+- flutter_secure_storage.
 - Flutter SDK `flutter_localizations`.
 - Flutter ARB/gen_l10n.
 
@@ -211,6 +231,18 @@ M4B mobile shell flow:
 4. Selected language persists under `masari_locale` through `shared_preferences`.
 5. Welcome shell shows app-shell status and configured `API_BASE_URL` diagnostics only.
 6. No passenger, driver, merchant, auth, matching, trip, or tracking business flow is implemented yet.
+
+M4C mobile auth/session flow:
+1. App starts at `/splash` and loads the saved locale independently from auth state.
+2. App reads JWT from secure storage key `masari_jwt`.
+3. If no token exists, unauthenticated users route to `/login`.
+4. If a token exists, app calls `GET /api/v1/me` with `Authorization: Bearer <token>`.
+5. If `/me` succeeds, session is restored and user routes by role.
+6. If `/me` returns 401 or invalid token, token is deleted and user routes to `/login`.
+7. If restore fails due network or timeout, token is preserved and splash shows retry.
+8. Login calls `POST /api/v1/auth/login`, saves JWT securely, sets current user, and routes by role.
+9. Logout deletes secure JWT, clears auth state, returns to `/login`, and preserves selected language.
+10. No refresh token, registration, biometric auth, GPS, maps, Socket.IO, or business-flow API calls exist.
 
 Workspace scripts:
 - `npm run dev:api` starts the API workspace.
@@ -259,6 +291,9 @@ Actual folder structure:
     │   │   ├── main.dart
     │   │   ├── app.dart
     │   │   ├── core
+    │   │   │   ├── api
+    │   │   │   │   ├── api_client.dart
+    │   │   │   │   └── api_error.dart
     │   │   │   ├── config
     │   │   │   │   └── app_config.dart
     │   │   │   ├── i18n
@@ -273,6 +308,22 @@ Actual folder structure:
     │   │   │       ├── language_switch.dart
     │   │   │       └── masari_card.dart
     │   │   ├── features
+    │   │   │   ├── auth
+    │   │   │   │   ├── application
+    │   │   │   │   │   └── auth_controller.dart
+    │   │   │   │   ├── data
+    │   │   │   │   │   ├── auth_repository.dart
+    │   │   │   │   │   └── token_storage.dart
+    │   │   │   │   ├── domain
+    │   │   │   │   │   └── auth_models.dart
+    │   │   │   │   └── presentation
+    │   │   │   │       ├── demo_accounts.dart
+    │   │   │   │       ├── login_screen.dart
+    │   │   │   │       ├── splash_screen.dart
+    │   │   │   │       └── unsupported_role_screen.dart
+    │   │   │   ├── home
+    │   │   │   │   └── presentation
+    │   │   │   │       └── role_home_screen.dart
     │   │   │   └── shell
     │   │   │       └── presentation
     │   │   │           └── welcome_screen.dart
@@ -281,7 +332,9 @@ Actual folder structure:
     │   │       ├── app_en.arb
     │   │       └── generated AppLocalizations files
     │   └── test
-    │       └── app_shell_test.dart
+    │       ├── app_shell_test.dart
+    │       ├── auth_controller_test.dart
+    │       └── auth_repository_test.dart
     └── api
         ├── package.json
         ├── tsconfig.json
@@ -807,6 +860,63 @@ Mobile pending backend gap:
 - Role-filtered behavior should be: driver sees matches for own driver routes, passenger sees matches for own requests, merchant sees matches for own orders, admin can see all.
 - This backend endpoint was not implemented in M4B.
 
+M4B Android runtime validation:
+- Existing AVD found: `Medium_Phone_API_36.0`.
+- Initial emulator boot got stuck as ADB `offline`; a cold boot with wiped emulator data recovered it.
+- Runtime device: `emulator-5554`, `sdk gphone64 x86 64`, Android 16 API 36.
+- App launched with `flutter run -d emulator-5554 --no-resident --dart-define=API_BASE_URL=http://10.0.2.2:3000`.
+- `adb shell pm clear ps.masari.mobile` succeeded before runtime validation.
+- Arabic opened by default and used RTL.
+- English switch changed UI to English/LTR.
+- English persisted after force-stop/relaunch.
+- Switching back to Arabic persisted after force-stop/relaunch.
+- API environment text showed `http://10.0.2.2:3000`.
+- No Flutter counter-template UI, crash, overflow, or visibly broken layout was observed.
+- Screenshots captured under `C:\Users\basha\AppData\Local\Temp\opencode`:
+  - `masari_m4b_ar.png`.
+  - `masari_m4b_en.png`.
+  - relaunch verification screenshots for both languages.
+
+[MOBILE_AUTH_AND_ROLE_ROUTING]
+Implemented in M4C under `apps/mobile`.
+
+Scope implemented:
+- API client uses existing `String.fromEnvironment('API_BASE_URL')` through `AppConfig`.
+- API client calls only `POST /api/v1/auth/login` and `GET /api/v1/me`.
+- API client sends JSON headers and `Authorization: Bearer <token>` when a token is provided.
+- API timeout is 12 seconds.
+- API errors are mapped to network, timeout, validation, unauthorized, forbidden, server, and unknown categories.
+- Error objects and `toString()` do not include raw JWT or password values.
+- DTO parsing is manual and typed; no code generation or JSON annotation package was added.
+- JWT is stored only in Flutter secure storage key `masari_jwt`.
+- Passwords, raw login payloads, and JWTs are not stored in shared preferences.
+- Locale remains stored in shared preferences key `masari_locale`.
+- Riverpod owns auth/session state, login action state, logout, restored user, and role routing inputs.
+- go_router routes:
+  - `/splash`.
+  - `/login`.
+  - `/passenger`.
+  - `/driver`.
+  - `/merchant`.
+  - `/unsupported-role`.
+- Unauthenticated users route to `/login`.
+- Passenger routes to `/passenger`.
+- Driver routes to `/driver`.
+- Merchant routes to `/merchant`.
+- Admin routes to `/unsupported-role`.
+- Users cannot manually navigate to another role route because redirects always return them to their own role route.
+- Unsupported admin message is localized as:
+  - Arabic: `لوحة تحكم المسؤول متاحة عبر تطبيق الويب.`
+  - English: `The admin console is available through the web application.`
+- Role home shells show Masari branding, current user name, role label, locked corridor, language switch, logout, workspace-ready copy, and clearly labeled coming-next copy.
+- No passenger request, driver route, merchant order, match list, match decision, trip, tracking, AI, Socket.IO, GPS, map, registration, refresh-token, or payment feature was implemented.
+
+M4C mobile translations:
+- Arabic and English ARB entries added for splash/session restoration, login, phone, password, show/hide password, sign-in, demo accounts, passenger, driver, merchant, admin, logout, errors, retry, role workspace, locked corridor label, coming-next copy, and unsupported admin mobile role.
+- Arabic remains default.
+- English remains optional and persisted independently of auth state.
+- Phone fields and demo phone labels render LTR inside Arabic layouts.
+
 [DEMO_MODE]
 Implemented endpoint:
 - `POST /api/v1/demo/reset`.
@@ -873,6 +983,9 @@ Implemented minimal tests:
 - Admin console production build.
 - Admin localization tests for Arabic default, saved English restore, document `lang`/`dir`, persistence, translation lookup, unknown-key fallback, and status label mapping.
 - Mobile app-shell tests for Arabic default, RTL direction, English switching, LTR direction, `masari_locale` persistence, saved English restoration, `API_BASE_URL` config, and absence of Flutter counter-template content.
+- Mobile auth repository tests for successful login parsing, failed login mapping, `/me` parsing, authorization header sending, and avoiding raw-token exposure in errors.
+- Mobile auth controller tests for no-token login state, valid saved-token restoration, 401 token removal, temporary network failure preserving token with retry state, and logout token removal.
+- Mobile routing/widget tests for passenger, driver, merchant, unsupported admin, role-route protection, Arabic RTL login, English LTR switch, demo preset fill, loading disabled button, translated invalid credentials, logout returning to login, and locale preservation after logout.
 
 Required validation commands:
 - `npm install`.
@@ -1026,6 +1139,45 @@ M4B validation results:
 - `adb devices`: no Android devices attached.
 - Existing repo regression passed: `npm run prisma:validate`, `npm run prisma:generate`, `npm run typecheck`, `npm run test`, and sequential `npm run build`.
 
+M4B runtime validation results:
+- Repository baseline before runtime validation was clean at commit `a00ed58 feat: initialize Arabic-first Flutter app`.
+- Existing AVD `Medium_Phone_API_36.0` found through emulator list.
+- AVD cold boot with wiped emulator data became visible as `emulator-5554`.
+- `flutter devices` reported `sdk gphone64 x86 64 (mobile)`, Android 16 API 36.
+- App data cleared with `adb shell pm clear ps.masari.mobile`.
+- Runtime launch passed with `flutter run -d emulator-5554 --no-resident --dart-define=API_BASE_URL=http://10.0.2.2:3000`.
+- Arabic default, RTL, English/LTR switch, relaunch persistence for English, relaunch persistence for Arabic, configured API URL, no counter-template UI, and no visible crash/overflow were verified.
+- No M4B code fix was needed and no separate M4B fix commit was created.
+
+M4C validation results:
+- Added dependency versions: `http 1.6.0`, `flutter_secure_storage 10.3.1`.
+- `flutter pub get`: passed.
+- `flutter gen-l10n`: passed.
+- `dart format --set-exit-if-changed .`: passed.
+- `flutter analyze`: passed, no issues.
+- `flutter test`: passed, 22 mobile tests.
+- `flutter build apk --debug --dart-define=API_BASE_URL=http://10.0.2.2:3000`: passed.
+- Debug APK output: `apps/mobile/build/app/outputs/flutter-apk/app-debug.apk`.
+- Existing repo regression passed: `npm run prisma:validate`, `npm run prisma:generate`, `npm run typecheck`, `npm run test`, and `npm run build`.
+
+M4C Android runtime smoke:
+- API started locally with `npm run dev:api` using local PostgreSQL URL, development JWT secret, and demo reset key.
+- API health returned `{"ok":true,"service":"masari-api"}`.
+- Demo data reset passed with `POST /api/v1/demo/reset` and `x-demo-reset-key`.
+- Mobile launched on `emulator-5554` with `API_BASE_URL=http://10.0.2.2:3000`.
+- Cleared app data before smoke.
+- Arabic default login screen verified.
+- Passenger demo account logged in and routed to passenger home shell.
+- Force-stop/relaunch restored passenger session through `/api/v1/me`.
+- Logout returned to login and preserved Arabic locale.
+- Driver demo account logged in and routed to driver home shell.
+- Merchant demo account logged in and routed to merchant home shell.
+- Invalid password showed translated invalid-credentials error.
+- English switch changed login UI to LTR English.
+- Force-stop/relaunch preserved English selection.
+- No crash, overflow, or visibly broken layout was observed during smoke.
+- Runtime screenshots captured under `C:\Users\basha\AppData\Local\Temp\opencode`, including Arabic login, passenger restore, driver, merchant, invalid-password, English, and English relaunch screenshots.
+
 [SUCCESS_CRITERIA]
 M1 success criteria:
 - API can start.
@@ -1041,7 +1193,6 @@ Current pending items:
 - npm audit reports 3 moderate findings through Prisma CLI transitive `@hono/node-server`. The available force fix would downgrade Prisma from 7.8.0 to 6.19.3, so this needs a Prisma upstream patch or explicit approval to downgrade.
 - Manual browser visual QA remains pending because this tool environment cannot visually inspect the interactive browser. Required manual check: run `npm run dev:api`, run `npm run dev:admin`, open the admin console, login as admin, run full demo sequence, and verify the judge-facing layout and copy.
 - Manual M3D language QA remains pending because this tool environment cannot visually inspect the interactive browser. Required manual check: clear `masari_locale`, verify Arabic RTL default, switch to English LTR, refresh, verify English persistence, switch back to Arabic, and run the full demo path.
-- Mobile runtime validation on Android remains pending because no Android emulator or physical device is currently connected. APK build validation passed.
 - Backend gap for future mobile driver flow: no role-filtered `GET /api/v1/matches` endpoint exists yet for discovering proposed matches. Do not implement until the matching-list milestone.
 
 Commands to run locally:
