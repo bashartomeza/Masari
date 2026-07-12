@@ -3,7 +3,7 @@
 [PROJECT_OVERVIEW]
 Masari is a Palestine-focused smart route-sharing logistics MVP.
 
-Current implementation status: M3D Admin Console Arabic/English Localization.
+Current implementation status: M4B Flutter Toolchain Setup and Arabic-Default Android App Shell.
 
 Locked MVP corridor:
 Hebron / PPU / Bab Al-Zawiya -> Bethlehem.
@@ -73,6 +73,19 @@ Implemented in M3D:
 - API enum values remain unchanged and are mapped to translated UI labels.
 - Locale-aware number and date/time formatting added for `ar-PS` and `en-US`.
 
+Implemented in M4B:
+- Stable Flutter SDK installed under `C:\Users\basha\development\flutter` and added to user PATH.
+- Android SDK command-line tools installed under existing Android SDK.
+- Android licenses accepted.
+- `flutter doctor -v` reports Android-capable environment with no issues.
+- Android-only Flutter app created under `apps/mobile`.
+- Android application ID set to `ps.masari.mobile`.
+- Arabic-default mobile shell implemented with Flutter ARB/gen_l10n.
+- English optional language switch implemented.
+- Locale persists with `masari_locale`.
+- `API_BASE_URL` configured through `String.fromEnvironment`.
+- Debug APK builds successfully.
+
 Migration integrity result:
 - M2B accidentally modified committed `0001_init` to add M2B audit enum values.
 - This was unnecessary because those values belong in `0002_matching_batching_comparison`.
@@ -80,7 +93,7 @@ Migration integrity result:
 - Corrective commit created: `chore: normalize Prisma migrations`.
 
 Not implemented yet:
-- Flutter app flows.
+- Flutter passenger/driver/merchant business flows.
 - AI parser.
 - Live GPS tracking.
 - Socket.IO.
@@ -89,6 +102,13 @@ Not implemented yet:
 Actual local runtime checked on 2026-07:
 - Node.js: v22.17.1.
 - npm: 10.9.2.
+- Flutter: 3.44.6 stable.
+- Dart: 3.12.2 stable.
+- Flutter SDK path: `C:\Users\basha\development\flutter`.
+- Android SDK path: `C:\Users\basha\AppData\Local\Android\Sdk`.
+- Android SDK platform: android-36.
+- Android build tools: 36.0.0.
+- Android Studio bundled JDK selected by Flutter: `C:\Program Files\Android\Android Studio\jbr\bin\java`, OpenJDK 21.0.6.
 
 Package versions checked via `npm view` before pinning:
 - express: 5.2.1.
@@ -115,6 +135,11 @@ Package versions checked via `npm view` before pinning:
 - @vitejs/plugin-react: 6.0.3.
 - @types/react: 19.2.17.
 - @types/react-dom: 19.2.3.
+- flutter_riverpod: 3.3.2.
+- go_router: 17.3.0.
+- shared_preferences: 2.5.5.
+- intl: 0.20.2, pinned by Flutter 3.44.6 `flutter_localizations`.
+- flutter_lints: 6.0.0.
 
 Backend:
 - Node.js.
@@ -132,6 +157,16 @@ Admin console:
 - TypeScript.
 - Plain CSS.
 - Small typed in-repo i18n dictionary; no external localization library.
+
+Mobile Android app:
+- Flutter.
+- Dart.
+- Android only.
+- Riverpod.
+- go_router.
+- shared_preferences.
+- Flutter SDK `flutter_localizations`.
+- Flutter ARB/gen_l10n.
 
 Required admin env:
 - `VITE_API_BASE_URL`, for example `http://localhost:3000`.
@@ -168,6 +203,14 @@ M3D localization flow:
 3. Selected locale is saved to `masari_locale`.
 4. Refresh restores the saved locale.
 5. UI direction follows locale and technical values such as phone numbers, IDs, URLs, and coordinates remain readable LTR.
+
+M4B mobile shell flow:
+1. Android app starts in Arabic when `masari_locale` is not saved.
+2. Arabic UI uses RTL through Flutter localization/direction handling.
+3. User can switch to English from the welcome shell.
+4. Selected language persists under `masari_locale` through `shared_preferences`.
+5. Welcome shell shows app-shell status and configured `API_BASE_URL` diagnostics only.
+6. No passenger, driver, merchant, auth, matching, trip, or tracking business flow is implemented yet.
 
 Workspace scripts:
 - `npm run dev:api` starts the API workspace.
@@ -207,6 +250,38 @@ Actual folder structure:
     │       ├── main.tsx
     │       ├── styles.css
     │       └── vite-env.d.ts
+    ├── mobile
+    │   ├── pubspec.yaml
+    │   ├── pubspec.lock
+    │   ├── l10n.yaml
+    │   ├── android
+    │   ├── lib
+    │   │   ├── main.dart
+    │   │   ├── app.dart
+    │   │   ├── core
+    │   │   │   ├── config
+    │   │   │   │   └── app_config.dart
+    │   │   │   ├── i18n
+    │   │   │   │   ├── domain_labels.dart
+    │   │   │   │   └── locale_controller.dart
+    │   │   │   ├── routing
+    │   │   │   │   └── app_router.dart
+    │   │   │   ├── theme
+    │   │   │   │   ├── app_theme.dart
+    │   │   │   │   └── app_tokens.dart
+    │   │   │   └── widgets
+    │   │   │       ├── language_switch.dart
+    │   │   │       └── masari_card.dart
+    │   │   ├── features
+    │   │   │   └── shell
+    │   │   │       └── presentation
+    │   │   │           └── welcome_screen.dart
+    │   │   └── l10n
+    │   │       ├── app_ar.arb
+    │   │       ├── app_en.arb
+    │   │       └── generated AppLocalizations files
+    │   └── test
+    │       └── app_shell_test.dart
     └── api
         ├── package.json
         ├── tsconfig.json
@@ -699,6 +774,39 @@ M3D localization:
 - Admin localization tests live in `apps/admin/src/i18n/locale.test.ts`.
 - Backend enum/API values remain unchanged; translations are presentation-only.
 
+[MOBILE_ANDROID_APP]
+Implemented in M4B under `apps/mobile`.
+
+Scope implemented:
+- Android-only Flutter project `masari_mobile`.
+- Android application ID: `ps.masari.mobile`.
+- Welcome/app-shell route only at `/`.
+- Arabic default locale with RTL.
+- English optional locale with LTR.
+- Language switch on the welcome shell.
+- Locale persistence key: `masari_locale`.
+- ARB/gen_l10n localization files:
+  - `apps/mobile/l10n.yaml`.
+  - `apps/mobile/lib/l10n/app_ar.arb`.
+  - `apps/mobile/lib/l10n/app_en.arb`.
+  - Flutter-generated `AppLocalizations` files.
+- `API_BASE_URL` build configuration through `String.fromEnvironment`.
+- Default development API base URL: `http://10.0.2.2:3000`.
+- Debug Android cleartext HTTP enabled only in `android/app/src/debug/AndroidManifest.xml`.
+- Main manifest includes internet permission.
+- No GPS, live location, Socket.IO, auth, role, matching, trip, tracking, or payment code added.
+
+Mobile API URL examples:
+- Android emulator to host API: `--dart-define=API_BASE_URL=http://10.0.2.2:3000`.
+- Physical Android phone to host API: `--dart-define=API_BASE_URL=http://<computer-lan-ip>:3000`.
+- Future hosted demo API: `--dart-define=API_BASE_URL=https://<demo-api-domain>`.
+
+Mobile pending backend gap:
+- Drivers currently have no role-filtered endpoint for discovering proposed matches.
+- Expected future surgical backend solution: `GET /api/v1/matches`.
+- Role-filtered behavior should be: driver sees matches for own driver routes, passenger sees matches for own requests, merchant sees matches for own orders, admin can see all.
+- This backend endpoint was not implemented in M4B.
+
 [DEMO_MODE]
 Implemented endpoint:
 - `POST /api/v1/demo/reset`.
@@ -764,6 +872,7 @@ Implemented minimal tests:
 - Admin console TypeScript typecheck.
 - Admin console production build.
 - Admin localization tests for Arabic default, saved English restore, document `lang`/`dir`, persistence, translation lookup, unknown-key fallback, and status label mapping.
+- Mobile app-shell tests for Arabic default, RTL direction, English switching, LTR direction, `masari_locale` persistence, saved English restoration, `API_BASE_URL` config, and absence of Flutter counter-template content.
 
 Required validation commands:
 - `npm install`.
@@ -893,6 +1002,30 @@ M3D validation results:
 - Local smoke output included users `5`, match score `0.9317`, batch status `created`, comparison winner `masari`, final status `completed`, location sequence `0`, latest sequence `0`.
 - Interactive browser visual inspection could not be performed from the current tool environment; remaining manual check is to clear `masari_locale`, open the admin console, confirm Arabic RTL default, login and run demo flow in Arabic, switch to English, refresh to confirm English persists, switch back to Arabic, and confirm auth/demo state remain functional.
 
+M4B validation results:
+- Initial toolchain inspection found Flutter, Dart, and adb missing from PATH.
+- Flutter stable installed to `C:\Users\basha\development\flutter` and added to user PATH.
+- Android platform-tools added to user PATH.
+- Android command-line tools installed under `C:\Users\basha\AppData\Local\Android\Sdk\cmdline-tools\latest`.
+- `flutter channel stable`: completed.
+- `flutter upgrade`: Flutter already current on stable.
+- `flutter config --android-sdk "C:\Users\basha\AppData\Local\Android\Sdk"`: completed.
+- `flutter doctor --android-licenses`: all SDK licenses accepted.
+- Installed missing Android SDK Platform 36 and Android Build Tools 28.0.3 to satisfy Flutter doctor.
+- Final `flutter --version`: Flutter 3.44.6 stable, Dart 3.12.2.
+- Final `dart --version`: Dart 3.12.2 stable.
+- Final `flutter doctor -v`: no issues found; Android toolchain ready with Android SDK 36.0.0 and Android Studio bundled JDK OpenJDK 21.0.6.
+- `flutter pub get`: passed.
+- `flutter gen-l10n`: passed.
+- `dart format --set-exit-if-changed .`: passed after formatting.
+- `flutter analyze`: passed, no issues.
+- `flutter test`: passed, 5 tests.
+- `flutter build apk --debug --dart-define=API_BASE_URL=http://10.0.2.2:3000`: passed.
+- Debug APK output: `apps/mobile/build/app/outputs/flutter-apk/app-debug.apk`.
+- `flutter devices`: no Android emulator or physical Android device connected; Windows, Chrome, and Edge only.
+- `adb devices`: no Android devices attached.
+- Existing repo regression passed: `npm run prisma:validate`, `npm run prisma:generate`, `npm run typecheck`, `npm run test`, and sequential `npm run build`.
+
 [SUCCESS_CRITERIA]
 M1 success criteria:
 - API can start.
@@ -908,6 +1041,8 @@ Current pending items:
 - npm audit reports 3 moderate findings through Prisma CLI transitive `@hono/node-server`. The available force fix would downgrade Prisma from 7.8.0 to 6.19.3, so this needs a Prisma upstream patch or explicit approval to downgrade.
 - Manual browser visual QA remains pending because this tool environment cannot visually inspect the interactive browser. Required manual check: run `npm run dev:api`, run `npm run dev:admin`, open the admin console, login as admin, run full demo sequence, and verify the judge-facing layout and copy.
 - Manual M3D language QA remains pending because this tool environment cannot visually inspect the interactive browser. Required manual check: clear `masari_locale`, verify Arabic RTL default, switch to English LTR, refresh, verify English persistence, switch back to Arabic, and run the full demo path.
+- Mobile runtime validation on Android remains pending because no Android emulator or physical device is currently connected. APK build validation passed.
+- Backend gap for future mobile driver flow: no role-filtered `GET /api/v1/matches` endpoint exists yet for discovering proposed matches. Do not implement until the matching-list milestone.
 
 Commands to run locally:
 ```bash

@@ -1,0 +1,20 @@
+{
+  "@@locale": "en",
+  "appTitle": "Masari",
+  "tagline": "Smart route-sharing logistics",
+  "welcomeTitle": "Welcome to Masari",
+  "welcomeBody": "This Android demo app is prepared for passenger, driver, and merchant roles. Only the app shell is enabled in this milestone.",
+  "arabic": "Arabic",
+  "english": "English",
+  "mobileDemoPreparation": "Mobile demo preparation",
+  "apiEnvironment": "API environment",
+  "continueAction": "Continue",
+  "shellStatusTitle": "App-shell status",
+  "shellStatusBody": "Arabic is the default language, RTL is active for Arabic, and language selection persists after restart.",
+  "language": "Language",
+  "configuredApiBaseUrl": "Configured API base URL",
+  "androidOnly": "Android target only",
+  "businessFlowsPending": "Passenger, driver, and merchant flows will be added in later milestones.",
+  "lockedCorridor": "Hebron / PPU / Bab Al-Zawiya -> Bethlehem",
+  "diagnostics": "Technical diagnostics"
+}
