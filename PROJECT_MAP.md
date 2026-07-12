@@ -3,7 +3,7 @@
 [PROJECT_OVERVIEW]
 Masari is a Palestine-focused smart route-sharing logistics MVP.
 
-Current implementation status: M3C Visual Judge Demo QA and Admin Console Polish.
+Current implementation status: M3D Admin Console Arabic/English Localization.
 
 Locked MVP corridor:
 Hebron / PPU / Bab Al-Zawiya -> Bethlehem.
@@ -61,6 +61,17 @@ Implemented in M3C:
 - Full Demo Sequence now shows step-by-step progress.
 - Matching panel now labels the selected driver/route more clearly.
 - Local API smoke sequence revalidated the full judge demo path.
+
+Implemented in M3D:
+- Admin console bilingual localization for Arabic and English.
+- Arabic is the default language and uses RTL layout.
+- English is optional and uses LTR layout.
+- Language switch appears on login and authenticated dashboard.
+- Selected language persists in `localStorage` under `masari_locale`.
+- Document `<html>` `lang` and `dir` update dynamically.
+- UI labels, action text, success/error messages, progress steps, roles, statuses, and demo metrics are translated.
+- API enum values remain unchanged and are mapped to translated UI labels.
+- Locale-aware number and date/time formatting added for `ar-PS` and `en-US`.
 
 Migration integrity result:
 - M2B accidentally modified committed `0001_init` to add M2B audit enum values.
@@ -120,9 +131,18 @@ Admin console:
 - Vite.
 - TypeScript.
 - Plain CSS.
+- Small typed in-repo i18n dictionary; no external localization library.
 
 Required admin env:
 - `VITE_API_BASE_URL`, for example `http://localhost:3000`.
+
+Localization:
+- Supported admin locales: Arabic `ar`, English `en`.
+- Default locale: Arabic `ar` unless `masari_locale` is already saved.
+- Arabic document mode: `lang="ar"`, `dir="rtl"`.
+- English document mode: `lang="en"`, `dir="ltr"`.
+- Locale persistence key: `masari_locale`.
+- Future Flutter screens must also support Arabic default, English optional, and runtime RTL/LTR switching.
 
 [SYSTEM_FLOW]
 M1 flow:
@@ -142,6 +162,13 @@ M3B admin console flow:
 5. Judge can reset demo data and the console re-authenticates because seeded users are recreated.
 6. Judge can run matching, batching, comparison, match accept/reject, trip status progression, and deterministic tracking simulation.
 
+M3D localization flow:
+1. First admin visit opens in Arabic without browser-language detection.
+2. Language switch toggles `ar` and `en` without resetting auth or demo state.
+3. Selected locale is saved to `masari_locale`.
+4. Refresh restores the saved locale.
+5. UI direction follows locale and technical values such as phone numbers, IDs, URLs, and coordinates remain readable LTR.
+
 Workspace scripts:
 - `npm run dev:api` starts the API workspace.
 - `npm run dev:admin` starts the admin Vite app.
@@ -151,6 +178,7 @@ Workspace scripts:
 - `npm run typecheck:api` typechecks the API workspace.
 - `npm run typecheck:admin` typechecks the admin workspace.
 - `npm run typecheck` typechecks all workspaces.
+- `npm run test:admin` runs admin localization tests.
 - `npm run prisma:generate` generates the API Prisma client from the root workspace.
 
 [ARCHITECTURE]
@@ -171,6 +199,11 @@ Actual folder structure:
     │   └── src
     │       ├── api.ts
     │       ├── App.tsx
+    │       ├── i18n
+    │       │   ├── LocaleContext.tsx
+    │       │   ├── locale.ts
+    │       │   ├── locale.test.ts
+    │       │   └── translations.ts
     │       ├── main.tsx
     │       ├── styles.css
     │       └── vite-env.d.ts
@@ -654,6 +687,18 @@ Local admin CORS fix:
 - Default local origins include `http://localhost:5173`, `http://localhost:5174`, `http://localhost:5175`, and matching `127.0.0.1` origins.
 - CORS preflight and login responses include `Access-Control-Allow-Origin` for allowed admin console origins.
 
+M3D localization:
+- Arabic and English are supported in the admin console.
+- Arabic is the default language and RTL.
+- English is optional and LTR.
+- Language switch is available on login and authenticated dashboard.
+- Switching language does not reload, reset authentication, or reset demo state.
+- UI labels, buttons, notices, progress steps, roles, statuses, metrics, and demo explanations use the typed dictionary in `apps/admin/src/i18n/translations.ts`.
+- Locale helpers, persistence, status/role/source label mapping, document `lang`/`dir`, and locale-aware formatting live in `apps/admin/src/i18n/locale.ts`.
+- React provider/hook live in `apps/admin/src/i18n/LocaleContext.tsx`.
+- Admin localization tests live in `apps/admin/src/i18n/locale.test.ts`.
+- Backend enum/API values remain unchanged; translations are presentation-only.
+
 [DEMO_MODE]
 Implemented endpoint:
 - `POST /api/v1/demo/reset`.
@@ -718,6 +763,7 @@ Implemented minimal tests:
 - Latest location polling tests.
 - Admin console TypeScript typecheck.
 - Admin console production build.
+- Admin localization tests for Arabic default, saved English restore, document `lang`/`dir`, persistence, translation lookup, unknown-key fallback, and status label mapping.
 
 Required validation commands:
 - `npm install`.
@@ -829,6 +875,24 @@ M3C validation results:
 - Final `npm run build:admin`: passed.
 - Visual browser inspection could not be performed from the current tool environment; remaining manual check is to open the admin app in a browser and click through the full demo path.
 
+M3D validation results:
+- `npm install`: passed; reported existing 3 moderate audit findings, and `npm audit fix --force` was not run.
+- `git status`: showed only intended M3D files before commit.
+- `npm run prisma:validate`: passed.
+- `npm run prisma:generate`: passed.
+- `npm run typecheck`: passed for admin and API workspaces.
+- `npm run test`: passed, 5 files and 48 API tests.
+- `npm run build`: passed after rerunning sequentially once Prisma generation completed.
+- `npm run typecheck:admin`: passed.
+- `npm run build:admin`: passed.
+- `npm run test:admin`: passed, 1 file and 7 tests.
+- Admin localization tests cover Arabic default, saved English restore, document `lang`/`dir`, persistence, translation lookup, unknown-key fallback, and status labels without changing API values.
+- Local API dev server started with PostgreSQL on port `3103`.
+- Local admin Vite server started and served the app on port `5175`.
+- Local full backend demo smoke passed after localization changes: reset, admin login, dashboard, match, batch, comparison, accept, status progression to `completed`, tracking step, and latest location.
+- Local smoke output included users `5`, match score `0.9317`, batch status `created`, comparison winner `masari`, final status `completed`, location sequence `0`, latest sequence `0`.
+- Interactive browser visual inspection could not be performed from the current tool environment; remaining manual check is to clear `masari_locale`, open the admin console, confirm Arabic RTL default, login and run demo flow in Arabic, switch to English, refresh to confirm English persists, switch back to Arabic, and confirm auth/demo state remain functional.
+
 [SUCCESS_CRITERIA]
 M1 success criteria:
 - API can start.
@@ -843,6 +907,7 @@ M1 success criteria:
 Current pending items:
 - npm audit reports 3 moderate findings through Prisma CLI transitive `@hono/node-server`. The available force fix would downgrade Prisma from 7.8.0 to 6.19.3, so this needs a Prisma upstream patch or explicit approval to downgrade.
 - Manual browser visual QA remains pending because this tool environment cannot visually inspect the interactive browser. Required manual check: run `npm run dev:api`, run `npm run dev:admin`, open the admin console, login as admin, run full demo sequence, and verify the judge-facing layout and copy.
+- Manual M3D language QA remains pending because this tool environment cannot visually inspect the interactive browser. Required manual check: clear `masari_locale`, verify Arabic RTL default, switch to English LTR, refresh, verify English persistence, switch back to Arabic, and run the full demo path.
 
 Commands to run locally:
 ```bash

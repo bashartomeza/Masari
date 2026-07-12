@@ -1,16 +1,21 @@
 import { FormEvent, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { API_BASE_URL, api, type BatchResponse, type Comparison, type DashboardResponse, type DriverRoute, type LocationEvent, type MatchRunResponse, type MerchantOrder, type PassengerRequest, type Trip, type User } from "./api";
+import { useLocale } from "./i18n/LocaleContext";
+import type { TranslationKey } from "./i18n/translations";
 
 const tripFlow = ["accepted", "pickup_started", "picked_up", "in_transit", "delivered", "completed"];
 
 type Notice = { type: "success" | "error"; message: string } | null;
 
-function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "Unexpected error";
+function getErrorMessage(error: unknown, t: (key: TranslationKey) => string) {
+  if (!(error instanceof Error)) return t("unexpectedError");
+  if (error.message === "Failed to fetch") return t("failedToFetch");
+  if (error.message === "forbidden" || error.message === "unauthorized") return t("unauthorized");
+  return error.message || t("unexpectedError");
 }
 
-function Badge({ children }: { children: string }) {
+function Badge({ children }: { children: ReactNode }) {
   return <span className="badge">{children}</span>;
 }
 
@@ -27,6 +32,7 @@ function Section({ title, action, children }: { title: string; action?: ReactNod
 }
 
 export function App() {
+  const { direction, locale, toggleLocale, t, status, source, number, dateTime } = useLocale();
   const [token, setToken] = useState(() => localStorage.getItem("masari_admin_token") ?? "");
   const [admin, setAdmin] = useState<User | null>(null);
   const [phone, setPhone] = useState("+970590000005");
@@ -53,6 +59,20 @@ export function App() {
   const canAct = Boolean(token) && !busy;
   const nextTripStatus = activeTrip ? tripFlow[tripFlow.indexOf(activeTrip.status) + 1] : undefined;
 
+  const scoringLabels: Record<string, TranslationKey> = {
+    corridorOverlap: "corridorOverlap",
+    pickupDistanceScore: "pickupDistanceScore",
+    timingFit: "timingFit",
+    trustScore: "trustScore",
+    capacityFit: "capacityFit",
+    finalScore: "finalScore",
+    estimatedDeviationKm: "estimatedDeviationKm"
+  };
+
+  function LanguageSwitch() {
+    return <button className="language-switch" type="button" onClick={toggleLocale}>{t("languageSwitch")}</button>;
+  }
+
   async function runAction<T>(label: string, action: () => Promise<T>, success: string) {
     setBusy(label);
     setNotice(null);
@@ -61,7 +81,7 @@ export function App() {
       setNotice({ type: "success", message: success });
       return result;
     } catch (error) {
-      setNotice({ type: "error", message: getErrorMessage(error) });
+      setNotice({ type: "error", message: getErrorMessage(error, t) });
       return null;
     } finally {
       setBusy(null);
@@ -87,7 +107,7 @@ export function App() {
 
   async function login(event: FormEvent) {
     event.preventDefault();
-    const result = await runAction("login", () => api.login(phone, password), "Admin logged in.");
+    const result = await runAction("login", () => api.login(phone, password), t("adminLoggedIn"));
     if (!result) return;
     localStorage.setItem("masari_admin_token", result.token);
     setToken(result.token);
@@ -96,12 +116,12 @@ export function App() {
   }
 
   async function loadMe(currentToken = token) {
-    const result = await runAction("me", () => api.me(currentToken), "Session loaded.");
+    const result = await runAction("me", () => api.me(currentToken), t("sessionLoaded"));
     if (result) setAdmin(result.user);
   }
 
   async function resetDemo() {
-    await runAction("reset", () => api.reset(token || undefined, resetKey), "Demo data reset.");
+    await runAction("reset", () => api.reset(token || undefined, resetKey), t("demoDataReset"));
     const session = await api.login(phone, password);
     localStorage.setItem("masari_admin_token", session.token);
     setToken(session.token);
@@ -118,18 +138,18 @@ export function App() {
   }
 
   async function runMatch() {
-    if (!selectedRequest && !selectedOrder) return setNotice({ type: "error", message: "No seeded request or order found. Reset demo data first." });
+    if (!selectedRequest && !selectedOrder) return setNotice({ type: "error", message: t("noSeededInputs") });
     const result = await runAction(
       "match",
       () => api.runMatch(token, selectedRequest?.id, selectedOrder?.id),
-      "Matching completed."
+      t("matchingCompleted")
     );
     if (result) setMatchResult(result);
   }
 
   async function runBatch() {
-    if (!selectedOrder) return setNotice({ type: "error", message: "No merchant order found. Reset demo data first." });
-    const result = await runAction("batch", () => api.batchOrder(token, selectedOrder.id), "Parcel batch created.");
+    if (!selectedOrder) return setNotice({ type: "error", message: t("noMerchantOrder") });
+    const result = await runAction("batch", () => api.batchOrder(token, selectedOrder.id), t("parcelBatchCreated"));
     if (result) {
       setBatchResult(result);
       await refreshOverview();
@@ -140,7 +160,7 @@ export function App() {
     const result = await runAction(
       "comparison",
       () => api.runComparison(token, selectedRequest?.id, selectedOrder?.id),
-      "Comparison metrics generated."
+      t("comparisonGenerated")
     );
     if (!result) return;
     const read = await api.getComparison(token, result.comparison.id);
@@ -148,8 +168,8 @@ export function App() {
   }
 
   async function acceptMatch() {
-    if (!matchResult) return setNotice({ type: "error", message: "Run matching before accepting a match." });
-    const result = await runAction("accept", () => api.acceptMatch(token, matchResult.match.id), "Match accepted and trip created.");
+    if (!matchResult) return setNotice({ type: "error", message: t("runMatchBeforeAccept") });
+    const result = await runAction("accept", () => api.acceptMatch(token, matchResult.match.id), t("matchAccepted"));
     if (result) {
       setActiveTrip(result.trip);
       await refreshTrips();
@@ -157,8 +177,8 @@ export function App() {
   }
 
   async function rejectMatch() {
-    if (!matchResult) return setNotice({ type: "error", message: "Run matching before rejecting a match." });
-    const result = await runAction("reject", () => api.rejectMatch(token, matchResult.match.id), "Match rejected.");
+    if (!matchResult) return setNotice({ type: "error", message: t("runMatchBeforeReject") });
+    const result = await runAction("reject", () => api.rejectMatch(token, matchResult.match.id), t("matchRejected"));
     if (result && matchResult) setMatchResult({ ...matchResult, match: result.match });
   }
 
@@ -176,7 +196,7 @@ export function App() {
 
   async function moveTrip(status: string) {
     if (!activeTrip) return;
-    const result = await runAction("status", () => api.updateTripStatus(token, activeTrip.id, status), `Trip moved to ${status}.`);
+    const result = await runAction("status", () => api.updateTripStatus(token, activeTrip.id, status), t("tripMoved", { status: statusLabel(status) }));
     if (result) {
       setActiveTrip(result.trip);
       await refreshTrips();
@@ -185,7 +205,7 @@ export function App() {
 
   async function simulateStep() {
     if (!activeTrip) return;
-    const result = await runAction("tracking", () => api.simulateStep(token, activeTrip.id), "Simulated location recorded.");
+    const result = await runAction("tracking", () => api.simulateStep(token, activeTrip.id), t("locationRecorded"));
     if (result) {
       setLatestLocation(result.location);
       setLocationTrail((items) => [result.location, ...items].slice(0, 7));
@@ -194,14 +214,14 @@ export function App() {
 
   async function resetSimulation() {
     if (!activeTrip) return;
-    await runAction("tracking-reset", () => api.resetSimulation(token, activeTrip.id), "Tracking simulation reset.");
+    await runAction("tracking-reset", () => api.resetSimulation(token, activeTrip.id), t("simulationReset"));
     setLatestLocation(null);
     setLocationTrail([]);
   }
 
   async function readLatestLocation() {
     if (!activeTrip) return;
-    const result = await runAction("latest", () => api.latestLocation(token, activeTrip.id), "Latest location loaded.");
+    const result = await runAction("latest", () => api.latestLocation(token, activeTrip.id), t("latestLocationLoaded"));
     if (result) setLatestLocation(result.location);
   }
 
@@ -213,33 +233,33 @@ export function App() {
         setDemoSteps([...steps]);
       };
 
-      mark("Resetting deterministic judge scenario");
+      mark(t("stepReset"));
       await api.reset(token || undefined, resetKey);
-      mark("Signing back in after reset");
+      mark(t("stepLogin"));
       const session = await api.login(phone, password);
       localStorage.setItem("masari_admin_token", session.token);
       setToken(session.token);
       setAdmin(session.user);
       const currentToken = session.token;
-      mark("Loading seeded request and merchant order");
+      mark(t("stepLoadInputs"));
       const overview = await Promise.all([api.requests(currentToken), api.orders(currentToken)]);
       const request = overview[0].requests[0];
       const order = overview[1].orders[0];
-      if (!request || !order) throw new Error("Seeded request/order not found after reset.");
-      mark("Running route-based matching");
+      if (!request || !order) throw new Error(t("seededInputsMissingAfterReset"));
+      mark(t("stepRunMatch"));
       const match = await api.runMatch(currentToken, request.id, order.id);
-      mark("Creating parcel batch");
+      mark(t("stepCreateBatch"));
       const batch = await api.batchOrder(currentToken, order.id);
-      mark("Comparing Masari vs nearest-driver baseline");
+      mark(t("stepRunComparison"));
       const comparisonRun = await api.runComparison(currentToken, request.id, order.id);
-      mark("Accepting match and creating trip");
+      mark(t("stepAcceptTrip"));
       const accepted = await api.acceptMatch(currentToken, match.match.id);
       let trip = accepted.trip;
       for (const status of ["pickup_started", "picked_up", "in_transit", "delivered", "completed"]) {
-        mark(`Advancing trip to ${status}`);
+        mark(t("stepAdvanceTrip", { status: statusLabel(status) }));
         trip = (await api.updateTripStatus(currentToken, trip.id, status)).trip;
       }
-      mark("Recording deterministic tracking step");
+      mark(t("stepRecordTracking"));
       const location = await api.simulateStep(currentToken, trip.id);
       setMatchResult(match);
       setBatchResult(batch);
@@ -248,8 +268,12 @@ export function App() {
       setLatestLocation(location.location);
       setLocationTrail([location.location]);
       await refreshOverview(currentToken);
-      mark("Demo sequence complete");
-    }, "Full demo sequence completed.");
+      mark(t("stepDemoComplete"));
+    }, t("fullDemoCompleted"));
+  }
+
+  function statusLabel(value: string) {
+    return status(value);
   }
 
   useEffect(() => {
@@ -259,15 +283,16 @@ export function App() {
 
   if (!token) {
     return (
-      <main className="login-shell">
+      <main className="login-shell" dir={direction} lang={locale}>
         <form className="login-card" onSubmit={login}>
-          <p className="eyebrow">Masari Judge Console</p>
-          <h1>Route-sharing logistics, in one demo flow.</h1>
-          <p>Connect to `{API_BASE_URL}` and sign in with the seeded admin account.</p>
-          <p className="credential-hint">Demo admin: +970590000005 / demo-admin-123</p>
-          <label>Admin phone<input value={phone} onChange={(event) => setPhone(event.target.value)} /></label>
-          <label>Password<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} /></label>
-          <button disabled={busy === "login"}>{busy === "login" ? "Signing in..." : "Sign in"}</button>
+          <div className="top-actions"><LanguageSwitch /></div>
+          <p className="eyebrow">{t("appName")}</p>
+          <h1>{t("loginHeading")}</h1>
+          <p>{t("loginDescription", { apiBaseUrl: API_BASE_URL })}</p>
+          <p className="credential-hint technical">{t("demoCredentials")}</p>
+          <label>{t("adminPhone")}<input className="technical" value={phone} onChange={(event) => setPhone(event.target.value)} /></label>
+          <label>{t("password")}<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} /></label>
+          <button disabled={busy === "login"}>{busy === "login" ? t("signingIn") : t("signIn")}</button>
           {notice && <div className={`notice ${notice.type}`}>{notice.message}</div>}
         </form>
       </main>
@@ -275,118 +300,126 @@ export function App() {
   }
 
   return (
-    <main className="app-shell">
+    <main className="app-shell" dir={direction} lang={locale}>
       <header className="hero">
         <div>
-          <p className="eyebrow">Masari Demo Console</p>
-          <h1>Hebron / PPU / Bab Al-Zawiya to Bethlehem</h1>
-          <p>Run the seeded route-sharing story end to end: reset, match, batch, compare, accept, progress, and track.</p>
+          <p className="eyebrow">{t("masariConsole")}</p>
+          <h1>{t("corridorLabel")}</h1>
+          <p>{t("heroDescription")}</p>
         </div>
         <div className="session-card">
           <strong>{admin?.name ?? "Admin"}</strong>
-          <span>{admin?.phone}</span>
-          <button onClick={() => { localStorage.removeItem("masari_admin_token"); setToken(""); }} disabled={Boolean(busy)}>Sign out</button>
+          <span className="technical">{admin?.phone}</span>
+          <LanguageSwitch />
+          <button onClick={() => { localStorage.removeItem("masari_admin_token"); setToken(""); }} disabled={Boolean(busy)}>{t("logout")}</button>
         </div>
       </header>
 
       {notice && <div className={`notice ${notice.type}`}>{notice.message}</div>}
 
       <div className="grid">
-        <Section title="Demo Control" action={<button onClick={runFullDemoSequence} disabled={!canAct}>Run Full Demo Sequence</button>}>
+        <Section title={t("demoControl")} action={<button onClick={runFullDemoSequence} disabled={!canAct}>{t("runFullDemo")}</button>}>
           <div className="control-row">
-            <label>Reset key<input value={resetKey} onChange={(event) => setResetKey(event.target.value)} /></label>
-            <button onClick={resetDemo} disabled={!canAct}>{busy === "reset" ? "Resetting..." : "Reset Demo"}</button>
-            <button onClick={() => refreshOverview()} disabled={!canAct}>Refresh Data</button>
+            <label>{t("resetKey")}<input className="technical" value={resetKey} onChange={(event) => setResetKey(event.target.value)} /></label>
+            <button onClick={resetDemo} disabled={!canAct}>{busy === "reset" ? t("resetting") : t("resetDemo")}</button>
+            <button onClick={() => refreshOverview()} disabled={!canAct}>{t("refreshData")}</button>
           </div>
-          <p className="muted">Reset recreates the same judge scenario: seeded users, one active corridor route, one passenger request, one merchant order, and five parcels.</p>
+          <p className="muted">{t("resetExplanation")}</p>
           {demoSteps.length > 0 && <ol className="demo-steps">{demoSteps.map((step) => <li key={step}>{step}</li>)}</ol>}
         </Section>
 
-        <Section title="System Overview">
+        <Section title={t("systemOverview")}>
           <div className="metric-grid">
-            <div><strong>{dashboard?.counts.users ?? "-"}</strong><span>Users</span></div>
-            <div><strong>{dashboard?.counts.routes ?? "-"}</strong><span>Routes</span></div>
-            <div><strong>{dashboard?.counts.passenger_requests ?? "-"}</strong><span>Requests</span></div>
-            <div><strong>{dashboard?.counts.merchant_orders ?? "-"}</strong><span>Orders</span></div>
-            <div><strong>{dashboard?.counts.parcels ?? "-"}</strong><span>Parcels</span></div>
-            <div><strong>{trips.length}</strong><span>Trips</span></div>
+            <div><strong>{dashboard ? number(dashboard.counts.users) : "-"}</strong><span>{t("users")}</span></div>
+            <div><strong>{dashboard ? number(dashboard.counts.routes) : "-"}</strong><span>{t("routes")}</span></div>
+            <div><strong>{dashboard ? number(dashboard.counts.passenger_requests) : "-"}</strong><span>{t("passengerRequests")}</span></div>
+            <div><strong>{dashboard ? number(dashboard.counts.merchant_orders) : "-"}</strong><span>{t("merchantOrders")}</span></div>
+            <div><strong>{dashboard ? number(dashboard.counts.parcels) : "-"}</strong><span>{t("parcels")}</span></div>
+            <div><strong>{number(trips.length)}</strong><span>{t("trips")}</span></div>
           </div>
           <div className="mini-list">
-            <h3>Seeded data</h3>
-            <p>Route: {routes[0]?.origin_label ?? "-"} to {routes[0]?.destination_label ?? "-"} <Badge>{routes[0]?.status ?? "missing"}</Badge></p>
-            <p>Request: {selectedRequest?.pickup_label ?? "-"} <Badge>{selectedRequest?.status ?? "missing"}</Badge></p>
-            <p>Order: {selectedOrder?.pickup_label ?? "-"} <Badge>{selectedOrder?.status ?? "missing"}</Badge> {selectedOrder?.parcels?.length ?? 0} parcels</p>
+            <h3>{t("seededData")}</h3>
+            <p>{t("activeCorridor")}: {t("corridorLabel")}</p>
+            <p>{t("route")}: {routes[0] ? `${routes[0].origin_label} -> ${routes[0].destination_label}` : t("noData")} <Badge>{routes[0] ? status(routes[0].status) : t("missing")}</Badge></p>
+            <p>{t("request")}: {selectedRequest?.pickup_label ?? t("noData")} <Badge>{selectedRequest ? status(selectedRequest.status) : t("missing")}</Badge></p>
+            <p>{t("order")}: {selectedOrder?.pickup_label ?? t("noData")} <Badge>{selectedOrder ? status(selectedOrder.status) : t("missing")}</Badge> {number(selectedOrder?.parcels?.length ?? 0)} {t("parcels")}</p>
           </div>
         </Section>
 
-        <Section title="Matching" action={<button onClick={runMatch} disabled={!canAct}>Run Match</button>}>
+        <Section title={t("matching")} action={<button onClick={runMatch} disabled={!canAct}>{t("runMatch")}</button>}>
           {matchResult ? (
             <div className="result-card">
-              <p><strong>Match:</strong> {matchResult.match.id} <Badge>{matchResult.match.status}</Badge></p>
-              <p><strong>Selected driver:</strong> {matchResult.match.driver_route?.driver_id ?? "driver route"} on route {matchResult.match.driver_route_id}</p>
-              <p><strong>Score:</strong> {matchResult.scoringBreakdown.finalScore}</p>
-              <p>{matchResult.match.explanation}</p>
-              <div className="breakdown">{Object.entries(matchResult.scoringBreakdown).map(([key, value]) => <span key={key}>{key}: {value}</span>)}</div>
+              <p><strong>{t("match")}:</strong> <span className="technical">{matchResult.match.id}</span> <Badge>{status(matchResult.match.status)}</Badge></p>
+              <p><strong>{t("selectedDriver")}:</strong> <span className="technical">{matchResult.match.driver_route?.driver_id ?? t("driverRoute")}</span></p>
+              <p><strong>{t("driverRoute")}:</strong> <span className="technical">{matchResult.match.driver_route_id}</span></p>
+              <p><strong>{t("finalScore")}:</strong> {number(matchResult.scoringBreakdown.finalScore)}</p>
+              <p><strong>{t("explanation")}:</strong> {t("matchDemoExplanation")}</p>
+              <div className="breakdown">
+                {Object.entries(matchResult.scoringBreakdown).map(([key, value]) => (
+                  <span key={key}>{t(scoringLabels[key] ?? "score")}: {number(value)}</span>
+                ))}
+              </div>
             </div>
-          ) : <p className="muted">Run matching to show route scoring and selection.</p>}
+          ) : <p className="muted">{t("runMatchingEmpty")}</p>}
         </Section>
 
-        <Section title="Parcel Batch" action={<button onClick={runBatch} disabled={!canAct}>Create Batch</button>}>
+        <Section title={t("parcelBatch")} action={<button onClick={runBatch} disabled={!canAct}>{t("createBatch")}</button>}>
           {batchResult ? (
             <div className="result-card">
-              <p><strong>Batch:</strong> {batchResult.batch.id} <Badge>{batchResult.batch.status}</Badge></p>
-              <p><strong>Parcels:</strong> {batchResult.batch.merchant_order?.parcels?.length ?? selectedOrder?.parcels?.length ?? 0}</p>
-              <p><strong>Estimated distance saved:</strong> {batchResult.batch.estimated_distance_saved} km</p>
-              <p>{batchResult.batch.explanation}</p>
+              <p><strong>{t("batch")}:</strong> <span className="technical">{batchResult.batch.id}</span> <Badge>{status(batchResult.batch.status)}</Badge></p>
+              <p><strong>{t("numberOfParcels")}:</strong> {number(batchResult.batch.merchant_order?.parcels?.length ?? selectedOrder?.parcels?.length ?? 0)}</p>
+              <p><strong>{t("estimatedDistanceSaved")}:</strong> {number(batchResult.batch.estimated_distance_saved)} km</p>
+              <p><strong>{t("batchExplanation")}:</strong> {t("batchDemoExplanation")}</p>
             </div>
-          ) : <p className="muted">Create a batch from the seeded merchant order.</p>}
+          ) : <p className="muted">{t("createBatchEmpty")}</p>}
         </Section>
 
-        <Section title="Comparison" action={<button onClick={runComparison} disabled={!canAct}>Run Comparison</button>}>
+        <Section title={t("comparison")} action={<button onClick={runComparison} disabled={!canAct}>{t("runComparison")}</button>}>
           {comparison ? (
             <table>
-              <thead><tr><th>Metric</th><th>Masari</th><th>Nearest-driver</th></tr></thead>
+              <thead><tr><th>{t("metric")}</th><th>{t("masari")}</th><th>{t("nearestDriver")}</th></tr></thead>
               <tbody>
-                <tr><td>Trips</td><td>{comparison.masari_trips}</td><td>{comparison.nearest_driver_trips}</td></tr>
-                <tr><td>Estimated distance</td><td>{comparison.masari_estimated_distance}</td><td>{comparison.nearest_estimated_distance}</td></tr>
-                <tr><td>Estimated cost</td><td>{comparison.masari_estimated_cost}</td><td>{comparison.nearest_estimated_cost}</td></tr>
-                <tr><td>Parcel batching benefit</td><td colSpan={2}>{comparison.parcel_batching_benefit}</td></tr>
-                <tr><td>Driver utilization</td><td>{comparison.driver_utilization}</td><td>baseline separate trips</td></tr>
-                <tr><td>Winner</td><td colSpan={2}><Badge>{comparison.winner}</Badge></td></tr>
+                <tr><td>{t("trips")}</td><td>{number(comparison.masari_trips)}</td><td>{number(comparison.nearest_driver_trips)}</td></tr>
+                <tr><td>{t("estimatedDistance")}</td><td>{number(comparison.masari_estimated_distance)}</td><td>{number(comparison.nearest_estimated_distance)}</td></tr>
+                <tr><td>{t("estimatedCost")}</td><td>{number(comparison.masari_estimated_cost)}</td><td>{number(comparison.nearest_estimated_cost)}</td></tr>
+                <tr><td>{t("parcelBatchingBenefit")}</td><td colSpan={2}>{t("comparisonBenefitDemo")}</td></tr>
+                <tr><td>{t("driverUtilization")}</td><td>{number(comparison.driver_utilization)}</td><td>{t("baselineSeparateTrips")}</td></tr>
+                <tr><td>{t("winner")}</td><td colSpan={2}><Badge>{comparison.winner === "masari" ? t("masari") : t("nearestDriver")}</Badge></td></tr>
               </tbody>
             </table>
-          ) : <p className="muted">Run comparison to show Masari vs nearest-driver metrics.</p>}
+          ) : <p className="muted">{t("runComparisonEmpty")}</p>}
         </Section>
 
-        <Section title="Trip Flow" action={<button onClick={acceptMatch} disabled={!canAct || !matchResult}>Accept Match</button>}>
+        <Section title={t("tripFlow")} action={<button onClick={acceptMatch} disabled={!canAct || !matchResult}>{t("acceptMatch")}</button>}>
           <div className="control-row">
-            <button onClick={rejectMatch} disabled={!canAct || !matchResult}>Reject Match</button>
-            <button onClick={refreshTrips} disabled={!canAct}>Refresh Trips</button>
+            <button onClick={rejectMatch} disabled={!canAct || !matchResult}>{t("rejectMatch")}</button>
+            <button onClick={refreshTrips} disabled={!canAct}>{t("refreshTrips")}</button>
           </div>
           {activeTrip ? (
             <div className="result-card">
-              <p><strong>Trip:</strong> {activeTrip.id} <Badge>{activeTrip.status}</Badge></p>
-              <div className="status-rail">{tripFlow.map((status) => <span className={tripFlow.indexOf(status) <= tripFlow.indexOf(activeTrip.status) ? "done" : ""} key={status}>{status}</span>)}</div>
-              {nextTripStatus ? <button onClick={() => moveTrip(nextTripStatus)} disabled={!canAct}>Move to {nextTripStatus}</button> : <p className="muted">Trip lifecycle complete.</p>}
+              <p><strong>{t("currentTrip")}:</strong> <span className="technical">{activeTrip.id}</span> <Badge>{status(activeTrip.status)}</Badge></p>
+              <p><strong>{t("currentStatus")}:</strong> {status(activeTrip.status)}</p>
+              <div className="status-rail">{tripFlow.map((flowStatus) => <span className={tripFlow.indexOf(flowStatus) <= tripFlow.indexOf(activeTrip.status) ? "done" : ""} key={flowStatus}>{status(flowStatus)}</span>)}</div>
+              {nextTripStatus ? <button onClick={() => moveTrip(nextTripStatus)} disabled={!canAct}>{t("moveTo", { status: status(nextTripStatus) })}</button> : <p className="muted">{t("tripLifecycleComplete")}</p>}
             </div>
-          ) : <p className="muted">Accept a match to create the active trip.</p>}
+          ) : <p className="muted">{t("acceptMatchEmpty")}</p>}
         </Section>
 
-        <Section title="Tracking Simulation">
+        <Section title={t("trackingSimulation")}>
           <div className="control-row">
-            <button onClick={simulateStep} disabled={!canAct || !activeTrip}>Simulate Step</button>
-            <button onClick={readLatestLocation} disabled={!canAct || !activeTrip}>Read Latest</button>
-            <button onClick={resetSimulation} disabled={!canAct || !activeTrip}>Reset Simulation</button>
+            <button onClick={simulateStep} disabled={!canAct || !activeTrip}>{t("simulateStep")}</button>
+            <button onClick={readLatestLocation} disabled={!canAct || !activeTrip}>{t("readLatest")}</button>
+            <button onClick={resetSimulation} disabled={!canAct || !activeTrip}>{t("resetSimulation")}</button>
           </div>
           {latestLocation ? (
             <div className="result-card location-card">
-              <p><strong>Lat/Lng:</strong> {latestLocation.lat}, {latestLocation.lng}</p>
-              <p><strong>Sequence:</strong> {latestLocation.sequence}</p>
-              <p><strong>Source:</strong> {latestLocation.source}</p>
-              <p><strong>Recorded:</strong> {latestLocation.recorded_at}</p>
+              <p><strong>{t("latitude")} / {t("longitude")}:</strong> <span className="technical">{latestLocation.lat}, {latestLocation.lng}</span></p>
+              <p><strong>{t("sequence")}:</strong> {number(latestLocation.sequence)}</p>
+              <p><strong>{t("source")}:</strong> {source(latestLocation.source)}</p>
+              <p><strong>{t("recordedTime")}:</strong> {dateTime(latestLocation.recorded_at)}</p>
             </div>
-          ) : <p className="muted">Simulate a step to record deterministic route progress.</p>}
-          <div className="trail">{locationTrail.map((location) => <span key={location.id}>#{location.sequence} {location.lat},{location.lng}</span>)}</div>
+          ) : <p className="muted">{t("simulateEmpty")}</p>}
+          <div className="trail">{locationTrail.map((location) => <span className="technical" key={location.id}>#{number(location.sequence)} {location.lat},{location.lng}</span>)}</div>
         </Section>
       </div>
     </main>

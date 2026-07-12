@@ -15,6 +15,7 @@
     "typecheck:api": "npm run typecheck -w @masari/api",
     "typecheck:admin": "npm run typecheck -w @masari/admin",
     "test": "npm run test -w @masari/api",
+    "test:admin": "npm run test -w @masari/admin",
     "prisma:generate": "npm run prisma:generate -w @masari/api",
     "prisma:validate": "npm run prisma:validate -w @masari/api",
     "db:push": "npm run db:push -w @masari/api"
