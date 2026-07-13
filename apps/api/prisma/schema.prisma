@@ -4,7 +4,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
 }
 
 enum UserRole {
@@ -219,7 +219,7 @@ model ParcelBatch {
   driver_route_id          String?
   status                   ParcelBatchStatus @default(created)
   estimated_distance_saved Decimal           @db.Decimal(10, 2)
-  explanation              String
+  explanation              String            @db.Text
   created_at               DateTime          @default(now())
 
   merchant_order MerchantOrder @relation(fields: [merchant_order_id], references: [id], onDelete: Cascade)
@@ -238,7 +238,7 @@ model Match {
   parcel_batch_id      String?
   score                Decimal     @db.Decimal(5, 4)
   method               String
-  explanation          String
+  explanation          String      @db.Text
   scoring_breakdown    Json
   status               MatchStatus @default(proposed)
   created_at           DateTime    @default(now())
@@ -260,7 +260,7 @@ model ComparisonRun {
   nearest_estimated_distance Decimal  @db.Decimal(10, 2)
   masari_estimated_cost      Decimal  @db.Decimal(10, 2)
   nearest_estimated_cost     Decimal  @db.Decimal(10, 2)
-  parcel_batching_benefit    String
+  parcel_batching_benefit    String   @db.Text
   driver_utilization         Decimal  @db.Decimal(5, 2)
   winner                     String
   created_at                 DateTime @default(now())
@@ -310,7 +310,7 @@ model DemoScenario {
   id           String   @id @default(cuid())
   scenario_key String   @unique
   corridor_key String
-  description  String
+  description  String   @db.Text
   seed_version String
   created_at   DateTime @default(now())
 

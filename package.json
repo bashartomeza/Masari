@@ -21,7 +21,8 @@
     "demo:package": "pwsh -NoProfile -File scripts/package-demo.ps1",
     "prisma:generate": "npm run prisma:generate -w @masari/api",
     "prisma:validate": "npm run prisma:validate -w @masari/api",
-    "db:push": "npm run db:push -w @masari/api"
+    "db:migrate": "npm run db:migrate -w @masari/api",
+    "db:migrate:status": "npm run db:migrate:status -w @masari/api"
   },
   "engines": {
     "node": ">=22.17.1",

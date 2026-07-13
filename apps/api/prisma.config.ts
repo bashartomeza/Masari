@@ -2,7 +2,7 @@ import "dotenv/config";
 import { defineConfig } from "prisma/config";
 
 const databaseUrl =
-  process.env.DATABASE_URL ?? "postgresql://postgres:postgres@localhost:5432/masari?schema=public";
+  process.env.DATABASE_URL ?? "mysql://user:password@localhost:3306/masari";
 
 export default defineConfig({
   schema: "prisma/schema.prisma",
