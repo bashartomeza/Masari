@@ -6,7 +6,8 @@ import { clamp01, haversineKm, LOCKED_DESTINATION, LOCKED_ORIGIN, round, toNumbe
 import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
 import { HttpError } from "../middleware/error.js";
 import { LOCKED_CORRIDOR_KEY, LOCKED_CORRIDOR_LABEL } from "./demoReset.js";
-import { AuditAction } from "../generated/prisma/enums.js";
+import type { Prisma } from "../generated/prisma/client.js";
+import { AuditAction, MatchStatus } from "../generated/prisma/enums.js";
 
 const runMatchSchema = z
   .object({
@@ -19,11 +20,139 @@ const runMatchSchema = z
 
 type MatchInput = z.infer<typeof runMatchSchema>;
 
+const listMatchesQuerySchema = z.object({
+  status: z.enum(MatchStatus).optional()
+});
+
+const matchSummarySelect = {
+  id: true,
+  status: true,
+  score: true,
+  method: true,
+  explanation: true,
+  scoring_breakdown: true,
+  created_at: true,
+  driver_route: {
+    select: {
+      id: true,
+      origin_label: true,
+      destination_label: true,
+      corridor_key: true,
+      seats_available: true,
+      parcel_capacity_available: true,
+      status: true,
+      driver: {
+        select: {
+          user_id: true,
+          vehicle_type: true,
+          verified: true,
+          trust_score: true
+        }
+      }
+    }
+  },
+  passenger_request: {
+    select: {
+      id: true,
+      passenger_id: true,
+      pickup_label: true,
+      destination_label: true,
+      preferred_time: true,
+      passenger_count: true,
+      status: true,
+      created_at: true
+    }
+  },
+  merchant_order: {
+    select: {
+      id: true,
+      merchant_id: true,
+      pickup_label: true,
+      status: true,
+      created_at: true,
+      _count: { select: { parcels: true } }
+    }
+  },
+  parcel_batch: {
+    select: {
+      id: true,
+      status: true,
+      estimated_distance_saved: true,
+      explanation: true,
+      created_at: true
+    }
+  }
+} satisfies Prisma.MatchSelect;
+
+type MatchSummaryRecord = Prisma.MatchGetPayload<{ select: typeof matchSummarySelect }>;
+
 export const matchingRouter = Router();
 
 function routeParam(value: string | string[] | undefined) {
   if (typeof value !== "string") throw new HttpError(400, "invalid_route_param");
   return value;
+}
+
+function matchWhereForUser(req: AuthenticatedRequest): Prisma.MatchWhereInput {
+  if (req.user!.role === "admin") return {};
+  if (req.user!.role === "driver") return { driver_route: { driver: { user_id: req.user!.id } } };
+  if (req.user!.role === "passenger") return { passenger_request: { passenger_id: req.user!.id } };
+  return { merchant_order: { merchant_id: req.user!.id } };
+}
+
+function toMatchSummary(match: MatchSummaryRecord) {
+  return {
+    id: match.id,
+    status: match.status,
+    score: match.score,
+    method: match.method,
+    explanation: match.explanation,
+    scoring_breakdown: match.scoring_breakdown,
+    created_at: match.created_at,
+    driver_route: {
+      id: match.driver_route.id,
+      origin_label: match.driver_route.origin_label,
+      destination_label: match.driver_route.destination_label,
+      corridor_key: match.driver_route.corridor_key,
+      seats_available: match.driver_route.seats_available,
+      parcel_capacity_available: match.driver_route.parcel_capacity_available,
+      status: match.driver_route.status,
+      driver: {
+        vehicle_type: match.driver_route.driver.vehicle_type,
+        verified: match.driver_route.driver.verified,
+        trust_score: match.driver_route.driver.trust_score
+      }
+    },
+    passenger_request: match.passenger_request
+      ? {
+          id: match.passenger_request.id,
+          pickup_label: match.passenger_request.pickup_label,
+          destination_label: match.passenger_request.destination_label,
+          preferred_time: match.passenger_request.preferred_time,
+          passenger_count: match.passenger_request.passenger_count,
+          status: match.passenger_request.status,
+          created_at: match.passenger_request.created_at
+        }
+      : null,
+    merchant_order: match.merchant_order
+      ? {
+          id: match.merchant_order.id,
+          pickup_label: match.merchant_order.pickup_label,
+          status: match.merchant_order.status,
+          parcel_count: match.merchant_order._count.parcels,
+          created_at: match.merchant_order.created_at
+        }
+      : null,
+    parcel_batch: match.parcel_batch
+      ? {
+          id: match.parcel_batch.id,
+          status: match.parcel_batch.status,
+          estimated_distance_saved: match.parcel_batch.estimated_distance_saved,
+          explanation: match.parcel_batch.explanation,
+          created_at: match.parcel_batch.created_at
+        }
+      : null
+  };
 }
 
 async function loadAuthorizedInput(req: AuthenticatedRequest, input: MatchInput) {
@@ -159,22 +288,39 @@ matchingRouter.post("/matches/run", requireAuth, async (req: AuthenticatedReques
   }
 });
 
+matchingRouter.get("/matches", requireAuth, async (req: AuthenticatedRequest, res, next) => {
+  try {
+    const { status } = listMatchesQuerySchema.parse(req.query);
+    const matches = await prisma.match.findMany({
+      where: { ...matchWhereForUser(req), ...(status ? { status } : {}) },
+      select: matchSummarySelect,
+      orderBy: { created_at: "desc" }
+    });
+
+    res.json({ matches: matches.map(toMatchSummary) });
+  } catch (error) {
+    next(error);
+  }
+});
+
 matchingRouter.get("/matches/:id", requireAuth, async (req: AuthenticatedRequest, res, next) => {
   try {
     const matchId = routeParam(req.params.id);
     const match = await prisma.match.findUnique({
       where: { id: matchId },
-      include: { driver_route: { include: { driver: true } }, passenger_request: true, merchant_order: true, parcel_batch: true }
+      select: matchSummarySelect
     });
     if (!match) throw new HttpError(404, "match_not_found");
 
     if (req.user!.role !== "admin") {
+      const ownsDriver = req.user!.role === "driver" && match.driver_route.driver.user_id === req.user!.id;
       const ownsPassenger = req.user!.role === "passenger" && match.passenger_request?.passenger_id === req.user!.id;
       const ownsMerchant = req.user!.role === "merchant" && match.merchant_order?.merchant_id === req.user!.id;
-      if (!ownsPassenger && !ownsMerchant) throw new HttpError(403, "forbidden");
+      if (!ownsDriver && !ownsPassenger && !ownsMerchant) throw new HttpError(403, "forbidden");
     }
 
-    res.json({ match, scoringBreakdown: match.scoring_breakdown });
+    const summary = toMatchSummary(match);
+    res.json({ match: summary, scoringBreakdown: summary.scoring_breakdown });
   } catch (error) {
     next(error);
   }

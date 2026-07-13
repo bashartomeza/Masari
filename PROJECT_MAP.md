@@ -3,7 +3,7 @@
 [PROJECT_OVERVIEW]
 Masari is a Palestine-focused smart route-sharing logistics MVP.
 
-Current implementation status: M4D Passenger Mobile Flow.
+Current implementation status: M4E1 Role-Filtered Match Inbox API.
 
 Locked MVP corridor:
 Hebron / PPU / Bab Al-Zawiya -> Bethlehem.
@@ -113,7 +113,18 @@ Implemented in M4D:
 - Passenger trip list/detail uses `GET /api/v1/trips`, `GET /api/v1/trips/:id`, and `GET /api/v1/trips/:id/location` only.
 - Passenger trip detail polls REST while visible and pauses/resumes with app lifecycle.
 - No driver or merchant business UI was added.
-- No role-filtered `GET /api/v1/matches` endpoint was added.
+- M4D did not add a role-filtered `GET /api/v1/matches` endpoint; that dependency was completed later in M4E1.
+
+Implemented in M4E1:
+- Authenticated role-filtered `GET /api/v1/matches` endpoint.
+- Driver inbox is limited to matches connected to the driver's own routes.
+- Passenger inbox is limited to matches connected to the passenger's own requests.
+- Merchant inbox is limited to matches connected to the merchant's own orders.
+- Admin inbox can see all matches.
+- Optional `status` query validates against the existing `MatchStatus` enum.
+- Match summaries are ordered newest first and expose only safe route/request/order/batch fields.
+- `GET /api/v1/matches/:id` now grants the connected driver the same ownership access as the inbox and returns the same safe summary contract.
+- No database schema or migration change was required.
 
 Migration integrity result:
 - M2B accidentally modified committed `0001_init` to add M2B audit enum values.
@@ -122,7 +133,7 @@ Migration integrity result:
 - Corrective commit created: `chore: normalize Prisma migrations`.
 
 Not implemented yet:
-- Flutter passenger/driver/merchant business flows.
+- Flutter driver and merchant business flows.
 - Mobile registration.
 - AI parser.
 - Live GPS tracking.
@@ -270,6 +281,14 @@ M4D passenger mobile flow:
 9. Trip detail at `/passenger/trip/:id` polls trip detail every 5 seconds and latest location every 3 seconds while visible.
 10. Polling stops on dispose, pauses on background/inactive lifecycle, and resumes on foreground.
 11. Passenger cannot accept/reject matches, mutate trip status, trigger tracking simulation, or reset tracking.
+
+M4E1 match inbox flow:
+1. Authenticated caller requests `GET /api/v1/matches`, optionally with `?status=<MatchStatus>`.
+2. The API applies ownership filtering in the Prisma query for driver, passenger, or merchant callers; admin receives the unscoped inbox.
+3. Results are ordered by `created_at desc`.
+4. Each result is serialized through the same explicit safe-summary contract used by `GET /api/v1/matches/:id`.
+5. Driver detail ownership is based on the connected driver route, matching list, accept, and reject permissions.
+6. Invalid statuses return `400`; missing authentication returns `401`.
 
 Workspace scripts:
 - `npm run dev:api` starts the API workspace.
@@ -424,6 +443,7 @@ Actual folder structure:
             └── tests
                 ├── auth.test.ts
                 ├── demoReset.test.ts
+                ├── matchInbox.test.ts
                 ├── matchingBatchingComparison.test.ts
                 ├── manualRoleApis.test.ts
                 └── tripsTracking.test.ts
@@ -529,6 +549,7 @@ Implemented endpoints:
 - `GET /api/v1/admin/orders`.
 - `GET /api/v1/admin/routes`.
 - `POST /api/v1/matches/run`.
+- `GET /api/v1/matches`.
 - `GET /api/v1/matches/:id`.
 - `POST /api/v1/merchant/orders/:id/batch`.
 - `POST /api/v1/compare/run`.
@@ -639,6 +660,79 @@ Run match response includes:
 }
 ```
 
+Role-filtered match inbox:
+```http
+GET /api/v1/matches
+GET /api/v1/matches?status=proposed
+```
+
+Inbox rules:
+- Authentication is required; missing authentication returns `401`.
+- Driver sees only matches whose driver route belongs to the authenticated driver's profile.
+- Passenger sees only matches whose passenger request belongs to the authenticated passenger.
+- Merchant sees only matches whose merchant order belongs to the authenticated merchant.
+- Admin sees all matches.
+- Optional `status` accepts `proposed`, `sent_to_driver`, `accepted`, `rejected`, or `expired` from the existing `MatchStatus` enum.
+- Invalid status returns `400`.
+- Results use `created_at desc` ordering.
+
+Inbox response shape:
+```json
+{
+  "matches": [
+    {
+      "id": "<match_id>",
+      "status": "proposed",
+      "score": "0.9317",
+      "method": "masari_route_score",
+      "explanation": "...",
+      "scoring_breakdown": {
+        "corridorOverlap": 0.95,
+        "pickupDistanceScore": 0.827,
+        "timingFit": 0.9,
+        "trustScore": 0.86,
+        "capacityFit": 1,
+        "finalScore": 0.9317,
+        "estimatedDeviationKm": 1.92
+      },
+      "created_at": "<iso_datetime>",
+      "driver_route": {
+        "id": "<route_id>",
+        "origin_label": "Hebron / PPU / Bab Al-Zawiya",
+        "destination_label": "Bethlehem",
+        "corridor_key": "hebron-ppu-bab-al-zawiya-to-bethlehem",
+        "seats_available": 2,
+        "parcel_capacity_available": 5,
+        "status": "active",
+        "driver": {
+          "vehicle_type": "sedan",
+          "verified": true,
+          "trust_score": 86
+        }
+      },
+      "passenger_request": {
+        "id": "<request_id>",
+        "pickup_label": "PPU Main Gate",
+        "destination_label": "Bethlehem Center",
+        "preferred_time": "<iso_datetime>",
+        "passenger_count": 1,
+        "status": "pending",
+        "created_at": "<iso_datetime>"
+      },
+      "merchant_order": null,
+      "parcel_batch": null
+    }
+  ]
+}
+```
+
+Safe contract notes:
+- Optional `passenger_request`, `merchant_order`, and `parcel_batch` summaries are `null` when not connected.
+- Merchant order summary includes `id`, `pickup_label`, `status`, `parcel_count`, and `created_at`.
+- Parcel batch summary includes `id`, `status`, `estimated_distance_saved`, `explanation`, and `created_at`.
+- Password hashes, JWTs, reset keys, phone numbers, user ownership foreign keys, and unrelated personal fields are not serialized.
+- `GET /api/v1/matches/:id` uses the same safe `match` summary and retains top-level `scoringBreakdown` for existing mobile/admin compatibility.
+
 Create parcel batch:
 ```http
 POST /api/v1/merchant/orders/<order_id>/batch
@@ -720,6 +814,10 @@ Role and ownership rules:
 - Passenger can run/view match results for own passenger request.
 - Merchant can run/view match results for own merchant order.
 - Admin can run/view matches for seeded or explicit demo records.
+- Driver can list and view matches connected to own driver routes.
+- Passenger can list only matches connected to own passenger requests.
+- Merchant can list only matches connected to own merchant orders.
+- Admin can list all matches.
 - Merchant can batch only own order.
 - Admin can batch seeded/demo order.
 - Admin only can run and read comparison runs.
@@ -906,11 +1004,9 @@ Mobile API URL examples:
 - Physical Android phone to host API: `--dart-define=API_BASE_URL=http://<computer-lan-ip>:3000`.
 - Future hosted demo API: `--dart-define=API_BASE_URL=https://<demo-api-domain>`.
 
-Mobile pending backend gap:
-- Drivers currently have no role-filtered endpoint for discovering proposed matches.
-- Expected future surgical backend solution: `GET /api/v1/matches`.
-- Role-filtered behavior should be: driver sees matches for own driver routes, passenger sees matches for own requests, merchant sees matches for own orders, admin can see all.
-- This backend endpoint was not implemented in M4B.
+Mobile match-inbox backend dependency:
+- M4E1 resolved the backend gap with role-filtered `GET /api/v1/matches`.
+- The endpoint is ready for a future Flutter driver inbox, but no Flutter driver screen or driver business flow is implemented yet.
 
 M4B Android runtime validation:
 - Existing AVD found: `Medium_Phone_API_36.0`.
@@ -1003,7 +1099,7 @@ Passenger matching behavior:
 - Breakdown labels are localized and values are formatted as percentages.
 - No raw JSON is shown.
 - No compatible driver errors render a localized empty state.
-- No role-filtered `GET /api/v1/matches` endpoint is used or implemented.
+- The M4D passenger UI does not use the role-filtered `GET /api/v1/matches` endpoint added later in M4E1.
 
 Passenger trip polling behavior:
 - Trip detail polls detail every 5 seconds.
@@ -1069,6 +1165,11 @@ Implemented minimal tests:
 - Matching rejects capacity mismatch.
 - Matching rejects non-owner access.
 - Matching returns persisted scoring breakdown.
+- Match inbox rejects unauthenticated requests.
+- Match inbox applies driver-route, passenger-request, merchant-order, and admin-all role filters.
+- Match inbox validates status filtering and newest-first ordering.
+- Match inbox and detail responses include scoring and related summaries while excluding sensitive fields.
+- Match detail allows the connected driver, passenger, merchant, and admin, and rejects unrelated users.
 - Batching own order succeeds.
 - Batching rejects non-merchant/non-admin.
 - Batching rejects another merchant's order.
@@ -1321,6 +1422,33 @@ M4D Android runtime smoke:
 - Passenger app did not show driver/merchant accept/reject, trip mutation, or simulation controls.
 - Runtime screenshots captured under `C:\Users\basha\AppData\Local\Temp\opencode`, including dashboard, request detail, match, cancel result, create form, created request, trip detail, and English relaunch.
 
+M4E1 validation results:
+- Repository baseline was clean on `master` at `cb0ff92 feat: add passenger mobile flow`.
+- No remote is configured for this repository.
+- No Prisma schema or migration files changed.
+- `npm run prisma:validate`: passed.
+- `npm run prisma:generate`: passed with Prisma 7.8.0.
+- `npm run typecheck`: passed for admin and API workspaces.
+- `npm run test`: passed, 6 API test files and 57 tests.
+- `npm run build`: passed for admin and API workspaces.
+- `flutter pub get`: passed.
+- `flutter gen-l10n`: passed.
+- `dart format --set-exit-if-changed .`: passed, 42 files checked and 0 changed.
+- `flutter analyze`: passed with no issues.
+- `flutter test`: passed, 25 mobile tests.
+- Focused M4E1 test file contains 9 tests covering authentication, all four role filters, newest-first ordering, safe summaries, scoring breakdown, valid/invalid status filters, and detail ownership consistency.
+
+M4E1 real PostgreSQL smoke:
+- Local PostgreSQL on port `5432` and a temporary API on port `3110` were used; demo data was reset through the protected real endpoint.
+- Passenger, both drivers, merchant, and admin logged in through the real auth endpoint.
+- Passenger matching created match `cmrixqnun000qkkhnwkoufhvk` and merchant matching created match `cmrixqnvb000skkhna1zahtjo`.
+- Selected driver inbox returned both connected matches; alternate driver inbox returned zero.
+- Passenger inbox returned exactly the passenger match; merchant inbox returned exactly the merchant match; admin inbox returned both.
+- Admin results were newest first and included scoring breakdown and the safe summary contract without sensitive ownership or credential fields.
+- Connected driver detail returned `200`; unrelated driver detail returned `403`.
+- After the passenger match was accepted, `status=proposed` returned only the merchant match and `status=accepted` returned only the passenger match.
+- Invalid status returned `400`.
+
 [SUCCESS_CRITERIA]
 M1 success criteria:
 - API can start.
@@ -1336,7 +1464,7 @@ Current pending items:
 - npm audit reports 3 moderate findings through Prisma CLI transitive `@hono/node-server`. The available force fix would downgrade Prisma from 7.8.0 to 6.19.3, so this needs a Prisma upstream patch or explicit approval to downgrade.
 - Manual browser visual QA remains pending because this tool environment cannot visually inspect the interactive browser. Required manual check: run `npm run dev:api`, run `npm run dev:admin`, open the admin console, login as admin, run full demo sequence, and verify the judge-facing layout and copy.
 - Manual M3D language QA remains pending because this tool environment cannot visually inspect the interactive browser. Required manual check: clear `masari_locale`, verify Arabic RTL default, switch to English LTR, refresh, verify English persistence, switch back to Arabic, and run the full demo path.
-- Backend gap for future mobile driver flow: no role-filtered `GET /api/v1/matches` endpoint exists yet for discovering proposed matches. Do not implement until the matching-list milestone.
+- Flutter Driver Mobile Flow remains pending; M4E1 provides its role-filtered match-inbox backend dependency only.
 
 Commands to run locally:
 ```bash
