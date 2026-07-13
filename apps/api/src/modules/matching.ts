@@ -160,7 +160,13 @@ async function loadAuthorizedInput(req: AuthenticatedRequest, input: MatchInput)
     ? await prisma.passengerRequest.findUnique({ where: { id: input.passengerRequestId } })
     : null;
   const merchantOrder = input.merchantOrderId
-    ? await prisma.merchantOrder.findUnique({ where: { id: input.merchantOrderId }, include: { parcels: true } })
+    ? await prisma.merchantOrder.findUnique({
+        where: { id: input.merchantOrderId },
+        include: {
+          parcels: true,
+          parcel_batches: { select: { id: true }, orderBy: { created_at: "desc" }, take: 1 }
+        }
+      })
     : null;
 
   if (input.passengerRequestId && !passengerRequest) throw new HttpError(404, "passenger_request_not_found");
@@ -258,6 +264,7 @@ async function createBestMatch(req: AuthenticatedRequest, input: MatchInput) {
       driver_route_id: best.route.id,
       passenger_request_id: passengerRequest?.id,
       merchant_order_id: merchantOrder?.id,
+      parcel_batch_id: merchantOrder?.parcel_batches[0]?.id,
       score: best.breakdown.finalScore.toFixed(4),
       method: "masari_route_score",
       explanation,

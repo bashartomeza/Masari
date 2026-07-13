@@ -153,6 +153,34 @@ describe("matching, batching, comparison", () => {
     expect(response.body.scoringBreakdown.finalScore).toEqual(expect.any(Number));
   });
 
+  it("combined matching links the merchant's persisted parcel batch", async () => {
+    prismaMock.passengerRequest.findUnique.mockResolvedValue(passengerRequest);
+    prismaMock.merchantOrder.findUnique.mockResolvedValue({
+      ...merchantOrder,
+      status: "batched",
+      parcel_batches: [{ id: "batch_1" }]
+    });
+    prismaMock.driverRoute.findMany.mockResolvedValue([compatibleRoute]);
+    prismaMock.match.create.mockImplementation(({ data }) => ({ id: "match_1", ...data, driver_route: compatibleRoute }));
+
+    await request(createApp())
+      .post("/api/v1/matches/run")
+      .set(auth("admin_1"))
+      .send({ passengerRequestId: "req_1", merchantOrderId: "order_1" })
+      .expect(201);
+
+    expect(prismaMock.merchantOrder.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: expect.objectContaining({
+          parcel_batches: expect.objectContaining({ orderBy: { created_at: "desc" }, take: 1 })
+        })
+      })
+    );
+    expect(prismaMock.match.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ parcel_batch_id: "batch_1" }) })
+    );
+  });
+
   it("GET match returns saved result for owner", async () => {
     prismaMock.match.findUnique.mockResolvedValue({
       id: "match_1",
