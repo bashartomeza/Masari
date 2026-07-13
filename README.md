@@ -24,6 +24,7 @@ $env:ENABLE_DEMO_FEATURES = "false"
 $env:JWT_SECRET = "<at-least-32-random-characters>"
 $env:DEMO_RESET_KEY = "<local-demo-reset-key>"
 $env:CORS_ORIGINS = "http://localhost:5173,http://localhost:5174,http://localhost:5175,http://127.0.0.1:5173,http://127.0.0.1:5174,http://127.0.0.1:5175"
+$env:TRUST_PROXY = "none"
 $env:PORT = "3000"
 ```
 
@@ -55,3 +56,5 @@ npm run demo:smoke
 ```
 
 `npm audit fix --force` is intentionally prohibited because the proposed fix is a breaking Prisma downgrade.
+
+Production HTTP controls, request IDs, proxy topology, and health/readiness contracts are documented in `docs/security/http-security-baseline.md`, `docs/operations/logging-and-request-ids.md`, and `docs/operations/health-and-readiness.md`.

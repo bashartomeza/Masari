@@ -3,7 +3,7 @@
 [PROJECT_OVERVIEW]
 Masari is a Palestine-focused smart route-sharing logistics MVP.
 
-Current implementation status: M5C MySQL Provider Migration and MySQL Demo Release Validation.
+Current implementation status: M6B1B Production HTTP Security, Request Traceability, Rate Limiting, and Readiness.
 
 Locked MVP corridor:
 Hebron / PPU / Bab Al-Zawiya -> Bethlehem.
@@ -1961,6 +1961,48 @@ Validation status:
 - Real MySQL demo preflight passed 18/18 and full smoke retained score `0.9317`, tracking sequence `2`, trips `1` versus `6`, distance `21.53` versus `129.19`, cost `43.06` versus `258.38`, and winner `masari`.
 - Separate production-mode runtime validation passed 10/10: health and normal role/trip/location routes remained registered, while reset, simulation step/reset, and deterministic comparison returned `404`.
 
-Remaining M6B1B backlog:
-- Rate limiting, structured/redacted production logging, request IDs, security headers, body limits, and database-backed readiness.
+Remaining after M6B1A:
+- M6B1B implements rate limiting, structured/redacted production logging, request IDs, security headers, body limits, and database-backed readiness below.
 - Server-managed admin sessions remain part of the later authentication lifecycle milestone.
+
+[M6B1B_PRODUCTION_HTTP_BASELINE]
+Scope:
+- Every request receives a generated UUID or strictly validated inbound `X-Request-Id`; responses expose the same header and safe errors include `request_id`.
+- Pino emits asynchronous JSON operational logs using an allowlist of environment/release, request, route, status, duration, actor, and event fields. Bodies, query strings, headers, tokens, passwords, phones, coordinates, database URLs, reset keys, error messages, and stacks are excluded.
+- Global `/api/v1` and stricter login rate limiters use IPv6-safe IP keys. Login adds only a one-way normalized-phone digest. Health routes and CORS preflight are excluded; the current MemoryStore is single-instance only.
+- Staging/production require explicit `TRUST_PROXY`; direct mode trusts no forwarded headers and proxy mode accepts only a documented hop count.
+
+HTTP policy:
+- Helmet disables `X-Powered-By`, MIME sniffing, framing, and referrer leakage, and applies same-site resource policy. HSTS is emitted only in staging/production.
+- JSON bodies are limited to 64 KB and form bodies to 16 KB. Invalid/oversized bodies return controlled errors without echoing content.
+- Central errors preserve safe domain codes, sanitize Zod details, map known Prisma conflict/not-found cases, and return generic unknown/database failures with request IDs.
+- Shared coordinate schemas enforce latitude `-90..90` and longitude `-180..180` for passenger requests, merchant pickup, and parcel destinations while retaining the existing numeric-string contract.
+
+Health and lifecycle:
+- `/api/v1/health` preserves service identity; `/health/live` is database-independent; `/health/ready` performs a bounded, read-only Prisma/MySQL check and returns redacted `503` on failure/timeout.
+- Health endpoints precede rate limiting. Demo preflight now requires database-backed readiness.
+- SIGINT/SIGTERM stop new connections, close the HTTP server, disconnect Prisma, emit safe lifecycle events, and enforce a 10-second shutdown bound.
+- No Prisma schema or migration change was made. Admin and Flutter contracts/source remain unchanged by M6B1B.
+
+Focused documentation:
+- `docs/security/http-security-baseline.md`.
+- `docs/operations/logging-and-request-ids.md`.
+- `docs/operations/health-and-readiness.md`.
+- `docs/decisions/ADR-002-operational-logging-and-correlation.md`.
+
+Validation status:
+- Configuration, request ID, redaction, actor metadata, global/login rate limits, proxy spoof resistance, IPv6-safe keying, headers/HSTS/CORS, body limits, safe errors, coordinate boundaries, and readiness success/failure/timeout regressions are automated.
+- Added exact dependencies after 2026-07 registry checks: Helmet `8.3.0`, express-rate-limit `8.5.2`, and Pino `10.3.1`. `pino-http` was evaluated but not added because the smaller allowlisted middleware avoids broad default request serialization.
+- Prisma validate/generate, workspace typecheck/build, 10 API files / 94 tests, and production-like admin typecheck/build with 3 files / 12 tests passed.
+- Flutter dependency/localization generation, 70-file clean formatting, analysis, and 65 tests passed. No APK rebuild was performed because M6B1B changed no admin/mobile source or shared client configuration.
+- Real MySQL demo preflight passed 19/19, including readiness. Full smoke retained score `0.9317`, tracking sequence `2`, trips `1` versus `6`, distance `21.53` versus `129.19`, cost `43.06` versus `258.38`, winner `masari`, and reset recovery.
+- Demo runtime headers/request IDs passed and 55 captured structured completion events contained no authorization material, password/phone keys, database URLs, seeded phones, or precise demo coordinates.
+- Production-like real-MySQL checks passed: health/live/ready `200`, normal protected API `401`, demo reset/comparison/simulation `404`, CORS preflight `204`, login `401,401,401,429` with `Retry-After`, oversized JSON safe `413`, malformed JSON safe `400`, HSTS/security headers present, and `X-Powered-By` absent.
+- Production log inspection passed across 14 completion events. With an unavailable database, liveness stayed `200`, readiness returned redacted `503 not_ready`, and a safe readiness-failure event was recorded.
+- `npm audit --omit=dev` still reports the three known moderate Prisma CLI transitive `@hono/node-server` findings; its only proposed repair is the prohibited breaking Prisma `6.19.3` downgrade. `npm audit fix --force` was not run.
+- No Prisma schema or migration changed.
+
+Remaining security backlog after M6B1B:
+- Shared external rate-limit storage is required before horizontal multi-instance scaling.
+- Hosting selection must confirm the exact proxy-hop topology, TLS termination, React deployment headers, and external health-check policy.
+- Server-managed admin sessions, refresh/session lifecycle, registration/OTP, distributed tracing, and production deployment remain later milestones.
