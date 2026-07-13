@@ -7,6 +7,7 @@ import type { TranslationKey } from "./i18n/translations";
 const tripFlow = ["accepted", "pickup_started", "picked_up", "in_transit", "delivered", "completed"];
 
 type Notice = { type: "success" | "error"; message: string } | null;
+type DemoStep = { key: TranslationKey; statusValue?: string };
 
 function getErrorMessage(error: unknown, t: (key: TranslationKey) => string) {
   if (!(error instanceof Error)) return t("unexpectedError");
@@ -37,7 +38,7 @@ export function App() {
   const [admin, setAdmin] = useState<User | null>(null);
   const [phone, setPhone] = useState("+970590000005");
   const [password, setPassword] = useState("demo-admin-123");
-  const [resetKey, setResetKey] = useState("m3a-reset-key");
+  const [resetKey, setResetKey] = useState(() => import.meta.env.VITE_DEMO_RESET_KEY ?? "");
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice>(null);
 
@@ -52,10 +53,15 @@ export function App() {
   const [activeTrip, setActiveTrip] = useState<Trip | null>(null);
   const [latestLocation, setLatestLocation] = useState<LocationEvent | null>(null);
   const [locationTrail, setLocationTrail] = useState<LocationEvent[]>([]);
-  const [demoSteps, setDemoSteps] = useState<string[]>([]);
+  const [demoSteps, setDemoSteps] = useState<DemoStep[]>([]);
 
   const selectedRequest = requests[0];
   const selectedOrder = orders[0];
+  const selectedRoute =
+    routes.find(
+      (route) =>
+        route.origin_label === "Hebron / PPU / Bab Al-Zawiya" && route.destination_label === "Bethlehem"
+    ) ?? routes[0];
   const canAct = Boolean(token) && !busy;
   const nextTripStatus = activeTrip ? tripFlow[tripFlow.indexOf(activeTrip.status) + 1] : undefined;
 
@@ -70,7 +76,7 @@ export function App() {
   };
 
   function LanguageSwitch() {
-    return <button className="language-switch" type="button" onClick={toggleLocale}>{t("languageSwitch")}</button>;
+    return <button className="language-switch" type="button" onClick={() => { setNotice(null); toggleLocale(); }}>{t("languageSwitch")}</button>;
   }
 
   async function runAction<T>(label: string, action: () => Promise<T>, success: string) {
@@ -103,6 +109,10 @@ export function App() {
     setOrders(ordersData.orders);
     setTrips(tripsData.trips);
     setActiveTrip((current) => current ?? tripsData.trips[0] ?? null);
+  }
+
+  async function refreshData() {
+    await runAction("refresh", () => refreshOverview(), t("dataRefreshed"));
   }
 
   async function login(event: FormEvent) {
@@ -172,6 +182,9 @@ export function App() {
     const result = await runAction("accept", () => api.acceptMatch(token, matchResult.match.id), t("matchAccepted"));
     if (result) {
       setActiveTrip(result.trip);
+      setMatchResult((current) =>
+        current ? { ...current, match: { ...current.match, status: "accepted" } } : current
+      );
       await refreshTrips();
     }
   }
@@ -192,6 +205,10 @@ export function App() {
     } else {
       setActiveTrip(result.trips[0] ?? null);
     }
+  }
+
+  async function refreshTripData() {
+    await runAction("refresh-trips", () => refreshTrips(), t("dataRefreshed"));
   }
 
   async function moveTrip(status: string) {
@@ -227,48 +244,48 @@ export function App() {
 
   async function runFullDemoSequence() {
     await runAction("full-demo", async () => {
-      const steps: string[] = [];
-      const mark = (step: string) => {
-        steps.push(step);
+      const steps: DemoStep[] = [];
+      const mark = (key: TranslationKey, statusValue?: string) => {
+        steps.push({ key, statusValue });
         setDemoSteps([...steps]);
       };
 
-      mark(t("stepReset"));
+      mark("stepReset");
       await api.reset(token || undefined, resetKey);
-      mark(t("stepLogin"));
+      mark("stepLogin");
       const session = await api.login(phone, password);
       localStorage.setItem("masari_admin_token", session.token);
       setToken(session.token);
       setAdmin(session.user);
       const currentToken = session.token;
-      mark(t("stepLoadInputs"));
+      mark("stepLoadInputs");
       const overview = await Promise.all([api.requests(currentToken), api.orders(currentToken)]);
       const request = overview[0].requests[0];
       const order = overview[1].orders[0];
       if (!request || !order) throw new Error(t("seededInputsMissingAfterReset"));
-      mark(t("stepRunMatch"));
-      const match = await api.runMatch(currentToken, request.id, order.id);
-      mark(t("stepCreateBatch"));
+      mark("stepCreateBatch");
       const batch = await api.batchOrder(currentToken, order.id);
-      mark(t("stepRunComparison"));
+      mark("stepRunMatch");
+      const match = await api.runMatch(currentToken, request.id, order.id);
+      mark("stepRunComparison");
       const comparisonRun = await api.runComparison(currentToken, request.id, order.id);
-      mark(t("stepAcceptTrip"));
+      mark("stepAcceptTrip");
       const accepted = await api.acceptMatch(currentToken, match.match.id);
       let trip = accepted.trip;
       for (const status of ["pickup_started", "picked_up", "in_transit", "delivered", "completed"]) {
-        mark(t("stepAdvanceTrip", { status: statusLabel(status) }));
+        mark("stepAdvanceTrip", status);
         trip = (await api.updateTripStatus(currentToken, trip.id, status)).trip;
       }
-      mark(t("stepRecordTracking"));
+      mark("stepRecordTracking");
       const location = await api.simulateStep(currentToken, trip.id);
-      setMatchResult(match);
-      setBatchResult(batch);
+      setMatchResult({ ...match, match: { ...match.match, status: "accepted" } });
+      setBatchResult({ ...batch, batch: { ...batch.batch, status: "delivered" } });
       setComparison(comparisonRun.comparison);
       setActiveTrip(trip);
       setLatestLocation(location.location);
       setLocationTrail([location.location]);
       await refreshOverview(currentToken);
-      mark(t("stepDemoComplete"));
+      mark("stepDemoComplete");
     }, t("fullDemoCompleted"));
   }
 
@@ -322,10 +339,10 @@ export function App() {
           <div className="control-row">
             <label>{t("resetKey")}<input className="technical" value={resetKey} onChange={(event) => setResetKey(event.target.value)} /></label>
             <button onClick={resetDemo} disabled={!canAct}>{busy === "reset" ? t("resetting") : t("resetDemo")}</button>
-            <button onClick={() => refreshOverview()} disabled={!canAct}>{t("refreshData")}</button>
+            <button onClick={refreshData} disabled={!canAct}>{t("refreshData")}</button>
           </div>
           <p className="muted">{t("resetExplanation")}</p>
-          {demoSteps.length > 0 && <ol className="demo-steps">{demoSteps.map((step) => <li key={step}>{step}</li>)}</ol>}
+          {demoSteps.length > 0 && <ol className="demo-steps">{demoSteps.map((step, index) => <li key={`${step.key}-${index}`}>{t(step.key, step.statusValue ? { status: status(step.statusValue) } : {})}</li>)}</ol>}
         </Section>
 
         <Section title={t("systemOverview")}>
@@ -340,7 +357,7 @@ export function App() {
           <div className="mini-list">
             <h3>{t("seededData")}</h3>
             <p>{t("activeCorridor")}: {t("corridorLabel")}</p>
-            <p>{t("route")}: {routes[0] ? `${routes[0].origin_label} -> ${routes[0].destination_label}` : t("noData")} <Badge>{routes[0] ? status(routes[0].status) : t("missing")}</Badge></p>
+            <p>{t("route")}: {selectedRoute ? `${selectedRoute.origin_label} -> ${selectedRoute.destination_label}` : t("noData")} <Badge>{selectedRoute ? status(selectedRoute.status) : t("missing")}</Badge></p>
             <p>{t("request")}: {selectedRequest?.pickup_label ?? t("noData")} <Badge>{selectedRequest ? status(selectedRequest.status) : t("missing")}</Badge></p>
             <p>{t("order")}: {selectedOrder?.pickup_label ?? t("noData")} <Badge>{selectedOrder ? status(selectedOrder.status) : t("missing")}</Badge> {number(selectedOrder?.parcels?.length ?? 0)} {t("parcels")}</p>
           </div>
@@ -393,7 +410,7 @@ export function App() {
         <Section title={t("tripFlow")} action={<button onClick={acceptMatch} disabled={!canAct || !matchResult}>{t("acceptMatch")}</button>}>
           <div className="control-row">
             <button onClick={rejectMatch} disabled={!canAct || !matchResult}>{t("rejectMatch")}</button>
-            <button onClick={refreshTrips} disabled={!canAct}>{t("refreshTrips")}</button>
+            <button onClick={refreshTripData} disabled={!canAct}>{t("refreshTrips")}</button>
           </div>
           {activeTrip ? (
             <div className="result-card">

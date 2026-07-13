@@ -57,5 +57,7 @@ describe("admin localization", () => {
     expect(statusLabel("ar", apiValue)).toBe("بدأ التوجه للالتقاط");
     expect(statusLabel("en", apiValue)).toBe("Pickup started");
     expect(apiValue).toBe("pickup_started");
+    expect(statusLabel("ar", "submitted")).toBe("مقدم");
+    expect(statusLabel("en", "submitted")).toBe("Submitted");
   });
 });
