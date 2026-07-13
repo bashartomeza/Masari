@@ -84,6 +84,7 @@
   "trustScore": "Trust score",
   "capacityFit": "Capacity fit",
   "matchExplanation": "Match explanation",
+  "routeMatchExplanation": "Masari selected this driver because the route matches the active corridor, pickup is near the route, capacity is available, and trust score is high.",
   "passengerTrip": "Passenger trip",
   "tripTimeline": "Trip timeline",
   "latestLocation": "Latest location",

@@ -47,7 +47,9 @@ class MatchDetailScreen extends ConsumerWidget {
                     Text('${l10n.selectedDriver}: ${match.driverName}'),
                     Text('${l10n.selectedRoute}: ${match.routeLabel}'),
                     Text('${l10n.matchScore}: ${_percent(match.score)}'),
-                    Text('${l10n.currentStatus}: ${match.status}'),
+                    Text(
+                      '${l10n.currentStatus}: ${localizedMatchStatus(l10n, match.status)}',
+                    ),
                     const SizedBox(height: AppTokens.spaceMedium),
                     Text(
                       l10n.scoringBreakdown,
@@ -69,7 +71,9 @@ class MatchDetailScreen extends ConsumerWidget {
                       '${l10n.capacityFit}: ${_percent(match.breakdown.capacityFit)}',
                     ),
                     const SizedBox(height: AppTokens.spaceMedium),
-                    Text('${l10n.matchExplanation}: ${match.explanation}'),
+                    Text(
+                      '${l10n.matchExplanation}: ${l10n.routeMatchExplanation}',
+                    ),
                   ],
                 ),
               ),
@@ -82,3 +86,13 @@ class MatchDetailScreen extends ConsumerWidget {
 }
 
 String _percent(double value) => '${(value * 100).toStringAsFixed(1)}%';
+
+String localizedMatchStatus(AppLocalizations l10n, String status) =>
+    switch (status) {
+      'proposed' => l10n.statusProposed,
+      'sent_to_driver' => l10n.statusSentToDriver,
+      'accepted' => l10n.statusAccepted,
+      'rejected' => l10n.statusRejected,
+      'expired' => l10n.statusExpired,
+      _ => status,
+    };

@@ -271,6 +271,10 @@ class AppLocalizationsAr extends AppLocalizations {
   String get matchExplanation => 'شرح المطابقة';
 
   @override
+  String get routeMatchExplanation =>
+      'اختار مصاري هذا السائق لأن المسار يطابق الممر النشط، ونقطة الالتقاط قريبة من المسار، والسعة متاحة، ودرجة الثقة مرتفعة.';
+
+  @override
   String get passengerTrip => 'رحلة المسافر';
 
   @override

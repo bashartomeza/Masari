@@ -84,6 +84,7 @@
   "trustScore": "درجة الثقة",
   "capacityFit": "ملاءمة السعة",
   "matchExplanation": "شرح المطابقة",
+  "routeMatchExplanation": "اختار مصاري هذا السائق لأن المسار يطابق الممر النشط، ونقطة الالتقاط قريبة من المسار، والسعة متاحة، ودرجة الثقة مرتفعة.",
   "passengerTrip": "رحلة المسافر",
   "tripTimeline": "خط الرحلة الزمني",
   "latestLocation": "آخر موقع",

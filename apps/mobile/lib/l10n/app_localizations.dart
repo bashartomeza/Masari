@@ -602,6 +602,12 @@ abstract class AppLocalizations {
   /// **'شرح المطابقة'**
   String get matchExplanation;
 
+  /// No description provided for @routeMatchExplanation.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختار مصاري هذا السائق لأن المسار يطابق الممر النشط، ونقطة الالتقاط قريبة من المسار، والسعة متاحة، ودرجة الثقة مرتفعة.'**
+  String get routeMatchExplanation;
+
   /// No description provided for @passengerTrip.
   ///
   /// In ar, this message translates to:
