@@ -19,10 +19,14 @@ The database must be empty and dedicated to Masari before the first migration. D
 Copy `apps/api/.env.example` to the ignored `apps/api/.env` file and replace placeholders locally. Never commit or package the completed file.
 
 ```dotenv
+APP_ENV="local"
+ENABLE_DEMO_FEATURES="false"
 DATABASE_URL="mysql://<user>:<password>@localhost:3306/masari"
-JWT_SECRET="<long-local-secret>"
-DEMO_RESET_KEY="<local-reset-key>"
+JWT_SECRET="<at-least-32-random-characters>"
+CORS_ORIGINS="http://localhost:5173"
 ```
+
+This is a normal local configuration with demo capabilities disabled. Use the separate ignored values represented by `apps/api/.env.demo.example` only for the isolated deterministic rehearsal.
 
 ## Apply the schema
 

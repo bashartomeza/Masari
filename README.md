@@ -19,7 +19,9 @@ npm run db:migrate
 
 ```powershell
 $env:DATABASE_URL = "mysql://<user>:<password>@localhost:3306/masari"
-$env:JWT_SECRET = "<long-local-development-secret>"
+$env:APP_ENV = "local"
+$env:ENABLE_DEMO_FEATURES = "false"
+$env:JWT_SECRET = "<at-least-32-random-characters>"
 $env:DEMO_RESET_KEY = "<local-demo-reset-key>"
 $env:CORS_ORIGINS = "http://localhost:5173,http://localhost:5174,http://localhost:5175,http://127.0.0.1:5173,http://127.0.0.1:5174,http://127.0.0.1:5175"
 $env:PORT = "3000"
@@ -33,6 +35,8 @@ npm run dev:api
 
 ```powershell
 $env:VITE_API_BASE_URL = "http://localhost:3000"
+$env:VITE_APP_ENV = "local"
+$env:VITE_ENABLE_DEMO_FEATURES = "false"
 npm run dev:admin
 ```
 
@@ -40,10 +44,10 @@ npm run dev:admin
 
 ```powershell
 Set-Location apps/mobile
-flutter build apk --debug --dart-define=API_BASE_URL=http://10.0.2.2:3000
+flutter build apk --debug --dart-define=APP_ENV=local --dart-define=API_BASE_URL=http://10.0.2.2:3000 --dart-define=ENABLE_DEMO_FEATURES=false
 ```
 
-5. With MySQL, API, admin, and the Android emulator running, execute:
+5. The protected deterministic rehearsal requires the isolated `demo` configuration documented in `README_DEMO_START.md`. With that configuration, MySQL, API, admin, and the Android emulator running, execute:
 
 ```powershell
 npm run demo:preflight

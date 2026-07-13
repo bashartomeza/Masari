@@ -18,14 +18,24 @@ Open a PowerShell terminal at the repository root and set local values. The valu
 
 ```powershell
 $env:DATABASE_URL = "mysql://<user>:<password>@localhost:3306/masari"
-$env:JWT_SECRET = "<long-local-development-secret>"
+$env:APP_ENV = "demo"
+$env:JWT_SECRET = "<at-least-32-random-characters>"
 $env:DEMO_RESET_KEY = "<local-demo-reset-key>"
+$env:DEMO_PASSENGER_PASSWORD = "<local-demo-passenger-password>"
+$env:DEMO_DRIVER_PASSWORD = "<local-demo-driver-password>"
+$env:DEMO_MERCHANT_PASSWORD = "<local-demo-merchant-password>"
+$env:DEMO_ADMIN_PASSWORD = "<local-demo-admin-password>"
 $env:CORS_ORIGINS = "http://localhost:5173,http://localhost:5174,http://localhost:5175,http://127.0.0.1:5173,http://127.0.0.1:5174,http://127.0.0.1:5175"
 $env:PORT = "3000"
 $env:VITE_API_BASE_URL = "http://localhost:3000"
+$env:VITE_APP_ENV = "demo"
+$env:VITE_ENABLE_DEMO_FEATURES = "true"
+$env:VITE_DEMO_ADMIN_PHONE = "+970590000005"
+$env:VITE_DEMO_ADMIN_PASSWORD = $env:DEMO_ADMIN_PASSWORD
+$env:VITE_DEMO_RESET_KEY = $env:DEMO_RESET_KEY
 ```
 
-Use the same `DATABASE_URL`, `JWT_SECRET`, and `DEMO_RESET_KEY` in every terminal that starts or validates the API. Never place their real values in Git, screenshots, or presenter notes.
+Use the same safe local environment in every terminal that starts or validates the demo. Never place real values in Git, screenshots, or presenter notes.
 
 ## 3. Exact startup order
 
@@ -80,11 +90,11 @@ These are intentionally seeded demo-only accounts:
 
 | Role | Phone | Password | Surface |
 | --- | --- | --- | --- |
-| Passenger | `+970590000001` | `demo-passenger-123` | Flutter |
-| Selected driver | `+970590000002` | `demo-driver-123` | Flutter |
-| Alternate driver | `+970590000003` | `demo-driver-123` | API visibility proof |
-| Merchant | `+970590000004` | `demo-merchant-123` | Flutter |
-| Admin | `+970590000005` | `demo-admin-123` | React admin |
+| Passenger | `+970590000001` | local `DEMO_PASSENGER_PASSWORD` value | Flutter |
+| Selected driver | `+970590000002` | local `DEMO_DRIVER_PASSWORD` value | Flutter |
+| Alternate driver | `+970590000003` | local `DEMO_DRIVER_PASSWORD` value | API visibility proof |
+| Merchant | `+970590000004` | local `DEMO_MERCHANT_PASSWORD` value | Flutter |
+| Admin | `+970590000005` | local `DEMO_ADMIN_PASSWORD` value | React admin |
 
 The mobile login screen includes passenger, selected-driver, and merchant presets. The reset key is not a demo account credential and must never be displayed on an unauthorized role screen.
 

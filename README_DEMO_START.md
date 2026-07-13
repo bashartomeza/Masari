@@ -14,8 +14,13 @@ Set real local values in the PowerShell session only. Never add them to this fil
 
 ```powershell
 $env:DATABASE_URL = "mysql://<user>:<password>@localhost:3306/masari"
-$env:JWT_SECRET = "<long-local-development-secret>"
+$env:APP_ENV = "demo"
+$env:JWT_SECRET = "<at-least-32-random-characters>"
 $env:DEMO_RESET_KEY = "<local-demo-reset-key>"
+$env:DEMO_PASSENGER_PASSWORD = "<local-demo-passenger-password>"
+$env:DEMO_DRIVER_PASSWORD = "<local-demo-driver-password>"
+$env:DEMO_MERCHANT_PASSWORD = "<local-demo-merchant-password>"
+$env:DEMO_ADMIN_PASSWORD = "<local-demo-admin-password>"
 $env:CORS_ORIGINS = "http://localhost:5173,http://localhost:5174,http://localhost:5175,http://127.0.0.1:5173,http://127.0.0.1:5174,http://127.0.0.1:5175"
 $env:PORT = "3000"
 ```
@@ -25,9 +30,9 @@ $env:PORT = "3000"
 1. Start MySQL and confirm local port 3306 and the dedicated `masari` database.
 2. Run `npm install`, `npm run prisma:validate`, `npm run prisma:generate`, and `npm run db:migrate`.
 3. Terminal A: set the environment above, then run `npm run dev:api`.
-4. Terminal B: set `$env:VITE_API_BASE_URL = "http://localhost:3000"`, then run `npm run dev:admin`.
-5. Cold-boot AVD `Medium_Phone_API_36.0`.
-6. Install `app-debug.apk` with `adb install -r app-debug.apk`.
+4. Terminal B: set `VITE_APP_ENV=demo`, `VITE_ENABLE_DEMO_FEATURES=true`, `VITE_API_BASE_URL=http://localhost:3000`, and the matching `VITE_DEMO_ADMIN_PHONE`, `VITE_DEMO_ADMIN_PASSWORD`, and `VITE_DEMO_RESET_KEY` values; then run `npm run dev:admin`.
+5. Copy `apps/mobile/config/demo.example.json` to the ignored `demo.local.json`, replace its placeholders with the matching local demo values, and run `flutter build apk --debug --dart-define-from-file=config/demo.local.json` from `apps/mobile`.
+6. Cold-boot AVD `Medium_Phone_API_36.0` and install the resulting `app-debug.apk`.
 7. Run `npm run demo:preflight` and require every check to pass.
 8. Run `npm run demo:smoke` and require `"ok":true`.
 9. Run one protected reset and open `JUDGE_SCRIPT.md`.

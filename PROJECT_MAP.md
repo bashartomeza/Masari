@@ -651,7 +651,7 @@ Auth login request:
 ```json
 {
   "phone": "+970590000001",
-  "password": "demo-passenger-123"
+  "password": "<DEMO_PASSENGER_PASSWORD>"
 }
 ```
 
@@ -1297,11 +1297,11 @@ Implemented endpoint:
 - `POST /api/v1/demo/reset`.
 
 Seeded demo accounts:
-- Passenger: `+970590000001` / `demo-passenger-123`.
-- Driver 1: `+970590000002` / `demo-driver-123`.
-- Driver 2: `+970590000003` / `demo-driver-123`.
-- Merchant: `+970590000004` / `demo-merchant-123`.
-- Admin: `+970590000005` / `demo-admin-123`.
+- Passenger: `+970590000001` / local `DEMO_PASSENGER_PASSWORD` value.
+- Driver 1: `+970590000002` / local `DEMO_DRIVER_PASSWORD` value.
+- Driver 2: `+970590000003` / local `DEMO_DRIVER_PASSWORD` value.
+- Merchant: `+970590000004` / local `DEMO_MERCHANT_PASSWORD` value.
+- Admin: `+970590000005` / local `DEMO_ADMIN_PASSWORD` value.
 
 Seeded demo data:
 - Locked corridor: Hebron / PPU / Bab Al-Zawiya -> Bethlehem.
@@ -1924,3 +1924,43 @@ npm run dev:api
 npm run demo:preflight
 npm run demo:smoke
 ```
+
+[M6B1A_PRODUCTION_ISOLATION]
+Scope:
+- Added the canonical `APP_ENV` model: `local`, `test`, `demo`, `staging`, and `production`.
+- Added fail-closed backend validation for database URL, minimum/non-placeholder JWT secret, explicit production-like CORS, release identity, and demo-only credentials.
+- Staging/production reject demo enablement; production also rejects wildcard and local CORS origins.
+- No Prisma schema, migration, or dependency change was made.
+
+Route registration:
+- `POST /api/v1/demo/reset`, tracking simulation step/reset, and deterministic comparison routes register only when demo features are enabled.
+- Staging and production return `404` because these routers are absent.
+- Normal role routes, trip lifecycle/reads, and latest-location reads remain registered.
+
+Credential/build isolation:
+- Backend demo reset reads passwords only from validated `DEMO_*_PASSWORD` values.
+- Admin uses typed `VITE_APP_ENV` configuration; production-like builds require HTTPS and omit credentials, reset tools, full demo automation, deterministic comparison, and simulation UI.
+- Admin JWT persistence moved from `localStorage` to `sessionStorage`; logout/startup clear the legacy token location.
+- Flutter uses typed compile-time `APP_ENV` configuration; production-like builds require HTTPS and omit presets and driver simulation controls while retaining read-only location.
+
+Sensitive-data safety:
+- Admin user relations use explicit safe selections and allowlisted serializers.
+- `password_hash` and authentication metadata cannot be serialized by admin driver/request/order/route responses.
+
+Focused documentation:
+- `docs/architecture/environment-matrix.md`.
+- `docs/security/production-isolation.md`.
+- `docs/decisions/ADR-001-demo-production-separation.md`.
+
+Validation status:
+- Focused configuration, route-isolation, safe-serialization, admin configuration/session, and Flutter build-isolation tests added.
+- Prisma validate/generate, workspace typecheck/build, 8 API files / 72 tests, and 3 admin files / 12 tests passed.
+- Flutter dependency/localization generation, 70-file clean formatting, analysis, and 65 tests passed.
+- Explicit demo and production-like admin builds passed; the production bundle scan found no former passwords, reset header/path, simulation/comparison paths, or Full Demo Sequence text.
+- Explicit demo debug and production-like release APKs built; extracted production APK scan found no known or injected demo passwords. Production-like APK SHA-256: `5B55A9D1E59801E5C341A7C56845EA989FEC40D490E3F3BE9EF47178B3F46A9A`.
+- Real MySQL demo preflight passed 18/18 and full smoke retained score `0.9317`, tracking sequence `2`, trips `1` versus `6`, distance `21.53` versus `129.19`, cost `43.06` versus `258.38`, and winner `masari`.
+- Separate production-mode runtime validation passed 10/10: health and normal role/trip/location routes remained registered, while reset, simulation step/reset, and deterministic comparison returned `404`.
+
+Remaining M6B1B backlog:
+- Rate limiting, structured/redacted production logging, request IDs, security headers, body limits, and database-backed readiness.
+- Server-managed admin sessions remain part of the later authentication lifecycle milestone.
