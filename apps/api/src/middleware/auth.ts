@@ -14,11 +14,11 @@ export type AuthenticatedRequest = Request & {
 };
 
 export function signAuthToken(user: AuthUser) {
-  return jwt.sign(user, config.JWT_SECRET, { expiresIn: "8h" });
+  return jwt.sign(user, config.jwtSecret, { expiresIn: "8h" });
 }
 
 export function verifyAuthToken(token: string): AuthUser {
-  const payload = jwt.verify(token, config.JWT_SECRET);
+  const payload = jwt.verify(token, config.jwtSecret);
   if (!payload || typeof payload !== "object" || typeof payload.id !== "string") {
     throw new HttpError(401, "invalid_token");
   }

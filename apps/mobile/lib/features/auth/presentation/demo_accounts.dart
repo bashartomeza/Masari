@@ -1,3 +1,5 @@
+import '../../../core/config/app_config.dart';
+
 class DemoAccount {
   const DemoAccount({
     required this.labelKey,
@@ -10,20 +12,24 @@ class DemoAccount {
   final String password;
 }
 
-const demoAccounts = [
-  DemoAccount(
-    labelKey: 'passenger',
-    phone: '+970590000001',
-    password: 'demo-passenger-123',
-  ),
-  DemoAccount(
-    labelKey: 'driver',
-    phone: '+970590000002',
-    password: 'demo-driver-123',
-  ),
-  DemoAccount(
-    labelKey: 'merchant',
-    phone: '+970590000004',
-    password: 'demo-merchant-123',
-  ),
-];
+List<DemoAccount> demoAccountsFor(AppConfig config) {
+  final credentials = config.demoCredentials;
+  if (!config.demoFeaturesEnabled || credentials == null) return const [];
+  return [
+    DemoAccount(
+      labelKey: 'passenger',
+      phone: credentials.passengerPhone,
+      password: credentials.passengerPassword,
+    ),
+    DemoAccount(
+      labelKey: 'driver',
+      phone: credentials.driverPhone,
+      password: credentials.driverPassword,
+    ),
+    DemoAccount(
+      labelKey: 'merchant',
+      phone: credentials.merchantPhone,
+      password: credentials.merchantPassword,
+    ),
+  ];
+}

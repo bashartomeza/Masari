@@ -1,0 +1,53 @@
+import { describe, expect, it } from "vitest";
+import { AdminConfigurationError, createAdminBuildConfig, demoUiEnabled } from "./config";
+
+describe("admin build isolation", () => {
+  it("enables demo UI only for an explicit demo build", () => {
+    const config = createAdminBuildConfig({
+      VITE_APP_ENV: "demo",
+      VITE_API_BASE_URL: "http://localhost:3000",
+      VITE_ENABLE_DEMO_FEATURES: "true",
+      VITE_DEMO_ADMIN_PHONE: "+970590000005",
+      VITE_DEMO_ADMIN_PASSWORD: "admin-test-secret",
+      VITE_DEMO_RESET_KEY: "test-reset-key"
+    });
+    expect(demoUiEnabled(config, true)).toBe(true);
+    expect(demoUiEnabled(config, false)).toBe(false);
+  });
+
+  it("keeps staging and production free of demo configuration", () => {
+    for (const appEnv of ["staging", "production"]) {
+      const config = createAdminBuildConfig({
+        VITE_APP_ENV: appEnv,
+        VITE_API_BASE_URL: "https://api.masari.example",
+        VITE_ENABLE_DEMO_FEATURES: "false"
+      });
+      expect(config.demoFeaturesEnabled).toBe(false);
+      expect(config.demo).toBeUndefined();
+      expect(demoUiEnabled(config, true)).toBe(false);
+    }
+  });
+
+  it("rejects missing or insecure production API URLs", () => {
+    expect(() =>
+      createAdminBuildConfig({ VITE_APP_ENV: "production", VITE_ENABLE_DEMO_FEATURES: "false" })
+    ).toThrow(AdminConfigurationError);
+    expect(() =>
+      createAdminBuildConfig({
+        VITE_APP_ENV: "production",
+        VITE_API_BASE_URL: "http://api.masari.example",
+        VITE_ENABLE_DEMO_FEATURES: "false"
+      })
+    ).toThrow(/HTTPS/);
+  });
+
+  it("rejects demo features in staging and production", () => {
+    expect(() =>
+      createAdminBuildConfig({
+        VITE_APP_ENV: "staging",
+        VITE_API_BASE_URL: "https://staging-api.masari.example",
+        VITE_ENABLE_DEMO_FEATURES: "true"
+      })
+    ).toThrow(/cannot be enabled/);
+  });
+});

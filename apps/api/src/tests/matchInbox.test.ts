@@ -24,7 +24,7 @@ const users: Record<string, { id: string; role: Role; name: string; phone: strin
 };
 
 function auth(id: keyof typeof users) {
-  const token = jwt.sign({ id, role: users[id].role }, "development-jwt-secret-change-me", { expiresIn: "1h" });
+  const token = jwt.sign({ id, role: users[id].role }, "test-only-jwt-secret-with-at-least-thirty-two-characters", { expiresIn: "1h" });
   return { Authorization: `Bearer ${token}` };
 }
 

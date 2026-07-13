@@ -20,7 +20,7 @@ void main() {
 
     final result = await repository.login(
       phone: '+970590000001',
-      password: 'demo-passenger-123',
+      password: 'mobile-test-passenger-secret',
     );
 
     expect(result.token, 'jwt-token');

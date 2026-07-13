@@ -8,6 +8,7 @@ import { HttpError } from "../middleware/error.js";
 import { AuditAction, MatchStatus, TripStatus } from "../generated/prisma/enums.js";
 
 export const tripsRouter = Router();
+export const trackingSimulationRouter = Router();
 
 const ACTIVE_TRIP_STATUSES = ["created", "accepted", "pickup_started", "picked_up", "in_transit", "delivered"] as const;
 const statusSchema = z.object({ status: z.enum(["pickup_started", "picked_up", "in_transit", "delivered", "completed", "cancelled"]) });
@@ -224,7 +225,7 @@ tripsRouter.post("/trips/:id/status", requireAuth, async (req: AuthenticatedRequ
   }
 });
 
-tripsRouter.post("/trips/:id/simulate/step", requireAuth, async (req: AuthenticatedRequest, res, next) => {
+trackingSimulationRouter.post("/trips/:id/simulate/step", requireAuth, async (req: AuthenticatedRequest, res, next) => {
   try {
     const trip = await getVisibleTrip(routeParam(req.params.id), req);
     if (req.user!.role !== "admin" && (req.user!.role !== "driver" || trip.driver_route.driver.user_id !== req.user!.id)) {
@@ -251,7 +252,7 @@ tripsRouter.post("/trips/:id/simulate/step", requireAuth, async (req: Authentica
   }
 });
 
-tripsRouter.post("/trips/:id/simulate/reset", requireAuth, async (req: AuthenticatedRequest, res, next) => {
+trackingSimulationRouter.post("/trips/:id/simulate/reset", requireAuth, async (req: AuthenticatedRequest, res, next) => {
   try {
     const trip = await getVisibleTrip(routeParam(req.params.id), req);
     if (req.user!.role !== "admin" && (req.user!.role !== "driver" || trip.driver_route.driver.user_id !== req.user!.id)) {

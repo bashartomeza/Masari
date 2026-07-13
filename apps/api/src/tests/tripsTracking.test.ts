@@ -33,7 +33,7 @@ const users: Record<string, { id: string; role: Role; name: string; phone: strin
 };
 
 function token(id: keyof typeof users) {
-  return jwt.sign({ id, role: users[id].role }, "development-jwt-secret-change-me", { expiresIn: "1h" });
+  return jwt.sign({ id, role: users[id].role }, "test-only-jwt-secret-with-at-least-thirty-two-characters", { expiresIn: "1h" });
 }
 
 function auth(id: keyof typeof users) {

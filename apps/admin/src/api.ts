@@ -1,14 +1,11 @@
 export type ApiError = Error & { status?: number; details?: unknown };
 
-const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL;
-export const API_BASE_URL = (configuredBaseUrl || "http://localhost:3000").replace(/\/$/, "");
-
-export async function apiRequest<T>(path: string, options: { method?: string; token?: string; body?: unknown; resetKey?: string } = {}) {
+export function createApiClient(apiBaseUrl: string) {
+async function apiRequest<T>(path: string, options: { method?: string; token?: string; body?: unknown } = {}) {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (options.token) headers.Authorization = `Bearer ${options.token}`;
-  if (options.resetKey) headers["x-demo-reset-key"] = options.resetKey;
 
-  const response = await fetch(`${API_BASE_URL}/api/v1${path}`, {
+  const response = await fetch(`${apiBaseUrl}/api/v1${path}`, {
     method: options.method ?? "GET",
     headers,
     body: options.body === undefined ? undefined : JSON.stringify(options.body)
@@ -23,6 +20,59 @@ export async function apiRequest<T>(path: string, options: { method?: string; to
     throw error;
   }
   return data as T;
+}
+
+return {
+  login: (phone: string, password: string) => apiRequest<LoginResponse>("/auth/login", { method: "POST", body: { phone, password } }),
+  me: (token: string) => apiRequest<MeResponse>("/me", { token }),
+  dashboard: (token: string) => apiRequest<DashboardResponse>("/admin/dashboard", { token }),
+  drivers: (token: string) => apiRequest<{ drivers: Array<{ id: string; user?: User; routes?: DriverRoute[] }> }>("/admin/drivers", { token }),
+  requests: (token: string) => apiRequest<{ requests: PassengerRequest[] }>("/admin/requests", { token }),
+  orders: (token: string) => apiRequest<{ orders: MerchantOrder[] }>("/admin/orders", { token }),
+  routes: (token: string) => apiRequest<{ routes: DriverRoute[] }>("/admin/routes", { token }),
+  trips: (token: string) => apiRequest<{ trips: Trip[] }>("/trips", { token }),
+  trip: (token: string, id: string) => apiRequest<{ trip: Trip }>(`/trips/${id}`, { token }),
+  latestLocation: (token: string, id: string) => apiRequest<{ location: LocationEvent | null }>(`/trips/${id}/location`, { token })
+};
+}
+
+export function createDemoApiClient(apiBaseUrl: string) {
+  if (!__MASARI_DEMO_BUILD__) return null;
+  const apiRequest = async <T>(path: string, options: { method?: string; token?: string; body?: unknown; resetKey?: string } = {}) => {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (options.token) headers.Authorization = `Bearer ${options.token}`;
+    if (options.resetKey) headers["x-demo-reset-key"] = options.resetKey;
+    const response = await fetch(`${apiBaseUrl}/api/v1${path}`, {
+      method: options.method ?? "GET",
+      headers,
+      body: options.body === undefined ? undefined : JSON.stringify(options.body)
+    });
+    const text = await response.text();
+    const data = text ? JSON.parse(text) : null;
+    if (!response.ok) {
+      const error = new Error(data?.error ?? `Request failed with ${response.status}`) as ApiError;
+      error.status = response.status;
+      error.details = data;
+      throw error;
+    }
+    return data as T;
+  };
+  return {
+    reset: (token: string | undefined, resetKey: string) => apiRequest<{ ok: boolean; seed: unknown }>("/demo/reset", { method: "POST", token, resetKey, body: {} }),
+    runMatch: (token: string, passengerRequestId?: string, merchantOrderId?: string) =>
+      apiRequest<MatchRunResponse>("/matches/run", { method: "POST", token, body: { passengerRequestId, merchantOrderId } }),
+    getMatch: (token: string, id: string) => apiRequest<{ match: Match; scoringBreakdown: Record<string, number> }>(`/matches/${id}`, { token }),
+    batchOrder: (token: string, orderId: string) => apiRequest<BatchResponse>(`/merchant/orders/${orderId}/batch`, { method: "POST", token, body: {} }),
+    runComparison: (token: string, passengerRequestId?: string, merchantOrderId?: string) =>
+      apiRequest<{ comparison: Comparison }>("/compare/run", { method: "POST", token, body: { scenarioKey: "masari_batch_wins", passengerRequestId, merchantOrderId } }),
+    getComparison: (token: string, id: string) => apiRequest<{ comparison: Comparison }>(`/compare/runs/${id}`, { token }),
+    acceptMatch: (token: string, id: string) => apiRequest<{ trip: Trip; matchId: string }>(`/matches/${id}/accept`, { method: "POST", token, body: {} }),
+    rejectMatch: (token: string, id: string) => apiRequest<{ match: Match }>(`/matches/${id}/reject`, { method: "POST", token, body: {} }),
+    updateTripStatus: (token: string, id: string, status: string) =>
+      apiRequest<{ trip: Trip }>(`/trips/${id}/status`, { method: "POST", token, body: { status } }),
+    simulateStep: (token: string, id: string) => apiRequest<{ location: LocationEvent }>(`/trips/${id}/simulate/step`, { method: "POST", token, body: {} }),
+    resetSimulation: (token: string, id: string) => apiRequest<{ ok: boolean }>(`/trips/${id}/simulate/reset`, { method: "POST", token, body: {} })
+  };
 }
 
 export type User = { id: string; name: string; phone: string; role: string };
@@ -96,30 +146,3 @@ export type Comparison = {
 };
 export type Trip = { id: string; status: string; driver_route_id: string; passenger_request_id?: string; merchant_order_id?: string; created_at?: string };
 export type LocationEvent = { id: string; lat: string; lng: string; source: string; sequence: number; recorded_at: string };
-
-export const api = {
-  login: (phone: string, password: string) => apiRequest<LoginResponse>("/auth/login", { method: "POST", body: { phone, password } }),
-  me: (token: string) => apiRequest<MeResponse>("/me", { token }),
-  reset: (token: string | undefined, resetKey: string) => apiRequest<{ ok: boolean; seed: unknown }>("/demo/reset", { method: "POST", token, resetKey, body: {} }),
-  dashboard: (token: string) => apiRequest<DashboardResponse>("/admin/dashboard", { token }),
-  drivers: (token: string) => apiRequest<{ drivers: Array<{ id: string; user?: User; routes?: DriverRoute[] }> }>("/admin/drivers", { token }),
-  requests: (token: string) => apiRequest<{ requests: PassengerRequest[] }>("/admin/requests", { token }),
-  orders: (token: string) => apiRequest<{ orders: MerchantOrder[] }>("/admin/orders", { token }),
-  routes: (token: string) => apiRequest<{ routes: DriverRoute[] }>("/admin/routes", { token }),
-  runMatch: (token: string, passengerRequestId?: string, merchantOrderId?: string) =>
-    apiRequest<MatchRunResponse>("/matches/run", { method: "POST", token, body: { passengerRequestId, merchantOrderId } }),
-  getMatch: (token: string, id: string) => apiRequest<{ match: Match; scoringBreakdown: Record<string, number> }>(`/matches/${id}`, { token }),
-  batchOrder: (token: string, orderId: string) => apiRequest<BatchResponse>(`/merchant/orders/${orderId}/batch`, { method: "POST", token, body: {} }),
-  runComparison: (token: string, passengerRequestId?: string, merchantOrderId?: string) =>
-    apiRequest<{ comparison: Comparison }>("/compare/run", { method: "POST", token, body: { scenarioKey: "masari_batch_wins", passengerRequestId, merchantOrderId } }),
-  getComparison: (token: string, id: string) => apiRequest<{ comparison: Comparison }>(`/compare/runs/${id}`, { token }),
-  acceptMatch: (token: string, id: string) => apiRequest<{ trip: Trip; matchId: string }>(`/matches/${id}/accept`, { method: "POST", token, body: {} }),
-  rejectMatch: (token: string, id: string) => apiRequest<{ match: Match }>(`/matches/${id}/reject`, { method: "POST", token, body: {} }),
-  trips: (token: string) => apiRequest<{ trips: Trip[] }>("/trips", { token }),
-  trip: (token: string, id: string) => apiRequest<{ trip: Trip }>(`/trips/${id}`, { token }),
-  updateTripStatus: (token: string, id: string, status: string) =>
-    apiRequest<{ trip: Trip }>(`/trips/${id}/status`, { method: "POST", token, body: { status } }),
-  simulateStep: (token: string, id: string) => apiRequest<{ location: LocationEvent }>(`/trips/${id}/simulate/step`, { method: "POST", token, body: {} }),
-  resetSimulation: (token: string, id: string) => apiRequest<{ ok: boolean }>(`/trips/${id}/simulate/reset`, { method: "POST", token, body: {} }),
-  latestLocation: (token: string, id: string) => apiRequest<{ location: LocationEvent | null }>(`/trips/${id}/location`, { token })
-};

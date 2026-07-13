@@ -4,14 +4,18 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:masari_mobile/core/api/api_client.dart';
+import 'package:masari_mobile/core/config/app_config.dart';
 import 'package:masari_mobile/features/auth/data/token_storage.dart';
 import 'package:masari_mobile/features/passenger/application/passenger_controller.dart';
+
+import 'test_app_config.dart';
 
 void main() {
   test('dashboard refresh promotes a request failure to error state', () async {
     var fail = false;
     final container = ProviderContainer(
       overrides: [
+        appConfigProvider.overrideWithValue(demoTestAppConfig),
         tokenStorageProvider.overrideWithValue(_TokenStorage()),
         httpClientProvider.overrideWithValue(
           MockClient((request) async {

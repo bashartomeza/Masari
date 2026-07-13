@@ -2,9 +2,7 @@ import type { RequestHandler } from "express";
 import { config } from "../config.js";
 
 const allowedOrigins = new Set(
-  config.CORS_ORIGINS.split(",")
-    .map((origin) => origin.trim())
-    .filter(Boolean)
+  config.corsOrigins
 );
 
 export const localDevCors: RequestHandler = (req, res, next) => {

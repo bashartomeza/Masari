@@ -35,10 +35,22 @@ async function checkHttp(name, url, validate) {
   }
 }
 
-for (const name of ["DATABASE_URL", "JWT_SECRET", "DEMO_RESET_KEY"]) {
+for (const name of [
+  "APP_ENV",
+  "DATABASE_URL",
+  "JWT_SECRET",
+  "DEMO_RESET_KEY",
+  "DEMO_PASSENGER_PASSWORD",
+  "DEMO_DRIVER_PASSWORD",
+  "DEMO_MERCHANT_PASSWORD",
+  "DEMO_ADMIN_PASSWORD"
+]) {
   if (process.env[name]) pass(`environment ${name}`, "configured");
   else fail(`environment ${name}`, "missing");
 }
+
+if (process.env.APP_ENV === "demo") pass("application environment", "demo");
+else fail("application environment", "APP_ENV must be demo for rehearsal tooling");
 
 if (process.env.DATABASE_URL) {
   let connection;
@@ -84,7 +96,7 @@ if (adminExample.includes("VITE_API_BASE_URL=http://localhost:3000")) {
 }
 
 const mobileConfig = readFileSync(resolve(root, "apps/mobile/lib/core/config/app_config.dart"), "utf8");
-if (mobileConfig.includes(`defaultValue: '${emulatorApiUrl}'`)) {
+if (mobileConfig.includes("String.fromEnvironment('API_BASE_URL')")) {
   pass("mobile API URL", emulatorApiUrl);
 } else {
   fail("mobile API URL", `AppConfig default is not ${emulatorApiUrl}`);

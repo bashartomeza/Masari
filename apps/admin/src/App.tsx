@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import { API_BASE_URL, api, type BatchResponse, type Comparison, type DashboardResponse, type DriverRoute, type LocationEvent, type MatchRunResponse, type MerchantOrder, type PassengerRequest, type Trip, type User } from "./api";
+import { createApiClient, createDemoApiClient, type BatchResponse, type Comparison, type DashboardResponse, type DriverRoute, type LocationEvent, type MatchRunResponse, type MerchantOrder, type PassengerRequest, type Trip, type User } from "./api";
+import { demoUiEnabled, getAdminBuildConfig, type AdminBuildConfig } from "./config";
 import { useLocale } from "./i18n/LocaleContext";
 import type { TranslationKey } from "./i18n/translations";
 
@@ -32,13 +33,35 @@ function Section({ title, action, children }: { title: string; action?: ReactNod
   );
 }
 
-export function App() {
+type TokenStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
+export const ADMIN_TOKEN_KEY = "masari_admin_token";
+
+export function clearAdminSession(sessionStore: TokenStorage, legacyStore: TokenStorage) {
+  sessionStore.removeItem(ADMIN_TOKEN_KEY);
+  legacyStore.removeItem(ADMIN_TOKEN_KEY);
+}
+
+export function App({
+  config = getAdminBuildConfig(),
+  sessionStore = window.sessionStorage,
+  legacyStore = window.localStorage
+}: {
+  config?: AdminBuildConfig;
+  sessionStore?: TokenStorage;
+  legacyStore?: TokenStorage;
+} = {}) {
   const { direction, locale, toggleLocale, t, status, source, number, dateTime } = useLocale();
-  const [token, setToken] = useState(() => localStorage.getItem("masari_admin_token") ?? "");
+  const demoEnabled = demoUiEnabled(config, __MASARI_DEMO_BUILD__);
+  const api = createApiClient(config.apiBaseUrl);
+  const demoApi = createDemoApiClient(config.apiBaseUrl);
+  const [token, setToken] = useState(() => {
+    legacyStore.removeItem(ADMIN_TOKEN_KEY);
+    return sessionStore.getItem(ADMIN_TOKEN_KEY) ?? "";
+  });
   const [admin, setAdmin] = useState<User | null>(null);
-  const [phone, setPhone] = useState("+970590000005");
-  const [password, setPassword] = useState("demo-admin-123");
-  const [resetKey, setResetKey] = useState(() => import.meta.env.VITE_DEMO_RESET_KEY ?? "");
+  const [phone, setPhone] = useState(demoEnabled ? config.demo?.adminPhone ?? "" : "");
+  const [password, setPassword] = useState(demoEnabled ? config.demo?.adminPassword ?? "" : "");
+  const [resetKey, setResetKey] = useState(demoEnabled ? config.demo?.resetKey ?? "" : "");
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice>(null);
 
@@ -119,7 +142,7 @@ export function App() {
     event.preventDefault();
     const result = await runAction("login", () => api.login(phone, password), t("adminLoggedIn"));
     if (!result) return;
-    localStorage.setItem("masari_admin_token", result.token);
+    sessionStore.setItem(ADMIN_TOKEN_KEY, result.token);
     setToken(result.token);
     setAdmin(result.user);
     await refreshOverview(result.token);
@@ -131,9 +154,10 @@ export function App() {
   }
 
   async function resetDemo() {
-    await runAction("reset", () => api.reset(token || undefined, resetKey), t("demoDataReset"));
+    if (!demoApi) return;
+    await runAction("reset", () => demoApi.reset(token || undefined, resetKey), t("demoDataReset"));
     const session = await api.login(phone, password);
-    localStorage.setItem("masari_admin_token", session.token);
+    sessionStore.setItem(ADMIN_TOKEN_KEY, session.token);
     setToken(session.token);
     setAdmin(session.user);
     setMatchResult(null);
@@ -151,7 +175,7 @@ export function App() {
     if (!selectedRequest && !selectedOrder) return setNotice({ type: "error", message: t("noSeededInputs") });
     const result = await runAction(
       "match",
-      () => api.runMatch(token, selectedRequest?.id, selectedOrder?.id),
+      () => demoApi!.runMatch(token, selectedRequest?.id, selectedOrder?.id),
       t("matchingCompleted")
     );
     if (result) setMatchResult(result);
@@ -159,7 +183,7 @@ export function App() {
 
   async function runBatch() {
     if (!selectedOrder) return setNotice({ type: "error", message: t("noMerchantOrder") });
-    const result = await runAction("batch", () => api.batchOrder(token, selectedOrder.id), t("parcelBatchCreated"));
+    const result = await runAction("batch", () => demoApi!.batchOrder(token, selectedOrder.id), t("parcelBatchCreated"));
     if (result) {
       setBatchResult(result);
       await refreshOverview();
@@ -169,17 +193,17 @@ export function App() {
   async function runComparison() {
     const result = await runAction(
       "comparison",
-      () => api.runComparison(token, selectedRequest?.id, selectedOrder?.id),
+      () => demoApi!.runComparison(token, selectedRequest?.id, selectedOrder?.id),
       t("comparisonGenerated")
     );
     if (!result) return;
-    const read = await api.getComparison(token, result.comparison.id);
+    const read = await demoApi!.getComparison(token, result.comparison.id);
     setComparison(read.comparison);
   }
 
   async function acceptMatch() {
     if (!matchResult) return setNotice({ type: "error", message: t("runMatchBeforeAccept") });
-    const result = await runAction("accept", () => api.acceptMatch(token, matchResult.match.id), t("matchAccepted"));
+    const result = await runAction("accept", () => demoApi!.acceptMatch(token, matchResult.match.id), t("matchAccepted"));
     if (result) {
       setActiveTrip(result.trip);
       setMatchResult((current) =>
@@ -191,7 +215,7 @@ export function App() {
 
   async function rejectMatch() {
     if (!matchResult) return setNotice({ type: "error", message: t("runMatchBeforeReject") });
-    const result = await runAction("reject", () => api.rejectMatch(token, matchResult.match.id), t("matchRejected"));
+    const result = await runAction("reject", () => demoApi!.rejectMatch(token, matchResult.match.id), t("matchRejected"));
     if (result && matchResult) setMatchResult({ ...matchResult, match: result.match });
   }
 
@@ -213,7 +237,7 @@ export function App() {
 
   async function moveTrip(status: string) {
     if (!activeTrip) return;
-    const result = await runAction("status", () => api.updateTripStatus(token, activeTrip.id, status), t("tripMoved", { status: statusLabel(status) }));
+    const result = await runAction("status", () => demoApi!.updateTripStatus(token, activeTrip.id, status), t("tripMoved", { status: statusLabel(status) }));
     if (result) {
       setActiveTrip(result.trip);
       await refreshTrips();
@@ -222,7 +246,7 @@ export function App() {
 
   async function simulateStep() {
     if (!activeTrip) return;
-    const result = await runAction("tracking", () => api.simulateStep(token, activeTrip.id), t("locationRecorded"));
+    const result = await runAction("tracking", () => demoApi!.simulateStep(token, activeTrip.id), t("locationRecorded"));
     if (result) {
       setLatestLocation(result.location);
       setLocationTrail((items) => [result.location, ...items].slice(0, 7));
@@ -231,7 +255,7 @@ export function App() {
 
   async function resetSimulation() {
     if (!activeTrip) return;
-    await runAction("tracking-reset", () => api.resetSimulation(token, activeTrip.id), t("simulationReset"));
+    await runAction("tracking-reset", () => demoApi!.resetSimulation(token, activeTrip.id), t("simulationReset"));
     setLatestLocation(null);
     setLocationTrail([]);
   }
@@ -243,6 +267,7 @@ export function App() {
   }
 
   async function runFullDemoSequence() {
+    if (!demoApi) return;
     await runAction("full-demo", async () => {
       const steps: DemoStep[] = [];
       const mark = (key: TranslationKey, statusValue?: string) => {
@@ -251,10 +276,10 @@ export function App() {
       };
 
       mark("stepReset");
-      await api.reset(token || undefined, resetKey);
+      await demoApi.reset(token || undefined, resetKey);
       mark("stepLogin");
       const session = await api.login(phone, password);
-      localStorage.setItem("masari_admin_token", session.token);
+      sessionStore.setItem(ADMIN_TOKEN_KEY, session.token);
       setToken(session.token);
       setAdmin(session.user);
       const currentToken = session.token;
@@ -264,20 +289,20 @@ export function App() {
       const order = overview[1].orders[0];
       if (!request || !order) throw new Error(t("seededInputsMissingAfterReset"));
       mark("stepCreateBatch");
-      const batch = await api.batchOrder(currentToken, order.id);
+      const batch = await demoApi.batchOrder(currentToken, order.id);
       mark("stepRunMatch");
-      const match = await api.runMatch(currentToken, request.id, order.id);
+      const match = await demoApi.runMatch(currentToken, request.id, order.id);
       mark("stepRunComparison");
-      const comparisonRun = await api.runComparison(currentToken, request.id, order.id);
+      const comparisonRun = await demoApi.runComparison(currentToken, request.id, order.id);
       mark("stepAcceptTrip");
-      const accepted = await api.acceptMatch(currentToken, match.match.id);
+      const accepted = await demoApi.acceptMatch(currentToken, match.match.id);
       let trip = accepted.trip;
       for (const status of ["pickup_started", "picked_up", "in_transit", "delivered", "completed"]) {
         mark("stepAdvanceTrip", status);
-        trip = (await api.updateTripStatus(currentToken, trip.id, status)).trip;
+        trip = (await demoApi.updateTripStatus(currentToken, trip.id, status)).trip;
       }
       mark("stepRecordTracking");
-      const location = await api.simulateStep(currentToken, trip.id);
+      const location = await demoApi.simulateStep(currentToken, trip.id);
       setMatchResult({ ...match, match: { ...match.match, status: "accepted" } });
       setBatchResult({ ...batch, batch: { ...batch.batch, status: "delivered" } });
       setComparison(comparisonRun.comparison);
@@ -305,8 +330,8 @@ export function App() {
           <div className="top-actions"><LanguageSwitch /></div>
           <p className="eyebrow">{t("appName")}</p>
           <h1>{t("loginHeading")}</h1>
-          <p>{t("loginDescription", { apiBaseUrl: API_BASE_URL })}</p>
-          <p className="credential-hint technical">{t("demoCredentials")}</p>
+          <p>{t("loginDescription", { apiBaseUrl: config.apiBaseUrl })}</p>
+          {demoEnabled && <p className="credential-hint technical">{t("demoCredentials")}</p>}
           <label>{t("adminPhone")}<input className="technical" value={phone} onChange={(event) => setPhone(event.target.value)} /></label>
           <label>{t("password")}<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} /></label>
           <button disabled={busy === "login"}>{busy === "login" ? t("signingIn") : t("signIn")}</button>
@@ -328,14 +353,14 @@ export function App() {
           <strong>{admin?.name ?? "Admin"}</strong>
           <span className="technical">{admin?.phone}</span>
           <LanguageSwitch />
-          <button onClick={() => { localStorage.removeItem("masari_admin_token"); setToken(""); }} disabled={Boolean(busy)}>{t("logout")}</button>
+          <button onClick={() => { clearAdminSession(sessionStore, legacyStore); setToken(""); }} disabled={Boolean(busy)}>{t("logout")}</button>
         </div>
       </header>
 
       {notice && <div className={`notice ${notice.type}`}>{notice.message}</div>}
 
       <div className="grid">
-        <Section title={t("demoControl")} action={<button onClick={runFullDemoSequence} disabled={!canAct}>{t("runFullDemo")}</button>}>
+        {demoEnabled && <Section title={t("demoControl")} action={<button onClick={runFullDemoSequence} disabled={!canAct}>{t("runFullDemo")}</button>}>
           <div className="control-row">
             <label>{t("resetKey")}<input className="technical" value={resetKey} onChange={(event) => setResetKey(event.target.value)} /></label>
             <button onClick={resetDemo} disabled={!canAct}>{busy === "reset" ? t("resetting") : t("resetDemo")}</button>
@@ -343,7 +368,7 @@ export function App() {
           </div>
           <p className="muted">{t("resetExplanation")}</p>
           {demoSteps.length > 0 && <ol className="demo-steps">{demoSteps.map((step, index) => <li key={`${step.key}-${index}`}>{t(step.key, step.statusValue ? { status: status(step.statusValue) } : {})}</li>)}</ol>}
-        </Section>
+        </Section>}
 
         <Section title={t("systemOverview")}>
           <div className="metric-grid">
@@ -363,6 +388,7 @@ export function App() {
           </div>
         </Section>
 
+        {demoEnabled && <>
         <Section title={t("matching")} action={<button onClick={runMatch} disabled={!canAct}>{t("runMatch")}</button>}>
           {matchResult ? (
             <div className="result-card">
@@ -438,6 +464,7 @@ export function App() {
           ) : <p className="muted">{t("simulateEmpty")}</p>}
           <div className="trail">{locationTrail.map((location) => <span className="technical" key={location.id}>#{number(location.sequence)} {location.lat},{location.lng}</span>)}</div>
         </Section>
+        </>}
       </div>
     </main>
   );

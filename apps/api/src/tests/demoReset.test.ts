@@ -10,9 +10,6 @@ const prismaMock = vi.hoisted(() => ({
 
 vi.mock("../lib/prisma.js", () => ({ prisma: prismaMock }));
 
-process.env.JWT_SECRET = "test-jwt-secret-with-length";
-process.env.DEMO_RESET_KEY = "test-reset-key";
-
 const { createApp } = await import("../app.js");
 
 describe("demo reset", () => {

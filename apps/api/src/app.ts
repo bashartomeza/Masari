@@ -8,11 +8,12 @@ import { adminRouter } from "./modules/admin.js";
 import { matchingRouter } from "./modules/matching.js";
 import { batchingRouter } from "./modules/batching.js";
 import { comparisonRouter } from "./modules/comparison.js";
-import { tripsRouter } from "./modules/trips.js";
+import { trackingSimulationRouter, tripsRouter } from "./modules/trips.js";
 import { localDevCors } from "./middleware/cors.js";
 import { errorHandler } from "./middleware/error.js";
+import { config, type AppConfig } from "./config.js";
 
-export function createApp() {
+export function createApp(appConfig: AppConfig = config) {
   const app = express();
 
   app.use(localDevCors);
@@ -23,14 +24,17 @@ export function createApp() {
   });
 
   app.use("/api/v1", authRouter);
-  app.use("/api/v1", demoRouter);
+  if (appConfig.demoFeaturesEnabled) app.use("/api/v1", demoRouter);
   app.use("/api/v1", passengerRouter);
   app.use("/api/v1", driverRouter);
   app.use("/api/v1", batchingRouter);
   app.use("/api/v1", merchantRouter);
   app.use("/api/v1", matchingRouter);
   app.use("/api/v1", tripsRouter);
-  app.use("/api/v1", comparisonRouter);
+  if (appConfig.demoFeaturesEnabled) {
+    app.use("/api/v1", trackingSimulationRouter);
+    app.use("/api/v1", comparisonRouter);
+  }
   app.use("/api/v1", adminRouter);
 
   app.use(errorHandler);

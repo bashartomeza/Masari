@@ -13,11 +13,11 @@ const resetKey = process.env.DEMO_RESET_KEY;
 const startedAt = Date.now();
 
 const accounts = {
-  passenger: ["+970590000001", "demo-passenger-123"],
-  driver1: ["+970590000002", "demo-driver-123"],
-  driver2: ["+970590000003", "demo-driver-123"],
-  merchant: ["+970590000004", "demo-merchant-123"],
-  admin: ["+970590000005", "demo-admin-123"]
+  passenger: ["+970590000001", process.env.DEMO_PASSENGER_PASSWORD],
+  driver1: ["+970590000002", process.env.DEMO_DRIVER_PASSWORD],
+  driver2: ["+970590000003", process.env.DEMO_DRIVER_PASSWORD],
+  merchant: ["+970590000004", process.env.DEMO_MERCHANT_PASSWORD],
+  admin: ["+970590000005", process.env.DEMO_ADMIN_PASSWORD]
 };
 
 function argument(name) {
@@ -281,7 +281,10 @@ async function noRouteRecovery() {
 }
 
 try {
-  if (!resetKey) throw new Error("DEMO_RESET_KEY is required");
+  if (process.env.APP_ENV !== "demo") throw new Error("APP_ENV=demo is required");
+  if (!resetKey || Object.values(accounts).some(([, password]) => !password)) {
+    throw new Error("demo reset key and role passwords are required");
+  }
   const result = await primaryStory();
   await noRouteRecovery();
   console.log(

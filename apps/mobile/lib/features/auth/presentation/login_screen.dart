@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:masari_mobile/l10n/app_localizations.dart';
 
 import '../../../core/api/api_error.dart';
+import '../../../core/config/app_config.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/language_switch.dart';
@@ -37,6 +38,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final auth = ref.watch(authControllerProvider);
     final loading = _submitting;
     final error = auth.error;
+    final config = ref.watch(appConfigProvider);
+    final demoAccounts = demoAccountsFor(config);
 
     return Scaffold(
       body: SafeArea(
@@ -126,30 +129,32 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: AppTokens.spaceMedium),
-            MasariCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    l10n.demoAccounts,
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: AppTokens.spaceSmall),
-                  for (final account in demoAccounts)
-                    Padding(
-                      padding: const EdgeInsets.only(
-                        bottom: AppTokens.spaceSmall,
-                      ),
-                      child: OutlinedButton(
-                        key: ValueKey('demo-${account.labelKey}'),
-                        onPressed: loading ? null : () => _fillDemo(account),
-                        child: Text(_demoLabel(l10n, account)),
-                      ),
+            if (demoAccounts.isNotEmpty) ...[
+              const SizedBox(height: AppTokens.spaceMedium),
+              MasariCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      l10n.demoAccounts,
+                      style: Theme.of(context).textTheme.titleLarge,
                     ),
-                ],
+                    const SizedBox(height: AppTokens.spaceSmall),
+                    for (final account in demoAccounts)
+                      Padding(
+                        padding: const EdgeInsets.only(
+                          bottom: AppTokens.spaceSmall,
+                        ),
+                        child: OutlinedButton(
+                          key: ValueKey('demo-${account.labelKey}'),
+                          onPressed: loading ? null : () => _fillDemo(account),
+                          child: Text(_demoLabel(l10n, account)),
+                        ),
+                      ),
+                  ],
+                ),
               ),
-            ),
+            ],
           ],
         ),
       ),

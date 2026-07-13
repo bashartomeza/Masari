@@ -16,10 +16,36 @@ import 'package:masari_mobile/features/auth/data/token_storage.dart';
 import 'package:masari_mobile/features/auth/domain/auth_models.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'test_app_config.dart';
+
 void main() {
-  test('AppConfig reads API_BASE_URL default', () {
-    const config = AppConfig.fromEnvironment();
-    expect(config.apiBaseUrl, 'http://10.0.2.2:3000');
+  test('AppConfig validates explicit production values', () {
+    final config = AppConfig.fromValues(
+      appEnvironment: 'production',
+      apiBaseUrl: 'https://api.masari.example',
+      enableDemoFeatures: false,
+    );
+    expect(config.apiBaseUrl, 'https://api.masari.example');
+    expect(config.demoFeaturesEnabled, isFalse);
+  });
+
+  test('AppConfig rejects missing or insecure production values', () {
+    expect(
+      () => AppConfig.fromValues(
+        appEnvironment: 'production',
+        apiBaseUrl: '',
+        enableDemoFeatures: false,
+      ),
+      throwsStateError,
+    );
+    expect(
+      () => AppConfig.fromValues(
+        appEnvironment: 'staging',
+        apiBaseUrl: 'http://api.masari.example',
+        enableDemoFeatures: false,
+      ),
+      throwsStateError,
+    );
   });
 
   test('routeForRole maps admin safely', () {
@@ -80,7 +106,16 @@ void main() {
       find.byKey(const ValueKey('passwordField')),
     );
     expect(phone.controller?.text, '+970590000001');
-    expect(password.controller?.text, 'demo-passenger-123');
+    expect(password.controller?.text, 'mobile-test-passenger-secret');
+  });
+
+  testWidgets('production login does not render demo account presets', (
+    tester,
+  ) async {
+    await _pumpApp(tester, config: productionTestAppConfig);
+    expect(find.byKey(const ValueKey('demo-passenger')), findsNothing);
+    expect(find.byKey(const ValueKey('demo-driver')), findsNothing);
+    expect(find.byKey(const ValueKey('demo-merchant')), findsNothing);
   });
 
   testWidgets('loading disables login button', (tester) async {
@@ -234,6 +269,7 @@ Future<void> _pumpApp(
   Map<String, Object> localeValues = const {},
   Map<String, String> secureValues = const {},
   Future<http.Response> Function(http.Request request)? handler,
+  AppConfig config = demoTestAppConfig,
 }) async {
   tester.view.physicalSize = const Size(900, 2000);
   tester.view.devicePixelRatio = 1;
@@ -246,6 +282,7 @@ Future<void> _pumpApp(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        appConfigProvider.overrideWithValue(config),
         httpClientProvider.overrideWithValue(
           MockClient(
             handler ??

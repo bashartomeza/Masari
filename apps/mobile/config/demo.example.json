@@ -1,0 +1,11 @@
+{
+  "APP_ENV": "demo",
+  "API_BASE_URL": "http://10.0.2.2:3000",
+  "ENABLE_DEMO_FEATURES": true,
+  "DEMO_PASSENGER_PHONE": "<demo-passenger-phone>",
+  "DEMO_PASSENGER_PASSWORD": "<demo-passenger-password>",
+  "DEMO_DRIVER_PHONE": "<demo-driver-phone>",
+  "DEMO_DRIVER_PASSWORD": "<demo-driver-password>",
+  "DEMO_MERCHANT_PHONE": "<demo-merchant-phone>",
+  "DEMO_MERCHANT_PASSWORD": "<demo-merchant-password>"
+}

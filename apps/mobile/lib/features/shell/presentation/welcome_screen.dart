@@ -8,12 +8,9 @@ import '../../../core/widgets/language_switch.dart';
 import '../../../core/widgets/masari_card.dart';
 
 class WelcomeScreen extends StatelessWidget {
-  const WelcomeScreen({
-    super.key,
-    this.config = const AppConfig.fromEnvironment(),
-  });
+  const WelcomeScreen({super.key, this.config});
 
-  final AppConfig config;
+  final AppConfig? config;
 
   @override
   Widget build(BuildContext context) {
@@ -71,7 +68,7 @@ class WelcomeScreen extends StatelessWidget {
                   Directionality(
                     textDirection: TextDirection.ltr,
                     child: SelectableText(
-                      config.apiBaseUrl,
+                      (config ?? AppConfig.fromEnvironment()).apiBaseUrl,
                       style: textTheme.bodyMedium?.copyWith(
                         fontFamily: 'monospace',
                       ),

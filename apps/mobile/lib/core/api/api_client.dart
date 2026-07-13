@@ -16,7 +16,7 @@ final httpClientProvider = Provider<http.Client>((ref) {
 
 final apiClientProvider = Provider<ApiClient>((ref) {
   return ApiClient(
-    baseUrl: const AppConfig.fromEnvironment().apiBaseUrl,
+    baseUrl: ref.watch(appConfigProvider).apiBaseUrl,
     client: ref.watch(httpClientProvider),
   );
 });

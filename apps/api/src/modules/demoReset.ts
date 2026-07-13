@@ -12,11 +12,11 @@ export const LOCKED_CORRIDOR_KEY = "hebron-ppu-bab-al-zawiya-to-bethlehem";
 export const LOCKED_CORRIDOR_LABEL = "Hebron / PPU / Bab Al-Zawiya -> Bethlehem";
 
 export const DEMO_ACCOUNTS = {
-  passenger: { name: "Demo Passenger", phone: "+970590000001", password: "demo-passenger-123" },
-  driver1: { name: "Demo Driver Hebron Route", phone: "+970590000002", password: "demo-driver-123" },
-  driver2: { name: "Demo Driver Alternate", phone: "+970590000003", password: "demo-driver-123" },
-  merchant: { name: "Demo Merchant", phone: "+970590000004", password: "demo-merchant-123" },
-  admin: { name: "Demo Admin", phone: "+970590000005", password: "demo-admin-123" }
+  passenger: { name: "Demo Passenger", phone: "+970590000001" },
+  driver1: { name: "Demo Driver Hebron Route", phone: "+970590000002" },
+  driver2: { name: "Demo Driver Alternate", phone: "+970590000003" },
+  merchant: { name: "Demo Merchant", phone: "+970590000004" },
+  admin: { name: "Demo Admin", phone: "+970590000005" }
 } as const;
 
 async function hashPassword(password: string) {
@@ -39,6 +39,10 @@ async function createDemoUser(
 }
 
 export async function resetDemoData(db: PrismaClient = prisma) {
+  const demoConfig = config.demo;
+  if (!config.demoFeaturesEnabled || !demoConfig) {
+    throw new HttpError(404, "not_found");
+  }
   return db.$transaction(async (tx) => {
     await tx.auditEvent.deleteMany();
     await tx.locationEvent.deleteMany();
@@ -54,11 +58,31 @@ export async function resetDemoData(db: PrismaClient = prisma) {
     await tx.demoScenario.deleteMany();
     await tx.user.deleteMany({ where: { demo_account: true } });
 
-    const passenger = await createDemoUser(tx, { ...DEMO_ACCOUNTS.passenger, role: "passenger" });
-    const driver1User = await createDemoUser(tx, { ...DEMO_ACCOUNTS.driver1, role: "driver" });
-    const driver2User = await createDemoUser(tx, { ...DEMO_ACCOUNTS.driver2, role: "driver" });
-    const merchant = await createDemoUser(tx, { ...DEMO_ACCOUNTS.merchant, role: "merchant" });
-    const admin = await createDemoUser(tx, { ...DEMO_ACCOUNTS.admin, role: "admin" });
+    const passenger = await createDemoUser(tx, {
+      ...DEMO_ACCOUNTS.passenger,
+      password: demoConfig.passengerPassword,
+      role: "passenger"
+    });
+    const driver1User = await createDemoUser(tx, {
+      ...DEMO_ACCOUNTS.driver1,
+      password: demoConfig.driverPassword,
+      role: "driver"
+    });
+    const driver2User = await createDemoUser(tx, {
+      ...DEMO_ACCOUNTS.driver2,
+      password: demoConfig.driverPassword,
+      role: "driver"
+    });
+    const merchant = await createDemoUser(tx, {
+      ...DEMO_ACCOUNTS.merchant,
+      password: demoConfig.merchantPassword,
+      role: "merchant"
+    });
+    const admin = await createDemoUser(tx, {
+      ...DEMO_ACCOUNTS.admin,
+      password: demoConfig.adminPassword,
+      role: "admin"
+    });
 
     const driver1 = await tx.driverProfile.create({
       data: {
@@ -215,7 +239,7 @@ export async function resetDemoData(db: PrismaClient = prisma) {
 
 async function canReset(req: { header(name: string): string | undefined }) {
   const resetKey = req.header("x-demo-reset-key");
-  if (config.DEMO_RESET_KEY && resetKey === config.DEMO_RESET_KEY) {
+  if (config.demo && resetKey === config.demo.resetKey) {
     return true;
   }
 

@@ -4,9 +4,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:masari_mobile/core/api/api_client.dart';
+import 'package:masari_mobile/core/config/app_config.dart';
 import 'package:masari_mobile/features/auth/application/auth_controller.dart';
 import 'package:masari_mobile/features/auth/data/token_storage.dart';
 import 'package:masari_mobile/features/auth/domain/auth_models.dart';
+
+import 'test_app_config.dart';
 
 void main() {
   test('no token routes to login state', () async {
@@ -100,6 +103,9 @@ ProviderContainer _container(
   Future<http.Response> Function(http.Request request) handler,
 ) {
   return ProviderContainer(
-    overrides: [httpClientProvider.overrideWithValue(MockClient(handler))],
+    overrides: [
+      appConfigProvider.overrideWithValue(demoTestAppConfig),
+      httpClientProvider.overrideWithValue(MockClient(handler)),
+    ],
   );
 }

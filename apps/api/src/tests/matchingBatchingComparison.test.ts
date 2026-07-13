@@ -16,7 +16,7 @@ const prismaMock = vi.hoisted(() => ({
 
 vi.mock("../lib/prisma.js", () => ({ prisma: prismaMock }));
 
-const jwtSecret = "development-jwt-secret-change-me";
+const jwtSecret = "test-only-jwt-secret-with-at-least-thirty-two-characters";
 
 const { createApp } = await import("../app.js");
 

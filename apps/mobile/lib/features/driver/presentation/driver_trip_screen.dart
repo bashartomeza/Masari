@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:masari_mobile/l10n/app_localizations.dart';
 
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/config/app_config.dart';
 import '../../../core/presentation/localized_labels.dart';
 import '../../../core/widgets/language_switch.dart';
 import '../../../core/widgets/masari_card.dart';
@@ -80,6 +81,9 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
   }
 
   Widget _tripContent(AppLocalizations l10n, DriverTripState state) {
+    final demoFeaturesEnabled = ref
+        .watch(appConfigProvider)
+        .demoFeaturesEnabled;
     final trip = state.trip;
     final nextStatus = trip.nextStatus;
     final location = state.location;
@@ -155,14 +159,17 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                l10n.trackingSimulation,
+                demoFeaturesEnabled
+                    ? l10n.trackingSimulation
+                    : l10n.latestLocation,
                 style: Theme.of(context).textTheme.titleLarge,
               ),
-              Text(l10n.routeProgress),
-              LinearProgressIndicator(
-                key: const ValueKey('routeProgress'),
-                value: progress,
-              ),
+              if (demoFeaturesEnabled) Text(l10n.routeProgress),
+              if (demoFeaturesEnabled)
+                LinearProgressIndicator(
+                  key: const ValueKey('routeProgress'),
+                  value: progress,
+                ),
               const SizedBox(height: AppTokens.spaceMedium),
               if (location == null)
                 Text(l10n.noLocationYet)
@@ -176,16 +183,18 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
                 Text('${l10n.recordedTime}: ${location.recordedAt}'),
               ],
               const SizedBox(height: AppTokens.spaceMedium),
-              FilledButton(
-                key: const ValueKey('simulateStepButton'),
-                onPressed: state.actionInProgress ? null : _simulate,
-                child: Text(l10n.simulateNextPoint),
-              ),
-              OutlinedButton(
-                key: const ValueKey('resetSimulationButton'),
-                onPressed: state.actionInProgress ? null : _reset,
-                child: Text(l10n.resetSimulation),
-              ),
+              if (demoFeaturesEnabled)
+                FilledButton(
+                  key: const ValueKey('simulateStepButton'),
+                  onPressed: state.actionInProgress ? null : _simulate,
+                  child: Text(l10n.simulateNextPoint),
+                ),
+              if (demoFeaturesEnabled)
+                OutlinedButton(
+                  key: const ValueKey('resetSimulationButton'),
+                  onPressed: state.actionInProgress ? null : _reset,
+                  child: Text(l10n.resetSimulation),
+                ),
             ],
           ),
         ),

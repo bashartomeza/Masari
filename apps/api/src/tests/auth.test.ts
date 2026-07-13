@@ -13,8 +13,6 @@ const prismaMock = vi.hoisted(() => ({
 
 vi.mock("../lib/prisma.js", () => ({ prisma: prismaMock }));
 
-process.env.JWT_SECRET = "test-jwt-secret-with-length";
-
 const { createApp } = await import("../app.js");
 
 describe("auth", () => {
@@ -27,14 +25,14 @@ describe("auth", () => {
       id: "user_1",
       name: "Demo Passenger",
       phone: "+970590000001",
-      password_hash: await bcrypt.hash("demo-passenger-123", 4),
+      password_hash: await bcrypt.hash("test-passenger-password", 4),
       role: "passenger",
       demo_account: true
     });
 
     const response = await request(createApp())
       .post("/api/v1/auth/login")
-      .send({ phone: "+970590000001", password: "demo-passenger-123" })
+      .send({ phone: "+970590000001", password: "test-passenger-password" })
       .expect(200);
 
     expect(response.body.token).toEqual(expect.any(String));

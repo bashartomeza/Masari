@@ -9,8 +9,11 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:masari_mobile/app.dart';
 import 'package:masari_mobile/core/api/api_client.dart';
+import 'package:masari_mobile/core/config/app_config.dart';
 import 'package:masari_mobile/features/auth/data/token_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'test_app_config.dart';
 
 void main() {
   testWidgets('Arabic driver dashboard is RTL and English remains LTR', (
@@ -140,6 +143,23 @@ void main() {
     expect(find.textContaining('التسلسل: 1'), findsOneWidget);
   });
 
+  testWidgets('production driver trip hides tracking simulation controls', (
+    tester,
+  ) async {
+    await _pumpApp(
+      tester,
+      handler: _DriverHandler().call,
+      config: productionTestAppConfig,
+    );
+    GoRouter.of(
+      tester.element(find.text('لوحة السائق')),
+    ).go('/driver/trip/trip_1');
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('simulateStepButton')), findsNothing);
+    expect(find.byKey(const ValueKey('resetSimulationButton')), findsNothing);
+    expect(find.textContaining('31.5326'), findsWidgets);
+  });
+
   testWidgets('passenger cannot access driver routes', (tester) async {
     await _pumpApp(tester, handler: _roleHandler('passenger'));
     GoRouter.of(tester.element(find.text('لوحة المسافر'))).go('/driver/route');
@@ -177,6 +197,7 @@ Future<void> _pumpApp(
   WidgetTester tester, {
   required Future<http.Response> Function(http.Request request) handler,
   bool authenticated = true,
+  AppConfig config = demoTestAppConfig,
 }) async {
   tester.view.physicalSize = const Size(900, 2000);
   tester.view.devicePixelRatio = 1;
@@ -188,7 +209,10 @@ Future<void> _pumpApp(
   );
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [httpClientProvider.overrideWithValue(MockClient(handler))],
+      overrides: [
+        appConfigProvider.overrideWithValue(config),
+        httpClientProvider.overrideWithValue(MockClient(handler)),
+      ],
       child: const MasariApp(),
     ),
   );
