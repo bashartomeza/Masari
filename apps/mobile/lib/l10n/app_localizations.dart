@@ -727,6 +727,360 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'ملغاة'**
   String get statusCancelled;
+
+  /// No description provided for @driverDashboard.
+  ///
+  /// In ar, this message translates to:
+  /// **'لوحة السائق'**
+  String get driverDashboard;
+
+  /// No description provided for @activeRoute.
+  ///
+  /// In ar, this message translates to:
+  /// **'المسار النشط'**
+  String get activeRoute;
+
+  /// No description provided for @noActiveRoute.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد مسار نشط حالياً.'**
+  String get noActiveRoute;
+
+  /// No description provided for @createRoute.
+  ///
+  /// In ar, this message translates to:
+  /// **'إنشاء مسار'**
+  String get createRoute;
+
+  /// No description provided for @viewRoute.
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض المسار'**
+  String get viewRoute;
+
+  /// No description provided for @routeDetails.
+  ///
+  /// In ar, this message translates to:
+  /// **'تفاصيل المسار'**
+  String get routeDetails;
+
+  /// No description provided for @origin.
+  ///
+  /// In ar, this message translates to:
+  /// **'نقطة الانطلاق'**
+  String get origin;
+
+  /// No description provided for @seatsAvailable.
+  ///
+  /// In ar, this message translates to:
+  /// **'المقاعد المتاحة'**
+  String get seatsAvailable;
+
+  /// No description provided for @parcelCapacity.
+  ///
+  /// In ar, this message translates to:
+  /// **'سعة الطرود'**
+  String get parcelCapacity;
+
+  /// No description provided for @activateRoute.
+  ///
+  /// In ar, this message translates to:
+  /// **'تفعيل المسار'**
+  String get activateRoute;
+
+  /// No description provided for @deactivateRoute.
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء تفعيل المسار'**
+  String get deactivateRoute;
+
+  /// No description provided for @routeActivated.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم تفعيل المسار'**
+  String get routeActivated;
+
+  /// No description provided for @routeDeactivated.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إلغاء تفعيل المسار'**
+  String get routeDeactivated;
+
+  /// No description provided for @routeStatus.
+  ///
+  /// In ar, this message translates to:
+  /// **'حالة المسار'**
+  String get routeStatus;
+
+  /// No description provided for @activationTime.
+  ///
+  /// In ar, this message translates to:
+  /// **'وقت التفعيل'**
+  String get activationTime;
+
+  /// No description provided for @routeAlreadyActive.
+  ///
+  /// In ar, this message translates to:
+  /// **'يوجد مسار تشغيلي بالفعل.'**
+  String get routeAlreadyActive;
+
+  /// No description provided for @routeCannotDeactivate.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكن إلغاء تفعيل هذا المسار في حالته الحالية.'**
+  String get routeCannotDeactivate;
+
+  /// No description provided for @matchInbox.
+  ///
+  /// In ar, this message translates to:
+  /// **'صندوق المطابقات'**
+  String get matchInbox;
+
+  /// No description provided for @noAvailableMatches.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد مطابقات متاحة.'**
+  String get noAvailableMatches;
+
+  /// No description provided for @passengerRequest.
+  ///
+  /// In ar, this message translates to:
+  /// **'طلب مسافر'**
+  String get passengerRequest;
+
+  /// No description provided for @merchantOrder.
+  ///
+  /// In ar, this message translates to:
+  /// **'طلب تاجر'**
+  String get merchantOrder;
+
+  /// No description provided for @combinedAssignment.
+  ///
+  /// In ar, this message translates to:
+  /// **'مهمة مشتركة'**
+  String get combinedAssignment;
+
+  /// No description provided for @requestType.
+  ///
+  /// In ar, this message translates to:
+  /// **'نوع الطلب'**
+  String get requestType;
+
+  /// No description provided for @parcelCount.
+  ///
+  /// In ar, this message translates to:
+  /// **'عدد الطرود'**
+  String get parcelCount;
+
+  /// No description provided for @parcelBatch.
+  ///
+  /// In ar, this message translates to:
+  /// **'دفعة الطرود'**
+  String get parcelBatch;
+
+  /// No description provided for @estimatedDistanceSaved.
+  ///
+  /// In ar, this message translates to:
+  /// **'المسافة المقدرة الموفرة'**
+  String get estimatedDistanceSaved;
+
+  /// No description provided for @acceptMatch.
+  ///
+  /// In ar, this message translates to:
+  /// **'قبول المطابقة'**
+  String get acceptMatch;
+
+  /// No description provided for @rejectMatch.
+  ///
+  /// In ar, this message translates to:
+  /// **'رفض المطابقة'**
+  String get rejectMatch;
+
+  /// No description provided for @matchAccepted.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم قبول المطابقة'**
+  String get matchAccepted;
+
+  /// No description provided for @matchRejected.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم رفض المطابقة'**
+  String get matchRejected;
+
+  /// No description provided for @matchCannotChange.
+  ///
+  /// In ar, this message translates to:
+  /// **'تغيرت هذه المطابقة مسبقاً. تم تحميل أحدث حالة.'**
+  String get matchCannotChange;
+
+  /// No description provided for @allMatches.
+  ///
+  /// In ar, this message translates to:
+  /// **'كل المطابقات'**
+  String get allMatches;
+
+  /// No description provided for @proposedMatches.
+  ///
+  /// In ar, this message translates to:
+  /// **'المطابقات المقترحة'**
+  String get proposedMatches;
+
+  /// No description provided for @viewDetails.
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض التفاصيل'**
+  String get viewDetails;
+
+  /// No description provided for @activeTrip.
+  ///
+  /// In ar, this message translates to:
+  /// **'الرحلة النشطة'**
+  String get activeTrip;
+
+  /// No description provided for @noActiveTrip.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد رحلة نشطة حالياً.'**
+  String get noActiveTrip;
+
+  /// No description provided for @openActiveTrip.
+  ///
+  /// In ar, this message translates to:
+  /// **'فتح الرحلة النشطة'**
+  String get openActiveTrip;
+
+  /// No description provided for @driverTrip.
+  ///
+  /// In ar, this message translates to:
+  /// **'رحلة السائق'**
+  String get driverTrip;
+
+  /// No description provided for @statusTimeline.
+  ///
+  /// In ar, this message translates to:
+  /// **'الخط الزمني للحالة'**
+  String get statusTimeline;
+
+  /// No description provided for @startPickup.
+  ///
+  /// In ar, this message translates to:
+  /// **'بدء التوجه للاستلام'**
+  String get startPickup;
+
+  /// No description provided for @pickedUpAction.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم الاستلام'**
+  String get pickedUpAction;
+
+  /// No description provided for @startTrip.
+  ///
+  /// In ar, this message translates to:
+  /// **'بدء الرحلة'**
+  String get startTrip;
+
+  /// No description provided for @deliver.
+  ///
+  /// In ar, this message translates to:
+  /// **'تسليم'**
+  String get deliver;
+
+  /// No description provided for @completeTrip.
+  ///
+  /// In ar, this message translates to:
+  /// **'إكمال الرحلة'**
+  String get completeTrip;
+
+  /// No description provided for @tripTransitionConflict.
+  ///
+  /// In ar, this message translates to:
+  /// **'تغيرت حالة الرحلة. تم تحميل أحدث حالة.'**
+  String get tripTransitionConflict;
+
+  /// No description provided for @trackingSimulation.
+  ///
+  /// In ar, this message translates to:
+  /// **'محاكاة التتبع'**
+  String get trackingSimulation;
+
+  /// No description provided for @simulateNextPoint.
+  ///
+  /// In ar, this message translates to:
+  /// **'محاكاة النقطة التالية'**
+  String get simulateNextPoint;
+
+  /// No description provided for @resetSimulation.
+  ///
+  /// In ar, this message translates to:
+  /// **'إعادة ضبط المحاكاة'**
+  String get resetSimulation;
+
+  /// No description provided for @simulationReset.
+  ///
+  /// In ar, this message translates to:
+  /// **'تمت إعادة ضبط المحاكاة'**
+  String get simulationReset;
+
+  /// No description provided for @routeProgress.
+  ///
+  /// In ar, this message translates to:
+  /// **'تقدم المسار'**
+  String get routeProgress;
+
+  /// No description provided for @statusProposed.
+  ///
+  /// In ar, this message translates to:
+  /// **'مقترحة'**
+  String get statusProposed;
+
+  /// No description provided for @statusSentToDriver.
+  ///
+  /// In ar, this message translates to:
+  /// **'أرسلت إلى السائق'**
+  String get statusSentToDriver;
+
+  /// No description provided for @statusRejected.
+  ///
+  /// In ar, this message translates to:
+  /// **'مرفوضة'**
+  String get statusRejected;
+
+  /// No description provided for @statusExpired.
+  ///
+  /// In ar, this message translates to:
+  /// **'منتهية'**
+  String get statusExpired;
+
+  /// No description provided for @statusActive.
+  ///
+  /// In ar, this message translates to:
+  /// **'نشط'**
+  String get statusActive;
+
+  /// No description provided for @statusInactive.
+  ///
+  /// In ar, this message translates to:
+  /// **'غير نشط'**
+  String get statusInactive;
+
+  /// No description provided for @statusAssigned.
+  ///
+  /// In ar, this message translates to:
+  /// **'مخصص'**
+  String get statusAssigned;
+
+  /// No description provided for @statusOnTrip.
+  ///
+  /// In ar, this message translates to:
+  /// **'في رحلة'**
+  String get statusOnTrip;
+
+  /// No description provided for @statusCreated.
+  ///
+  /// In ar, this message translates to:
+  /// **'منشأ'**
+  String get statusCreated;
 }
 
 class _AppLocalizationsDelegate

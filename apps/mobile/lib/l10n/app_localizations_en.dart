@@ -332,4 +332,184 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get statusCancelled => 'Cancelled';
+
+  @override
+  String get driverDashboard => 'Driver dashboard';
+
+  @override
+  String get activeRoute => 'Active route';
+
+  @override
+  String get noActiveRoute => 'No active route yet.';
+
+  @override
+  String get createRoute => 'Create route';
+
+  @override
+  String get viewRoute => 'View route';
+
+  @override
+  String get routeDetails => 'Route details';
+
+  @override
+  String get origin => 'Origin';
+
+  @override
+  String get seatsAvailable => 'Seats available';
+
+  @override
+  String get parcelCapacity => 'Parcel capacity';
+
+  @override
+  String get activateRoute => 'Activate route';
+
+  @override
+  String get deactivateRoute => 'Deactivate route';
+
+  @override
+  String get routeActivated => 'Route activated';
+
+  @override
+  String get routeDeactivated => 'Route deactivated';
+
+  @override
+  String get routeStatus => 'Route status';
+
+  @override
+  String get activationTime => 'Activation time';
+
+  @override
+  String get routeAlreadyActive => 'An operational route already exists.';
+
+  @override
+  String get routeCannotDeactivate =>
+      'This route cannot be deactivated in its current state.';
+
+  @override
+  String get matchInbox => 'Match inbox';
+
+  @override
+  String get noAvailableMatches => 'No available matches.';
+
+  @override
+  String get passengerRequest => 'Passenger request';
+
+  @override
+  String get merchantOrder => 'Merchant order';
+
+  @override
+  String get combinedAssignment => 'Combined assignment';
+
+  @override
+  String get requestType => 'Request type';
+
+  @override
+  String get parcelCount => 'Parcel count';
+
+  @override
+  String get parcelBatch => 'Parcel batch';
+
+  @override
+  String get estimatedDistanceSaved => 'Estimated distance saved';
+
+  @override
+  String get acceptMatch => 'Accept match';
+
+  @override
+  String get rejectMatch => 'Reject match';
+
+  @override
+  String get matchAccepted => 'Match accepted';
+
+  @override
+  String get matchRejected => 'Match rejected';
+
+  @override
+  String get matchCannotChange =>
+      'This match was already changed. The latest state has been loaded.';
+
+  @override
+  String get allMatches => 'All matches';
+
+  @override
+  String get proposedMatches => 'Proposed matches';
+
+  @override
+  String get viewDetails => 'View details';
+
+  @override
+  String get activeTrip => 'Active trip';
+
+  @override
+  String get noActiveTrip => 'No active trip yet.';
+
+  @override
+  String get openActiveTrip => 'Open active trip';
+
+  @override
+  String get driverTrip => 'Driver trip';
+
+  @override
+  String get statusTimeline => 'Status timeline';
+
+  @override
+  String get startPickup => 'Start pickup';
+
+  @override
+  String get pickedUpAction => 'Picked up';
+
+  @override
+  String get startTrip => 'Start trip';
+
+  @override
+  String get deliver => 'Deliver';
+
+  @override
+  String get completeTrip => 'Complete trip';
+
+  @override
+  String get tripTransitionConflict =>
+      'The trip state changed. The latest status has been loaded.';
+
+  @override
+  String get trackingSimulation => 'Tracking simulation';
+
+  @override
+  String get simulateNextPoint => 'Simulate next point';
+
+  @override
+  String get resetSimulation => 'Reset simulation';
+
+  @override
+  String get simulationReset => 'Simulation reset';
+
+  @override
+  String get routeProgress => 'Route progress';
+
+  @override
+  String get statusProposed => 'Proposed';
+
+  @override
+  String get statusSentToDriver => 'Sent to driver';
+
+  @override
+  String get statusRejected => 'Rejected';
+
+  @override
+  String get statusExpired => 'Expired';
+
+  @override
+  String get statusActive => 'Active';
+
+  @override
+  String get statusInactive => 'Inactive';
+
+  @override
+  String get statusAssigned => 'Assigned';
+
+  @override
+  String get statusOnTrip => 'On trip';
+
+  @override
+  String get statusCreated => 'Created';
 }

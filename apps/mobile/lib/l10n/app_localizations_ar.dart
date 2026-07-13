@@ -332,4 +332,183 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get statusCancelled => 'ملغاة';
+
+  @override
+  String get driverDashboard => 'لوحة السائق';
+
+  @override
+  String get activeRoute => 'المسار النشط';
+
+  @override
+  String get noActiveRoute => 'لا يوجد مسار نشط حالياً.';
+
+  @override
+  String get createRoute => 'إنشاء مسار';
+
+  @override
+  String get viewRoute => 'عرض المسار';
+
+  @override
+  String get routeDetails => 'تفاصيل المسار';
+
+  @override
+  String get origin => 'نقطة الانطلاق';
+
+  @override
+  String get seatsAvailable => 'المقاعد المتاحة';
+
+  @override
+  String get parcelCapacity => 'سعة الطرود';
+
+  @override
+  String get activateRoute => 'تفعيل المسار';
+
+  @override
+  String get deactivateRoute => 'إلغاء تفعيل المسار';
+
+  @override
+  String get routeActivated => 'تم تفعيل المسار';
+
+  @override
+  String get routeDeactivated => 'تم إلغاء تفعيل المسار';
+
+  @override
+  String get routeStatus => 'حالة المسار';
+
+  @override
+  String get activationTime => 'وقت التفعيل';
+
+  @override
+  String get routeAlreadyActive => 'يوجد مسار تشغيلي بالفعل.';
+
+  @override
+  String get routeCannotDeactivate =>
+      'لا يمكن إلغاء تفعيل هذا المسار في حالته الحالية.';
+
+  @override
+  String get matchInbox => 'صندوق المطابقات';
+
+  @override
+  String get noAvailableMatches => 'لا توجد مطابقات متاحة.';
+
+  @override
+  String get passengerRequest => 'طلب مسافر';
+
+  @override
+  String get merchantOrder => 'طلب تاجر';
+
+  @override
+  String get combinedAssignment => 'مهمة مشتركة';
+
+  @override
+  String get requestType => 'نوع الطلب';
+
+  @override
+  String get parcelCount => 'عدد الطرود';
+
+  @override
+  String get parcelBatch => 'دفعة الطرود';
+
+  @override
+  String get estimatedDistanceSaved => 'المسافة المقدرة الموفرة';
+
+  @override
+  String get acceptMatch => 'قبول المطابقة';
+
+  @override
+  String get rejectMatch => 'رفض المطابقة';
+
+  @override
+  String get matchAccepted => 'تم قبول المطابقة';
+
+  @override
+  String get matchRejected => 'تم رفض المطابقة';
+
+  @override
+  String get matchCannotChange =>
+      'تغيرت هذه المطابقة مسبقاً. تم تحميل أحدث حالة.';
+
+  @override
+  String get allMatches => 'كل المطابقات';
+
+  @override
+  String get proposedMatches => 'المطابقات المقترحة';
+
+  @override
+  String get viewDetails => 'عرض التفاصيل';
+
+  @override
+  String get activeTrip => 'الرحلة النشطة';
+
+  @override
+  String get noActiveTrip => 'لا توجد رحلة نشطة حالياً.';
+
+  @override
+  String get openActiveTrip => 'فتح الرحلة النشطة';
+
+  @override
+  String get driverTrip => 'رحلة السائق';
+
+  @override
+  String get statusTimeline => 'الخط الزمني للحالة';
+
+  @override
+  String get startPickup => 'بدء التوجه للاستلام';
+
+  @override
+  String get pickedUpAction => 'تم الاستلام';
+
+  @override
+  String get startTrip => 'بدء الرحلة';
+
+  @override
+  String get deliver => 'تسليم';
+
+  @override
+  String get completeTrip => 'إكمال الرحلة';
+
+  @override
+  String get tripTransitionConflict => 'تغيرت حالة الرحلة. تم تحميل أحدث حالة.';
+
+  @override
+  String get trackingSimulation => 'محاكاة التتبع';
+
+  @override
+  String get simulateNextPoint => 'محاكاة النقطة التالية';
+
+  @override
+  String get resetSimulation => 'إعادة ضبط المحاكاة';
+
+  @override
+  String get simulationReset => 'تمت إعادة ضبط المحاكاة';
+
+  @override
+  String get routeProgress => 'تقدم المسار';
+
+  @override
+  String get statusProposed => 'مقترحة';
+
+  @override
+  String get statusSentToDriver => 'أرسلت إلى السائق';
+
+  @override
+  String get statusRejected => 'مرفوضة';
+
+  @override
+  String get statusExpired => 'منتهية';
+
+  @override
+  String get statusActive => 'نشط';
+
+  @override
+  String get statusInactive => 'غير نشط';
+
+  @override
+  String get statusAssigned => 'مخصص';
+
+  @override
+  String get statusOnTrip => 'في رحلة';
+
+  @override
+  String get statusCreated => 'منشأ';
 }

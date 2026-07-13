@@ -3,7 +3,7 @@
 [PROJECT_OVERVIEW]
 Masari is a Palestine-focused smart route-sharing logistics MVP.
 
-Current implementation status: M4E1 Role-Filtered Match Inbox API.
+Current implementation status: M4E2 Driver Mobile Flow.
 
 Locked MVP corridor:
 Hebron / PPU / Bab Al-Zawiya -> Bethlehem.
@@ -126,6 +126,19 @@ Implemented in M4E1:
 - `GET /api/v1/matches/:id` now grants the connected driver the same ownership access as the inbox and returns the same safe summary contract.
 - No database schema or migration change was required.
 
+Implemented in M4E2:
+- Independently audited M4E1 against the source, Prisma relations, automated tests, and a fresh real PostgreSQL smoke; no corrective change was required.
+- Replaced the driver placeholder shell with a complete role-protected Flutter driver flow.
+- Driver dashboard loads current route, proposed match count, active trip, user identity, language controls, refresh, and logout from real APIs.
+- Locked-corridor route view/create/deactivate flow uses backend-fixed corridor coordinates and exposes only seats and parcel capacity as driver choices.
+- Driver match inbox and detail use the M4E1 safe match-summary contract, localized status/type labels, scoring breakdown, and accept/reject actions.
+- Match acceptance navigates directly to the created driver trip.
+- Driver trip UI exposes only the next valid status in the approved lifecycle and refreshes safely after conflicts.
+- Deterministic tracking step/reset and latest-location display are available without GPS, maps, Socket.IO, or background tracking.
+- Driver trip detail polls every 5 seconds and location every 3 seconds while visible, pauses with app lifecycle, and prevents duplicate timers and overlapping actions.
+- Arabic remains the default RTL locale; English is optional LTR and persists independently of the secure JWT session.
+- No backend, Prisma schema, migration, or dependency change was required.
+
 Migration integrity result:
 - M2B accidentally modified committed `0001_init` to add M2B audit enum values.
 - This was unnecessary because those values belong in `0002_matching_batching_comparison`.
@@ -133,7 +146,7 @@ Migration integrity result:
 - Corrective commit created: `chore: normalize Prisma migrations`.
 
 Not implemented yet:
-- Flutter driver and merchant business flows.
+- Flutter merchant business flow.
 - Mobile registration.
 - AI parser.
 - Live GPS tracking.
@@ -290,6 +303,18 @@ M4E1 match inbox flow:
 5. Driver detail ownership is based on the connected driver route, matching list, accept, and reject permissions.
 6. Invalid statuses return `400`; missing authentication returns `401`.
 
+M4E2 driver mobile flow:
+1. Driver logs in through the existing M4C secure session flow and routes to `/driver`.
+2. Dashboard loads `GET /api/v1/driver/routes`, `GET /api/v1/matches`, and `GET /api/v1/trips`; failed requests show an error instead of fabricated counts.
+3. `/driver/route` shows the current `active`, `assigned`, or `on_trip` route, or creates the locked route when none exists.
+4. `/driver/matches` shows own-route matches with proposed/sent assignments first; an optional proposed filter calls `GET /api/v1/matches?status=proposed`.
+5. `/driver/match/:id` shows the safe assignment summaries and scoring breakdown, then accepts or rejects only backend-permitted matches.
+6. Accepted matches navigate to `/driver/trip/:id`.
+7. Driver trip actions follow `accepted -> pickup_started -> picked_up -> in_transit -> delivered -> completed`; arbitrary jumps are never rendered.
+8. Tracking controls call deterministic step/reset endpoints and show the latest polled location plus a seven-point progress indicator.
+9. Trip and location polling pause in background/inactive lifecycle states, resume in foreground, stop on dispose, and do not create duplicate timers.
+10. Driver routes are protected by the existing role redirect, so passenger, merchant, admin, and unauthenticated users cannot enter them.
+
 Workspace scripts:
 - `npm run dev:api` starts the API workspace.
 - `npm run dev:admin` starts the admin Vite app.
@@ -370,6 +395,19 @@ Actual folder structure:
     │   │   │   ├── home
     │   │   │   │   └── presentation
     │   │   │   │       └── role_home_screen.dart
+    │   │   │   ├── driver
+    │   │   │   │   ├── application
+    │   │   │   │   │   └── driver_controller.dart
+    │   │   │   │   ├── data
+    │   │   │   │   │   ├── driver_models.dart
+    │   │   │   │   │   └── driver_repository.dart
+    │   │   │   │   └── presentation
+    │   │   │   │       ├── driver_home_screen.dart
+    │   │   │   │       ├── driver_route_screen.dart
+    │   │   │   │       ├── driver_match_inbox_screen.dart
+    │   │   │   │       ├── driver_match_detail_screen.dart
+    │   │   │   │       ├── driver_trip_screen.dart
+    │   │   │   │       └── driver_ui.dart
     │   │   │   ├── matching
     │   │   │   │   ├── data
     │   │   │   │   │   ├── matching_models.dart
@@ -405,6 +443,9 @@ Actual folder structure:
     │       ├── app_shell_test.dart
     │       ├── auth_controller_test.dart
     │       ├── auth_repository_test.dart
+    │       ├── driver_controller_test.dart
+    │       ├── driver_flow_widget_test.dart
+    │       ├── driver_repository_test.dart
     │       └── passenger_flow_repository_test.dart
     └── api
         ├── package.json
@@ -1006,7 +1047,7 @@ Mobile API URL examples:
 
 Mobile match-inbox backend dependency:
 - M4E1 resolved the backend gap with role-filtered `GET /api/v1/matches`.
-- The endpoint is ready for a future Flutter driver inbox, but no Flutter driver screen or driver business flow is implemented yet.
+- M4E2 now consumes this endpoint in the Flutter driver inbox and dashboard.
 
 M4B Android runtime validation:
 - Existing AVD found: `Medium_Phone_API_36.0`.
@@ -1116,6 +1157,52 @@ M4D mobile translations:
 - Arabic remains default; English remains optional and persisted independently of auth/session state.
 - Request IDs, match IDs, trip IDs, coordinates, and phone numbers remain readable LTR where used.
 
+[MOBILE_DRIVER_FLOW]
+Implemented in M4E2 under `apps/mobile`.
+
+Role-protected routes:
+- `/driver`: driver dashboard.
+- `/driver/route`: locked-corridor route detail/create/deactivate.
+- `/driver/matches`: role-filtered match inbox.
+- `/driver/match/:id`: driver-owned match detail and accept/reject.
+- `/driver/trip/:id`: driver-owned trip lifecycle and deterministic tracking.
+
+Endpoint mapping:
+- Dashboard: `GET /api/v1/driver/routes`, `GET /api/v1/matches`, `GET /api/v1/trips`.
+- Route flow: `GET /api/v1/driver/routes`, `GET /api/v1/driver/routes/active`, `POST /api/v1/driver/routes`, `PATCH /api/v1/driver/routes/:id/deactivate`.
+- Match flow: `GET /api/v1/matches`, optional `?status=proposed`, `GET /api/v1/matches/:id`, `POST /api/v1/matches/:id/accept`, `POST /api/v1/matches/:id/reject`.
+- Trip flow: `GET /api/v1/trips`, `GET /api/v1/trips/:id`, `POST /api/v1/trips/:id/status`.
+- Tracking: `POST /api/v1/trips/:id/simulate/step`, `POST /api/v1/trips/:id/simulate/reset`, `GET /api/v1/trips/:id/location`.
+
+Locked driver route:
+- Origin: `Hebron / PPU / Bab Al-Zawiya`, latitude `31.532600`, longitude `35.099800`.
+- Destination: `Bethlehem`, latitude `31.705400`, longitude `35.202400`.
+- Corridor key: `hebron-ppu-bab-al-zawiya-to-bethlehem`.
+- Backend owns and persists the fixed coordinates; mobile submits only the accepted locked labels/corridor and selected capacities.
+- Driver may select seats from backend-compatible `0..8` and parcel capacity from `0..20`; raw coordinates and city selection are not editable.
+- Operational route summary includes `active`, `assigned`, and `on_trip`; deactivation is rendered only for `active` routes.
+
+Driver match behavior:
+- Inbox consumes only the safe M4E1 response and never displays raw JSON, credentials, phone numbers, or owner foreign keys.
+- Proposed and sent-to-driver assignments are grouped first; each group remains newest first.
+- Cards show assignment type, pickup/destination, passenger/parcel counts, batch savings when present, final score, status, created time, and explanation.
+- Detail shows corridor overlap, pickup-distance score, timing fit, trust score, capacity fit, related assignment summaries, explanation, and status.
+- Accept/reject buttons exist only for `proposed` and `sent_to_driver`, are disabled during requests, and refresh after conflicts.
+
+Driver trip and tracking behavior:
+- UI sequence is strictly `accepted -> pickup_started -> picked_up -> in_transit -> delivered -> completed`.
+- Only one valid next action is rendered; completed/cancelled trips render no transition action.
+- Status mutations remain backend-authoritative and conflict errors trigger a translated refresh.
+- Trip detail polls every 5 seconds; latest location polls every 3 seconds.
+- Poll failures preserve the last known good state; explicit action failures are surfaced.
+- App pause/inactive stops timers; resume restarts them; provider disposal cancels them; repeated resume does not duplicate timers.
+- Simulation uses the backend's seven deterministic route points and shows latitude, longitude, sequence, source, recorded time, and progress without a map.
+
+M4E2 localization:
+- All driver dashboard, route, inbox, match action, trip action, tracking, error, and status text is present in Arabic and English ARB files.
+- Arabic remains default RTL; English remains optional LTR; `masari_locale` persistence is unchanged.
+- Technical IDs and coordinates are rendered LTR where needed.
+
 [DEMO_MODE]
 Implemented endpoint:
 - `POST /api/v1/demo/reset`.
@@ -1191,6 +1278,9 @@ Implemented minimal tests:
 - Mobile auth controller tests for no-token login state, valid saved-token restoration, 401 token removal, temporary network failure preserving token with retry state, and logout token removal.
 - Mobile routing/widget tests for passenger, driver, merchant, unsupported admin, role-route protection, Arabic RTL login, English LTR switch, demo preset fill, loading disabled button, translated invalid credentials, logout returning to login, and locale preservation after logout.
 - Mobile M4D repository tests for passenger request list/active/detail parsing, create request payload, cancel request, match run/scoring breakdown parsing, trip list/detail parsing, latest-location parsing, and backend error mapping.
+- Mobile M4E2 repository tests for route list/active parsing, locked create payload, deactivation, match inbox/filter/detail, accept/reject, trip list/detail/status payload, simulation step/reset, and latest-location parsing.
+- Mobile M4E2 controller tests for dashboard success/empty/error, route creation conflict and deactivation failure, inbox empty/order/filter/error, accept/reject refresh, valid next status, and polling lifecycle/timer deduplication.
+- Mobile M4E2 routing/widget tests for driver-only routes, passenger/merchant/unauthenticated redirects, Arabic RTL and English LTR, locked route form without editable coordinates, safe match summaries, scoring detail, accept/reject loading state, valid-only trip action, and simulated location progress.
 
 Required validation commands:
 - `npm install`.
@@ -1449,6 +1539,47 @@ M4E1 real PostgreSQL smoke:
 - After the passenger match was accepted, `status=proposed` returned only the merchant match and `status=accepted` returned only the passenger match.
 - Invalid status returned `400`.
 
+M4E1 independent audit before M4E2:
+- Audited `PROJECT_MAP.md`, `apps/api/src/modules/matching.ts`, `apps/api/src/tests/matchInbox.test.ts`, Prisma `Match` relations, list ownership scopes, safe serialization, and detail ownership.
+- Confirmed the M4E1 commit added no Prisma schema or migration change.
+- Fresh regression passed unchanged: Prisma validation/generation, workspace typecheck, 6 API files/57 tests, workspace build, Flutter dependency/localization generation, clean formatting, analysis, and the then-current 25 mobile tests.
+- Fresh PostgreSQL smoke on port `5432` with API port `3111` reset the demo, created passenger match `cmriyh2ht001ebghng3bcfr2p`, and confirmed selected driver 1 saw exactly one match while alternate driver 2 saw zero.
+- The same smoke confirmed passenger/admin visibility, proposed filtering, scoring breakdown, invalid status `400`, and unauthenticated `401`.
+- M4E1 passed without a corrective change or audit-only commit.
+
+M4E2 validation results:
+- No package dependency, backend source, Prisma schema, or migration change was made.
+- `npm run prisma:validate`: passed.
+- `npm run prisma:generate`: passed with Prisma 7.8.0.
+- `npm run typecheck`: passed for admin and API workspaces.
+- `npm run test`: passed, 6 API files and 57 tests including the M4E1 inbox regression.
+- `npm run build`: passed for admin and API workspaces.
+- `flutter pub get`: passed.
+- `flutter gen-l10n`: passed.
+- `dart format --set-exit-if-changed .`: passed, 54 files checked and 0 changed.
+- `flutter analyze`: passed with no issues.
+- `flutter test`: passed, 44 mobile tests including M4C auth/session and M4D passenger regressions.
+- `flutter build apk --debug --dart-define=API_BASE_URL=http://10.0.2.2:3000`: passed.
+- Debug APK output: `apps/mobile/build/app/outputs/flutter-apk/app-debug.apk`.
+
+M4E2 Android/PostgreSQL runtime smoke:
+- Emulator: `emulator-5554`, AVD `Medium_Phone_API_36.0`, Android 16 API 36.
+- Local PostgreSQL remained on port `5432`; an unrelated existing local project occupied port `3000`, so the runtime-only Masari build used API port `3111` and `API_BASE_URL=http://10.0.2.2:3111` without stopping the unrelated process.
+- Demo reset passed; passenger matching created match `cmriyy9cm0028bghnls3fe209` for driver 1, while alternate driver 2 inbox returned zero.
+- App data was cleared before launch and Arabic opened by default in RTL.
+- Driver 1 login reached the real driver dashboard with seeded active route, proposed count `1`, and no fabricated active trip.
+- Active route detail was visible; automated tests separately cover create/deactivate payloads, states, and failures.
+- Own-route match appeared in the inbox with passenger summary and score; match detail showed all scoring components and accept/reject actions.
+- Accept created trip `cmriyzs91002dbghnwcvfxeie` and navigated directly to driver trip detail.
+- Two deterministic simulated points were recorded; latest location showed sequence `1`, source `simulated`, and updated route progress.
+- UI advanced only through `accepted -> pickup_started -> picked_up -> in_transit -> delivered -> completed`; all timeline steps completed and the next-status action disappeared.
+- Real API verification after UI completion returned trip status `completed`, driver route status `completed`, latest sequence `1`, and alternate driver match count `0`.
+- English switch changed the complete driver trip to LTR English.
+- Force-stop/relaunch restored the driver secure session and English locale, returning to the English driver dashboard.
+- Logout returned to the English login screen, confirming locale persistence after session removal.
+- Visual inspection found no crash, overflow, raw JSON, editable coordinates, map/GPS controls, or visibly broken layout in the exercised Arabic and English paths.
+- The final deliverable APK was rebuilt after runtime smoke with the requested default emulator API URL on port `3000`.
+
 [SUCCESS_CRITERIA]
 M1 success criteria:
 - API can start.
@@ -1464,7 +1595,7 @@ Current pending items:
 - npm audit reports 3 moderate findings through Prisma CLI transitive `@hono/node-server`. The available force fix would downgrade Prisma from 7.8.0 to 6.19.3, so this needs a Prisma upstream patch or explicit approval to downgrade.
 - Manual browser visual QA remains pending because this tool environment cannot visually inspect the interactive browser. Required manual check: run `npm run dev:api`, run `npm run dev:admin`, open the admin console, login as admin, run full demo sequence, and verify the judge-facing layout and copy.
 - Manual M3D language QA remains pending because this tool environment cannot visually inspect the interactive browser. Required manual check: clear `masari_locale`, verify Arabic RTL default, switch to English LTR, refresh, verify English persistence, switch back to Arabic, and run the full demo path.
-- Flutter Driver Mobile Flow remains pending; M4E1 provides its role-filtered match-inbox backend dependency only.
+- Flutter Merchant Mobile Flow remains pending; do not claim merchant order/batch business screens exist in the mobile app.
 
 Commands to run locally:
 ```bash

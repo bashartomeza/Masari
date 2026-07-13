@@ -141,7 +141,7 @@ void main() {
         handler: _meHandler('driver'),
       );
 
-      expect(find.text('سائق'), findsWidgets);
+      expect(find.textContaining('سائق'), findsWidgets);
       expect(find.textContaining('Demo Driver'), findsOneWidget);
 
       GoRouter.of(

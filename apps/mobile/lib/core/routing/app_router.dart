@@ -6,6 +6,11 @@ import '../../features/auth/domain/auth_models.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/splash_screen.dart';
 import '../../features/auth/presentation/unsupported_role_screen.dart';
+import '../../features/driver/presentation/driver_home_screen.dart';
+import '../../features/driver/presentation/driver_match_detail_screen.dart';
+import '../../features/driver/presentation/driver_match_inbox_screen.dart';
+import '../../features/driver/presentation/driver_route_screen.dart';
+import '../../features/driver/presentation/driver_trip_screen.dart';
 import '../../features/home/presentation/role_home_screen.dart';
 import '../../features/matching/presentation/match_detail_screen.dart';
 import '../../features/passenger/presentation/create_request_screen.dart';
@@ -53,8 +58,27 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/driver',
-        builder: (context, state) =>
-            const RoleHomeScreen(role: UserRole.driver),
+        builder: (context, state) => const DriverHomeScreen(),
+        routes: [
+          GoRoute(
+            path: 'route',
+            builder: (context, state) => const DriverRouteScreen(),
+          ),
+          GoRoute(
+            path: 'matches',
+            builder: (context, state) => const DriverMatchInboxScreen(),
+          ),
+          GoRoute(
+            path: 'match/:id',
+            builder: (context, state) =>
+                DriverMatchDetailScreen(matchId: state.pathParameters['id']!),
+          ),
+          GoRoute(
+            path: 'trip/:id',
+            builder: (context, state) =>
+                DriverTripScreen(tripId: state.pathParameters['id']!),
+          ),
+        ],
       ),
       GoRoute(
         path: '/merchant',
