@@ -18,6 +18,7 @@
     "test:admin": "npm run test -w @masari/admin",
     "demo:preflight": "node scripts/demo-preflight.mjs",
     "demo:smoke": "node scripts/demo-smoke.mjs",
+    "demo:package": "pwsh -NoProfile -File scripts/package-demo.ps1",
     "prisma:generate": "npm run prisma:generate -w @masari/api",
     "prisma:validate": "npm run prisma:validate -w @masari/api",
     "db:push": "npm run db:push -w @masari/api"

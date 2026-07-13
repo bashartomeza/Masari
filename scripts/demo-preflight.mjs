@@ -19,10 +19,14 @@ function fail(name, detail) {
   console.error(`[fail] ${name}: ${detail}`);
 }
 
-async function checkHttp(name, url) {
+async function checkHttp(name, url, validate) {
   try {
     const response = await fetch(url, { signal: AbortSignal.timeout(5000) });
     if (!response.ok) return fail(name, `${url} returned ${response.status}`);
+    if (validate) {
+      const validationError = await validate(response);
+      if (validationError) return fail(name, `${url} ${validationError}`);
+    }
     pass(name, url);
   } catch (error) {
     fail(name, `${url} is unavailable (${error instanceof Error ? error.message : "unknown error"})`);
@@ -47,8 +51,14 @@ if (process.env.DATABASE_URL) {
   }
 }
 
-await checkHttp("API health", `${apiBaseUrl}/api/v1/health`);
-await checkHttp("admin console", adminUrl);
+await checkHttp("API health", `${apiBaseUrl}/api/v1/health`, async (response) => {
+  const body = await response.json().catch(() => null);
+  return body?.ok === true && body?.service === "masari-api" ? undefined : "is not the Masari API";
+});
+await checkHttp("admin console", adminUrl, async (response) => {
+  const body = await response.text();
+  return body.includes("<title>Masari Demo Console</title>") ? undefined : "is not the Masari admin console";
+});
 
 const adminExample = readFileSync(resolve(root, "apps/admin/.env.example"), "utf8");
 if (adminExample.includes("VITE_API_BASE_URL=http://localhost:3000")) {

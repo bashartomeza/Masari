@@ -3,7 +3,7 @@
 [PROJECT_OVERVIEW]
 Masari is a Palestine-focused smart route-sharing logistics MVP.
 
-Current implementation status: M5A Full Cross-Role Judge Rehearsal and Demo Hardening.
+Current implementation status: M5B Presentation Freeze, Judge-Machine Rehearsal, and Demo Packaging.
 
 Locked MVP corridor:
 Hebron / PPU / Bab Al-Zawiya -> Bethlehem.
@@ -151,6 +151,12 @@ Implemented in M5A:
 - Localized cross-role match explanations and simulated tracking labels; mobile dashboard refresh failures now show translated retry state.
 - Added deterministic `demo:preflight` and `demo:smoke` tooling, final screenshots, and `DEMO_RUNBOOK.md`.
 - Completed five consecutive clean rehearsals without crash, duplicate trip/batch, or manual database correction.
+
+Implemented in M5B:
+- Froze hackathon product scope and limited changes to presentation documentation, preflight service-identity hardening, packaging, rehearsal, and final validation.
+- Audited the designated presentation machine, performed a no-snapshot cold start, rehearsed controlled API failure/recovery, and ran three final deterministic presentation checks.
+- Added `JUDGE_SCRIPT.md`, `BACKUP_DEMO.md`, `README_DEMO_START.md`, and `RELEASE_NOTES.md`.
+- Prepared the ignored `release/masari-hackathon-demo/` package and ZIP with APK, safe templates, evidence, and SHA-256 manifests.
 
 Migration integrity result:
 - M2B accidentally modified committed `0001_init` to add M2B audit enum values.
@@ -1772,6 +1778,66 @@ APK:
 - Output: `apps/mobile/build/app/outputs/flutter-apk/app-debug.apk`.
 - Installed successfully on `emulator-5554`.
 
+[M5B_PRESENTATION_FREEZE]
+Scope freeze:
+- Masari feature development is frozen for the hackathon presentation. Only presentation-blocking corrections are permitted.
+- No new API, screen, business feature, database table, dependency, matching formula, architecture, AI, Socket.IO, GPS, map, payment, registration, multi-city, app-store, or deployment work was added.
+- The only executable correction was strengthening `demo:preflight` to validate Masari API/admin identity instead of accepting any HTTP 200 response on the expected ports.
+
+Designated presentation machine audit (2026-07-13):
+- The exact event judge machine cannot be independently identified from repository context. M5B validated the currently designated presentation machine `C:\Users\basha\Desktop\Masari`; if the event uses another physical machine, run the transfer checklist in `README_DEMO_START.md` before presenting.
+- Windows 11 Pro 24H2, version `10.0.26100`, build `26100` (`flutter doctor` reported `10.0.26100.8655`).
+- Node.js `v22.17.1`; npm `10.9.2`; PostgreSQL `18.3`, Windows service `postgresql-x64-18` running automatically on port 5432.
+- Flutter `3.44.6` stable; Dart `3.12.2`; Android SDK `C:\Users\basha\AppData\Local\Android\Sdk`, platform/build-tools 36.0.0.
+- Flutter-selected Java: Android Studio bundled OpenJDK `21.0.6` at `C:\Program Files\Android\Android Studio\jbr\bin\java`.
+- AVD `Medium_Phone_API_36.0`, `emulator-5554`, Android 16/API 36.
+- Memory: 15.84 GB total / 3.16 GB free at audit. Disk: C 77.01 GB free; D 163.16 GB free.
+- Active presentation network: Wi-Fi `192.168.6.28`, gateway `192.168.6.1`; VMware and Hyper-V local adapters also present.
+- Port ownership was inspected before stopping anything: verified Masari Node API on 3000, verified Masari Vite on 5173, PostgreSQL on 5432. No unrelated process was terminated.
+
+Frozen URLs and artifacts:
+- API `http://localhost:3000`; admin `http://localhost:5173`; Android emulator API `http://10.0.2.2:3000`.
+- Debug APK source: `apps/mobile/build/app/outputs/flutter-apk/app-debug.apk`, 191,880,956 bytes.
+- APK SHA-256: `0F9C367DEFC1A9E986E1522D2E2331962EE6E5D685B32D217FA09DB4B425B619`, unchanged after the required final rebuild.
+- Presenter script: `JUDGE_SCRIPT.md`; operational runbook: `DEMO_RUNBOOK.md`; backup: `BACKUP_DEMO.md`; start card: `README_DEMO_START.md`; notes: `RELEASE_NOTES.md`.
+- Ignored package folder: `release/masari-hackathon-demo/`; ignored ZIP: `release/masari-hackathon-demo.zip`.
+
+Cold-start result:
+- Verified M5A API/Vite ownership, stopped only those processes, shut down the emulator, left PostgreSQL untouched, and confirmed ports 3000/5173 free.
+- Cold-state preflight correctly blocked at 7/10 because API, admin, and Android device were unavailable.
+- No-snapshot AVD boot, API, Vite, fresh APK uninstall/install, launch, and readiness completed in `33.71` seconds (target under 3 minutes).
+- Post-start preflight passed 10/10; protected reset completed in `0.73` seconds (target under 30 seconds); cold smoke completed in `2.95` seconds.
+- Fresh mobile install opened Arabic by default; real browser opened the admin login in Arabic RTL; the full admin sequence completed with authoritative match/batch/trip/tracking/comparison state.
+- An initial dress-rehearsal launcher incorrectly forwarded Vite flags through the nested root npm script, so Vite did not bind. No source defect existed; the exact documented command `npm run dev:admin` was used for the timed clean rerun and passed.
+
+Failure and recovery rehearsal:
+- With authenticated Arabic admin and passenger sessions open, the verified API process was stopped during the demo.
+- Admin displayed the translated server-connection error; mobile displayed the Arabic retry state without crashing or losing the passenger session.
+- Restarting the same API configuration restored admin Refresh and mobile Retry; a protected reset then completed without database edits.
+- Full visual recovery time was `89.07` seconds (target under 2 minutes); API was healthy after `53.83` seconds and the recovery reset took `0.45` seconds.
+- A separate final recovery run proved preflight blocks while API is absent and completed API restart + 10/10 preflight + full smoke in `4.10` seconds.
+- Controlled unrelated HTTP services on a temporary port were rejected as “not the Masari API” and “not the Masari admin console,” proving port/service conflict identity detection.
+
+Three final rehearsals using `JUDGE_SCRIPT.md`:
+- The written presenter timeline is fixed at exactly `8:00`; automated technical execution is recorded separately and does not pretend to be spoken presentation time.
+- Arabic-primary: passed, technical flow `2.56` seconds, no presenter/technical issue.
+- Normal full: passed, technical flow `2.16` seconds, no presenter/technical issue.
+- Recovery: preflight blocked the outage, then passed after restart; technical smoke `2.43` seconds and recovery + smoke `4.10` seconds.
+- Every run returned score `0.9317`, sequence `2`, trips `1` versus `6`, distance `21.53` versus `129.19`, cost `43.06` versus `258.38`, winner `masari`, and clean reset recovery.
+
+Final M5B validation:
+- Prisma validation/generation passed with Prisma 7.8.0; no schema or migration changed.
+- Workspace typecheck/build passed; API 6 files / 60 tests passed.
+- Admin typecheck/build passed; 1 file / 7 tests passed.
+- Mobile dependency/localization generation, clean formatting (69 files), analysis, 62 tests, and debug APK build passed.
+- Final `demo:preflight` passed 10/10; final real PostgreSQL/API `demo:smoke` passed in `2.04` seconds with all frozen values.
+- `npm audit fix --force` was not run. The existing Prisma CLI advisory remains documented.
+
+Release identity:
+- Final annotated local tag: `v0.1.0-hackathon`, pointing to the M5B freeze commit.
+- The package checksum manifest and packaged `RELEASE_NOTES.md` resolve the exact freeze commit after the commit/tag is created.
+- No remote was configured or pushed.
+
 [SUCCESS_CRITERIA]
 M1 success criteria:
 - API can start.
@@ -1787,7 +1853,8 @@ Current pending items:
 - npm audit reports 3 moderate findings through Prisma CLI transitive `@hono/node-server`. The available force fix would downgrade Prisma from 7.8.0 to 6.19.3, so this needs a Prisma upstream patch or explicit approval to downgrade.
 - Judge-day reliability still depends on local PostgreSQL, API, Vite, and emulator readiness; run `npm run demo:preflight` and `npm run demo:smoke` before presenting.
 - The comparison and tracking are intentionally deterministic hackathon simulations, not production routing, live GPS, or live prices.
-- Next recommended milestone: M5B presentation freeze/release rehearsal only—freeze product scope, rehearse the written eight-minute script on the judge machine, and package the validated APK/evidence. Do not begin excluded product features.
+- If a different physical event machine is used, its PostgreSQL credentials/service, ports, emulator acceleration, APK install, and 10/10 preflight remain a required transfer check.
+- Next recommended step: no feature milestone. Preserve the `v0.1.0-hackathon` tag, transfer the ignored release ZIP to the actual event machine, run the start card and one smoke, then present the frozen eight-minute script.
 
 Commands to run locally:
 ```powershell

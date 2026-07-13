@@ -3,3 +3,4 @@ dist/
 .env
 apps/api/.env
 apps/api/src/generated/
+release/
