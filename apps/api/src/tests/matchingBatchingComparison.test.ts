@@ -51,7 +51,8 @@ const merchantOrder = {
   id: "order_1",
   merchant_id: "merchant_1",
   status: "submitted",
-  parcels: Array.from({ length: 5 }, (_, index) => ({ id: `parcel_${index}`, status: "pending" }))
+  parcels: Array.from({ length: 5 }, (_, index) => ({ id: `parcel_${index}`, status: "pending" })),
+  parcel_batches: []
 };
 
 const compatibleRoute = {
@@ -194,6 +195,22 @@ describe("matching, batching, comparison", () => {
     prismaMock.merchantOrder.findUnique.mockResolvedValue({ ...merchantOrder, status: "completed" });
 
     await request(createApp()).post("/api/v1/merchant/orders/order_1/batch").set(auth("merchant_1")).expect(409);
+  });
+
+  it("an already batched order cannot create a duplicate batch", async () => {
+    prismaMock.merchantOrder.findUnique.mockResolvedValue({
+      ...merchantOrder,
+      status: "batched",
+      parcel_batches: [{ id: "batch_existing" }]
+    });
+
+    const response = await request(createApp())
+      .post("/api/v1/merchant/orders/order_1/batch")
+      .set(auth("merchant_1"))
+      .expect(409);
+
+    expect(response.body.error).toBe("order_already_batched");
+    expect(prismaMock.parcelBatch.create).not.toHaveBeenCalled();
   });
 
   it("admin can run comparison and Masari wins seeded scenario", async () => {

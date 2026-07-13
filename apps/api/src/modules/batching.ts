@@ -15,13 +15,17 @@ function routeParam(value: string | string[] | undefined) {
 }
 
 export async function createParcelBatch(req: AuthenticatedRequest, orderId: string) {
-  const order = await prisma.merchantOrder.findUnique({ where: { id: orderId }, include: { parcels: true } });
+  const order = await prisma.merchantOrder.findUnique({
+    where: { id: orderId },
+    include: { parcels: true, parcel_batches: { select: { id: true }, take: 1 } }
+  });
   if (!order) throw new HttpError(404, "order_not_found");
   if (req.user!.role !== "admin" && (req.user!.role !== "merchant" || order.merchant_id !== req.user!.id)) {
     throw new HttpError(403, "forbidden");
   }
   if (order.parcels.length < 1 || order.parcels.length > 10) throw new HttpError(400, "invalid_parcel_count");
-  if (order.status !== "submitted" && order.status !== "batched") throw new HttpError(409, "order_not_batchable");
+  if (order.parcel_batches.length > 0) throw new HttpError(409, "order_already_batched");
+  if (order.status !== "submitted") throw new HttpError(409, "order_not_batchable");
 
   const driverRoute = await prisma.driverRoute.findFirst({
     where: {

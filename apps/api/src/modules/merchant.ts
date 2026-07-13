@@ -25,6 +25,30 @@ const createOrderSchema = z.object({
 
 export const merchantRouter = Router();
 
+const merchantOrderInclude = {
+  parcels: true,
+  parcel_batches: {
+    select: {
+      id: true,
+      status: true,
+      estimated_distance_saved: true,
+      explanation: true,
+      created_at: true,
+      driver_route: {
+        select: {
+          id: true,
+          origin_label: true,
+          destination_label: true,
+          corridor_key: true,
+          status: true,
+          parcel_capacity_available: true
+        }
+      }
+    },
+    orderBy: { created_at: "desc" as const }
+  }
+};
+
 function routeParam(value: string | string[] | undefined) {
   if (typeof value !== "string") {
     throw new HttpError(400, "invalid_route_param");
@@ -76,7 +100,7 @@ merchantRouter.get("/merchant/orders", async (req: AuthenticatedRequest, res, ne
   try {
     const orders = await prisma.merchantOrder.findMany({
       where: { merchant_id: req.user!.id },
-      include: { parcels: true },
+      include: merchantOrderInclude,
       orderBy: { created_at: "desc" }
     });
     res.json({ orders });
@@ -90,7 +114,7 @@ merchantRouter.get("/merchant/orders/:id", async (req: AuthenticatedRequest, res
     const orderId = routeParam(req.params.id);
     const order = await prisma.merchantOrder.findFirst({
       where: { id: orderId, merchant_id: req.user!.id },
-      include: { parcels: true }
+      include: merchantOrderInclude
     });
     if (!order) {
       throw new HttpError(404, "order_not_found");

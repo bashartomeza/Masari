@@ -165,6 +165,45 @@ describe("manual role APIs", () => {
     await request(createApp()).get("/api/v1/merchant/orders/order_other").set(auth("merchant_1")).expect(404);
   });
 
+  it("merchant order reads include safe persisted batch summaries", async () => {
+    const order = {
+      id: "order_1",
+      merchant_id: "merchant_1",
+      status: "batched",
+      parcels: [{ id: "parcel_1", status: "pending" }],
+      parcel_batches: [
+        {
+          id: "batch_1",
+          status: "created",
+          estimated_distance_saved: "43.06",
+          explanation: "Three parcels share one corridor trip.",
+          created_at: new Date("2026-07-13T08:00:00.000Z"),
+          driver_route: {
+            id: "route_1",
+            origin_label: "Hebron / PPU / Bab Al-Zawiya",
+            destination_label: "Bethlehem",
+            corridor_key: "hebron-ppu-bab-al-zawiya-to-bethlehem",
+            status: "active",
+            parcel_capacity_available: 5
+          }
+        }
+      ]
+    };
+    prismaMock.merchantOrder.findMany.mockResolvedValue([order]);
+    prismaMock.merchantOrder.findFirst.mockResolvedValue(order);
+
+    const list = await request(createApp()).get("/api/v1/merchant/orders").set(auth("merchant_1")).expect(200);
+    const detail = await request(createApp()).get("/api/v1/merchant/orders/order_1").set(auth("merchant_1")).expect(200);
+
+    expect(list.body.orders[0].parcel_batches[0]).toEqual(
+      expect.objectContaining({ id: "batch_1", status: "created", estimated_distance_saved: "43.06" })
+    );
+    expect(detail.body.order.parcel_batches[0].driver_route).toEqual(
+      expect.objectContaining({ id: "route_1", destination_label: "Bethlehem" })
+    );
+    expect(JSON.stringify(detail.body)).not.toContain("driver_id");
+  });
+
   it("invalid parcel count is rejected", async () => {
     await request(createApp())
       .post("/api/v1/merchant/orders")
