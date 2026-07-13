@@ -2006,3 +2006,36 @@ Remaining security backlog after M6B1B:
 - Shared external rate-limit storage is required before horizontal multi-instance scaling.
 - Hosting selection must confirm the exact proxy-hop topology, TLS termination, React deployment headers, and external health-check policy.
 - Server-managed admin sessions, refresh/session lifecycle, registration/OTP, distributed tracing, and production deployment remain later milestones.
+
+[M6B2_ENGINEERING_DELIVERY_FOUNDATION]
+Scope:
+- Added four focused, locally validated GitHub Actions workflows for real-MySQL backend checks, admin, Flutter Android, and security/configuration gates.
+- Added canonical `.nvmrc`, `.flutter-version`, and `.java-version` toolchain sources plus portable `validate`, focused validation, audit, workflow, tracked-content, and artifact-scan commands.
+- Added a multi-stage, non-root API runtime image, separate controlled migration target, and private-network local staging simulation. No provider, hosting, schema, migration, API, admin, or mobile product change was introduced.
+- Added transaction-consistent MySQL backup with SHA-256, fail-closed isolated restore verification, and reproducible safe release metadata.
+
+CI and security contract:
+- Backend CI creates only `masari_ci` in an ephemeral MySQL 8 service, deploys migrations from empty twice, checks status, runs all API tests/build, and executes the compiled deterministic real-MySQL smoke.
+- Admin and mobile build production-like artifacts without demo configuration or signing secrets and scan outputs for reset/simulation/demo markers.
+- Production APK scanning proved runtime-only UI gating retained driver simulation endpoint strings. A surgical compile-time product-build guard now removes those two existing calls from release artifacts while preserving demo/debug behavior; no screen or backend contract changed.
+- Security CI rejects prohibited tracked artifacts and high-confidence credentials without printing values; high/critical and unapproved moderate dependency advisories fail. The moderate exception is limited to the documented Prisma CLI chain.
+- External GitHub actions are immutable-SHA pinned. CI remains pending activation because no private remote URL has been supplied.
+
+Operator commands:
+- `npm run validate`, `validate:backend`, `validate:admin`, `validate:security`, and `validate:all`.
+- `npm run mysql:backup` and `npm run mysql:restore:verify -- -- --dump <ignored-dump> --database masari_restore_<name> --confirm-isolated [--cleanup]` (the extra separator preserves flags with npm 10 on Windows).
+- `npm run release:metadata -- -- --release <id> --environment <type> --output release/metadata.json`.
+- Staging build/start, migration, health, isolation, and shutdown procedures are in `docs/operations/staging-startup.md`.
+
+Recovery targets and boundaries:
+- Provisional controlled-beta targets are RPO 15 minutes, RTO 2 hours, 30-day retention pending approval, monthly isolated restore rehearsal, and future encrypted owner-limited managed backups. No cloud backup infrastructure is claimed.
+- Clean staging cannot exercise an authenticated normal route until onboarding or approved restored staging identities exist; unauthenticated `401` confirms protected routes remain registered.
+- Remaining product work includes production user onboarding/OTP, server-managed access/refresh session lifecycle, verification, and later product capabilities. M6B2 does not implement them.
+
+M6B2 validation status (2026-07-13):
+- Local workflow parsing and required-step/reference checks passed for all four workflow files. The standard repository validation passed Prisma validate/generate, workspace typecheck/build, 94 API tests, 12 admin tests, tracked-content scanning, the precise npm audit policy, and 5 tooling safety/reproducibility tests.
+- The production admin artifact scan passed. Flutter dependency/localization generation, 70-file clean formatting, analysis, and all 65 tests passed; the production-like release APK built and its extracted native payload passed the forbidden demo-marker scan. The generated APK remains ignored and is not a release artifact.
+- Both API Docker targets built. Runtime user `node`, missing-configuration failure, explicit empty-database migration, live/ready `200`, protected route `401`, demo reset/comparison/simulation `404`, HSTS/security/request-ID headers, structured logs, and graceful shutdown (0.41 seconds) passed against an isolated MySQL 8 staging simulation with no seeded users.
+- A real local MySQL logical backup and SHA-256 sidecar were created in the ignored backup directory. Restore into `masari_restore_m6b2_20260713` passed checksum, Prisma migration status, Masari physical-table identity, and read-only connectivity checks; verification took 2.876 seconds (3.53 seconds command elapsed) and cleanup removed only the isolated database.
+- Demo preflight passed 19/19 and the real MySQL deterministic smoke retained score `0.9317`, tracking sequence `2`, trips `1` versus `6`, distance `21.53` versus `129.19`, cost `43.06` versus `258.38`, winner `masari`, and reset recovery.
+- Safe release metadata generation passed with two migration checksums and reproducible output under `SOURCE_DATE_EPOCH`. No remote was configured and no CI run is claimed; private GitHub activation remains pending the team leader's exact approved URL.
