@@ -1,0 +1,67 @@
+name: Backend and MySQL CI
+
+on:
+  pull_request:
+  push:
+    branches: [production-readiness]
+
+permissions:
+  contents: read
+
+jobs:
+  backend-mysql:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_DATABASE: masari_ci
+          MYSQL_USER: masari_ci
+          MYSQL_PASSWORD: ci-only-password
+          MYSQL_ROOT_PASSWORD: ci-only-root-password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -u masari_ci --password=ci-only-password"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    env:
+      APP_ENV: demo
+      ENABLE_DEMO_FEATURES: "true"
+      APP_RELEASE: ci-${{ github.sha }}
+      DATABASE_URL: mysql://masari_ci:ci-only-password@127.0.0.1:3306/masari_ci
+      JWT_SECRET: ci-only-jwt-secret-at-least-thirty-two-characters
+      CORS_ORIGINS: http://localhost:5173
+      TRUST_PROXY: none
+      LOG_LEVEL: silent
+      PORT: "3000"
+      DEMO_RESET_KEY: ci-only-reset-key
+      DEMO_PASSENGER_PASSWORD: ci-only-passenger-password
+      DEMO_DRIVER_PASSWORD: ci-only-driver-password
+      DEMO_MERCHANT_PASSWORD: ci-only-merchant-password
+      DEMO_ADMIN_PASSWORD: ci-only-admin-password
+      API_BASE_URL: http://127.0.0.1:3000
+      VITE_APP_ENV: production
+      VITE_ENABLE_DEMO_FEATURES: "false"
+      VITE_API_BASE_URL: https://api.staging.masari.invalid
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - name: Set up Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run prisma:validate
+      - run: npm run prisma:generate
+      - name: Deploy migrations from empty database
+        run: npm run db:migrate
+      - name: Confirm migration deploy is idempotent
+        run: npm run db:migrate
+      - run: npm run db:migrate:status
+      - run: npm run typecheck
+      - run: npm run test
+      - run: npm run build
+      - name: Real MySQL deterministic integration smoke
+        run: npm run test:integration:mysql

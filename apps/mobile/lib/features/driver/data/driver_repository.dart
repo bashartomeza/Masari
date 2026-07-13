@@ -1,9 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import '../../../core/api/api_client.dart';
 import '../../auth/data/token_storage.dart';
 import '../../trips/data/trip_models.dart';
 import 'driver_models.dart';
+
+const _compileTimeDemoFeatures = bool.fromEnvironment(
+  'ENABLE_DEMO_FEATURES',
+  defaultValue: !bool.fromEnvironment('dart.vm.product'),
+);
 
 final driverRepositoryProvider = Provider<DriverRepository>((ref) {
   return DriverRepository(
@@ -119,6 +123,9 @@ class DriverRepository {
   }
 
   Future<TripLocation> simulateStep(String id) async {
+    if (!_compileTimeDemoFeatures) {
+      throw UnsupportedError('Demo simulation is not available in this build');
+    }
     final json = await apiClient.postJson(
       '/trips/$id/simulate/step',
       token: await _token(),
@@ -128,6 +135,9 @@ class DriverRepository {
   }
 
   Future<void> resetSimulation(String id) async {
+    if (!_compileTimeDemoFeatures) {
+      throw UnsupportedError('Demo simulation is not available in this build');
+    }
     await apiClient.postJson(
       '/trips/$id/simulate/reset',
       token: await _token(),

@@ -19,13 +19,31 @@
     "demo:preflight": "node scripts/demo-preflight.mjs",
     "demo:smoke": "node scripts/demo-smoke.mjs",
     "demo:package": "pwsh -NoProfile -File scripts/package-demo.ps1",
+    "validate": "node scripts/run-validation.mjs standard",
+    "validate:backend": "node scripts/run-validation.mjs backend",
+    "validate:admin": "node scripts/run-validation.mjs admin",
+    "validate:security": "node scripts/run-validation.mjs security",
+    "validate:all": "node scripts/run-validation.mjs all",
+    "ci:workflows": "node scripts/validate-workflows.mjs",
+    "security:scan": "node scripts/security-scan.mjs",
+    "security:audit": "node scripts/audit-policy.mjs",
+    "security:artifacts": "node scripts/scan-production-artifacts.mjs",
+    "test:integration:mysql": "node scripts/ci-mysql-integration.mjs",
+    "test:tooling": "node --test scripts/tests/*.test.mjs",
+    "mysql:backup": "node scripts/mysql-backup.mjs",
+    "mysql:restore:verify": "node scripts/mysql-restore-verify.mjs",
+    "release:metadata": "node scripts/release-metadata.mjs",
     "prisma:generate": "npm run prisma:generate -w @masari/api",
     "prisma:validate": "npm run prisma:validate -w @masari/api",
     "db:migrate": "npm run db:migrate -w @masari/api",
     "db:migrate:status": "npm run db:migrate:status -w @masari/api"
   },
   "engines": {
-    "node": ">=22.17.1",
-    "npm": ">=10.9.2"
+    "node": "22.17.1",
+    "npm": ">=10.9.2 <11"
+  },
+  "packageManager": "npm@10.9.2",
+  "devDependencies": {
+    "yaml": "2.9.0"
   }
 }

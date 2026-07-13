@@ -1,7 +1,15 @@
 node_modules/
 dist/
 .env
+**/.env.local
 apps/api/.env
 apps/api/src/generated/
 apps/mobile/config/*.local.json
 release/
+backups/
+*.sql
+*.sql.gz
+*.sha256
+apps/mobile/build/
+apps/admin/dist/
+.staging-data/
