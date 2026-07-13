@@ -165,4 +165,171 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get adminWebConsoleMessage =>
       'The admin console is available through the web application.';
+
+  @override
+  String get passengerDashboard => 'Passenger dashboard';
+
+  @override
+  String get activeRequest => 'Active request';
+
+  @override
+  String get noActiveRequest => 'No active request yet.';
+
+  @override
+  String get createRequest => 'Create request';
+
+  @override
+  String get pickup => 'Pickup';
+
+  @override
+  String get ppu => 'PPU Main Gate';
+
+  @override
+  String get babAlZawiya => 'Bab Al-Zawiya';
+
+  @override
+  String get destination => 'Destination';
+
+  @override
+  String get bethlehem => 'Bethlehem';
+
+  @override
+  String get preferredTime => 'Preferred time';
+
+  @override
+  String get passengerCount => 'Passenger count';
+
+  @override
+  String get submitRequest => 'Submit request';
+
+  @override
+  String get requestCreated => 'Request created';
+
+  @override
+  String get requestDetails => 'Request details';
+
+  @override
+  String get cancelRequest => 'Cancel request';
+
+  @override
+  String get requestCancelled => 'Request cancelled';
+
+  @override
+  String get requestCannotBeCancelled =>
+      'This request cannot be cancelled now.';
+
+  @override
+  String get findCompatibleRoute => 'Find compatible route';
+
+  @override
+  String get retryMatching => 'Retry matching';
+
+  @override
+  String get noCompatibleDriverFound =>
+      'No compatible driver found. You can retry later.';
+
+  @override
+  String get createdTime => 'Created time';
+
+  @override
+  String get currentStatus => 'Current status';
+
+  @override
+  String get noConnectedTrip => 'No connected trip yet.';
+
+  @override
+  String get matchResult => 'Match result';
+
+  @override
+  String get selectedDriver => 'Selected driver';
+
+  @override
+  String get selectedRoute => 'Selected route';
+
+  @override
+  String get matchScore => 'Match score';
+
+  @override
+  String get scoringBreakdown => 'Scoring breakdown';
+
+  @override
+  String get corridorOverlap => 'Corridor overlap';
+
+  @override
+  String get pickupDistance => 'Pickup distance';
+
+  @override
+  String get timingFit => 'Timing fit';
+
+  @override
+  String get trustScore => 'Trust score';
+
+  @override
+  String get capacityFit => 'Capacity fit';
+
+  @override
+  String get matchExplanation => 'Match explanation';
+
+  @override
+  String get passengerTrip => 'Passenger trip';
+
+  @override
+  String get tripTimeline => 'Trip timeline';
+
+  @override
+  String get latestLocation => 'Latest location';
+
+  @override
+  String get waitingForDriver => 'Waiting for driver';
+
+  @override
+  String get noLocationYet => 'No location yet.';
+
+  @override
+  String get locationIsStale => 'Location is stale.';
+
+  @override
+  String get latitude => 'Latitude';
+
+  @override
+  String get longitude => 'Longitude';
+
+  @override
+  String get sequence => 'Sequence';
+
+  @override
+  String get source => 'Source';
+
+  @override
+  String get recordedTime => 'Recorded time';
+
+  @override
+  String get refresh => 'Refresh';
+
+  @override
+  String get statusPending => 'Pending';
+
+  @override
+  String get statusMatched => 'Matched';
+
+  @override
+  String get statusAccepted => 'Accepted';
+
+  @override
+  String get statusPickupStarted => 'Pickup started';
+
+  @override
+  String get statusPickedUp => 'Picked up';
+
+  @override
+  String get statusInTransit => 'In transit';
+
+  @override
+  String get statusDelivered => 'Delivered';
+
+  @override
+  String get statusCompleted => 'Completed';
+
+  @override
+  String get statusCancelled => 'Cancelled';
 }

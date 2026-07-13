@@ -7,6 +7,11 @@ import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/splash_screen.dart';
 import '../../features/auth/presentation/unsupported_role_screen.dart';
 import '../../features/home/presentation/role_home_screen.dart';
+import '../../features/matching/presentation/match_detail_screen.dart';
+import '../../features/passenger/presentation/create_request_screen.dart';
+import '../../features/passenger/presentation/passenger_home_screen.dart';
+import '../../features/passenger/presentation/request_detail_screen.dart';
+import '../../features/trips/presentation/passenger_trip_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final auth = ref.watch(authControllerProvider);
@@ -23,8 +28,28 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       GoRoute(
         path: '/passenger',
-        builder: (context, state) =>
-            const RoleHomeScreen(role: UserRole.passenger),
+        builder: (context, state) => const PassengerHomeScreen(),
+        routes: [
+          GoRoute(
+            path: 'request/new',
+            builder: (context, state) => const CreateRequestScreen(),
+          ),
+          GoRoute(
+            path: 'request/:id',
+            builder: (context, state) =>
+                RequestDetailScreen(requestId: state.pathParameters['id']!),
+          ),
+          GoRoute(
+            path: 'match/:id',
+            builder: (context, state) =>
+                MatchDetailScreen(matchId: state.pathParameters['id']!),
+          ),
+          GoRoute(
+            path: 'trip/:id',
+            builder: (context, state) =>
+                PassengerTripScreen(tripId: state.pathParameters['id']!),
+          ),
+        ],
       ),
       GoRoute(
         path: '/driver',
@@ -68,7 +93,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       }
 
       final target = routeForRole(authState.user!.role);
-      if (path == target) {
+      if (path == target || path.startsWith('$target/')) {
         return null;
       }
       return target;

@@ -125,10 +125,10 @@ void main() {
     await _pumpApp(
       tester,
       secureValues: {TokenStorage.tokenKey: 'token'},
-      handler: _meHandler('passenger'),
+      handler: _passengerHandler,
     );
 
-    expect(find.text('مسافر'), findsWidgets);
+    expect(find.text('لوحة المسافر'), findsOneWidget);
     expect(find.textContaining('Demo Passenger'), findsOneWidget);
   });
 
@@ -185,7 +185,7 @@ void main() {
       tester,
       localeValues: {DomainLabels.localeStorageKey: 'en'},
       secureValues: {TokenStorage.tokenKey: 'token'},
-      handler: _meHandler('passenger'),
+      handler: _passengerHandler,
     );
 
     expect(find.textContaining('Demo Passenger'), findsOneWidget);
@@ -231,10 +231,23 @@ Future<http.Response> Function(http.Request request) _meHandler(String role) {
   return (request) async => http.Response(_meBody(role), 200);
 }
 
+Future<http.Response> _passengerHandler(http.Request request) async {
+  final path = request.url.path;
+  if (path.endsWith('/me')) return http.Response(_meBody('passenger'), 200);
+  if (path.endsWith('/passenger/requests/active')) {
+    return http.Response('{"requests":[${_requestBody()}]}', 200);
+  }
+  if (path.endsWith('/trips')) return http.Response('{"trips":[]}', 200);
+  return http.Response('{"error":"not_found"}', 404);
+}
+
 String _loginBody(String role) =>
     '{"token":"jwt-token","user":${_userBody(role)}}';
 
 String _meBody(String role) => '{"user":${_userBody(role)}}';
+
+String _requestBody() =>
+    '{"id":"request_1","pickup_label":"PPU Main Gate","pickup_lat":"31.550000","pickup_lng":"35.100000","destination_label":"Bethlehem Center","destination_lat":"31.705400","destination_lng":"35.202400","preferred_time":"2026-07-02T09:00:00.000Z","passenger_count":1,"status":"pending","created_at":"2026-07-01T09:00:00.000Z"}';
 
 String _userBody(String role) {
   final name = switch (role) {

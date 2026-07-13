@@ -52,6 +52,20 @@ class ApiClient {
     });
   }
 
+  Future<Map<String, dynamic>> patchJson(
+    String path, {
+    Map<String, dynamic> body = const {},
+    String? token,
+  }) async {
+    return _sendJson(() {
+      return client.patch(
+        _uri(path),
+        headers: _headers(token),
+        body: jsonEncode(body),
+      );
+    });
+  }
+
   Uri _uri(String path) => Uri.parse('$baseUrl/api/v1$path');
 
   Map<String, String> _headers(String? token) {

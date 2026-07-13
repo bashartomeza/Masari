@@ -3,7 +3,7 @@
 [PROJECT_OVERVIEW]
 Masari is a Palestine-focused smart route-sharing logistics MVP.
 
-Current implementation status: M4C Mobile Authentication, Session Restoration, and Role Routing.
+Current implementation status: M4D Passenger Mobile Flow.
 
 Locked MVP corridor:
 Hebron / PPU / Bab Al-Zawiya -> Bethlehem.
@@ -100,6 +100,20 @@ Implemented in M4C:
 - Passenger, driver, and merchant home shells added as role workspaces only.
 - Admin mobile login routes to unsupported-role screen with web-admin guidance.
 - No mobile business flows were added.
+
+Implemented in M4D:
+- Passenger dashboard backed by existing passenger request and trip APIs.
+- Passenger create-request form for the locked corridor only.
+- Pickup presets reuse seeded corridor-compatible values: `PPU Main Gate` at `31.550000,35.100000` and `Bab Al-Zawiya` at `31.532600,35.099800`.
+- Destination is locked to `Bethlehem Center` at `31.705400,35.202400`.
+- Passenger request detail shows status, pickup, destination, preferred time, passenger count, created time, and LTR request ID.
+- Passenger cancellation uses existing backend transition rules and refreshes after conflict/error.
+- Passenger matching uses `POST /api/v1/matches/run` and `GET /api/v1/matches/:id` only.
+- Match result shows selected route, score, scoring breakdown, status, and explanation.
+- Passenger trip list/detail uses `GET /api/v1/trips`, `GET /api/v1/trips/:id`, and `GET /api/v1/trips/:id/location` only.
+- Passenger trip detail polls REST while visible and pauses/resumes with app lifecycle.
+- No driver or merchant business UI was added.
+- No role-filtered `GET /api/v1/matches` endpoint was added.
 
 Migration integrity result:
 - M2B accidentally modified committed `0001_init` to add M2B audit enum values.
@@ -244,6 +258,19 @@ M4C mobile auth/session flow:
 9. Logout deletes secure JWT, clears auth state, returns to `/login`, and preserves selected language.
 10. No refresh token, registration, biometric auth, GPS, maps, Socket.IO, or business-flow API calls exist.
 
+M4D passenger mobile flow:
+1. Passenger logs in with M4C auth.
+2. `/passenger` loads active passenger requests and visible passenger trips.
+3. If no active request exists, passenger can open `/passenger/request/new`.
+4. Create form submits backend snake_case payload fields without translated enum values.
+5. Request detail at `/passenger/request/:id` can cancel only when backend-permitted actions are shown.
+6. Request detail can run route matching and navigate to `/passenger/match/:id`.
+7. Match detail displays selected route, final score, scoring breakdown, status, and explanation.
+8. Dashboard exposes connected passenger trip when one exists.
+9. Trip detail at `/passenger/trip/:id` polls trip detail every 5 seconds and latest location every 3 seconds while visible.
+10. Polling stops on dispose, pauses on background/inactive lifecycle, and resumes on foreground.
+11. Passenger cannot accept/reject matches, mutate trip status, trigger tracking simulation, or reset tracking.
+
 Workspace scripts:
 - `npm run dev:api` starts the API workspace.
 - `npm run dev:admin` starts the admin Vite app.
@@ -324,7 +351,31 @@ Actual folder structure:
     │   │   │   ├── home
     │   │   │   │   └── presentation
     │   │   │   │       └── role_home_screen.dart
-    │   │   │   └── shell
+    │   │   │   ├── matching
+    │   │   │   │   ├── data
+    │   │   │   │   │   ├── matching_models.dart
+    │   │   │   │   │   └── matching_repository.dart
+    │   │   │   │   └── presentation
+    │   │   │   │       └── match_detail_screen.dart
+    │   │   │   ├── passenger
+    │   │   │   │   ├── application
+    │   │   │   │   │   └── passenger_controller.dart
+    │   │   │   │   ├── data
+    │   │   │   │   │   ├── passenger_models.dart
+    │   │   │   │   │   └── passenger_repository.dart
+    │   │   │   │   └── presentation
+    │   │   │   │       ├── create_request_screen.dart
+    │   │   │   │       ├── passenger_home_screen.dart
+    │   │   │   │       └── request_detail_screen.dart
+    │   │   │   ├── shell
+    │   │   │   └── trips
+    │   │   │       ├── application
+    │   │   │       │   └── passenger_trip_controller.dart
+    │   │   │       ├── data
+    │   │   │       │   ├── trip_models.dart
+    │   │   │       │   └── trip_repository.dart
+    │   │   │       └── presentation
+    │   │   │           └── passenger_trip_screen.dart
     │   │   │       └── presentation
     │   │   │           └── welcome_screen.dart
     │   │   └── l10n
@@ -334,7 +385,8 @@ Actual folder structure:
     │   └── test
     │       ├── app_shell_test.dart
     │       ├── auth_controller_test.dart
-    │       └── auth_repository_test.dart
+    │       ├── auth_repository_test.dart
+    │       └── passenger_flow_repository_test.dart
     └── api
         ├── package.json
         ├── tsconfig.json
@@ -917,6 +969,57 @@ M4C mobile translations:
 - English remains optional and persisted independently of auth state.
 - Phone fields and demo phone labels render LTR inside Arabic layouts.
 
+[MOBILE_PASSENGER_FLOW]
+Implemented in M4D under `apps/mobile`.
+
+Routes:
+- `/passenger`: passenger dashboard.
+- `/passenger/request/new`: locked-corridor create request form.
+- `/passenger/request/:id`: passenger-owned request detail.
+- `/passenger/match/:id`: passenger-owned match result detail.
+- `/passenger/trip/:id`: passenger-owned trip and latest location detail.
+
+Endpoint-to-screen mapping:
+- Passenger dashboard uses `GET /api/v1/passenger/requests/active` and `GET /api/v1/trips`.
+- Create request uses `POST /api/v1/passenger/requests`.
+- Request detail uses `GET /api/v1/passenger/requests/:id`.
+- Cancel request uses `PATCH /api/v1/passenger/requests/:id/cancel`.
+- Matching action uses `POST /api/v1/matches/run` with `{ "passengerRequestId": "<id>" }`.
+- Match detail uses `GET /api/v1/matches/:id`.
+- Passenger trip detail uses `GET /api/v1/trips/:id` and `GET /api/v1/trips/:id/location`.
+
+Locked corridor form:
+- No city selection.
+- Pickup presets:
+  - `PPU Main Gate`, latitude `31.550000`, longitude `35.100000`.
+  - `Bab Al-Zawiya`, latitude `31.532600`, longitude `35.099800`.
+- Destination is fixed to `Bethlehem Center`, latitude `31.705400`, longitude `35.202400`.
+- Passenger count limited to 1 through 4 to match backend validation.
+- Preferred time is sent as ISO UTC.
+- API payload fields remain backend snake_case and enum/status values are not translated before submission.
+
+Passenger matching behavior:
+- Displays selected driver/route, match status, final score, scoring breakdown, and backend explanation.
+- Breakdown labels are localized and values are formatted as percentages.
+- No raw JSON is shown.
+- No compatible driver errors render a localized empty state.
+- No role-filtered `GET /api/v1/matches` endpoint is used or implemented.
+
+Passenger trip polling behavior:
+- Trip detail polls detail every 5 seconds.
+- Latest location polls every 3 seconds.
+- Polling starts while the screen is visible.
+- Polling stops when provider/screen is disposed.
+- App lifecycle pause/inactive stops timers.
+- App lifecycle resume restarts timers without duplicate timers.
+- Stale state is shown when a returned location is older than 5 minutes.
+- Passenger cannot mutate trip status or trigger tracking simulation.
+
+M4D mobile translations:
+- Arabic and English ARB entries added for passenger dashboard, active request, create request, pickup presets, destination, preferred time, passenger count, submit, request detail, cancel, match action, match result, scoring breakdown, trip detail, latest location, status labels, and refresh/retry states.
+- Arabic remains default; English remains optional and persisted independently of auth/session state.
+- Request IDs, match IDs, trip IDs, coordinates, and phone numbers remain readable LTR where used.
+
 [DEMO_MODE]
 Implemented endpoint:
 - `POST /api/v1/demo/reset`.
@@ -986,6 +1089,7 @@ Implemented minimal tests:
 - Mobile auth repository tests for successful login parsing, failed login mapping, `/me` parsing, authorization header sending, and avoiding raw-token exposure in errors.
 - Mobile auth controller tests for no-token login state, valid saved-token restoration, 401 token removal, temporary network failure preserving token with retry state, and logout token removal.
 - Mobile routing/widget tests for passenger, driver, merchant, unsupported admin, role-route protection, Arabic RTL login, English LTR switch, demo preset fill, loading disabled button, translated invalid credentials, logout returning to login, and locale preservation after logout.
+- Mobile M4D repository tests for passenger request list/active/detail parsing, create request payload, cancel request, match run/scoring breakdown parsing, trip list/detail parsing, latest-location parsing, and backend error mapping.
 
 Required validation commands:
 - `npm install`.
@@ -1177,6 +1281,45 @@ M4C Android runtime smoke:
 - Force-stop/relaunch preserved English selection.
 - No crash, overflow, or visibly broken layout was observed during smoke.
 - Runtime screenshots captured under `C:\Users\basha\AppData\Local\Temp\opencode`, including Arabic login, passenger restore, driver, merchant, invalid-password, English, and English relaunch screenshots.
+
+M4D validation results:
+- Pre-step repository baseline was clean at `a72e876 feat: add mobile auth and role routing`.
+- Pre-step mobile validation passed: `flutter pub get`, `flutter gen-l10n`, `flutter analyze`, `flutter test`.
+- Pre-step workspace validation passed: `npm run prisma:validate`, `npm run prisma:generate`, `npm run typecheck`, `npm run test`, `npm run build`.
+- Backend contracts inspected directly before implementation: `passenger.ts`, `matching.ts`, `trips.ts`, `demoReset.ts`, and this project map.
+- No backend contract mismatch blocked M4D.
+- No backend code changes were made.
+- `flutter pub get`: passed.
+- `flutter gen-l10n`: passed.
+- `dart format --set-exit-if-changed .`: passed.
+- `flutter analyze`: passed, no issues.
+- `flutter test`: passed, 25 mobile tests.
+- `flutter build apk --debug --dart-define=API_BASE_URL=http://10.0.2.2:3000`: passed.
+- Debug APK output: `apps/mobile/build/app/outputs/flutter-apk/app-debug.apk`.
+- Existing repo regression passed: `npm run prisma:validate`, `npm run prisma:generate`, `npm run typecheck`, `npm run test`, `npm run build`.
+
+M4D Android runtime smoke:
+- Emulator: `emulator-5554`, `Medium_Phone_API_36.0`, Android 16 API 36.
+- API started locally with local PostgreSQL URL, development JWT secret, and demo reset key.
+- API health returned `{"ok":true,"service":"masari-api"}`.
+- Demo data reset passed with `POST /api/v1/demo/reset` and `x-demo-reset-key`.
+- App data cleared before runtime smoke.
+- App launched with `flutter run -d emulator-5554 --no-resident --dart-define=API_BASE_URL=http://10.0.2.2:3000`.
+- Arabic default verified.
+- Passenger login verified.
+- Passenger dashboard loaded and showed seeded active request.
+- Request detail opened and showed LTR request ID, pickup, destination, preferred time, count, status, and created time.
+- Matching ran for the passenger request and showed selected route, score, scoring breakdown, and explanation.
+- Seeded request cancellation was verified when backend state permitted it.
+- New locked-corridor request was created from the passenger form and opened in detail.
+- Matching ran for the new request and displayed result.
+- Existing admin API was used outside the passenger app to accept the generated match and simulate one location event.
+- Passenger dashboard showed connected trip after relaunch/session restoration.
+- Passenger trip detail showed accepted status and latest simulated location with latitude, longitude, sequence, source, and recorded time.
+- English switch changed UI to LTR English.
+- Force-stop/relaunch preserved passenger session and English locale.
+- Passenger app did not show driver/merchant accept/reject, trip mutation, or simulation controls.
+- Runtime screenshots captured under `C:\Users\basha\AppData\Local\Temp\opencode`, including dashboard, request detail, match, cancel result, create form, created request, trip detail, and English relaunch.
 
 [SUCCESS_CRITERIA]
 M1 success criteria:

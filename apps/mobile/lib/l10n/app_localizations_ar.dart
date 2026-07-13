@@ -166,4 +166,170 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get adminWebConsoleMessage =>
       'لوحة تحكم المسؤول متاحة عبر تطبيق الويب.';
+
+  @override
+  String get passengerDashboard => 'لوحة المسافر';
+
+  @override
+  String get activeRequest => 'الطلب النشط';
+
+  @override
+  String get noActiveRequest => 'لا يوجد طلب نشط حالياً.';
+
+  @override
+  String get createRequest => 'إنشاء طلب';
+
+  @override
+  String get pickup => 'نقطة الانطلاق';
+
+  @override
+  String get ppu => 'بوابة جامعة بوليتكنك فلسطين';
+
+  @override
+  String get babAlZawiya => 'باب الزاوية';
+
+  @override
+  String get destination => 'الوجهة';
+
+  @override
+  String get bethlehem => 'بيت لحم';
+
+  @override
+  String get preferredTime => 'الوقت المفضل';
+
+  @override
+  String get passengerCount => 'عدد الركاب';
+
+  @override
+  String get submitRequest => 'إرسال الطلب';
+
+  @override
+  String get requestCreated => 'تم إنشاء الطلب';
+
+  @override
+  String get requestDetails => 'تفاصيل الطلب';
+
+  @override
+  String get cancelRequest => 'إلغاء الطلب';
+
+  @override
+  String get requestCancelled => 'تم إلغاء الطلب';
+
+  @override
+  String get requestCannotBeCancelled => 'لا يمكن إلغاء هذا الطلب الآن.';
+
+  @override
+  String get findCompatibleRoute => 'البحث عن مسار متوافق';
+
+  @override
+  String get retryMatching => 'إعادة محاولة المطابقة';
+
+  @override
+  String get noCompatibleDriverFound =>
+      'لم يتم العثور على سائق متوافق. يمكنك إعادة المحاولة لاحقاً.';
+
+  @override
+  String get createdTime => 'وقت الإنشاء';
+
+  @override
+  String get currentStatus => 'الحالة الحالية';
+
+  @override
+  String get noConnectedTrip => 'لا توجد رحلة مرتبطة بعد.';
+
+  @override
+  String get matchResult => 'نتيجة المطابقة';
+
+  @override
+  String get selectedDriver => 'السائق المختار';
+
+  @override
+  String get selectedRoute => 'المسار المختار';
+
+  @override
+  String get matchScore => 'درجة المطابقة';
+
+  @override
+  String get scoringBreakdown => 'تفصيل الدرجات';
+
+  @override
+  String get corridorOverlap => 'تطابق المسار';
+
+  @override
+  String get pickupDistance => 'قرب نقطة الانطلاق';
+
+  @override
+  String get timingFit => 'ملاءمة الوقت';
+
+  @override
+  String get trustScore => 'درجة الثقة';
+
+  @override
+  String get capacityFit => 'ملاءمة السعة';
+
+  @override
+  String get matchExplanation => 'شرح المطابقة';
+
+  @override
+  String get passengerTrip => 'رحلة المسافر';
+
+  @override
+  String get tripTimeline => 'خط الرحلة الزمني';
+
+  @override
+  String get latestLocation => 'آخر موقع';
+
+  @override
+  String get waitingForDriver => 'بانتظار السائق';
+
+  @override
+  String get noLocationYet => 'لا يوجد موقع بعد.';
+
+  @override
+  String get locationIsStale => 'الموقع قديم.';
+
+  @override
+  String get latitude => 'خط العرض';
+
+  @override
+  String get longitude => 'خط الطول';
+
+  @override
+  String get sequence => 'التسلسل';
+
+  @override
+  String get source => 'المصدر';
+
+  @override
+  String get recordedTime => 'وقت التسجيل';
+
+  @override
+  String get refresh => 'تحديث';
+
+  @override
+  String get statusPending => 'قيد الانتظار';
+
+  @override
+  String get statusMatched => 'تمت المطابقة';
+
+  @override
+  String get statusAccepted => 'مقبول';
+
+  @override
+  String get statusPickupStarted => 'بدأ التوجه للاستلام';
+
+  @override
+  String get statusPickedUp => 'تم الاستلام';
+
+  @override
+  String get statusInTransit => 'قيد النقل';
+
+  @override
+  String get statusDelivered => 'تم التسليم';
+
+  @override
+  String get statusCompleted => 'مكتملة';
+
+  @override
+  String get statusCancelled => 'ملغاة';
 }

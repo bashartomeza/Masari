@@ -397,6 +397,336 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'لوحة تحكم المسؤول متاحة عبر تطبيق الويب.'**
   String get adminWebConsoleMessage;
+
+  /// No description provided for @passengerDashboard.
+  ///
+  /// In ar, this message translates to:
+  /// **'لوحة المسافر'**
+  String get passengerDashboard;
+
+  /// No description provided for @activeRequest.
+  ///
+  /// In ar, this message translates to:
+  /// **'الطلب النشط'**
+  String get activeRequest;
+
+  /// No description provided for @noActiveRequest.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد طلب نشط حالياً.'**
+  String get noActiveRequest;
+
+  /// No description provided for @createRequest.
+  ///
+  /// In ar, this message translates to:
+  /// **'إنشاء طلب'**
+  String get createRequest;
+
+  /// No description provided for @pickup.
+  ///
+  /// In ar, this message translates to:
+  /// **'نقطة الانطلاق'**
+  String get pickup;
+
+  /// No description provided for @ppu.
+  ///
+  /// In ar, this message translates to:
+  /// **'بوابة جامعة بوليتكنك فلسطين'**
+  String get ppu;
+
+  /// No description provided for @babAlZawiya.
+  ///
+  /// In ar, this message translates to:
+  /// **'باب الزاوية'**
+  String get babAlZawiya;
+
+  /// No description provided for @destination.
+  ///
+  /// In ar, this message translates to:
+  /// **'الوجهة'**
+  String get destination;
+
+  /// No description provided for @bethlehem.
+  ///
+  /// In ar, this message translates to:
+  /// **'بيت لحم'**
+  String get bethlehem;
+
+  /// No description provided for @preferredTime.
+  ///
+  /// In ar, this message translates to:
+  /// **'الوقت المفضل'**
+  String get preferredTime;
+
+  /// No description provided for @passengerCount.
+  ///
+  /// In ar, this message translates to:
+  /// **'عدد الركاب'**
+  String get passengerCount;
+
+  /// No description provided for @submitRequest.
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال الطلب'**
+  String get submitRequest;
+
+  /// No description provided for @requestCreated.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إنشاء الطلب'**
+  String get requestCreated;
+
+  /// No description provided for @requestDetails.
+  ///
+  /// In ar, this message translates to:
+  /// **'تفاصيل الطلب'**
+  String get requestDetails;
+
+  /// No description provided for @cancelRequest.
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء الطلب'**
+  String get cancelRequest;
+
+  /// No description provided for @requestCancelled.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إلغاء الطلب'**
+  String get requestCancelled;
+
+  /// No description provided for @requestCannotBeCancelled.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكن إلغاء هذا الطلب الآن.'**
+  String get requestCannotBeCancelled;
+
+  /// No description provided for @findCompatibleRoute.
+  ///
+  /// In ar, this message translates to:
+  /// **'البحث عن مسار متوافق'**
+  String get findCompatibleRoute;
+
+  /// No description provided for @retryMatching.
+  ///
+  /// In ar, this message translates to:
+  /// **'إعادة محاولة المطابقة'**
+  String get retryMatching;
+
+  /// No description provided for @noCompatibleDriverFound.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يتم العثور على سائق متوافق. يمكنك إعادة المحاولة لاحقاً.'**
+  String get noCompatibleDriverFound;
+
+  /// No description provided for @createdTime.
+  ///
+  /// In ar, this message translates to:
+  /// **'وقت الإنشاء'**
+  String get createdTime;
+
+  /// No description provided for @currentStatus.
+  ///
+  /// In ar, this message translates to:
+  /// **'الحالة الحالية'**
+  String get currentStatus;
+
+  /// No description provided for @noConnectedTrip.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد رحلة مرتبطة بعد.'**
+  String get noConnectedTrip;
+
+  /// No description provided for @matchResult.
+  ///
+  /// In ar, this message translates to:
+  /// **'نتيجة المطابقة'**
+  String get matchResult;
+
+  /// No description provided for @selectedDriver.
+  ///
+  /// In ar, this message translates to:
+  /// **'السائق المختار'**
+  String get selectedDriver;
+
+  /// No description provided for @selectedRoute.
+  ///
+  /// In ar, this message translates to:
+  /// **'المسار المختار'**
+  String get selectedRoute;
+
+  /// No description provided for @matchScore.
+  ///
+  /// In ar, this message translates to:
+  /// **'درجة المطابقة'**
+  String get matchScore;
+
+  /// No description provided for @scoringBreakdown.
+  ///
+  /// In ar, this message translates to:
+  /// **'تفصيل الدرجات'**
+  String get scoringBreakdown;
+
+  /// No description provided for @corridorOverlap.
+  ///
+  /// In ar, this message translates to:
+  /// **'تطابق المسار'**
+  String get corridorOverlap;
+
+  /// No description provided for @pickupDistance.
+  ///
+  /// In ar, this message translates to:
+  /// **'قرب نقطة الانطلاق'**
+  String get pickupDistance;
+
+  /// No description provided for @timingFit.
+  ///
+  /// In ar, this message translates to:
+  /// **'ملاءمة الوقت'**
+  String get timingFit;
+
+  /// No description provided for @trustScore.
+  ///
+  /// In ar, this message translates to:
+  /// **'درجة الثقة'**
+  String get trustScore;
+
+  /// No description provided for @capacityFit.
+  ///
+  /// In ar, this message translates to:
+  /// **'ملاءمة السعة'**
+  String get capacityFit;
+
+  /// No description provided for @matchExplanation.
+  ///
+  /// In ar, this message translates to:
+  /// **'شرح المطابقة'**
+  String get matchExplanation;
+
+  /// No description provided for @passengerTrip.
+  ///
+  /// In ar, this message translates to:
+  /// **'رحلة المسافر'**
+  String get passengerTrip;
+
+  /// No description provided for @tripTimeline.
+  ///
+  /// In ar, this message translates to:
+  /// **'خط الرحلة الزمني'**
+  String get tripTimeline;
+
+  /// No description provided for @latestLocation.
+  ///
+  /// In ar, this message translates to:
+  /// **'آخر موقع'**
+  String get latestLocation;
+
+  /// No description provided for @waitingForDriver.
+  ///
+  /// In ar, this message translates to:
+  /// **'بانتظار السائق'**
+  String get waitingForDriver;
+
+  /// No description provided for @noLocationYet.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد موقع بعد.'**
+  String get noLocationYet;
+
+  /// No description provided for @locationIsStale.
+  ///
+  /// In ar, this message translates to:
+  /// **'الموقع قديم.'**
+  String get locationIsStale;
+
+  /// No description provided for @latitude.
+  ///
+  /// In ar, this message translates to:
+  /// **'خط العرض'**
+  String get latitude;
+
+  /// No description provided for @longitude.
+  ///
+  /// In ar, this message translates to:
+  /// **'خط الطول'**
+  String get longitude;
+
+  /// No description provided for @sequence.
+  ///
+  /// In ar, this message translates to:
+  /// **'التسلسل'**
+  String get sequence;
+
+  /// No description provided for @source.
+  ///
+  /// In ar, this message translates to:
+  /// **'المصدر'**
+  String get source;
+
+  /// No description provided for @recordedTime.
+  ///
+  /// In ar, this message translates to:
+  /// **'وقت التسجيل'**
+  String get recordedTime;
+
+  /// No description provided for @refresh.
+  ///
+  /// In ar, this message translates to:
+  /// **'تحديث'**
+  String get refresh;
+
+  /// No description provided for @statusPending.
+  ///
+  /// In ar, this message translates to:
+  /// **'قيد الانتظار'**
+  String get statusPending;
+
+  /// No description provided for @statusMatched.
+  ///
+  /// In ar, this message translates to:
+  /// **'تمت المطابقة'**
+  String get statusMatched;
+
+  /// No description provided for @statusAccepted.
+  ///
+  /// In ar, this message translates to:
+  /// **'مقبول'**
+  String get statusAccepted;
+
+  /// No description provided for @statusPickupStarted.
+  ///
+  /// In ar, this message translates to:
+  /// **'بدأ التوجه للاستلام'**
+  String get statusPickupStarted;
+
+  /// No description provided for @statusPickedUp.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم الاستلام'**
+  String get statusPickedUp;
+
+  /// No description provided for @statusInTransit.
+  ///
+  /// In ar, this message translates to:
+  /// **'قيد النقل'**
+  String get statusInTransit;
+
+  /// No description provided for @statusDelivered.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم التسليم'**
+  String get statusDelivered;
+
+  /// No description provided for @statusCompleted.
+  ///
+  /// In ar, this message translates to:
+  /// **'مكتملة'**
+  String get statusCompleted;
+
+  /// No description provided for @statusCancelled.
+  ///
+  /// In ar, this message translates to:
+  /// **'ملغاة'**
+  String get statusCancelled;
 }
 
 class _AppLocalizationsDelegate
