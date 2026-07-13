@@ -305,6 +305,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get source => 'المصدر';
 
   @override
+  String get sourceSimulated => 'محاكى';
+
+  @override
   String get recordedTime => 'وقت التسجيل';
 
   @override
@@ -581,6 +584,11 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get batchExplanation => 'شرح الدفعة';
+
+  @override
+  String parcelBatchExplanationDemo(int parcelCount) {
+    return 'يمكن تجميع $parcelCount طرود متوافقة في رحلة واحدة على ممر مصاري بدلاً من رحلات منفصلة، مما يقلل المسافة والتكلفة.';
+  }
 
   @override
   String get runMatching => 'البحث عن مسار سائق متوافق';

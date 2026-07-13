@@ -115,7 +115,7 @@ class _MerchantOrderDetailScreenState
                   '${l10n.estimatedDistanceSaved}: ${order.latestBatch!.estimatedDistanceSaved.toStringAsFixed(2)} km',
                 ),
                 Text(
-                  '${l10n.batchExplanation}: ${order.latestBatch!.explanation}',
+                  '${l10n.batchExplanation}: ${l10n.parcelBatchExplanationDemo(order.parcels.length)}',
                 ),
               ],
               const SizedBox(height: AppTokens.spaceMedium),

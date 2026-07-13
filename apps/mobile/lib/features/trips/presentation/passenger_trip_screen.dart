@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:masari_mobile/l10n/app_localizations.dart';
 
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/presentation/localized_labels.dart';
 import '../../../core/widgets/language_switch.dart';
 import '../../../core/widgets/masari_card.dart';
 import '../application/passenger_trip_controller.dart';
@@ -101,7 +102,9 @@ class _PassengerTripScreenState extends ConsumerState<PassengerTripScreen>
                         child: Text('${l10n.longitude}: ${data.location!.lng}'),
                       ),
                       Text('${l10n.sequence}: ${data.location!.sequence}'),
-                      Text('${l10n.source}: ${data.location!.source}'),
+                      Text(
+                        '${l10n.source}: ${localizedLocationSource(l10n, data.location!.source)}',
+                      ),
                       Text(
                         '${l10n.recordedTime}: ${data.location!.recordedAt}',
                       ),

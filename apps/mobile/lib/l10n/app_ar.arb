@@ -95,6 +95,7 @@
   "longitude": "خط الطول",
   "sequence": "التسلسل",
   "source": "المصدر",
+  "sourceSimulated": "محاكى",
   "recordedTime": "وقت التسجيل",
   "refresh": "تحديث",
   "statusPending": "قيد الانتظار",
@@ -187,6 +188,14 @@
   "createBatch": "إنشاء دفعة طرود",
   "batchCreated": "تم إنشاء دفعة الطرود",
   "batchExplanation": "شرح الدفعة",
+  "parcelBatchExplanationDemo": "يمكن تجميع {parcelCount} طرود متوافقة في رحلة واحدة على ممر مصاري بدلاً من رحلات منفصلة، مما يقلل المسافة والتكلفة.",
+  "@parcelBatchExplanationDemo": {
+    "placeholders": {
+      "parcelCount": {
+        "type": "int"
+      }
+    }
+  },
   "runMatching": "البحث عن مسار سائق متوافق",
   "matchingStarted": "أُرسلت المطابقة المقترحة إلى السائق",
   "merchantMatchInbox": "صندوق مطابقات التاجر",

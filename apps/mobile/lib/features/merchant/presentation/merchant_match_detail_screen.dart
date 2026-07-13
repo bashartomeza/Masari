@@ -90,7 +90,7 @@ class MerchantMatchDetailScreen extends ConsumerWidget {
           Text(
             '${l10n.capacityFit}: ${merchantPercent(match.breakdown.capacityFit)}',
           ),
-          Text('${l10n.matchExplanation}: ${match.explanation}'),
+          Text('${l10n.matchExplanation}: ${l10n.routeMatchExplanation}'),
           if (match.batch != null) ...[
             const SizedBox(height: AppTokens.spaceMedium),
             Text('${l10n.parcelBatch}: ${match.batch!.id}'),

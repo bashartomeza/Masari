@@ -95,6 +95,7 @@
   "longitude": "Longitude",
   "sequence": "Sequence",
   "source": "Source",
+  "sourceSimulated": "Simulated",
   "recordedTime": "Recorded time",
   "refresh": "Refresh",
   "statusPending": "Pending",
@@ -187,6 +188,14 @@
   "createBatch": "Create parcel batch",
   "batchCreated": "Parcel batch created",
   "batchExplanation": "Batch explanation",
+  "parcelBatchExplanationDemo": "{parcelCount} compatible parcels can use one Masari corridor trip instead of separate trips, reducing distance and cost.",
+  "@parcelBatchExplanationDemo": {
+    "placeholders": {
+      "parcelCount": {
+        "type": "int"
+      }
+    }
+  },
   "runMatching": "Find a compatible driver route",
   "matchingStarted": "Match proposed to the driver",
   "merchantMatchInbox": "Merchant match inbox",

@@ -143,7 +143,11 @@ class _MatchCard extends StatelessWidget {
           ),
           Text('${l10n.createdTime}: ${match.createdAt}'),
           const SizedBox(height: AppTokens.spaceSmall),
-          Text(match.explanation, maxLines: 3, overflow: TextOverflow.ellipsis),
+          Text(
+            l10n.routeMatchExplanation,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+          ),
           const SizedBox(height: AppTokens.spaceMedium),
           FilledButton(
             key: ValueKey('openMatch-${match.id}'),

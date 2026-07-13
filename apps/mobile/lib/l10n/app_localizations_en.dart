@@ -305,6 +305,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get source => 'Source';
 
   @override
+  String get sourceSimulated => 'Simulated';
+
+  @override
   String get recordedTime => 'Recorded time';
 
   @override
@@ -582,6 +585,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get batchExplanation => 'Batch explanation';
+
+  @override
+  String parcelBatchExplanationDemo(int parcelCount) {
+    return '$parcelCount compatible parcels can use one Masari corridor trip instead of separate trips, reducing distance and cost.';
+  }
 
   @override
   String get runMatching => 'Find a compatible driver route';

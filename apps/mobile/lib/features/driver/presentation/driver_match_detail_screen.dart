@@ -98,7 +98,7 @@ class _DriverMatchDetailScreenState
           Text('${l10n.trustScore}: ${percent(match.breakdown.trustScore)}'),
           Text('${l10n.capacityFit}: ${percent(match.breakdown.capacityFit)}'),
           const SizedBox(height: AppTokens.spaceMedium),
-          Text('${l10n.matchExplanation}: ${match.explanation}'),
+          Text('${l10n.matchExplanation}: ${l10n.routeMatchExplanation}'),
           if (_error != null) ...[
             const SizedBox(height: AppTokens.spaceMedium),
             Text(

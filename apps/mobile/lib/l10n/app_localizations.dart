@@ -668,6 +668,12 @@ abstract class AppLocalizations {
   /// **'المصدر'**
   String get source;
 
+  /// No description provided for @sourceSimulated.
+  ///
+  /// In ar, this message translates to:
+  /// **'محاكى'**
+  String get sourceSimulated;
+
   /// No description provided for @recordedTime.
   ///
   /// In ar, this message translates to:
@@ -1219,6 +1225,12 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'شرح الدفعة'**
   String get batchExplanation;
+
+  /// No description provided for @parcelBatchExplanationDemo.
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكن تجميع {parcelCount} طرود متوافقة في رحلة واحدة على ممر مصاري بدلاً من رحلات منفصلة، مما يقلل المسافة والتكلفة.'**
+  String parcelBatchExplanationDemo(int parcelCount);
 
   /// No description provided for @runMatching.
   ///

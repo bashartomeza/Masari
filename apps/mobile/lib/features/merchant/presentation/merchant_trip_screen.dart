@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:masari_mobile/l10n/app_localizations.dart';
 
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/presentation/localized_labels.dart';
 import '../../../core/widgets/language_switch.dart';
 import '../../../core/widgets/masari_card.dart';
 import '../application/merchant_controller.dart';
@@ -162,7 +163,9 @@ class _MerchantTripScreenState extends ConsumerState<MerchantTripScreen>
                 merchantTechnicalText('${l10n.latitude}: ${location.lat}'),
                 merchantTechnicalText('${l10n.longitude}: ${location.lng}'),
                 Text('${l10n.sequence}: ${location.sequence}'),
-                Text('${l10n.source}: ${location.source}'),
+                Text(
+                  '${l10n.source}: ${localizedLocationSource(l10n, location.source)}',
+                ),
                 Text('${l10n.recordedTime}: ${location.recordedAt}'),
               ],
             ],
