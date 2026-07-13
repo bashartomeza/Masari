@@ -161,8 +161,40 @@ void main() {
       handler: _meHandler('merchant'),
     );
 
-    expect(find.text('تاجر'), findsWidgets);
+    expect(find.text('لوحة التاجر'), findsOneWidget);
     expect(find.textContaining('Demo Merchant'), findsOneWidget);
+  });
+
+  testWidgets('passenger cannot navigate to merchant screens', (tester) async {
+    await _pumpApp(
+      tester,
+      secureValues: {TokenStorage.tokenKey: 'token'},
+      handler: _passengerHandler,
+    );
+
+    GoRouter.of(
+      tester.element(find.text('لوحة المسافر')),
+    ).go('/merchant/order/new');
+    await tester.pumpAndSettle();
+
+    expect(find.text('لوحة المسافر'), findsOneWidget);
+    expect(find.text('إنشاء طلب'), findsNothing);
+  });
+
+  testWidgets('driver cannot navigate to merchant screens', (tester) async {
+    await _pumpApp(
+      tester,
+      secureValues: {TokenStorage.tokenKey: 'token'},
+      handler: _meHandler('driver'),
+    );
+
+    GoRouter.of(
+      tester.element(find.textContaining('Demo Driver')),
+    ).go('/merchant/matches');
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Demo Driver'), findsOneWidget);
+    expect(find.text('صندوق مطابقات التاجر'), findsNothing);
   });
 
   testWidgets('admin reaches unsupported-role screen', (tester) async {

@@ -11,8 +11,13 @@ import '../../features/driver/presentation/driver_match_detail_screen.dart';
 import '../../features/driver/presentation/driver_match_inbox_screen.dart';
 import '../../features/driver/presentation/driver_route_screen.dart';
 import '../../features/driver/presentation/driver_trip_screen.dart';
-import '../../features/home/presentation/role_home_screen.dart';
 import '../../features/matching/presentation/match_detail_screen.dart';
+import '../../features/merchant/presentation/create_merchant_order_screen.dart';
+import '../../features/merchant/presentation/merchant_home_screen.dart';
+import '../../features/merchant/presentation/merchant_match_detail_screen.dart';
+import '../../features/merchant/presentation/merchant_match_inbox_screen.dart';
+import '../../features/merchant/presentation/merchant_order_detail_screen.dart';
+import '../../features/merchant/presentation/merchant_trip_screen.dart';
 import '../../features/passenger/presentation/create_request_screen.dart';
 import '../../features/passenger/presentation/passenger_home_screen.dart';
 import '../../features/passenger/presentation/request_detail_screen.dart';
@@ -82,8 +87,32 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/merchant',
-        builder: (context, state) =>
-            const RoleHomeScreen(role: UserRole.merchant),
+        builder: (context, state) => const MerchantHomeScreen(),
+        routes: [
+          GoRoute(
+            path: 'order/new',
+            builder: (context, state) => const CreateMerchantOrderScreen(),
+          ),
+          GoRoute(
+            path: 'order/:id',
+            builder: (context, state) =>
+                MerchantOrderDetailScreen(orderId: state.pathParameters['id']!),
+          ),
+          GoRoute(
+            path: 'matches',
+            builder: (context, state) => const MerchantMatchInboxScreen(),
+          ),
+          GoRoute(
+            path: 'match/:id',
+            builder: (context, state) =>
+                MerchantMatchDetailScreen(matchId: state.pathParameters['id']!),
+          ),
+          GoRoute(
+            path: 'trip/:id',
+            builder: (context, state) =>
+                MerchantTripScreen(tripId: state.pathParameters['id']!),
+          ),
+        ],
       ),
       GoRoute(
         path: '/unsupported-role',

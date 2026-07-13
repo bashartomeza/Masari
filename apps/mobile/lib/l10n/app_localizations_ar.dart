@@ -511,4 +511,114 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get statusCreated => 'منشأ';
+
+  @override
+  String get merchantDashboard => 'لوحة التاجر';
+
+  @override
+  String get orders => 'الطلبات';
+
+  @override
+  String get noOrders => 'لا توجد طلبات بعد.';
+
+  @override
+  String get createOrder => 'إنشاء طلب';
+
+  @override
+  String get latestOrder => 'أحدث طلب';
+
+  @override
+  String get latestBatch => 'أحدث دفعة طرود';
+
+  @override
+  String get orderDetails => 'تفاصيل الطلب';
+
+  @override
+  String get fixedPickup => 'نقطة الاستلام الثابتة';
+
+  @override
+  String get parcel => 'طرد';
+
+  @override
+  String get parcelSize => 'حجم الطرد';
+
+  @override
+  String get priority => 'الأولوية';
+
+  @override
+  String get priorityLow => 'منخفضة';
+
+  @override
+  String get priorityNormal => 'عادية';
+
+  @override
+  String get priorityHigh => 'مرتفعة';
+
+  @override
+  String get addParcel => 'إضافة طرد';
+
+  @override
+  String get removeParcel => 'إزالة الطرد';
+
+  @override
+  String get parcelLimit => 'يجب أن يحتوي الطلب على 1 إلى 10 طرود.';
+
+  @override
+  String get submitOrder => 'إرسال الطلب';
+
+  @override
+  String get orderCreated => 'تم إنشاء الطلب';
+
+  @override
+  String get createBatch => 'إنشاء دفعة طرود';
+
+  @override
+  String get batchCreated => 'تم إنشاء دفعة الطرود';
+
+  @override
+  String get batchExplanation => 'شرح الدفعة';
+
+  @override
+  String get runMatching => 'البحث عن مسار سائق متوافق';
+
+  @override
+  String get matchingStarted => 'أُرسلت المطابقة المقترحة إلى السائق';
+
+  @override
+  String get merchantMatchInbox => 'صندوق مطابقات التاجر';
+
+  @override
+  String get waitingReadOnly =>
+      'يقرر السائق القبول أو الرفض. هذه الشاشة للقراءة فقط.';
+
+  @override
+  String get openTrip => 'فتح الرحلة المرتبطة';
+
+  @override
+  String get merchantTrip => 'رحلة التاجر';
+
+  @override
+  String get orderStatus => 'حالة الطلب';
+
+  @override
+  String get parcelStatus => 'حالة الطرد';
+
+  @override
+  String get statusDraft => 'مسودة';
+
+  @override
+  String get statusSubmitted => 'مُرسل';
+
+  @override
+  String get statusBatched => 'مُجمّع';
+
+  @override
+  String get orderAlreadyBatched => 'يحتوي هذا الطلب على دفعة طرود بالفعل.';
+
+  @override
+  String get matchingUnavailable =>
+      'أنشئ دفعة أولاً أو انتظر المطابقة الحالية.';
+
+  @override
+  String get deliveryProgress => 'تقدم التوصيل';
 }

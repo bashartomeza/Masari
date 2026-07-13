@@ -1203,6 +1203,57 @@ M4E2 localization:
 - Arabic remains default RTL; English remains optional LTR; `masari_locale` persistence is unchanged.
 - Technical IDs and coordinates are rendered LTR where needed.
 
+[MOBILE_MERCHANT_FLOW]
+Implemented in M4F under `apps/mobile`.
+
+Role-protected routes:
+- `/merchant`: merchant dashboard with latest order, latest persisted batch, role-filtered match count, and connected active trip.
+- `/merchant/order/new`: locked-corridor order form.
+- `/merchant/order/:id`: merchant-owned order, parcels, persisted batch, match, and connected-trip actions.
+- `/merchant/matches`: merchant-owned role-filtered match inbox.
+- `/merchant/match/:id`: safe read-only merchant match detail.
+- `/merchant/trip/:id`: read-only connected trip, order, parcel, and latest-location state.
+
+Endpoint mapping:
+- Orders: `GET /api/v1/merchant/orders`, `GET /api/v1/merchant/orders/:id`, and `POST /api/v1/merchant/orders`.
+- Batching: `POST /api/v1/merchant/orders/:id/batch`.
+- Matching: `POST /api/v1/matches/run` with `{ "merchantOrderId": "<id>" }`, `GET /api/v1/matches`, optional `?status=proposed`, and `GET /api/v1/matches/:id`.
+- Trips and tracking: `GET /api/v1/trips`, `GET /api/v1/trips/:id`, and `GET /api/v1/trips/:id/location`.
+- Merchant screens never call match accept/reject, trip mutation, simulation step, or simulation reset endpoints.
+
+Locked order form:
+- Pickup is fixed to `Hebron Merchant Pickup`, latitude `31.532600`, longitude `35.099800`.
+- Destination choices are limited to the seeded route-compatible Bethlehem presets: `Bethlehem Market`, `Bethlehem University Area`, `Manger Street`, `Beit Jala Junction`, and `Bethlehem Center` at latitude `31.705400`, longitude `35.202400`.
+- Each parcel selects only a destination preset, backend enum size `S|M|L`, and backend enum priority `low|normal|high`.
+- The form enforces 1 through 10 parcel rows, never exposes coordinate fields, disables submission while running, preserves rows after API failures, and navigates to the new order detail after success.
+- Arabic labels are displayed to the user while backend labels and enum values remain English in API payloads.
+
+Batching and matching behavior:
+- Order detail renders every parcel, its size/priority/status, latest persisted batch status, estimated distance benefit, and backend explanation.
+- Batch action is available only for a submitted order without a persisted batch; backend `order_already_batched`, invalid state, and unavailable capacity responses are translated and followed by an authoritative refresh.
+- Matching becomes available after a batch exists and is hidden while an existing proposed, sent-to-driver, or accepted match exists.
+- Match inbox consumes the M4E1 safe role-filtered contract; cards and detail show order, route, score, status, scoring breakdown, explanation, and batch summary when connected.
+- Merchant match detail is explicitly read-only and contains no accept/reject controls.
+
+Merchant trip polling behavior:
+- Connected trip detail and merchant order detail each poll every 5 seconds using separate guarded timers.
+- Latest location polls every 3 seconds using its own guarded timer.
+- App lifecycle pause/inactive/detached stops all timers; resume restarts them; provider disposal cancels them; repeated resume cannot duplicate timers.
+- Poll failures preserve the last good state.
+- Trip detail shows the locked route, status timeline, order state, each parcel state, latitude, longitude, sequence, source, recorded time, and deterministic progress without maps or GPS.
+- Trip and tracking screens are read-only for merchants.
+
+M4F backend contract correction:
+- `GET /api/v1/merchant/orders` and `GET /api/v1/merchant/orders/:id` now include newest-first `parcel_batches` with only batch fields and a safe route summary, so batch state survives app relaunch.
+- Batch route summaries exclude driver ownership/profile fields and other personal data.
+- `POST /api/v1/merchant/orders/:id/batch` now rejects an existing batch with `409 order_already_batched` and accepts only the `submitted` state, preventing duplicate batches.
+- No Prisma schema or migration change was required.
+
+M4F localization:
+- Merchant dashboard, order form, parcel fields, batch flow, matching inbox/detail, waiting-for-driver copy, trip/order/location state, errors, priorities, and merchant-specific statuses are present in Arabic and English ARB files.
+- Arabic remains default RTL, English remains optional LTR, and `masari_locale` plus secure JWT restoration are unchanged.
+- Technical IDs and coordinates remain LTR where needed.
+
 [DEMO_MODE]
 Implemented endpoint:
 - `POST /api/v1/demo/reset`.
@@ -1580,6 +1631,54 @@ M4E2 Android/PostgreSQL runtime smoke:
 - Visual inspection found no crash, overflow, raw JSON, editable coordinates, map/GPS controls, or visibly broken layout in the exercised Arabic and English paths.
 - The final deliverable APK was rebuilt after runtime smoke with the requested default emulator API URL on port `3000`.
 
+M4F validation results:
+- Baseline was clean on `master` at `103099e feat: add driver mobile flow`; no Git remote is configured.
+- Port `3000` was selected after both `3000` and `3111` were verified free; API, emulator runtime, smoke, documentation, and APK all use `http://10.0.2.2:3000`.
+- Backend correction was committed separately as `70e8f97 fix: persist merchant batch state`.
+- No dependency, Prisma schema, migration, admin, passenger, or driver feature change was made.
+- The now-unused generic `RoleHomeScreen` shell was removed after the merchant role became the final specialized mobile role; no role-home Dart orphan remains.
+- `npm run prisma:validate`: passed.
+- `npm run prisma:generate`: passed with Prisma 7.8.0.
+- `npm run typecheck`: passed for admin and API workspaces.
+- `npm run test`: passed, 6 API files and 59 tests.
+- `npm run build`: passed for admin and API workspaces.
+- `flutter pub get`: passed.
+- `flutter gen-l10n`: passed.
+- `dart format --set-exit-if-changed .`: passed.
+- `flutter analyze`: passed with no issues.
+- `flutter test`: passed, 60 mobile tests including M4C auth/session, M4D passenger, and M4E2 driver regressions.
+- `flutter build apk --debug --dart-define=API_BASE_URL=http://10.0.2.2:3000`: passed.
+- Debug APK output: `apps/mobile/build/app/outputs/flutter-apk/app-debug.apk`.
+
+M4F tests added:
+- Repository contract tests cover order list/detail, safe persisted batches, exact locked pickup/destination DTOs, three-parcel creation, batch, merchant matching body, inbox/status filter, match detail, trip list/detail, and latest location.
+- Controller tests cover dashboard success/empty/error state, latest order/batch/waiting match/active trip, 1-to-10 parcel bounds, batch-then-match state gating, and exactly three lifecycle-aware trip/order/location timers.
+- Widget/routing tests cover Arabic RTL merchant dashboard, English persistence, locked form without editable coordinates, three-parcel submission, batching, scoring detail, absence of accept/reject and trip/simulation controls, read-only trip/location state, cross-role guards, and unauthenticated redirect.
+- API regression tests cover safe persisted batch summaries and `409 order_already_batched` without creating a duplicate.
+
+M4F real PostgreSQL/API smoke:
+- Protected reset succeeded against local PostgreSQL on port `5432` with API port `3000`.
+- Merchant login returned the seeded order, then a real three-parcel order was created using the locked coordinates.
+- Batch creation returned status `created`, estimated distance saved `43.06`, persisted in subsequent order detail, and a duplicate attempt returned `409`.
+- Merchant matching returned final score `0.951`; merchant inbox returned the owned match, selected driver 1 returned it, and alternate driver returned zero.
+- Selected driver accepted the match; merchant trip list returned the connected trip.
+- Authorized driver progressed the trip through `pickup_started`, `picked_up`, and `in_transit` and recorded two deterministic locations.
+- Merchant subsequently observed trip/order/all-parcel status `in_transit` and location sequence `1`.
+- Merchant trip mutation and simulation attempts both returned `403`.
+
+M4F Android runtime smoke:
+- Emulator `emulator-5554`, AVD `Medium_Phone_API_36.0`, Android 16 API 36 ran through `flutter run` with `API_BASE_URL=http://10.0.2.2:3000` after app data was cleared.
+- Arabic opened by default in RTL; merchant preset login reached the real merchant dashboard.
+- A new order with three parcel rows was created in the UI; no editable latitude/longitude field was present and order detail showed all three parcels.
+- With no route capacity available, batching rendered the translated no-compatible-driver state without losing the order; after an authorized alternate route was activated, retry succeeded and displayed persisted batch ID, explanation, and `43.06 km` benefit.
+- Merchant matching navigated to safe scoring detail with status proposed, all scoring components, and the explicit read-only notice; no accept/reject controls were present.
+- Role-filtered inbox displayed only merchant-owned matches from the exercised merchant account.
+- The selected driver accepted through the authorized API; dashboard refresh showed the connected trip and assigned order.
+- While merchant trip detail remained visible, authorized driver actions changed trip/order/all parcel states to `in_transit` and added location sequence `0`; the UI updated automatically after the 5/5/3-second polling windows.
+- Merchant trip displayed no status or simulation controls.
+- Switching to English changed the screen to LTR; force-stop/relaunch restored both secure merchant session and English locale; logout returned to English login and preserved locale.
+- Visual inspection found no crash, overflow, raw JSON, coordinate editor, map/GPS controls, or driver mutation actions in the exercised merchant flow.
+
 [SUCCESS_CRITERIA]
 M1 success criteria:
 - API can start.
@@ -1595,7 +1694,6 @@ Current pending items:
 - npm audit reports 3 moderate findings through Prisma CLI transitive `@hono/node-server`. The available force fix would downgrade Prisma from 7.8.0 to 6.19.3, so this needs a Prisma upstream patch or explicit approval to downgrade.
 - Manual browser visual QA remains pending because this tool environment cannot visually inspect the interactive browser. Required manual check: run `npm run dev:api`, run `npm run dev:admin`, open the admin console, login as admin, run full demo sequence, and verify the judge-facing layout and copy.
 - Manual M3D language QA remains pending because this tool environment cannot visually inspect the interactive browser. Required manual check: clear `masari_locale`, verify Arabic RTL default, switch to English LTR, refresh, verify English persistence, switch back to Arabic, and run the full demo path.
-- Flutter Merchant Mobile Flow remains pending; do not claim merchant order/batch business screens exist in the mobile app.
 
 Commands to run locally:
 ```bash

@@ -1081,6 +1081,222 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'منشأ'**
   String get statusCreated;
+
+  /// No description provided for @merchantDashboard.
+  ///
+  /// In ar, this message translates to:
+  /// **'لوحة التاجر'**
+  String get merchantDashboard;
+
+  /// No description provided for @orders.
+  ///
+  /// In ar, this message translates to:
+  /// **'الطلبات'**
+  String get orders;
+
+  /// No description provided for @noOrders.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد طلبات بعد.'**
+  String get noOrders;
+
+  /// No description provided for @createOrder.
+  ///
+  /// In ar, this message translates to:
+  /// **'إنشاء طلب'**
+  String get createOrder;
+
+  /// No description provided for @latestOrder.
+  ///
+  /// In ar, this message translates to:
+  /// **'أحدث طلب'**
+  String get latestOrder;
+
+  /// No description provided for @latestBatch.
+  ///
+  /// In ar, this message translates to:
+  /// **'أحدث دفعة طرود'**
+  String get latestBatch;
+
+  /// No description provided for @orderDetails.
+  ///
+  /// In ar, this message translates to:
+  /// **'تفاصيل الطلب'**
+  String get orderDetails;
+
+  /// No description provided for @fixedPickup.
+  ///
+  /// In ar, this message translates to:
+  /// **'نقطة الاستلام الثابتة'**
+  String get fixedPickup;
+
+  /// No description provided for @parcel.
+  ///
+  /// In ar, this message translates to:
+  /// **'طرد'**
+  String get parcel;
+
+  /// No description provided for @parcelSize.
+  ///
+  /// In ar, this message translates to:
+  /// **'حجم الطرد'**
+  String get parcelSize;
+
+  /// No description provided for @priority.
+  ///
+  /// In ar, this message translates to:
+  /// **'الأولوية'**
+  String get priority;
+
+  /// No description provided for @priorityLow.
+  ///
+  /// In ar, this message translates to:
+  /// **'منخفضة'**
+  String get priorityLow;
+
+  /// No description provided for @priorityNormal.
+  ///
+  /// In ar, this message translates to:
+  /// **'عادية'**
+  String get priorityNormal;
+
+  /// No description provided for @priorityHigh.
+  ///
+  /// In ar, this message translates to:
+  /// **'مرتفعة'**
+  String get priorityHigh;
+
+  /// No description provided for @addParcel.
+  ///
+  /// In ar, this message translates to:
+  /// **'إضافة طرد'**
+  String get addParcel;
+
+  /// No description provided for @removeParcel.
+  ///
+  /// In ar, this message translates to:
+  /// **'إزالة الطرد'**
+  String get removeParcel;
+
+  /// No description provided for @parcelLimit.
+  ///
+  /// In ar, this message translates to:
+  /// **'يجب أن يحتوي الطلب على 1 إلى 10 طرود.'**
+  String get parcelLimit;
+
+  /// No description provided for @submitOrder.
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال الطلب'**
+  String get submitOrder;
+
+  /// No description provided for @orderCreated.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إنشاء الطلب'**
+  String get orderCreated;
+
+  /// No description provided for @createBatch.
+  ///
+  /// In ar, this message translates to:
+  /// **'إنشاء دفعة طرود'**
+  String get createBatch;
+
+  /// No description provided for @batchCreated.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إنشاء دفعة الطرود'**
+  String get batchCreated;
+
+  /// No description provided for @batchExplanation.
+  ///
+  /// In ar, this message translates to:
+  /// **'شرح الدفعة'**
+  String get batchExplanation;
+
+  /// No description provided for @runMatching.
+  ///
+  /// In ar, this message translates to:
+  /// **'البحث عن مسار سائق متوافق'**
+  String get runMatching;
+
+  /// No description provided for @matchingStarted.
+  ///
+  /// In ar, this message translates to:
+  /// **'أُرسلت المطابقة المقترحة إلى السائق'**
+  String get matchingStarted;
+
+  /// No description provided for @merchantMatchInbox.
+  ///
+  /// In ar, this message translates to:
+  /// **'صندوق مطابقات التاجر'**
+  String get merchantMatchInbox;
+
+  /// No description provided for @waitingReadOnly.
+  ///
+  /// In ar, this message translates to:
+  /// **'يقرر السائق القبول أو الرفض. هذه الشاشة للقراءة فقط.'**
+  String get waitingReadOnly;
+
+  /// No description provided for @openTrip.
+  ///
+  /// In ar, this message translates to:
+  /// **'فتح الرحلة المرتبطة'**
+  String get openTrip;
+
+  /// No description provided for @merchantTrip.
+  ///
+  /// In ar, this message translates to:
+  /// **'رحلة التاجر'**
+  String get merchantTrip;
+
+  /// No description provided for @orderStatus.
+  ///
+  /// In ar, this message translates to:
+  /// **'حالة الطلب'**
+  String get orderStatus;
+
+  /// No description provided for @parcelStatus.
+  ///
+  /// In ar, this message translates to:
+  /// **'حالة الطرد'**
+  String get parcelStatus;
+
+  /// No description provided for @statusDraft.
+  ///
+  /// In ar, this message translates to:
+  /// **'مسودة'**
+  String get statusDraft;
+
+  /// No description provided for @statusSubmitted.
+  ///
+  /// In ar, this message translates to:
+  /// **'مُرسل'**
+  String get statusSubmitted;
+
+  /// No description provided for @statusBatched.
+  ///
+  /// In ar, this message translates to:
+  /// **'مُجمّع'**
+  String get statusBatched;
+
+  /// No description provided for @orderAlreadyBatched.
+  ///
+  /// In ar, this message translates to:
+  /// **'يحتوي هذا الطلب على دفعة طرود بالفعل.'**
+  String get orderAlreadyBatched;
+
+  /// No description provided for @matchingUnavailable.
+  ///
+  /// In ar, this message translates to:
+  /// **'أنشئ دفعة أولاً أو انتظر المطابقة الحالية.'**
+  String get matchingUnavailable;
+
+  /// No description provided for @deliveryProgress.
+  ///
+  /// In ar, this message translates to:
+  /// **'تقدم التوصيل'**
+  String get deliveryProgress;
 }
 
 class _AppLocalizationsDelegate

@@ -512,4 +512,114 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get statusCreated => 'Created';
+
+  @override
+  String get merchantDashboard => 'Merchant dashboard';
+
+  @override
+  String get orders => 'Orders';
+
+  @override
+  String get noOrders => 'No orders yet.';
+
+  @override
+  String get createOrder => 'Create order';
+
+  @override
+  String get latestOrder => 'Latest order';
+
+  @override
+  String get latestBatch => 'Latest parcel batch';
+
+  @override
+  String get orderDetails => 'Order details';
+
+  @override
+  String get fixedPickup => 'Fixed pickup';
+
+  @override
+  String get parcel => 'Parcel';
+
+  @override
+  String get parcelSize => 'Parcel size';
+
+  @override
+  String get priority => 'Priority';
+
+  @override
+  String get priorityLow => 'Low';
+
+  @override
+  String get priorityNormal => 'Normal';
+
+  @override
+  String get priorityHigh => 'High';
+
+  @override
+  String get addParcel => 'Add parcel';
+
+  @override
+  String get removeParcel => 'Remove parcel';
+
+  @override
+  String get parcelLimit => 'An order must contain 1 to 10 parcels.';
+
+  @override
+  String get submitOrder => 'Submit order';
+
+  @override
+  String get orderCreated => 'Order created';
+
+  @override
+  String get createBatch => 'Create parcel batch';
+
+  @override
+  String get batchCreated => 'Parcel batch created';
+
+  @override
+  String get batchExplanation => 'Batch explanation';
+
+  @override
+  String get runMatching => 'Find a compatible driver route';
+
+  @override
+  String get matchingStarted => 'Match proposed to the driver';
+
+  @override
+  String get merchantMatchInbox => 'Merchant match inbox';
+
+  @override
+  String get waitingReadOnly =>
+      'The driver decides whether to accept or reject. This screen is read-only.';
+
+  @override
+  String get openTrip => 'Open connected trip';
+
+  @override
+  String get merchantTrip => 'Merchant trip';
+
+  @override
+  String get orderStatus => 'Order status';
+
+  @override
+  String get parcelStatus => 'Parcel status';
+
+  @override
+  String get statusDraft => 'Draft';
+
+  @override
+  String get statusSubmitted => 'Submitted';
+
+  @override
+  String get statusBatched => 'Batched';
+
+  @override
+  String get orderAlreadyBatched => 'This order already has a parcel batch.';
+
+  @override
+  String get matchingUnavailable =>
+      'Create a batch first or wait for the current match.';
+
+  @override
+  String get deliveryProgress => 'Delivery progress';
 }
