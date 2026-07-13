@@ -58,10 +58,10 @@ void main() {
   testWidgets('Arabic login screen defaults to RTL', (tester) async {
     await _pumpApp(tester);
 
-    expect(find.text('مصاري'), findsOneWidget);
+    expect(find.text('مساري'), findsOneWidget);
     expect(find.text('تسجيل الدخول'), findsWidgets);
     expect(
-      Directionality.of(tester.element(find.text('مصاري'))),
+      Directionality.of(tester.element(find.text('مساري'))),
       TextDirection.rtl,
     );
     expect(find.textContaining('counter', findRichText: true), findsNothing);

@@ -145,7 +145,7 @@ void main() {
     tester,
   ) async {
     await _pumpMerchant(tester, _MerchantHandler(), authenticated: false);
-    GoRouter.of(tester.element(find.text('مصاري'))).go('/merchant/order/new');
+    GoRouter.of(tester.element(find.text('مساري'))).go('/merchant/order/new');
     await tester.pumpAndSettle();
     expect(find.text('تسجيل الدخول'), findsWidgets);
     expect(find.text('إنشاء طلب'), findsNothing);

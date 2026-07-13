@@ -101,7 +101,7 @@ abstract class AppLocalizations {
   /// No description provided for @appTitle.
   ///
   /// In ar, this message translates to:
-  /// **'مصاري'**
+  /// **'مساري'**
   String get appTitle;
 
   /// No description provided for @tagline.
@@ -113,7 +113,7 @@ abstract class AppLocalizations {
   /// No description provided for @welcomeTitle.
   ///
   /// In ar, this message translates to:
-  /// **'مرحباً بك في مصاري'**
+  /// **'مرحباً بك في مساري'**
   String get welcomeTitle;
 
   /// No description provided for @welcomeBody.
@@ -605,7 +605,7 @@ abstract class AppLocalizations {
   /// No description provided for @routeMatchExplanation.
   ///
   /// In ar, this message translates to:
-  /// **'اختار مصاري هذا السائق لأن المسار يطابق الممر النشط، ونقطة الالتقاط قريبة من المسار، والسعة متاحة، ودرجة الثقة مرتفعة.'**
+  /// **'اختار مساري هذا السائق لأن المسار يطابق الممر النشط، ونقطة الالتقاط قريبة من المسار، والسعة متاحة، ودرجة الثقة مرتفعة.'**
   String get routeMatchExplanation;
 
   /// No description provided for @passengerTrip.
@@ -1229,7 +1229,7 @@ abstract class AppLocalizations {
   /// No description provided for @parcelBatchExplanationDemo.
   ///
   /// In ar, this message translates to:
-  /// **'يمكن تجميع {parcelCount} طرود متوافقة في رحلة واحدة على ممر مصاري بدلاً من رحلات منفصلة، مما يقلل المسافة والتكلفة.'**
+  /// **'يمكن تجميع {parcelCount} طرود متوافقة في رحلة واحدة على ممر مساري بدلاً من رحلات منفصلة، مما يقلل المسافة والتكلفة.'**
   String parcelBatchExplanationDemo(int parcelCount);
 
   /// No description provided for @runMatching.

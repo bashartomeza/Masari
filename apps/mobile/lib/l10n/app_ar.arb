@@ -1,8 +1,8 @@
 {
   "@@locale": "ar",
-  "appTitle": "مصاري",
+  "appTitle": "مساري",
   "tagline": "لوجستيات ذكية لتشارك المسار",
-  "welcomeTitle": "مرحباً بك في مصاري",
+  "welcomeTitle": "مرحباً بك في مساري",
   "welcomeBody": "هذا تطبيق أندرويد التجريبي المخصص للمسافر والسائق والتاجر. تم تجهيز الهيكل الأساسي فقط في هذه المرحلة.",
   "arabic": "العربية",
   "english": "English",
@@ -84,7 +84,7 @@
   "trustScore": "درجة الثقة",
   "capacityFit": "ملاءمة السعة",
   "matchExplanation": "شرح المطابقة",
-  "routeMatchExplanation": "اختار مصاري هذا السائق لأن المسار يطابق الممر النشط، ونقطة الالتقاط قريبة من المسار، والسعة متاحة، ودرجة الثقة مرتفعة.",
+  "routeMatchExplanation": "اختار مساري هذا السائق لأن المسار يطابق الممر النشط، ونقطة الالتقاط قريبة من المسار، والسعة متاحة، ودرجة الثقة مرتفعة.",
   "passengerTrip": "رحلة المسافر",
   "tripTimeline": "خط الرحلة الزمني",
   "latestLocation": "آخر موقع",
@@ -188,7 +188,7 @@
   "createBatch": "إنشاء دفعة طرود",
   "batchCreated": "تم إنشاء دفعة الطرود",
   "batchExplanation": "شرح الدفعة",
-  "parcelBatchExplanationDemo": "يمكن تجميع {parcelCount} طرود متوافقة في رحلة واحدة على ممر مصاري بدلاً من رحلات منفصلة، مما يقلل المسافة والتكلفة.",
+  "parcelBatchExplanationDemo": "يمكن تجميع {parcelCount} طرود متوافقة في رحلة واحدة على ممر مساري بدلاً من رحلات منفصلة، مما يقلل المسافة والتكلفة.",
   "@parcelBatchExplanationDemo": {
     "placeholders": {
       "parcelCount": {

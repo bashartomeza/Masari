@@ -11,7 +11,7 @@ void main() {
     expect(localizedMatchStatus(AppLocalizationsEn(), 'unknown'), 'unknown');
     expect(
       AppLocalizationsAr().routeMatchExplanation,
-      contains('اختار مصاري هذا السائق'),
+      contains('اختار مساري هذا السائق'),
     );
     expect(
       AppLocalizationsAr().parcelBatchExplanationDemo(5),

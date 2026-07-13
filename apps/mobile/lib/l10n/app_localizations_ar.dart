@@ -9,13 +9,13 @@ class AppLocalizationsAr extends AppLocalizations {
   AppLocalizationsAr([String locale = 'ar']) : super(locale);
 
   @override
-  String get appTitle => 'مصاري';
+  String get appTitle => 'مساري';
 
   @override
   String get tagline => 'لوجستيات ذكية لتشارك المسار';
 
   @override
-  String get welcomeTitle => 'مرحباً بك في مصاري';
+  String get welcomeTitle => 'مرحباً بك في مساري';
 
   @override
   String get welcomeBody =>
@@ -272,7 +272,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get routeMatchExplanation =>
-      'اختار مصاري هذا السائق لأن المسار يطابق الممر النشط، ونقطة الالتقاط قريبة من المسار، والسعة متاحة، ودرجة الثقة مرتفعة.';
+      'اختار مساري هذا السائق لأن المسار يطابق الممر النشط، ونقطة الالتقاط قريبة من المسار، والسعة متاحة، ودرجة الثقة مرتفعة.';
 
   @override
   String get passengerTrip => 'رحلة المسافر';
@@ -587,7 +587,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String parcelBatchExplanationDemo(int parcelCount) {
-    return 'يمكن تجميع $parcelCount طرود متوافقة في رحلة واحدة على ممر مصاري بدلاً من رحلات منفصلة، مما يقلل المسافة والتكلفة.';
+    return 'يمكن تجميع $parcelCount طرود متوافقة في رحلة واحدة على ممر مساري بدلاً من رحلات منفصلة، مما يقلل المسافة والتكلفة.';
   }
 
   @override
