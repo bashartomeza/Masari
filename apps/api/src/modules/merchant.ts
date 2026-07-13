@@ -5,21 +5,20 @@ import { auditEvent } from "../lib/audit.js";
 import { requireAuth, requireRole, type AuthenticatedRequest } from "../middleware/auth.js";
 import { HttpError } from "../middleware/error.js";
 import { AuditAction } from "../generated/prisma/enums.js";
-
-const coordinate = z.coerce.number().finite();
+import { latitudeSchema, longitudeSchema } from "../lib/validation.js";
 
 const parcelSchema = z.object({
   destination_label: z.string().min(1),
-  destination_lat: coordinate,
-  destination_lng: coordinate,
+  destination_lat: latitudeSchema,
+  destination_lng: longitudeSchema,
   size: z.enum(["S", "M", "L"]),
   priority: z.enum(["low", "normal", "high"]).default("normal")
 });
 
 const createOrderSchema = z.object({
   pickup_label: z.string().min(1),
-  pickup_lat: coordinate,
-  pickup_lng: coordinate,
+  pickup_lat: latitudeSchema,
+  pickup_lng: longitudeSchema,
   parcels: z.array(parcelSchema).min(1).max(10)
 });
 

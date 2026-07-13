@@ -81,6 +81,48 @@ describe("manual role APIs", () => {
     expect(prismaMock.passengerRequest.create).toHaveBeenCalledOnce();
   });
 
+  it("accepts valid coordinate boundaries and existing numeric-string inputs", async () => {
+    prismaMock.passengerRequest.create.mockResolvedValue({ id: "req_boundary", status: "pending" });
+    await request(createApp())
+      .post("/api/v1/passenger/requests")
+      .set(auth("passenger_1"))
+      .send({
+        ...passengerBody,
+        pickup_lat: "-90",
+        pickup_lng: "-180",
+        destination_lat: "90",
+        destination_lng: "180"
+      })
+      .expect(201);
+
+    expect(prismaMock.passengerRequest.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          pickup_lat: "-90.000000",
+          pickup_lng: "-180.000000",
+          destination_lat: "90.000000",
+          destination_lng: "180.000000"
+        })
+      })
+    );
+  });
+
+  it("rejects out-of-range and non-finite passenger coordinates", async () => {
+    for (const invalid of [
+      { pickup_lat: 90.0001 },
+      { pickup_lng: -180.0001 },
+      { destination_lat: "NaN" },
+      { destination_lng: "Infinity" }
+    ]) {
+      await request(createApp())
+        .post("/api/v1/passenger/requests")
+        .set(auth("passenger_1"))
+        .send({ ...passengerBody, ...invalid })
+        .expect(400);
+    }
+    expect(prismaMock.passengerRequest.create).not.toHaveBeenCalled();
+  });
+
   it("non-passenger cannot create request", async () => {
     await request(createApp()).post("/api/v1/passenger/requests").set(auth("driver_1")).send(passengerBody).expect(403);
   });
@@ -153,6 +195,25 @@ describe("manual role APIs", () => {
 
     const response = await request(createApp()).post("/api/v1/merchant/orders").set(auth("merchant_1")).send(merchantBody).expect(201);
     expect(response.body.order.parcels).toHaveLength(1);
+  });
+
+  it("rejects out-of-range and non-finite merchant pickup and parcel coordinates", async () => {
+    const invalidBodies = [
+      { ...merchantBody, pickup_lat: -90.0001 },
+      { ...merchantBody, pickup_lng: 180.0001 },
+      {
+        ...merchantBody,
+        parcels: [{ ...merchantBody.parcels[0], destination_lat: "NaN" }]
+      },
+      {
+        ...merchantBody,
+        parcels: [{ ...merchantBody.parcels[0], destination_lng: "-Infinity" }]
+      }
+    ];
+    for (const body of invalidBodies) {
+      await request(createApp()).post("/api/v1/merchant/orders").set(auth("merchant_1")).send(body).expect(400);
+    }
+    expect(prismaMock.merchantOrder.create).not.toHaveBeenCalled();
   });
 
   it("non-merchant cannot create order", async () => {
