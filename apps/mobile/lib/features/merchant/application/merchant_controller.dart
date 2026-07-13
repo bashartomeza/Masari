@@ -47,19 +47,24 @@ class MerchantDashboardController
   Future<MerchantDashboardState> build() => refresh();
 
   Future<MerchantDashboardState> refresh() async {
-    final repository = ref.read(merchantRepositoryProvider);
-    final results = await Future.wait([
-      repository.listOrders(),
-      repository.listMatches(),
-      repository.listTrips(),
-    ]);
-    final next = MerchantDashboardState(
-      orders: results[0] as List<MerchantOrder>,
-      matches: results[1] as List<MerchantMatch>,
-      trips: results[2] as List<MerchantTrip>,
-    );
-    state = AsyncData(next);
-    return next;
+    try {
+      final repository = ref.read(merchantRepositoryProvider);
+      final results = await Future.wait([
+        repository.listOrders(),
+        repository.listMatches(),
+        repository.listTrips(),
+      ]);
+      final next = MerchantDashboardState(
+        orders: results[0] as List<MerchantOrder>,
+        matches: results[1] as List<MerchantMatch>,
+        trips: results[2] as List<MerchantTrip>,
+      );
+      state = AsyncData(next);
+      return next;
+    } catch (error, stackTrace) {
+      state = AsyncError(error, stackTrace);
+      Error.throwWithStackTrace(error, stackTrace);
+    }
   }
 }
 

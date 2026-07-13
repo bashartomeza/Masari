@@ -51,17 +51,22 @@ class DriverDashboardController extends AsyncNotifier<DriverDashboardState> {
   Future<DriverDashboardState> build() => refresh();
 
   Future<DriverDashboardState> refresh() async {
-    final repository = ref.read(driverRepositoryProvider);
-    final routes = await repository.listRoutes();
-    final matches = await repository.listMatches();
-    final trips = await repository.listTrips();
-    final next = DriverDashboardState(
-      routes: routes,
-      matches: matches,
-      trips: trips,
-    );
-    state = AsyncData(next);
-    return next;
+    try {
+      final repository = ref.read(driverRepositoryProvider);
+      final routes = await repository.listRoutes();
+      final matches = await repository.listMatches();
+      final trips = await repository.listTrips();
+      final next = DriverDashboardState(
+        routes: routes,
+        matches: matches,
+        trips: trips,
+      );
+      state = AsyncData(next);
+      return next;
+    } catch (error, stackTrace) {
+      state = AsyncError(error, stackTrace);
+      Error.throwWithStackTrace(error, stackTrace);
+    }
   }
 }
 

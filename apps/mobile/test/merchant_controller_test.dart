@@ -45,6 +45,7 @@ void main() {
       container.read(merchantDashboardProvider.notifier).refresh(),
       throwsStateError,
     );
+    expect(container.read(merchantDashboardProvider).hasError, isTrue);
   });
 
   test('parcel draft enforces one minimum and ten maximum', () {

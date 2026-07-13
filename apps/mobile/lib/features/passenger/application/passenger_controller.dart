@@ -31,16 +31,21 @@ class PassengerDashboardController
   Future<PassengerDashboardState> build() => refresh();
 
   Future<PassengerDashboardState> refresh() async {
-    final requests = await ref
-        .read(passengerRepositoryProvider)
-        .activeRequests();
-    final trips = await ref.read(tripRepositoryProvider).listTrips();
-    final next = PassengerDashboardState(
-      activeRequests: requests,
-      trips: trips,
-    );
-    state = AsyncData(next);
-    return next;
+    try {
+      final requests = await ref
+          .read(passengerRepositoryProvider)
+          .activeRequests();
+      final trips = await ref.read(tripRepositoryProvider).listTrips();
+      final next = PassengerDashboardState(
+        activeRequests: requests,
+        trips: trips,
+      );
+      state = AsyncData(next);
+      return next;
+    } catch (error, stackTrace) {
+      state = AsyncError(error, stackTrace);
+      Error.throwWithStackTrace(error, stackTrace);
+    }
   }
 }
 

@@ -30,6 +30,7 @@ void main() {
         container.read(driverDashboardProvider.notifier).refresh(),
         throwsStateError,
       );
+      expect(container.read(driverDashboardProvider).hasError, isTrue);
     },
   );
 
