@@ -3,7 +3,7 @@
 [PROJECT_OVERVIEW]
 Masari is a Palestine-focused smart route-sharing logistics MVP.
 
-Current implementation status: M4E2 Driver Mobile Flow.
+Current implementation status: M5A Full Cross-Role Judge Rehearsal and Demo Hardening.
 
 Locked MVP corridor:
 Hebron / PPU / Bab Al-Zawiya -> Bethlehem.
@@ -139,6 +139,19 @@ Implemented in M4E2:
 - Arabic remains the default RTL locale; English is optional LTR and persists independently of the secure JWT session.
 - No backend, Prisma schema, migration, or dependency change was required.
 
+Implemented in M4F:
+- Replaced the final merchant placeholder with a role-protected Flutter merchant dashboard, locked order form, parcel batching, safe match inbox/detail, and read-only connected trip tracking.
+- Persisted safe parcel-batch summaries in merchant order list/detail and rejected duplicate batching with a controlled `409`.
+- Completed passenger, driver, and merchant business routing in one Android app; the unused generic role-home shell was removed.
+
+Implemented in M5A:
+- Rehearsed the full Arabic-first combined passenger + merchant + selected-driver + admin story against real PostgreSQL, browser, and Android emulator state.
+- Linked the newest parcel batch to combined matches/trips so one accepted trip carries passenger request, merchant order, and parcel batch state consistently.
+- Stabilized the admin Full Demo Sequence order, live localized progress, accepted/completed result state, and translated network recovery.
+- Localized cross-role match explanations and simulated tracking labels; mobile dashboard refresh failures now show translated retry state.
+- Added deterministic `demo:preflight` and `demo:smoke` tooling, final screenshots, and `DEMO_RUNBOOK.md`.
+- Completed five consecutive clean rehearsals without crash, duplicate trip/batch, or manual database correction.
+
 Migration integrity result:
 - M2B accidentally modified committed `0001_init` to add M2B audit enum values.
 - This was unnecessary because those values belong in `0002_matching_batching_comparison`.
@@ -146,11 +159,11 @@ Migration integrity result:
 - Corrective commit created: `chore: normalize Prisma migrations`.
 
 Not implemented yet:
-- Flutter merchant business flow.
-- Mobile registration.
+- Mobile/public registration.
 - AI parser.
 - Live GPS tracking.
 - Socket.IO.
+- Maps, payments, multi-city support, and app-store deployment.
 
 [TECH_STACK]
 Actual local runtime checked on 2026-07:
@@ -392,9 +405,6 @@ Actual folder structure:
     │   │   │   │       ├── login_screen.dart
     │   │   │   │       ├── splash_screen.dart
     │   │   │   │       └── unsupported_role_screen.dart
-    │   │   │   ├── home
-    │   │   │   │   └── presentation
-    │   │   │   │       └── role_home_screen.dart
     │   │   │   ├── driver
     │   │   │   │   ├── application
     │   │   │   │   │   └── driver_controller.dart
@@ -414,6 +424,19 @@ Actual folder structure:
     │   │   │   │   │   └── matching_repository.dart
     │   │   │   │   └── presentation
     │   │   │   │       └── match_detail_screen.dart
+    │   │   │   ├── merchant
+    │   │   │   │   ├── application
+    │   │   │   │   │   └── merchant_controller.dart
+    │   │   │   │   ├── data
+    │   │   │   │   │   ├── merchant_models.dart
+    │   │   │   │   │   └── merchant_repository.dart
+    │   │   │   │   └── presentation
+    │   │   │   │       ├── merchant_home_screen.dart
+    │   │   │   │       ├── merchant_order_form_screen.dart
+    │   │   │   │       ├── merchant_order_detail_screen.dart
+    │   │   │   │       ├── merchant_match_inbox_screen.dart
+    │   │   │   │       ├── merchant_match_detail_screen.dart
+    │   │   │   │       └── merchant_trip_screen.dart
     │   │   │   ├── passenger
     │   │   │   │   ├── application
     │   │   │   │   │   └── passenger_controller.dart
@@ -424,7 +447,6 @@ Actual folder structure:
     │   │   │   │       ├── create_request_screen.dart
     │   │   │   │       ├── passenger_home_screen.dart
     │   │   │   │       └── request_detail_screen.dart
-    │   │   │   ├── shell
     │   │   │   └── trips
     │   │   │       ├── application
     │   │   │       │   └── passenger_trip_controller.dart
@@ -433,8 +455,6 @@ Actual folder structure:
     │   │   │       │   └── trip_repository.dart
     │   │   │       └── presentation
     │   │   │           └── passenger_trip_screen.dart
-    │   │   │       └── presentation
-    │   │   │           └── welcome_screen.dart
     │   │   └── l10n
     │   │       ├── app_ar.arb
     │   │       ├── app_en.arb
@@ -446,6 +466,10 @@ Actual folder structure:
     │       ├── driver_controller_test.dart
     │       ├── driver_flow_widget_test.dart
     │       ├── driver_repository_test.dart
+    │       ├── merchant_controller_test.dart
+    │       ├── merchant_flow_widget_test.dart
+    │       ├── merchant_repository_test.dart
+    │       ├── passenger_controller_test.dart
     │       └── passenger_flow_repository_test.dart
     └── api
         ├── package.json
@@ -1332,6 +1356,9 @@ Implemented minimal tests:
 - Mobile M4E2 repository tests for route list/active parsing, locked create payload, deactivation, match inbox/filter/detail, accept/reject, trip list/detail/status payload, simulation step/reset, and latest-location parsing.
 - Mobile M4E2 controller tests for dashboard success/empty/error, route creation conflict and deactivation failure, inbox empty/order/filter/error, accept/reject refresh, valid next status, and polling lifecycle/timer deduplication.
 - Mobile M4E2 routing/widget tests for driver-only routes, passenger/merchant/unauthenticated redirects, Arabic RTL and English LTR, locked route form without editable coordinates, safe match summaries, scoring detail, accept/reject loading state, valid-only trip action, and simulated location progress.
+- Mobile M4F repository/controller/widget tests for locked merchant order creation, persisted batching, safe merchant matching, read-only connected trip observation, polling lifecycle, localization, and role-route protection.
+- M5A API regression proves a combined match carries the newest merchant parcel batch into its accepted trip.
+- M5A mobile controller regressions prove passenger, driver, and merchant dashboard refresh failures enter visible error state; localized match/tracking widget assertions cover Arabic explanations and simulated-source labels.
 
 Required validation commands:
 - `npm install`.
@@ -1342,8 +1369,11 @@ Required validation commands:
 - `npm run db:push` requires a live PostgreSQL `DATABASE_URL`.
 - `npm run build`.
 - `npm run typecheck:admin`.
+- `npm run test:admin`.
 - `npm run build:admin`.
 - Endpoint validation against local API and PostgreSQL.
+- Mobile: `flutter pub get`, `flutter gen-l10n`, `dart format --set-exit-if-changed .`, `flutter analyze`, `flutter test`, and the port-3000 debug APK build.
+- Demo: `npm run demo:preflight` and `npm run demo:smoke`.
 - `npm audit --omit=dev`.
 
 Prisma config behavior:
@@ -1679,6 +1709,69 @@ M4F Android runtime smoke:
 - Switching to English changed the screen to LTR; force-stop/relaunch restored both secure merchant session and English locale; logout returned to English login and preserved locale.
 - Visual inspection found no crash, overflow, raw JSON, coordinate editor, map/GPS controls, or driver mutation actions in the exercised merchant flow.
 
+[M5A_DEMO_HARDENING]
+Scope:
+- Integration validation and surgical demo hardening only; no new product feature, table, migration, dependency, AI, Socket.IO, live GPS, map, payment, registration, multi-city, deployment, or scoring design was added.
+- Baseline was clean on `master` at `8531bb0 feat: add merchant mobile flow`; no Git remote is configured.
+- Preferred environment is fixed to host API `http://localhost:3000`, Android emulator API `http://10.0.2.2:3000`, and Vite admin `http://localhost:5173` with 5174/5175 supported by CORS.
+
+Final judge story and combined-flow result:
+- The existing schema and contracts were explicitly intended to support one match with both `passenger_request_id` and `merchant_order_id`; M5A uses that combined story.
+- A surgical correction now loads the merchant order's newest parcel batch during matching and writes `parcel_batch_id` to the combined match. Accepting it creates one trip linked to passenger request, merchant order, and parcel batch.
+- Primary story: reset -> passenger request -> merchant five-parcel batch -> one explainable combined match -> selected driver acceptance -> valid lifecycle and deterministic locations -> passenger/merchant observers -> admin comparison.
+- The selected driver owns the match through its route; the alternate driver sees zero. Passenger and merchant see only their connected data and cannot mutate trip/tracking.
+
+Deterministic reset audit:
+- Protected reset without a key/admin token returned `403`.
+- Five consecutive real PostgreSQL resets produced identical counts and stable seeded identities: 5 users, 2 driver profiles, 2 driver routes, 1 passenger request, 1 merchant order, 5 parcels, 3 demo scenarios, and 2 reset audit events.
+- Every reset left 0 parcel batches, matches, trips, location events, and comparison runs; no duplicate active route, batch, accepted match, orphan trip, or mutable demo-created request/order remained.
+- Each full smoke also ends with the no-route `404` recovery case followed by a clean protected reset.
+
+Demo tooling and documentation:
+- `npm run demo:preflight` checks required environment values, PostgreSQL, API health, admin reachability/config, mobile URL, debug APK, and adb device. Final result: 10/10 checks passed.
+- `npm run demo:smoke` uses real HTTP APIs for protection, reset, all role logins, combined match/batch, ownership isolation, acceptance conflicts, lifecycle conflicts, three locations, cross-role state, comparison, CORS, no-route handling, and reset recovery.
+- The smoke script contains no reset/JWT/database secrets; only intentionally seeded demo credentials are present.
+- A controlled dead-port invocation exits nonzero with `[demo:smoke] FAILED`, proving failure is not silently skipped.
+- Presenter runbook: `DEMO_RUNBOOK.md`.
+- Evidence screenshots: `docs/demo/screenshots/` outside generated build directories.
+
+Five-run rehearsal result:
+- Five consecutive `npm run demo:smoke` runs passed in 2.20, 1.86, 1.79, 1.76, and 1.80 seconds.
+- Every run produced final score `0.9317`, location sequence `2`, comparison winner `masari`, 1 versus 6 trips, distance `21.53` versus `129.19`, and estimated cost `43.06` versus `258.38`.
+- Every run rejected unauthorized/cross-role/duplicate/invalid actions as expected and restored the deterministic seed without manual database edits.
+
+Admin Full Demo Sequence audit:
+- Real browser QA ran the Arabic default RTL console through reset/login/load, merchant batch, combined match, comparison, acceptance, full lifecycle, and tracking using current APIs.
+- The sequence is ordered so the merchant batch exists before the combined match, stops visibly on a failed API call, and updates the match, batch, route, request, order, trip, tracking, and comparison cards to authoritative final state.
+- All 14 progress steps retranslate live when switching locale; English LTR and Arabic RTL persist through `masari_locale` and page reload.
+- Controlled API outage showed the translated network error; API recovery plus refresh restored the authenticated dashboard.
+
+Cross-role emulator and visual QA:
+- Real Android 16/API 36 emulator QA covered Arabic login; passenger dashboard/request/match/trip; driver dashboard/inbox/match/trip; merchant dashboard/order/batch/match/trip; and an English representative screen for every role.
+- The selected driver accepted and advanced the real combined trip through `accepted -> pickup_started -> picked_up -> in_transit -> delivered -> completed`; invalid lifecycle controls disappeared.
+- Passenger and merchant observed the same in-transit trip and location sequence `1`; merchant order, all five parcels, and batch agreed with trip state and remained read-only.
+- Merchant English locale and secure JWT survived force-stop/relaunch. Passenger, driver, and merchant representative English screens were LTR.
+- Visual inspection found no crash, overflow, clipped primary action, untranslated localization key, raw JSON, unauthorized control, or sensitive credential exposure. Technical IDs/coordinates remained readable LTR.
+- Match/explanation/status and simulated-source display were localized; backend API enum values remain English.
+
+Failure and recovery result:
+- Invalid login/no token, reset protection/idempotence, duplicate batch `409`, duplicate acceptance `409`, invalid status jump `409`, role mutation `403`, cross-role match isolation, no-route `404`, polling disposal/lifecycle timer deduplication, CORS, session/locale relaunch, and API outage/retry are covered by real smoke, emulator/browser exercises, and focused regressions.
+- Dashboard manual refresh now promotes failures to visible translated retry state for passenger, driver, and merchant instead of silently retaining stale success state; retry after API recovery succeeds without clearing the valid JWT.
+- No authorization rule was weakened.
+
+Final M5A validation:
+- `npm install`: passed; existing 3 moderate Prisma CLI transitive findings remain and `npm audit fix --force` was not run.
+- `npm run prisma:validate` and `npm run prisma:generate`: passed with Prisma 7.8.0; no schema or migration changed.
+- Workspace `npm run typecheck`, `npm run test`, and `npm run build`: passed; API has 6 files / 60 tests.
+- Admin `npm run typecheck:admin`, `npm run test:admin`, and `npm run build:admin`: passed; admin has 1 file / 7 tests.
+- Mobile dependency/localization generation, clean formatting (69 files), analysis, tests, and debug APK build passed; mobile has 62 tests.
+- Final post-build `demo:preflight` passed 10/10 and `demo:smoke` passed against real PostgreSQL/API in 1.98 seconds, ending with clean reset recovery.
+
+APK:
+- Final command: `flutter build apk --debug --dart-define=API_BASE_URL=http://10.0.2.2:3000`.
+- Output: `apps/mobile/build/app/outputs/flutter-apk/app-debug.apk`.
+- Installed successfully on `emulator-5554`.
+
 [SUCCESS_CRITERIA]
 M1 success criteria:
 - API can start.
@@ -1692,16 +1785,17 @@ M1 success criteria:
 [ORPHANS & PENDING]
 Current pending items:
 - npm audit reports 3 moderate findings through Prisma CLI transitive `@hono/node-server`. The available force fix would downgrade Prisma from 7.8.0 to 6.19.3, so this needs a Prisma upstream patch or explicit approval to downgrade.
-- Manual browser visual QA remains pending because this tool environment cannot visually inspect the interactive browser. Required manual check: run `npm run dev:api`, run `npm run dev:admin`, open the admin console, login as admin, run full demo sequence, and verify the judge-facing layout and copy.
-- Manual M3D language QA remains pending because this tool environment cannot visually inspect the interactive browser. Required manual check: clear `masari_locale`, verify Arabic RTL default, switch to English LTR, refresh, verify English persistence, switch back to Arabic, and run the full demo path.
+- Judge-day reliability still depends on local PostgreSQL, API, Vite, and emulator readiness; run `npm run demo:preflight` and `npm run demo:smoke` before presenting.
+- The comparison and tracking are intentionally deterministic hackathon simulations, not production routing, live GPS, or live prices.
+- Next recommended milestone: M5B presentation freeze/release rehearsal only—freeze product scope, rehearse the written eight-minute script on the judge machine, and package the validated APK/evidence. Do not begin excluded product features.
 
 Commands to run locally:
-```bash
-Copy-Item apps/api/.env.example apps/api/.env
-# Fill DATABASE_URL, JWT_SECRET, DEMO_RESET_KEY
+```powershell
+# Set DATABASE_URL, JWT_SECRET, DEMO_RESET_KEY in the current shell.
 npm install
 npm run prisma:validate
 npm run prisma:generate
-npm run db:push
 npm run dev:api
+npm run demo:preflight
+npm run demo:smoke
 ```

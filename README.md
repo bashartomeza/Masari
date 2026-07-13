@@ -1,39 +1,52 @@
-# Masari
+# Masari — مساري
 
-Masari is a Palestine-focused smart route-sharing logistics MVP.
+Masari is a Palestine-focused, Arabic-first smart route-sharing logistics MVP for the locked Hebron / PPU / Bab Al-Zawiya to Bethlehem corridor.
 
-Current implementation scope: M1 Foundation + Demo Reset only.
+The current implementation includes the TypeScript/Express API, PostgreSQL/Prisma persistence, React/Vite admin judge console, and Android Flutter passenger, driver, and merchant flows. See [DEMO_RUNBOOK.md](DEMO_RUNBOOK.md) for the repeatable cross-role judge rehearsal.
 
-## Setup
+## Local setup
 
-1. Copy `apps/api/.env.example` to `apps/api/.env`.
-2. Set `DATABASE_URL`, `JWT_SECRET`, and `DEMO_RESET_KEY`.
-3. Install dependencies:
+1. Install dependencies and validate the database client:
 
-```bash
+```powershell
 npm install
-```
-
-4. Validate Prisma schema:
-
-```bash
 npm run prisma:validate
+npm run prisma:generate
 ```
 
-5. Push schema to PostgreSQL:
+2. Configure the current PowerShell session. Replace placeholders with local development values; do not commit them:
 
-```bash
-npm run db:push
+```powershell
+$env:DATABASE_URL = "postgresql://<user>:<password>@localhost:5432/masari?schema=public"
+$env:JWT_SECRET = "<long-local-development-secret>"
+$env:DEMO_RESET_KEY = "<local-demo-reset-key>"
+$env:CORS_ORIGINS = "http://localhost:5173,http://localhost:5174,http://localhost:5175,http://127.0.0.1:5173,http://127.0.0.1:5174,http://127.0.0.1:5175"
+$env:PORT = "3000"
 ```
 
-6. Start the API:
+3. Start the API and admin console in separate terminals:
 
-```bash
+```powershell
 npm run dev:api
 ```
 
-7. Reset deterministic demo data:
-
-```bash
-curl -X POST http://localhost:3000/api/v1/demo/reset -H "x-demo-reset-key: <DEMO_RESET_KEY>"
+```powershell
+$env:VITE_API_BASE_URL = "http://localhost:3000"
+npm run dev:admin
 ```
+
+4. Build the emulator APK with the matching host URL:
+
+```powershell
+Set-Location apps/mobile
+flutter build apk --debug --dart-define=API_BASE_URL=http://10.0.2.2:3000
+```
+
+5. With PostgreSQL, API, admin, and the Android emulator running, execute:
+
+```powershell
+npm run demo:preflight
+npm run demo:smoke
+```
+
+`npm audit fix --force` is intentionally prohibited because the proposed fix is a breaking Prisma downgrade.

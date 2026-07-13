@@ -16,6 +16,8 @@
     "typecheck:admin": "npm run typecheck -w @masari/admin",
     "test": "npm run test -w @masari/api",
     "test:admin": "npm run test -w @masari/admin",
+    "demo:preflight": "node scripts/demo-preflight.mjs",
+    "demo:smoke": "node scripts/demo-smoke.mjs",
     "prisma:generate": "npm run prisma:generate -w @masari/api",
     "prisma:validate": "npm run prisma:validate -w @masari/api",
     "db:push": "npm run db:push -w @masari/api"
