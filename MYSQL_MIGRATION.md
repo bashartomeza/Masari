@@ -1,0 +1,61 @@
+# Masari MySQL Migration Guide
+
+This branch runs Masari on MySQL while preserving the PostgreSQL release at tag `v0.1.0-hackathon`.
+
+## Validated database target
+
+- Provider: MySQL.
+- Observed version: MySQL Community Server 8.0.46.
+- Host requirement: a local or explicitly trusted MySQL host reachable by the API machine.
+- Port: 3306.
+- Database name: `masari`.
+- Required character set: `utf8mb4`.
+- Validated collation: `utf8mb4_0900_ai_ci` at database level; Prisma-created tables use `utf8mb4_unicode_ci`.
+
+The database must be empty and dedicated to Masari before the first migration. Do not point this branch at an existing non-empty database without a separate reviewed data-migration plan.
+
+## Safe environment
+
+Copy `apps/api/.env.example` to the ignored `apps/api/.env` file and replace placeholders locally. Never commit or package the completed file.
+
+```dotenv
+DATABASE_URL="mysql://<user>:<password>@localhost:3306/masari"
+JWT_SECRET="<long-local-secret>"
+DEMO_RESET_KEY="<local-reset-key>"
+```
+
+## Apply the schema
+
+From the repository root:
+
+```powershell
+npm install
+npm run prisma:validate
+npm run prisma:generate
+npm run db:migrate
+npm run db:migrate:status
+```
+
+`npm run db:migrate` uses `prisma migrate deploy`. It applies the checked-in MySQL migration history and is the approved schema command for this release. `db push` is not the release mechanism.
+
+## Provider transition
+
+- The old PostgreSQL SQL is retained in Git history and the `v0.1.0-hackathon` tag.
+- The active MySQL branch has a fresh provider-specific baseline and a follow-up migration preserving PostgreSQL-like text capacity for explanations and descriptions.
+- PostgreSQL rows are not copied. The protected demo reset creates deterministic MySQL demo data.
+- Do not apply PostgreSQL migration SQL to MySQL or edit committed migration files.
+
+## Verification
+
+With API, admin, and emulator running:
+
+```powershell
+npm run demo:preflight
+npm run demo:smoke
+```
+
+Preflight verifies required environment presence without displaying values, MySQL provider/connectivity, `utf8mb4`, database collation, Masari service identity, URL consistency, APK presence, and Android device readiness.
+
+## Fallback
+
+To return to the preserved PostgreSQL release, use a separate checkout or worktree at `v0.1.0-hackathon`. Do not move that tag and do not mix its PostgreSQL migrations with this branch.

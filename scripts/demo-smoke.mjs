@@ -1,3 +1,8 @@
+import { resolve } from "node:path";
+import { config as loadEnv } from "dotenv";
+
+loadEnv({ path: resolve(import.meta.dirname, "../apps/api/.env"), quiet: true });
+
 const apiOrigin =
   argument("--api-base-url") ??
   process.argv.slice(2).find((value) => /^https?:\/\//.test(value)) ??

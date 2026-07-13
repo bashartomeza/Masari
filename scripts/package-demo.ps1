@@ -2,8 +2,8 @@ $ErrorActionPreference = "Stop"
 
 $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
 $releaseRoot = [IO.Path]::GetFullPath((Join-Path $root "release"))
-$packageRoot = [IO.Path]::GetFullPath((Join-Path $releaseRoot "masari-hackathon-demo"))
-$zipPath = [IO.Path]::GetFullPath((Join-Path $releaseRoot "masari-hackathon-demo.zip"))
+$packageRoot = [IO.Path]::GetFullPath((Join-Path $releaseRoot "masari-hackathon-mysql-demo"))
+$zipPath = [IO.Path]::GetFullPath((Join-Path $releaseRoot "masari-hackathon-mysql-demo.zip"))
 
 if (-not $packageRoot.StartsWith($releaseRoot + [IO.Path]::DirectorySeparatorChar)) {
   throw "Refusing to package outside the release directory."
@@ -25,6 +25,7 @@ New-Item -ItemType Directory -Path $packageRoot | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $packageRoot "screenshots") | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $packageRoot "environment") | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $packageRoot "checksums") | Out-Null
+New-Item -ItemType Directory -Path (Join-Path $packageRoot "mysql-migrations") | Out-Null
 
 $documents = @(
   "DEMO_RUNBOOK.md",
@@ -32,7 +33,8 @@ $documents = @(
   "PROJECT_MAP.md",
   "README_DEMO_START.md",
   "RELEASE_NOTES.md",
-  "BACKUP_DEMO.md"
+  "BACKUP_DEMO.md",
+  "MYSQL_MIGRATION.md"
 )
 foreach ($document in $documents) {
   Copy-Item -LiteralPath (Join-Path $root $document) -Destination (Join-Path $packageRoot $document)
@@ -41,8 +43,8 @@ foreach ($document in $documents) {
 $packagedNotesPath = Join-Path $packageRoot "RELEASE_NOTES.md"
 $packagedNotes = Get-Content -LiteralPath $packagedNotesPath -Raw
 $packagedNotes = $packagedNotes.Replace(
-  "- Final Git reference: annotated tag **``v0.1.0-hackathon``** (the packaged copy resolves this to the tag's commit SHA)",
-  "- Final Git reference: annotated tag **``v0.1.0-hackathon``**`r`n- Final Git commit: ``$freezeCommit``"
+  "- Final Git commit: resolved during packaging.",
+  "- Final Git commit: ``$freezeCommit``"
 )
 Set-Content -LiteralPath $packagedNotesPath -Value $packagedNotes -Encoding utf8NoBOM
 
@@ -61,14 +63,17 @@ Copy-Item -LiteralPath $apkSource -Destination (Join-Path $packageRoot "app-debu
 Copy-Item -Path (Join-Path $root "docs/demo/screenshots/*.png") -Destination (Join-Path $packageRoot "screenshots")
 Copy-Item -LiteralPath (Join-Path $root "apps/api/.env.example") -Destination (Join-Path $packageRoot "environment/api.env.example")
 Copy-Item -LiteralPath (Join-Path $root "apps/admin/.env.example") -Destination (Join-Path $packageRoot "environment/admin.env.example")
+Copy-Item -Path (Join-Path $root "apps/api/prisma/migrations/*") -Destination (Join-Path $packageRoot "mysql-migrations") -Recurse
 
 $environmentReadme = @"
 # Safe environment templates
 
-These are placeholder templates only. They contain no judge-machine database password, JWT secret, or demo reset key.
+These are placeholder templates only. They contain no database password, JWT secret, or demo reset key.
 
 - Copy values into local process environment variables.
 - Never save the completed secret-bearing file in this package.
+- The MySQL database name is masari, the default port is 3306, and utf8mb4 is required.
+- Apply schema changes from the source repository with npm run db:migrate; do not execute migration SQL manually.
 - The Android APK is already configured for http://10.0.2.2:3000.
 "@
 Set-Content -LiteralPath (Join-Path $packageRoot "environment/README.md") -Value $environmentReadme -Encoding utf8NoBOM
@@ -94,15 +99,17 @@ $zip = [IO.Compression.ZipFile]::OpenRead($zipPath)
 try {
   $entries = $zip.Entries.FullName
   foreach ($required in @(
-    "masari-hackathon-demo/app-debug.apk",
-    "masari-hackathon-demo/APK_SHA256.txt",
-    "masari-hackathon-demo/DEMO_RUNBOOK.md",
-    "masari-hackathon-demo/JUDGE_SCRIPT.md",
-    "masari-hackathon-demo/BACKUP_DEMO.md",
-    "masari-hackathon-demo/PROJECT_MAP.md",
-    "masari-hackathon-demo/README_DEMO_START.md",
-    "masari-hackathon-demo/RELEASE_NOTES.md",
-    "masari-hackathon-demo/checksums/SHA256SUMS.txt"
+    "masari-hackathon-mysql-demo/app-debug.apk",
+    "masari-hackathon-mysql-demo/APK_SHA256.txt",
+    "masari-hackathon-mysql-demo/DEMO_RUNBOOK.md",
+    "masari-hackathon-mysql-demo/JUDGE_SCRIPT.md",
+    "masari-hackathon-mysql-demo/BACKUP_DEMO.md",
+    "masari-hackathon-mysql-demo/MYSQL_MIGRATION.md",
+    "masari-hackathon-mysql-demo/PROJECT_MAP.md",
+    "masari-hackathon-mysql-demo/README_DEMO_START.md",
+    "masari-hackathon-mysql-demo/RELEASE_NOTES.md",
+    "masari-hackathon-mysql-demo/mysql-migrations/migration_lock.toml",
+    "masari-hackathon-mysql-demo/checksums/SHA256SUMS.txt"
   )) {
     if ($entries -notcontains $required) {
       throw "ZIP is missing $required"

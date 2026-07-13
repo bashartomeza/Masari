@@ -1,9 +1,11 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import pg from "pg";
+import { config as loadEnv } from "dotenv";
+import mariadb from "mariadb";
 
 const root = resolve(import.meta.dirname, "..");
+loadEnv({ path: resolve(root, "apps/api/.env"), quiet: true });
 const apiBaseUrl = process.env.DEMO_API_BASE_URL ?? "http://localhost:3000";
 const adminUrl = process.env.DEMO_ADMIN_URL ?? "http://localhost:5173";
 const emulatorApiUrl = "http://10.0.2.2:3000";
@@ -39,15 +41,29 @@ for (const name of ["DATABASE_URL", "JWT_SECRET", "DEMO_RESET_KEY"]) {
 }
 
 if (process.env.DATABASE_URL) {
-  const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
+  let connection;
   try {
-    await client.connect();
-    await client.query("SELECT 1");
-    pass("PostgreSQL", "reachable");
-  } catch (error) {
-    fail("PostgreSQL", error instanceof Error ? error.message : "unreachable");
+    const databaseUrl = new URL(process.env.DATABASE_URL);
+    if (databaseUrl.protocol !== "mysql:") throw new Error("unexpected provider");
+    connection = await mariadb.createConnection({
+      host: databaseUrl.hostname,
+      port: Number(databaseUrl.port || 3306),
+      user: decodeURIComponent(databaseUrl.username),
+      password: decodeURIComponent(databaseUrl.password),
+      database: databaseUrl.pathname.replace(/^\//, "")
+    });
+    const rows = await connection.query(
+      "SELECT DATABASE() AS database_name, @@character_set_database AS character_set, @@collation_database AS collation"
+    );
+    if (rows[0]?.database_name !== "masari") throw new Error("unexpected database");
+    if (rows[0]?.character_set !== "utf8mb4") throw new Error("unexpected character set");
+    pass("database provider", "mysql");
+    pass("MySQL", "reachable; masari uses utf8mb4");
+    pass("MySQL collation", String(rows[0]?.collation ?? "configured"));
+  } catch {
+    fail("MySQL", "connection or provider verification failed");
   } finally {
-    await client.end().catch(() => undefined);
+    await connection?.end().catch(() => undefined);
   }
 }
 

@@ -3,7 +3,7 @@
 [PROJECT_OVERVIEW]
 Masari is a Palestine-focused smart route-sharing logistics MVP.
 
-Current implementation status: M5B Presentation Freeze, Judge-Machine Rehearsal, and Demo Packaging.
+Current implementation status: M5C MySQL Provider Migration and MySQL Demo Release Validation.
 
 Locked MVP corridor:
 Hebron / PPU / Bab Al-Zawiya -> Bethlehem.
@@ -158,6 +158,15 @@ Implemented in M5B:
 - Added `JUDGE_SCRIPT.md`, `BACKUP_DEMO.md`, `README_DEMO_START.md`, and `RELEASE_NOTES.md`.
 - Prepared the ignored `release/masari-hackathon-demo/` package and ZIP with APK, safe templates, evidence, and SHA-256 manifests.
 
+Implemented in M5C:
+- Preserved the complete PostgreSQL release at commit `074fc4e7cc79c6b08a2baa18ca251b4802aa48c7` and annotated tag `v0.1.0-hackathon`.
+- Migrated the active Prisma datasource from PostgreSQL to MySQL without changing application API contracts, roles, matching, batching, trips, tracking, admin screens, or Flutter screens.
+- Replaced `@prisma/adapter-pg`/`pg` with `@prisma/adapter-mariadb`/`mariadb` at Prisma 7.8.0.
+- Replaced the active PostgreSQL migration history with a fresh MySQL baseline; PostgreSQL SQL remains available from Git history and the fallback tag.
+- Added explicit MySQL `TEXT` storage for explanation/description fields that were unbounded PostgreSQL `TEXT`, preventing an implicit `VARCHAR(191)` capacity regression.
+- Updated preflight, smoke environment loading, startup documentation, migration instructions, and release packaging for MySQL.
+- Validated five deterministic resets, Arabic/emoji round-trip, full cross-role behavior, and five deterministic MySQL rehearsals against the real local database.
+
 Migration integrity result:
 - M2B accidentally modified committed `0001_init` to add M2B audit enum values.
 - This was unnecessary because those values belong in `0002_matching_batching_comparison`.
@@ -188,16 +197,15 @@ Package versions checked via `npm view` before pinning:
 - typescript: 6.0.3.
 - prisma: 7.8.0.
 - @prisma/client: 7.8.0.
-- @prisma/adapter-pg: 7.8.0.
+- @prisma/adapter-mariadb: 7.8.0.
 - zod: 4.4.3.
 - jsonwebtoken: 9.0.3.
 - bcryptjs: 3.0.3.
 - dotenv: 17.4.2.
-- pg: 8.22.0.
+- mariadb: 3.4.5.
 - @types/express: 5.0.6.
 - @types/jsonwebtoken: 9.0.10.
 - @types/node: 26.1.0.
-- @types/pg: 8.20.0.
 - vitest: 4.1.9.
 - supertest: 7.2.2.
 - @types/supertest: 7.2.0.
@@ -221,7 +229,7 @@ Backend:
 - Express.
 - TypeScript.
 - Prisma.
-- PostgreSQL.
+- MySQL 8.
 - Zod.
 - JWT.
 - bcryptjs.
@@ -1372,20 +1380,22 @@ Required validation commands:
 - `npm run prisma:validate`.
 - `npm run prisma:generate`.
 - `npm run test`.
-- `npm run db:push` requires a live PostgreSQL `DATABASE_URL`.
+- `npm run db:migrate` applies the checked-in MySQL migration history with `prisma migrate deploy`.
+- `npm run db:migrate:status` verifies the MySQL migration state.
 - `npm run build`.
 - `npm run typecheck:admin`.
 - `npm run test:admin`.
 - `npm run build:admin`.
-- Endpoint validation against local API and PostgreSQL.
+- Endpoint validation against local API and MySQL.
 - Mobile: `flutter pub get`, `flutter gen-l10n`, `dart format --set-exit-if-changed .`, `flutter analyze`, `flutter test`, and the port-3000 debug APK build.
 - Demo: `npm run demo:preflight` and `npm run demo:smoke`.
 - `npm audit --omit=dev`.
 
 Prisma config behavior:
 - `apps/api/prisma.config.ts` uses `DATABASE_URL` when set.
-- For schema validation/generation without a local `.env`, it falls back to the `.env.example` local PostgreSQL URL.
-- Real database operations still require a reachable PostgreSQL database.
+- For schema validation/generation without a local `.env`, it uses a non-secret placeholder MySQL URL.
+- Real database operations require a reachable MySQL `masari` database.
+- The approved release migration mechanism is `npm run db:migrate`, not `db push`.
 
 [MILESTONES]
 M1 Foundation And Demo Reset target:
@@ -1838,6 +1848,51 @@ Release identity:
 - The package checksum manifest and packaged `RELEASE_NOTES.md` resolve the exact freeze commit after the commit/tag is created.
 - No remote was configured or pushed.
 
+[M5C_MYSQL_PROVIDER_MIGRATION]
+Safety and fallback:
+- Work began from clean PostgreSQL release commit `074fc4e7cc79c6b08a2baa18ca251b4802aa48c7`; `v0.1.0-hackathon` still points exactly to it.
+- Work is isolated on branch `mysql-release`; the PostgreSQL commit/tag and migration history were not amended or moved.
+- The local ignored `apps/api/.env` is used without printing, documenting, packaging, or committing real credentials/secrets.
+- Authenticated read-only inspection confirmed the intended `masari` database had 0 tables, views, triggers, routines, and events before migration.
+- No PostgreSQL row transfer was performed; deterministic demo reset is the MySQL data strategy.
+
+Observed MySQL target:
+- MySQL Community Server 8.0.46 on local port 3306.
+- Database: `masari`.
+- Database character set/collation: `utf8mb4` / `utf8mb4_0900_ai_ci`.
+- Prisma-created tables use `utf8mb4_unicode_ci` and support Arabic, English, and emoji.
+
+Prisma/provider changes:
+- Prisma schema datasource provider is `mysql`; Prisma ORM/Client remain 7.8.0.
+- Runtime uses `@prisma/adapter-mariadb` 7.8.0 and `mariadb` 3.4.5 with credentials parsed internally from `DATABASE_URL` into driver options.
+- PostgreSQL runtime dependencies `@prisma/adapter-pg`, `pg`, and `@types/pg` were removed after real MySQL validation.
+- Active migration history contains `20260713114812_mysql_baseline` and `20260713114851_preserve_text_capacity`, with `migration_lock.toml` provider `mysql`.
+- The follow-up migration explicitly maps parcel-batch/match explanations, comparison benefit, and demo-scenario description to MySQL `TEXT`, preserving the former unbounded PostgreSQL capacity.
+- JSON maps to MySQL `JSON`; deterministic decimals retain their declared precision/scale; dates use `DATETIME(3)` through Prisma.
+- Approved commands: `npm run db:migrate` and `npm run db:migrate:status`. `db push` is not the release mechanism.
+
+Reset and Unicode verification:
+- Five consecutive protected resets produced the exact counts: users 5, driver profiles 2, routes 2, passenger requests 1, merchant orders 1, parcels 5, demo scenarios 3, audit events 2, and zero batches, matches, trips, locations, and comparison runs.
+- After every reset, the admin dashboard returned users 5, drivers 2, routes 2, passenger requests 1, merchant orders 1, and parcels 5.
+- An Arabic-plus-emoji passenger request was created and read through the real HTTP API with exact text equality, then removed by a final protected reset.
+
+Demo tooling and rehearsal:
+- `demo:preflight` loads the ignored API environment when shell values are absent and reports only presence/provider-safe facts.
+- Preflight verifies MySQL protocol, connectivity, expected database, `utf8mb4`, collation, Masari API/admin identity, API URL consistency, APK, and Android device.
+- `demo:smoke` loads the same ignored environment without displaying values and retains the complete cross-role story and recovery checks.
+- Five full real MySQL rehearsals passed with score `0.9317`, sequence `2`, trips `1` versus `6`, distance `21.53` versus `129.19`, cost `43.06` versus `258.38`, winner `masari`, alternate-driver isolation, combined trip state, and clean recovery reset.
+- Rehearsal technical durations were 5.46, 5.03, 4.96, 4.99, and 6.03 seconds.
+- Final preflight passed 12/12.
+- Final workspace validation passed: Prisma validate/generate, migration deploy/status, typecheck, 6 API files / 60 tests, and build.
+- Final admin validation passed: typecheck, 1 file / 7 tests, and production build.
+- Final mobile validation passed: dependency/localization generation, 69 files with zero formatting changes, analysis with no issues, and 62 tests.
+- The unchanged debug APK retained the approved API URL/hash, installed on `emulator-5554`, opened Arabic-first, and completed real passenger login/dashboard loading against the MySQL-backed API.
+
+Release documentation:
+- MySQL setup/provider-transition instructions: `MYSQL_MIGRATION.md`.
+- Updated operational files: `README.md`, `README_DEMO_START.md`, `DEMO_RUNBOOK.md`, `BACKUP_DEMO.md`, `RELEASE_NOTES.md`, and the safe API environment template.
+- PostgreSQL fallback instructions consistently reference `v0.1.0-hackathon`.
+
 [SUCCESS_CRITERIA]
 M1 success criteria:
 - API can start.
@@ -1851,10 +1906,11 @@ M1 success criteria:
 [ORPHANS & PENDING]
 Current pending items:
 - npm audit reports 3 moderate findings through Prisma CLI transitive `@hono/node-server`. The available force fix would downgrade Prisma from 7.8.0 to 6.19.3, so this needs a Prisma upstream patch or explicit approval to downgrade.
-- Judge-day reliability still depends on local PostgreSQL, API, Vite, and emulator readiness; run `npm run demo:preflight` and `npm run demo:smoke` before presenting.
+- Judge-day reliability now depends on local MySQL, API, Vite, and emulator readiness; run `npm run db:migrate:status`, `npm run demo:preflight`, and `npm run demo:smoke` before presenting.
 - The comparison and tracking are intentionally deterministic hackathon simulations, not production routing, live GPS, or live prices.
-- If a different physical event machine is used, its PostgreSQL credentials/service, ports, emulator acceleration, APK install, and 10/10 preflight remain a required transfer check.
-- Next recommended step: no feature milestone. Preserve the `v0.1.0-hackathon` tag, transfer the ignored release ZIP to the actual event machine, run the start card and one smoke, then present the frozen eight-minute script.
+- Existing PostgreSQL rows were intentionally not migrated; `v0.1.0-hackathon` remains the working PostgreSQL fallback.
+- If a different physical event machine is used, its MySQL database/service, safe local environment, port 3306, emulator acceleration, APK install, migration status, and full preflight remain a required transfer check.
+- Next recommended step: preserve both release tags, transfer the ignored MySQL release ZIP to the actual event machine, apply/status-check migrations against an empty dedicated database, run preflight and one smoke, then present the frozen eight-minute script.
 
 Commands to run locally:
 ```powershell
@@ -1862,6 +1918,8 @@ Commands to run locally:
 npm install
 npm run prisma:validate
 npm run prisma:generate
+npm run db:migrate
+npm run db:migrate:status
 npm run dev:api
 npm run demo:preflight
 npm run demo:smoke

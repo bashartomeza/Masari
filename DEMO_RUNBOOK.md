@@ -1,11 +1,11 @@
-# Masari M5A Demo Runbook
+# Masari MySQL Demo Runbook
 
 This runbook operates the approved Masari judge story without source-code knowledge. The demo is Arabic-first and uses only the locked Hebron / PPU / Bab Al-Zawiya to Bethlehem corridor.
 
 ## 1. Required software
 
 - Node.js 22.17.1 or compatible Node 22, npm 10.9.2 or newer.
-- PostgreSQL reachable on local port 5432 with a `masari` database.
+- MySQL 8.0.46 or a Prisma-supported compatible MySQL 8 server, reachable on local port 3306 with a dedicated `masari` database.
 - Flutter 3.44.6 stable and Dart 3.12.2.
 - Android SDK 36, `adb`, Java 21, and AVD `Medium_Phone_API_36.0`.
 - A Chromium browser for the React admin console.
@@ -17,7 +17,7 @@ Do not run `npm audit fix --force`.
 Open a PowerShell terminal at the repository root and set local values. The values below are placeholders, not real secrets:
 
 ```powershell
-$env:DATABASE_URL = "postgresql://<user>:<password>@localhost:5432/masari?schema=public"
+$env:DATABASE_URL = "mysql://<user>:<password>@localhost:3306/masari"
 $env:JWT_SECRET = "<long-local-development-secret>"
 $env:DEMO_RESET_KEY = "<local-demo-reset-key>"
 $env:CORS_ORIGINS = "http://localhost:5173,http://localhost:5174,http://localhost:5175,http://127.0.0.1:5173,http://127.0.0.1:5174,http://127.0.0.1:5175"
@@ -29,14 +29,14 @@ Use the same `DATABASE_URL`, `JWT_SECRET`, and `DEMO_RESET_KEY` in every termina
 
 ## 3. Exact startup order
 
-1. Start PostgreSQL and confirm port 5432 is listening.
-2. From the repository root, run `npm install`, `npm run prisma:validate`, and `npm run prisma:generate` once.
+1. Start MySQL and confirm port 3306 is listening. The dedicated `masari` database must use `utf8mb4`; the validated database collation is `utf8mb4_0900_ai_ci`.
+2. From the repository root, run `npm install`, `npm run prisma:validate`, `npm run prisma:generate`, `npm run db:migrate`, and `npm run db:migrate:status`.
 3. In terminal A, set the API environment variables above and run `npm run dev:api`.
 4. Confirm `http://localhost:3000/api/v1/health` returns `{"ok":true,"service":"masari-api"}`.
 5. In terminal B, set `VITE_API_BASE_URL=http://localhost:3000` and run `npm run dev:admin`.
 6. Start `Medium_Phone_API_36.0` and wait until `adb devices` reports `emulator-5554` in state `device`.
 7. Install the final APK with `adb install -r apps/mobile/build/app/outputs/flutter-apk/app-debug.apk`.
-8. In a terminal with all API variables set, run `npm run demo:preflight`.
+8. Run `npm run demo:preflight` and require every check to pass.
 9. Run `npm run demo:smoke`; a JSON line with `"ok":true` is the ready signal.
 10. Open the admin URL and launch Masari on the emulator.
 
@@ -187,7 +187,7 @@ Passenger and merchant observers can read only their connected trip. The selecte
 - **Invalid login:** use the seeded credential exactly; no token is stored for a failed login.
 - **409 duplicate batch or acceptance:** refresh authoritative data; never repeat the mutation blindly. The existing batch/trip is retained.
 - **Invalid trip jump:** refresh the driver trip and use only the displayed next action.
-- **No compatible route:** reset the demo to restore the verified forward route; do not edit PostgreSQL manually.
+- **No compatible route:** reset the demo to restore the verified forward route; do not edit MySQL manually.
 - **Emulator app closes:** relaunch it. JWT and `masari_locale` restore; active polling restarts once when its screen is reopened.
 - **Vite chooses another port:** use the printed 5174/5175 URL; those origins are already in CORS.
 - **Any uncertain state:** run the protected reset, then `npm run demo:smoke`, and restart the eight-minute script.
@@ -206,7 +206,7 @@ Passenger and merchant observers can read only their connected trip. The selecte
 2. Confirm `npm run demo:smoke` if the environment will be handed to another presenter; it ends with a clean reset after its recovery check.
 3. Log out of mobile roles and close the app.
 4. Stop the Vite and API terminals with Ctrl+C.
-5. Stop the emulator normally, then PostgreSQL if it is not shared.
+5. Stop the emulator normally, then MySQL if it is not shared.
 6. Clear local terminal environment variables if the machine is shared:
 
 ```powershell

@@ -35,11 +35,11 @@ Use this only when a live surface cannot recover quickly. Keep the same eight-mi
 3. Relaunch Masari; if session state is stale, clear app data and use a demo preset.
 4. Use the screenshot walkthrough while the emulator boots.
 
-### PostgreSQL failure
+### MySQL failure
 
-1. Start the existing `postgresql-x64-18` Windows service; do not create a new database or edit records manually.
+1. Start the existing `MySQL80` Windows service; do not create a new database or edit records manually.
 2. Run `npm run demo:preflight`.
-3. When 10/10 passes, run `npm run demo:smoke`, then the protected reset.
+3. When every check passes, run `npm run db:migrate:status`, `npm run demo:smoke`, then the protected reset.
 
 ### Port conflict
 
@@ -50,8 +50,8 @@ Use this only when a live surface cannot recover quickly. Keep the same eight-mi
 ### Failed reset
 
 1. Confirm `DEMO_RESET_KEY` exists only in the safe local environment or use the authenticated admin reset.
-2. Confirm API/PostgreSQL health and retry once.
-3. Run `npm run demo:smoke`; do not edit PostgreSQL manually.
+2. Confirm API/MySQL health and retry once.
+3. Run `npm run demo:smoke`; do not edit MySQL manually.
 
 ### Stale application session
 
