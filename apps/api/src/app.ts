@@ -1,4 +1,5 @@
 import express from "express";
+import type { Logger } from "pino";
 import { authRouter } from "./modules/auth.js";
 import { demoRouter } from "./modules/demoReset.js";
 import { passengerRouter } from "./modules/passenger.js";
@@ -9,19 +10,41 @@ import { matchingRouter } from "./modules/matching.js";
 import { batchingRouter } from "./modules/batching.js";
 import { comparisonRouter } from "./modules/comparison.js";
 import { trackingSimulationRouter, tripsRouter } from "./modules/trips.js";
-import { localDevCors } from "./middleware/cors.js";
-import { errorHandler } from "./middleware/error.js";
+import { createCors } from "./middleware/cors.js";
+import { errorHandler, notFoundHandler } from "./middleware/error.js";
 import { config, type AppConfig } from "./config.js";
+import { requestIdMiddleware } from "./middleware/requestId.js";
+import { createOperationalLogger } from "./lib/logger.js";
+import { operationalLogMiddleware } from "./middleware/operationalLog.js";
+import { securityHeaders } from "./middleware/securityHeaders.js";
+import { createGlobalRateLimiter, createLoginRateLimiter } from "./middleware/rateLimit.js";
+import { createHealthRouter } from "./modules/health.js";
+import type { ReadinessCheck } from "./lib/readiness.js";
 
-export function createApp(appConfig: AppConfig = config) {
+export const HTTP_JSON_LIMIT = "64kb";
+export const HTTP_FORM_LIMIT = "16kb";
+
+type AppDependencies = {
+  logger?: Logger;
+  readinessCheck?: ReadinessCheck;
+};
+
+export function createApp(appConfig: AppConfig = config, dependencies: AppDependencies = {}) {
   const app = express();
+  const logger = dependencies.logger ?? createOperationalLogger(appConfig);
 
-  app.use(localDevCors);
-  app.use(express.json());
+  app.disable("x-powered-by");
+  app.set("trust proxy", appConfig.trustProxy);
+  app.use(requestIdMiddleware);
+  app.use(operationalLogMiddleware(logger));
+  app.use(securityHeaders(appConfig));
+  app.use(createCors(appConfig));
+  app.use(express.json({ limit: HTTP_JSON_LIMIT }));
+  app.use(express.urlencoded({ extended: false, limit: HTTP_FORM_LIMIT }));
 
-  app.get("/api/v1/health", (_req, res) => {
-    res.json({ ok: true, service: "masari-api" });
-  });
+  app.use("/api/v1", createHealthRouter(appConfig, dependencies.readinessCheck));
+  app.use("/api/v1", createGlobalRateLimiter(appConfig));
+  app.use("/api/v1/auth/login", createLoginRateLimiter(appConfig));
 
   app.use("/api/v1", authRouter);
   if (appConfig.demoFeaturesEnabled) app.use("/api/v1", demoRouter);
@@ -37,6 +60,7 @@ export function createApp(appConfig: AppConfig = config) {
   }
   app.use("/api/v1", adminRouter);
 
+  app.use(notFoundHandler);
   app.use(errorHandler);
 
   return app;

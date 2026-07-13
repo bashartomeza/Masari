@@ -10,7 +10,9 @@ const base = {
   DATABASE_URL: "mysql://test:test@localhost:3306/masari_test",
   JWT_SECRET: "route-isolation-test-secret-with-thirty-two-characters",
   CORS_ORIGINS: "https://admin.masari.example",
-  APP_RELEASE: "route-test"
+  APP_RELEASE: "route-test",
+  TRUST_PROXY: "none",
+  LOG_LEVEL: "silent"
 };
 
 function productionLike(appEnv: "staging" | "production") {

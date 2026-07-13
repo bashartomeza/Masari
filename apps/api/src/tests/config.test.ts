@@ -10,6 +10,7 @@ function environment(overrides: Record<string, string | undefined> = {}) {
     JWT_SECRET: safeJwt,
     CORS_ORIGINS: "https://admin.masari.example",
     APP_RELEASE: "m6b1a-test",
+    TRUST_PROXY: "none",
     ...overrides
   };
 }
@@ -42,6 +43,22 @@ describe("fail-closed application configuration", () => {
     expect(() => createConfig(environment({ APP_ENV: "staging", ENABLE_DEMO_FEATURES: "true" }))).toThrow(
       /cannot be enabled/
     );
+  });
+
+  it("requires an explicit safe trust-proxy topology in production-like environments", () => {
+    expect(() => createConfig(environment({ TRUST_PROXY: undefined }))).toThrow(/TRUST_PROXY must be explicit/);
+    expect(() => createConfig(environment({ TRUST_PROXY: "true" }))).toThrow(/trusted proxy hop count/);
+    expect(createConfig(environment({ TRUST_PROXY: "none" })).trustProxy).toBe(false);
+    expect(createConfig(environment({ TRUST_PROXY: "1" })).trustProxy).toBe(1);
+  });
+
+  it("rejects operational settings that would make production unsafe", () => {
+    expect(() => createConfig(environment({ RATE_LIMIT_GLOBAL_MAX: "1" }))).toThrow(/too low/);
+    expect(() => createConfig(environment({ RATE_LIMIT_LOGIN_MAX: "1" }))).toThrow(/too low/);
+    expect(() => createConfig(environment({ RATE_LIMIT_GLOBAL_MAX: "1001" }))).toThrow(/too high/);
+    expect(() => createConfig(environment({ RATE_LIMIT_LOGIN_MAX: "51" }))).toThrow(/too high/);
+    expect(() => createConfig(environment({ RATE_LIMIT_LOGIN_WINDOW_MS: "1000" }))).toThrow(/at least 60000ms/);
+    expect(() => createConfig(environment({ READINESS_TIMEOUT_MS: "10" }))).toThrow(/too low/);
   });
 
   it("never includes submitted secret values in validation errors", () => {

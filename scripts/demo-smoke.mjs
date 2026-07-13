@@ -67,6 +67,7 @@ async function reset() {
 async function primaryStory() {
   const health = await request("/health");
   assert(health.ok === true, "API health response is not ready");
+  assert(typeof health.request_id === "string", "API health response has no request ID");
 
   await request("/demo/reset", { method: "POST", body: {}, expected: 403 });
   await request("/auth/login", {

@@ -18,7 +18,14 @@ const rawSchema = z.object({
   DEMO_DRIVER_PASSWORD: z.string().min(12).optional(),
   DEMO_MERCHANT_PASSWORD: z.string().min(12).optional(),
   DEMO_ADMIN_PASSWORD: z.string().min(12).optional(),
-  PORT: z.coerce.number().int().positive().default(3000)
+  PORT: z.coerce.number().int().positive().default(3000),
+  LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).optional(),
+  TRUST_PROXY: z.string().optional(),
+  READINESS_TIMEOUT_MS: z.coerce.number().int().min(10).max(10_000).default(2_000),
+  RATE_LIMIT_GLOBAL_WINDOW_MS: z.coerce.number().int().min(1_000).max(3_600_000).default(900_000),
+  RATE_LIMIT_GLOBAL_MAX: z.coerce.number().int().min(1).max(10_000).optional(),
+  RATE_LIMIT_LOGIN_WINDOW_MS: z.coerce.number().int().min(1_000).max(3_600_000).default(900_000),
+  RATE_LIMIT_LOGIN_MAX: z.coerce.number().int().min(1).max(500).optional()
 });
 
 export type AppConfig = ReturnType<typeof createConfig>;
@@ -45,6 +52,17 @@ function safeParseEnvironment(environment: NodeJS.ProcessEnv | Record<string, st
   throw new ConfigurationError(fields.map((field) => `${field} is missing or invalid`));
 }
 
+function parseTrustProxy(value: string | undefined, productionLike: boolean, problems: string[]) {
+  if (value === undefined || value === "") {
+    if (productionLike) problems.push("TRUST_PROXY must be explicit in staging and production");
+    return false as const;
+  }
+  if (value === "none" || value === "0") return false as const;
+  if (/^[1-5]$/.test(value)) return Number(value);
+  problems.push("TRUST_PROXY must be none, 0, or a trusted proxy hop count from 1 through 5");
+  return false as const;
+}
+
 export function createConfig(environment: NodeJS.ProcessEnv | Record<string, string | undefined>) {
   const raw = safeParseEnvironment(environment);
   const isLocal = raw.APP_ENV === "local";
@@ -52,11 +70,12 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
   const isDemo = raw.APP_ENV === "demo";
   const isStaging = raw.APP_ENV === "staging";
   const isProduction = raw.APP_ENV === "production";
+  const productionLike = isStaging || isProduction;
   const explicitlyEnabled = parseBoolean("ENABLE_DEMO_FEATURES", raw.ENABLE_DEMO_FEATURES);
   const demoFeaturesEnabled = isDemo || isTest || (isLocal && explicitlyEnabled);
   const problems: string[] = [];
 
-  if ((isStaging || isProduction) && explicitlyEnabled) {
+  if (productionLike && explicitlyEnabled) {
     problems.push("ENABLE_DEMO_FEATURES cannot be enabled in staging or production");
   }
 
@@ -69,13 +88,13 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
     .map((origin) => origin.trim())
     .filter(Boolean);
 
-  if ((isStaging || isProduction) && corsOrigins.length === 0) {
+  if (productionLike && corsOrigins.length === 0) {
     problems.push("CORS_ORIGINS is required in staging and production");
   }
-  if ((isStaging || isProduction) && !raw.APP_RELEASE) {
+  if (productionLike && !raw.APP_RELEASE) {
     problems.push("APP_RELEASE is required in staging and production");
   }
-  if ((isStaging || isProduction) && corsOrigins.includes("*")) {
+  if (productionLike && corsOrigins.includes("*")) {
     problems.push("CORS_ORIGINS cannot contain a wildcard in staging or production");
   }
   if (
@@ -105,6 +124,28 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
     }
   }
 
+  const trustProxy = parseTrustProxy(raw.TRUST_PROXY, productionLike, problems);
+  const globalRateLimitMax = raw.RATE_LIMIT_GLOBAL_MAX ?? (productionLike ? 300 : 5_000);
+  const loginRateLimitMax = raw.RATE_LIMIT_LOGIN_MAX ?? (productionLike ? 10 : 500);
+  if (productionLike && globalRateLimitMax < 50) {
+    problems.push("RATE_LIMIT_GLOBAL_MAX is too low for staging or production");
+  }
+  if (productionLike && globalRateLimitMax > 1_000) {
+    problems.push("RATE_LIMIT_GLOBAL_MAX is too high for staging or production");
+  }
+  if (productionLike && loginRateLimitMax < 3) {
+    problems.push("RATE_LIMIT_LOGIN_MAX is too low for staging or production");
+  }
+  if (productionLike && loginRateLimitMax > 50) {
+    problems.push("RATE_LIMIT_LOGIN_MAX is too high for staging or production");
+  }
+  if (productionLike && (raw.RATE_LIMIT_GLOBAL_WINDOW_MS < 60_000 || raw.RATE_LIMIT_LOGIN_WINDOW_MS < 60_000)) {
+    problems.push("rate-limit windows must be at least 60000ms in staging or production");
+  }
+  if (productionLike && raw.READINESS_TIMEOUT_MS < 100) {
+    problems.push("READINESS_TIMEOUT_MS is too low for staging or production");
+  }
+
   if (problems.length > 0) throw new ConfigurationError(problems);
 
   return {
@@ -112,7 +153,7 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
     databaseUrl: raw.DATABASE_URL,
     jwtSecret: raw.JWT_SECRET,
     corsOrigins,
-    appRelease: raw.APP_RELEASE,
+    appRelease: raw.APP_RELEASE ?? "unreleased",
     port: raw.PORT,
     isLocal,
     isTest,
@@ -120,6 +161,13 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
     isStaging,
     isProduction,
     demoFeaturesEnabled,
+    logLevel: raw.LOG_LEVEL ?? (isTest ? "silent" : "info"),
+    trustProxy,
+    readinessTimeoutMs: raw.READINESS_TIMEOUT_MS,
+    rateLimits: {
+      global: { windowMs: raw.RATE_LIMIT_GLOBAL_WINDOW_MS, max: globalRateLimitMax },
+      login: { windowMs: raw.RATE_LIMIT_LOGIN_WINDOW_MS, max: loginRateLimitMax }
+    },
     demo: demoFeaturesEnabled
       ? {
           resetKey: demoValues.resetKey!,

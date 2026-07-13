@@ -81,7 +81,11 @@ if (process.env.DATABASE_URL) {
 
 await checkHttp("API health", `${apiBaseUrl}/api/v1/health`, async (response) => {
   const body = await response.json().catch(() => null);
-  return body?.ok === true && body?.service === "masari-api" ? undefined : "is not the Masari API";
+  return body?.ok === true && body?.service === "masari-api" && body?.request_id ? undefined : "is not the Masari API";
+});
+await checkHttp("API readiness", `${apiBaseUrl}/api/v1/health/ready`, async (response) => {
+  const body = await response.json().catch(() => null);
+  return body?.ok === true && body?.status === "ready" && body?.request_id ? undefined : "is not database-ready";
 });
 await checkHttp("admin console", adminUrl, async (response) => {
   const body = await response.text();

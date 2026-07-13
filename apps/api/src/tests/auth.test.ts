@@ -43,10 +43,26 @@ describe("auth", () => {
   it("rejects invalid login credentials", async () => {
     prismaMock.user.findUnique.mockResolvedValue(null);
 
-    await request(createApp())
+    const missingUser = await request(createApp())
       .post("/api/v1/auth/login")
       .send({ phone: "+970590000001", password: "bad" })
       .expect(401);
+
+    prismaMock.user.findUnique.mockResolvedValue({
+      id: "user_1",
+      name: "Demo Passenger",
+      phone: "+970590000001",
+      password_hash: await bcrypt.hash("different-password", 4),
+      role: "passenger",
+      demo_account: true
+    });
+    const wrongPassword = await request(createApp())
+      .post("/api/v1/auth/login")
+      .send({ phone: "+970590000001", password: "bad" })
+      .expect(401);
+
+    expect(missingUser.body.error).toBe("invalid_credentials");
+    expect(wrongPassword.body.error).toBe("invalid_credentials");
   });
 
   it("allows local admin console CORS preflight", async () => {
