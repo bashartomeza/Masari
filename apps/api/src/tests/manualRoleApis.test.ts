@@ -14,8 +14,6 @@ const prismaMock = vi.hoisted(() => ({
 
 vi.mock("../lib/prisma.js", () => ({ prisma: prismaMock }));
 
-process.env.JWT_SECRET = "test-jwt-secret-with-length";
-
 const { createApp } = await import("../app.js");
 
 type Role = "passenger" | "driver" | "merchant" | "admin";
@@ -31,7 +29,9 @@ const users: Record<string, { id: string; role: Role; name: string; phone: strin
 };
 
 function token(id: keyof typeof users) {
-  return jwt.sign({ id, role: users[id].role }, process.env.JWT_SECRET!, { expiresIn: "1h" });
+  return jwt.sign({ id, role: users[id].role }, "test-only-jwt-secret-with-at-least-thirty-two-characters", {
+    expiresIn: "1h"
+  });
 }
 
 function auth(id: keyof typeof users) {
@@ -232,14 +232,30 @@ describe("manual role APIs", () => {
   });
 
   it("admin endpoints return records", async () => {
-    prismaMock.driverProfile.findMany.mockResolvedValue([{ id: "profile_1" }]);
-    prismaMock.passengerRequest.findMany.mockResolvedValue([{ id: "req_1" }]);
-    prismaMock.merchantOrder.findMany.mockResolvedValue([{ id: "order_1" }]);
-    prismaMock.driverRoute.findMany.mockResolvedValue([{ id: "route_1" }]);
+    const unsafeUser = {
+      ...users.driver_1,
+      created_at: new Date("2026-07-13T08:00:00.000Z"),
+      password_hash: "must-never-leak"
+    };
+    prismaMock.driverProfile.findMany.mockResolvedValue([{ id: "profile_1", user: unsafeUser, routes: [] }]);
+    prismaMock.passengerRequest.findMany.mockResolvedValue([{ id: "req_1", passenger: unsafeUser }]);
+    prismaMock.merchantOrder.findMany.mockResolvedValue([{ id: "order_1", merchant: unsafeUser, parcels: [] }]);
+    prismaMock.driverRoute.findMany.mockResolvedValue([{ id: "route_1", driver: { id: "profile_1", user: unsafeUser } }]);
 
-    await request(createApp()).get("/api/v1/admin/drivers").set(auth("admin_1")).expect(200);
-    await request(createApp()).get("/api/v1/admin/requests").set(auth("admin_1")).expect(200);
-    await request(createApp()).get("/api/v1/admin/orders").set(auth("admin_1")).expect(200);
-    await request(createApp()).get("/api/v1/admin/routes").set(auth("admin_1")).expect(200);
+    const responses = await Promise.all([
+      request(createApp()).get("/api/v1/admin/drivers").set(auth("admin_1")).expect(200),
+      request(createApp()).get("/api/v1/admin/requests").set(auth("admin_1")).expect(200),
+      request(createApp()).get("/api/v1/admin/orders").set(auth("admin_1")).expect(200),
+      request(createApp()).get("/api/v1/admin/routes").set(auth("admin_1")).expect(200)
+    ]);
+
+    for (const response of responses) {
+      expect(JSON.stringify(response.body)).not.toContain("password_hash");
+      expect(JSON.stringify(response.body)).not.toContain("must-never-leak");
+      expect(JSON.stringify(response.body)).toContain("Driver 1");
+    }
+    expect(prismaMock.driverProfile.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ include: expect.objectContaining({ user: expect.objectContaining({ select: expect.any(Object) }) }) })
+    );
   });
 });
