@@ -49,7 +49,7 @@ class PassengerDashboardController
   }
 }
 
-final passengerRequestDetailProvider =
-    FutureProvider.family<PassengerRequest, String>((ref, id) {
+final passengerRequestDetailProvider = FutureProvider.autoDispose
+    .family<PassengerRequest, String>((ref, id) {
       return ref.watch(passengerRepositoryProvider).requestDetail(id);
     });

@@ -113,7 +113,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get logout => 'تسجيل الخروج';
 
   @override
-  String get sessionExpired => 'انتهت الجلسة. يرجى تسجيل الدخول مرة أخرى.';
+  String get sessionExpired => 'انتهت جلستك، يرجى تسجيل الدخول مرة أخرى';
 
   @override
   String get invalidCredentials => 'رقم الهاتف أو كلمة المرور غير صحيحة.';
@@ -633,4 +633,86 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get deliveryProgress => 'تقدم التوصيل';
+
+  @override
+  String get securityAndSessions => 'الأمان والجلسات';
+
+  @override
+  String get activeSessions => 'الجلسات النشطة';
+
+  @override
+  String get currentDevice => 'الجهاز الحالي';
+
+  @override
+  String get otherDevice => 'جهاز آخر';
+
+  @override
+  String get mobileSession => 'تطبيق الهاتف';
+
+  @override
+  String get adminSession => 'متصفح المسؤول';
+
+  @override
+  String get created => 'تاريخ الإنشاء';
+
+  @override
+  String get lastActive => 'آخر نشاط';
+
+  @override
+  String get expires => 'تنتهي في';
+
+  @override
+  String get revokeSession => 'إلغاء الجلسة';
+
+  @override
+  String get revokeThisDevice => 'إلغاء جلسة هذا الجهاز';
+
+  @override
+  String get logoutAllDevices => 'تسجيل الخروج من جميع الأجهزة';
+
+  @override
+  String get confirmLogout => 'تأكيد تسجيل الخروج';
+
+  @override
+  String get confirmLogoutMessage => 'هل تريد تسجيل الخروج من هذا الجهاز؟';
+
+  @override
+  String get confirmLogoutAll => 'تأكيد تسجيل الخروج من جميع الأجهزة';
+
+  @override
+  String get confirmLogoutAllMessage =>
+      'ستنتهي جميع الجلسات النشطة، وستحتاج إلى تسجيل الدخول مجدداً على كل جهاز.';
+
+  @override
+  String get confirmRevokeSession => 'هل تريد إلغاء هذه الجلسة؟';
+
+  @override
+  String get cancel => 'إلغاء';
+
+  @override
+  String get sessionRevoked => 'تم إلغاء الجلسة';
+
+  @override
+  String get sessionEnded => 'انتهت جلستك، يرجى تسجيل الدخول مرة أخرى';
+
+  @override
+  String get accountUnavailable =>
+      'هذا الحساب غير متاح. تواصل مع المسؤول إذا كنت بحاجة إلى مساعدة.';
+
+  @override
+  String get refreshingSession => 'جارٍ تحديث الجلسة...';
+
+  @override
+  String get unableToRefresh =>
+      'تعذر تحديث الجلسة. تحقق من الاتصال ثم أعد المحاولة.';
+
+  @override
+  String get localLogout => 'تسجيل الخروج من هذا الجهاز';
+
+  @override
+  String get noActiveSessions => 'لم يتم إرجاع جلسات نشطة.';
+
+  @override
+  String get sessionActionFailed =>
+      'تعذر إكمال إجراء الجلسة. يرجى إعادة المحاولة.';
 }

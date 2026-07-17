@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/api/api_client.dart';
-import '../../auth/data/token_storage.dart';
+import '../../auth/data/authenticated_api_client.dart';
 import '../../trips/data/trip_models.dart';
 import 'driver_models.dart';
 
@@ -10,31 +9,21 @@ const _compileTimeDemoFeatures = bool.fromEnvironment(
 );
 
 final driverRepositoryProvider = Provider<DriverRepository>((ref) {
-  return DriverRepository(
-    apiClient: ref.watch(apiClientProvider),
-    tokenStorage: ref.watch(tokenStorageProvider),
-  );
+  return DriverRepository(apiClient: ref.watch(authenticatedApiClientProvider));
 });
 
 class DriverRepository {
-  const DriverRepository({required this.apiClient, required this.tokenStorage});
+  const DriverRepository({required this.apiClient});
 
-  final ApiClient apiClient;
-  final TokenStorage tokenStorage;
+  final AuthenticatedApiClient apiClient;
 
   Future<List<DriverRoute>> listRoutes() async {
-    final json = await apiClient.getJson(
-      '/driver/routes',
-      token: await _token(),
-    );
+    final json = await apiClient.getJson('/driver/routes');
     return _routes(json);
   }
 
   Future<List<DriverRoute>> activeRoutes() async {
-    final json = await apiClient.getJson(
-      '/driver/routes/active',
-      token: await _token(),
-    );
+    final json = await apiClient.getJson('/driver/routes/active');
     return _routes(json);
   }
 
@@ -44,7 +33,6 @@ class DriverRepository {
   }) async {
     final json = await apiClient.postJson(
       '/driver/routes',
-      token: await _token(),
       body: {
         'origin_label': lockedDriverOriginLabel,
         'destination_label': lockedDriverDestinationLabel,
@@ -57,10 +45,7 @@ class DriverRepository {
   }
 
   Future<DriverRoute> deactivateRoute(String id) async {
-    final json = await apiClient.patchJson(
-      '/driver/routes/$id/deactivate',
-      token: await _token(),
-    );
+    final json = await apiClient.patchJson('/driver/routes/$id/deactivate');
     return DriverRoute.fromJson(json['route'] as Map<String, dynamic>);
   }
 
@@ -68,10 +53,7 @@ class DriverRepository {
     final suffix = status == null
         ? ''
         : '?status=${Uri.encodeQueryComponent(status)}';
-    final json = await apiClient.getJson(
-      '/matches$suffix',
-      token: await _token(),
-    );
+    final json = await apiClient.getJson('/matches$suffix');
     final matches = json['matches'];
     if (matches is! List) throw const FormatException('Missing matches');
     return matches
@@ -81,45 +63,36 @@ class DriverRepository {
   }
 
   Future<DriverMatch> matchDetail(String id) async {
-    final json = await apiClient.getJson('/matches/$id', token: await _token());
+    final json = await apiClient.getJson('/matches/$id');
     return DriverMatch.fromJson(json['match'] as Map<String, dynamic>);
   }
 
   Future<DriverTripReference> acceptMatch(String id) async {
     final json = await apiClient.postJson(
       '/matches/$id/accept',
-      token: await _token(),
       body: const {},
     );
     return DriverTripReference.fromJson(json['trip'] as Map<String, dynamic>);
   }
 
   Future<void> rejectMatch(String id) async {
-    await apiClient.postJson(
-      '/matches/$id/reject',
-      token: await _token(),
-      body: const {},
-    );
+    await apiClient.postJson('/matches/$id/reject', body: const {});
   }
 
   Future<List<DriverTrip>> listTrips() async {
-    final json = await apiClient.getJson('/trips', token: await _token());
+    final json = await apiClient.getJson('/trips');
     final trips = json['trips'];
     if (trips is! List) throw const FormatException('Missing trips');
     return trips.cast<Map<String, dynamic>>().map(DriverTrip.fromJson).toList();
   }
 
   Future<DriverTrip> tripDetail(String id) async {
-    final json = await apiClient.getJson('/trips/$id', token: await _token());
+    final json = await apiClient.getJson('/trips/$id');
     return DriverTrip.fromJson(json['trip'] as Map<String, dynamic>);
   }
 
   Future<void> updateTripStatus(String id, String status) async {
-    await apiClient.postJson(
-      '/trips/$id/status',
-      token: await _token(),
-      body: {'status': status},
-    );
+    await apiClient.postJson('/trips/$id/status', body: {'status': status});
   }
 
   Future<TripLocation> simulateStep(String id) async {
@@ -128,7 +101,6 @@ class DriverRepository {
     }
     final json = await apiClient.postJson(
       '/trips/$id/simulate/step',
-      token: await _token(),
       body: const {},
     );
     return TripLocation.fromJson(json['location'] as Map<String, dynamic>);
@@ -138,25 +110,16 @@ class DriverRepository {
     if (!_compileTimeDemoFeatures) {
       throw UnsupportedError('Demo simulation is not available in this build');
     }
-    await apiClient.postJson(
-      '/trips/$id/simulate/reset',
-      token: await _token(),
-      body: const {},
-    );
+    await apiClient.postJson('/trips/$id/simulate/reset', body: const {});
   }
 
   Future<TripLocation?> latestLocation(String id) async {
-    final json = await apiClient.getJson(
-      '/trips/$id/location',
-      token: await _token(),
-    );
+    final json = await apiClient.getJson('/trips/$id/location');
     final location = json['location'];
     return location is Map<String, dynamic>
         ? TripLocation.fromJson(location)
         : null;
   }
-
-  Future<String> _token() async => await tokenStorage.readToken() ?? '';
 
   List<DriverRoute> _routes(Map<String, dynamic> json) {
     final routes = json['routes'];

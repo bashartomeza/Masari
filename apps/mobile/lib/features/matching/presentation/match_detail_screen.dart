@@ -7,7 +7,7 @@ import '../../../core/widgets/language_switch.dart';
 import '../../../core/widgets/masari_card.dart';
 import '../data/matching_repository.dart';
 
-final matchDetailProvider = FutureProvider.family((ref, String id) {
+final matchDetailProvider = FutureProvider.autoDispose.family((ref, String id) {
   return ref.watch(matchingRepositoryProvider).detail(id);
 });
 

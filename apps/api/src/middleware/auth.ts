@@ -27,7 +27,10 @@ export function verifyAuthToken(token: string): AuthUser {
   let payload: string | jwt.JwtPayload;
   try {
     payload = jwt.verify(token, config.jwtSecret, { algorithms: ["HS256"] });
-  } catch {
+  } catch (error) {
+    if (error instanceof jwt.TokenExpiredError) {
+      throw new HttpError(401, "access_token_expired");
+    }
     throw new HttpError(401, "invalid_token");
   }
 

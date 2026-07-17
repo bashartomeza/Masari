@@ -1,46 +1,31 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/api/api_client.dart';
-import '../../auth/data/token_storage.dart';
+import '../../auth/data/authenticated_api_client.dart';
 import 'passenger_models.dart';
 
 final passengerRepositoryProvider = Provider<PassengerRepository>((ref) {
   return PassengerRepository(
-    apiClient: ref.watch(apiClientProvider),
-    tokenStorage: ref.watch(tokenStorageProvider),
+    apiClient: ref.watch(authenticatedApiClientProvider),
   );
 });
 
 class PassengerRepository {
-  const PassengerRepository({
-    required this.apiClient,
-    required this.tokenStorage,
-  });
+  const PassengerRepository({required this.apiClient});
 
-  final ApiClient apiClient;
-  final TokenStorage tokenStorage;
+  final AuthenticatedApiClient apiClient;
 
   Future<List<PassengerRequest>> listRequests() async {
-    final json = await apiClient.getJson(
-      '/passenger/requests',
-      token: await _token(),
-    );
+    final json = await apiClient.getJson('/passenger/requests');
     return _requests(json);
   }
 
   Future<List<PassengerRequest>> activeRequests() async {
-    final json = await apiClient.getJson(
-      '/passenger/requests/active',
-      token: await _token(),
-    );
+    final json = await apiClient.getJson('/passenger/requests/active');
     return _requests(json);
   }
 
   Future<PassengerRequest> requestDetail(String id) async {
-    final json = await apiClient.getJson(
-      '/passenger/requests/$id',
-      token: await _token(),
-    );
+    final json = await apiClient.getJson('/passenger/requests/$id');
     return PassengerRequest.fromJson(json['request'] as Map<String, dynamic>);
   }
 
@@ -51,7 +36,6 @@ class PassengerRepository {
   }) async {
     final json = await apiClient.postJson(
       '/passenger/requests',
-      token: await _token(),
       body: {
         'pickup_label': pickup.label,
         'pickup_lat': pickup.lat,
@@ -67,14 +51,9 @@ class PassengerRepository {
   }
 
   Future<PassengerRequest> cancelRequest(String id) async {
-    final json = await apiClient.patchJson(
-      '/passenger/requests/$id/cancel',
-      token: await _token(),
-    );
+    final json = await apiClient.patchJson('/passenger/requests/$id/cancel');
     return PassengerRequest.fromJson(json['request'] as Map<String, dynamic>);
   }
-
-  Future<String> _token() async => await tokenStorage.readToken() ?? '';
 
   List<PassengerRequest> _requests(Map<String, dynamic> json) {
     final list = json['requests'];
