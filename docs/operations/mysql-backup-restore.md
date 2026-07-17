@@ -24,6 +24,14 @@ The command validates the checksum, refuses unsafe/non-empty destinations, creat
 
 The second `--` shown above preserves named arguments with npm 10 on Windows. Calling `node scripts/mysql-restore-verify.mjs --dump ...` directly is equivalent.
 
+To rehearse a forward migration against an older valid backup, add `--migrate`. The script restores first, runs the repository's approved `db:migrate` command only inside the isolated destination, and then requires current migration status:
+
+```powershell
+npm run mysql:restore:verify -- -- --dump backups/mysql/<older-file>.sql --database masari_restore_upgrade_yyyymmdd --confirm-isolated --migrate --cleanup
+```
+
+Never use `--migrate` against the configured source database; the restore tool rejects that destination.
+
 Linux/macOS use the same Node commands when `mysql` and `mysqldump` are on `PATH`.
 
 ## Provisional controlled-beta targets

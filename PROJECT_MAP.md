@@ -2049,3 +2049,39 @@ M6B2A private remote and real CI execution (2026-07-17):
 - Exact successful check contexts are `admin`, `backend-mysql`, `mobile`, and `security`.
 - Branch protection was not activated. Read-only branch-protection and ruleset queries returned HTTP 403 because the current GitHub plan does not support protection for this private repository. After a plan upgrade, the recommended single-owner policy is strict required checks for all four contexts, blocked force pushes/deletions, no mandatory second-person approval, and administrator bypass retained for emergency owner recovery.
 - M6C identity/session development has not started. The remaining M6B2A delivery decision is whether to upgrade the GitHub plan and approve the verified protection policy.
+
+[M6C1A_TRUSTED_ACCOUNT_AND_SESSION_FOUNDATION]
+Scope and compatibility:
+- Every user now has `account_status` (`active`, `pending`, `suspended`, or `disabled`), `security_version`, optional operational status reason, status timestamp, and optional last-login timestamp. Existing/demo users default safely to active at security version 1.
+- Successful logins create server-managed `AuthSession` rows. The existing `token` response field remains the access JWT; `access_token`, expiry, safe session, and eligible refresh fields are additive, so current admin and Flutter parsers remain compatible.
+- Passenger, driver, and merchant logins receive rotating refresh tokens. Admin browser login creates a revocable short-lived session but receives no refresh token. Client refresh consumption remains M6C1B.
+- No registration, OTP, password recovery, approval flow, product screen, map/GPS/realtime, notification, price, or payment capability was added.
+
+Token and enforcement policy:
+- Access JWT claims are limited to subject, role, session ID, security version, and standard issued/expiry timestamps. Staging/production default to 900 seconds and enforce a 300–1800 second boundary.
+- Refresh tokens contain a lookup identifier plus 256 random bits. Only an HMAC-SHA-256 digest is stored; staging/production require a non-placeholder `REFRESH_TOKEN_PEPPER`. Refresh lifetime defaults to 30 days and is capped at 90 days in production-like environments.
+- Every protected request validates signature/expiry and loads the MySQL session/user. Missing, expired, revoked, cross-user, inactive-account, role-mismatched, or security-version-mismatched state fails immediately.
+- Refresh consumption uses a conditional one-time update inside a MySQL transaction. Valid used-token replay revokes the affected session and its remaining refresh tokens and writes a safe audit event.
+
+API and administration:
+- `POST /api/v1/auth/refresh` rotates eligible mobile refresh credentials.
+- `GET /api/v1/auth/sessions` returns only the current user's allowlisted session summaries.
+- `DELETE /api/v1/auth/sessions/:id`, `POST /api/v1/auth/logout`, and `POST /api/v1/auth/logout-all` provide owned-session, current-session, and all-session revocation. Logout-all atomically increments `security_version`.
+- `PATCH /api/v1/admin/users/:id/status` allows an admin to activate, suspend, or disable an account. Inactive transitions require a normalized reason, revoke all sessions, bump security version, and are audited. Current-admin self-suspension and last-active-admin removal are prevented.
+- Added safe audit actions for session creation/refresh/revocation, logout-all, refresh reuse, account-status change, and blocked inactive login. Operational redaction covers raw access/refresh tokens, hashes, and the refresh pepper.
+
+Schema, migration, reset, and recovery:
+- New forward-only MySQL migration `20260717094000_trusted_sessions` adds the user trust fields, audit actions, `auth_sessions`, and `refresh_tokens`. Earlier migrations and both frozen release tags remain unchanged.
+- Session/token indexes cover user active-state lookup, expiry, replay state, and token lookup. Foreign keys explicitly cascade user/session deletion and set replacement links null. Tables use `utf8mb4`.
+- Demo reset deletes refresh tokens before sessions, recreates all seeded users as active/version 1, and leaves no session/token orphans.
+- A verified ignored backup was created before migration. The pre-migration backup restored into an isolated database and upgraded successfully with `--migrate`; a post-migration backup also restored at current migration status. Both isolated databases were cleaned up.
+
+Local validation (2026-07-17):
+- Migration deployed from empty on disposable `masari_m6c1a_ci`, a second deploy was idempotent, and status was current. The disposable run verified both tables, all seven required indexes, all three foreign keys/delete rules, `utf8mb4`, five active/version-1 demo users, and zero session/token rows after cleanup reset.
+- Real MySQL rotation, replacement use, used-token replay, session revocation, repeated logout, logout-all, admin suspension, immediate rejection, reactivation/fresh login, and cleanup passed. Two concurrent refreshes produced exactly one success; replay defense revoked the affected session.
+- Deterministic regression remained score `0.9317`, tracking sequence `2`, trips `1` versus `6`, distance `21.53` versus `129.19`, cost `43.06` versus `258.38`, and winner `masari`.
+- Focused architecture and operations documentation: `docs/security/account-and-session-model.md`, `docs/security/refresh-token-rotation.md`, `docs/operations/session-revocation.md`, and `docs/decisions/ADR-004-server-managed-sessions.md`.
+
+Remaining after M6C1A:
+- M6C1B must add Flutter refresh-token secure persistence, single-flight refresh/retry, expiry handling, and logout cleanup. A later secure browser-session milestone must address admin expiry UX; admin refresh tokens remain intentionally excluded.
+- Expired-session cleanup scheduling, registration/OTP/public onboarding, distributed authentication caching, notifications, and incident automation are not implemented.
