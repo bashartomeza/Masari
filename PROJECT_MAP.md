@@ -2131,3 +2131,36 @@ Post-merge migration and validation:
 Merge-commit CI:
 - All required workflows passed on merge commit `c84ab84b9e3bd360e60edbf1a6b1c292e84b2f5b`: Admin CI run `29576328593`, Backend and MySQL CI run `29576328601`, Flutter Android CI run `29576328515`, and Security and Configuration CI run `29576328563`. Exact successful contexts were `admin`, `backend-mysql`, `mobile`, and `security`.
 - M6C1A is merged and post-merge verified. M6C1B mobile refresh-token consumption remains the next milestone and has not started.
+
+[M6C1B_CLIENT_REFRESH_AND_SESSION_CONTROLS]
+Scope and compatibility (2026-07-17):
+- Flutter passenger, driver, and merchant flows now consume the M6C1A rotating-refresh contract through one authenticated-client boundary. Existing backend product contracts, matching/batching behavior, role authorization, Flutter screens, and admin business UI remain intact.
+- The mobile app persists a versioned `masari_auth_bundle_v1` secure-storage document containing the access token, optional refresh token, API-derived UTC expiries, optional session ID, and legacy-access marker. The client does not decode JWT claims. A valid former `masari_jwt` is migrated safely; corrupt/unsupported bundles fail closed; logout clears auth keys while preserving locale.
+- Admin remains access-token only and receives no browser refresh implementation. No Prisma schema, migration, dependency, release tag, or frozen-release change was made.
+
+Refresh, retry, and termination policy:
+- A canonical `AuthSessionCoordinator` performs proactive refresh below a 60-second access-expiry threshold. Every protected mobile repository uses `AuthenticatedApiClient`; the raw API client is reserved for the refresh call to prevent recursion.
+- Concurrent callers share exactly one in-flight refresh. The full rotated bundle is persisted before memory replacement. Only exact `401 access_token_expired` receives one refresh and one request retry; `403` and unrelated errors never refresh or retry.
+- Network, timeout, and server refresh failures preserve the bundle and authenticated route for an explicit retry. Invalid/revoked/expired/replayed/account-unavailable state and malformed refresh responses clear credentials, invalidate role/trip/session providers, stop polling, and route to login with a localized reason.
+- Routing projects refreshing and retryable states to the prior authenticated role. This preserves the active `/security/sessions` route and other role screens while refresh is pending.
+
+Session and admin UX:
+- A shared Arabic-first RTL / English LTR `/security/sessions` screen is available to passenger, driver, and merchant only. It lists allowlisted session summaries and supports revoke-other, revoke-current, logout, and logout-all with localized confirmations. Internal session IDs, token data, phone numbers, and security internals are not displayed.
+- Revoking the current session ends local auth; revoking another keeps the current session; logout-all clears locally after server success and preserves state on failure; explicit local logout remains possible during an outage.
+- Admin terminal access-token 401s clear `masari_admin_token` from both `sessionStorage` and legacy `localStorage`, clear all in-memory/auth-derived state, return to login, and show one exact localized notice across concurrent failures. Normal login/forbidden/network errors do not force logout, and no admin refresh request is made.
+
+Runtime and security evidence:
+- Real Android-emulator scenarios passed restore after restart, proactive refresh, one refresh for three concurrent merchant calls, other/current session revocation, logout-all, immediate suspension handling, terminal invalid-refresh handling, outage-preserving retry and recovery, Arabic default RTL, and English LTR. A route loss found during near-expiry runtime testing was fixed in focused commit `e00c2e9` and is covered by an authenticated-routing projection regression.
+- Real admin-browser expiry produced four concurrent terminal responses but one Arabic notice, cleared both browser stores, made zero refresh calls, and allowed a fresh login.
+- Production-like admin and release APK builds passed the repository artifact scanner. A separate value-aware local scan found no configured infrastructure secrets or generated runtime access/refresh tokens in production admin, production APK, demo APK, or captured logs; no values were printed.
+- Real MySQL session integration passed from an empty disposable database with idempotent migration deployment/status. Main database status remained current at three migrations. Demo preflight passed 22/22 and deterministic smoke remained score `0.9317`, sequence `2`, trips `1` versus `6`, distance `21.53` versus `129.19`, cost `43.06` versus `258.38`, and winner `masari`.
+
+Tests, validation, and delivery evidence:
+- API regression is 13 files / 134 tests, including the exact expired-access middleware code. Admin regression is 3 files / 15 tests. Flutter regression is 100 tests with clean localization generation, formatting, and analysis.
+- Workspace typecheck/test/build, Prisma validate/generate, standard validation, security validation, real MySQL session integration, admin production build, mobile production-like APK build, and artifact scans passed. Raw `npm audit --omit=dev` retains only the documented moderate Prisma CLI transitive findings whose proposed repair is a prohibited breaking force downgrade; no force fix was run.
+- Draft PR #2 targets `production-readiness` from `m6c1b/client-refresh-sessions` and remains unmerged. On implementation head `e00c2e9cf3134cae9067df7b0b3ffbcaab2d1aec`, Admin CI run `29581217388`, Backend and MySQL CI run `29581217465`, Flutter Android CI run `29581217302`, and Security and Configuration CI run `29581217392` all passed. Exact successful contexts are `admin`, `backend-mysql`, `mobile`, and `security`.
+- Focused documentation: `docs/mobile/token-refresh-and-retry.md`, `docs/mobile/session-management.md`, `docs/admin/access-token-expiry.md`, and `docs/decisions/ADR-005-client-refresh-coordination.md`.
+
+Remaining after M6C1B:
+- PR #2 requires team-leader review and approval before merge. This task does not merge it.
+- Registration/OTP/public onboarding, password recovery, cookie-based admin sessions or browser refresh, distributed rate/refresh coordination, expired-session cleanup scheduling, notifications, maps/live GPS/realtime, and incident automation remain outside this milestone.
