@@ -7,10 +7,17 @@ import 'package:masari_mobile/features/auth/data/token_storage.dart';
 import 'package:masari_mobile/features/auth/domain/auth_models.dart';
 
 class MemoryTokenStorage implements TokenStorage {
-  MemoryTokenStorage({this.storedBundle, this.legacyToken});
+  MemoryTokenStorage({
+    this.storedBundle,
+    this.legacyToken,
+    this.clearError,
+    this.saveError,
+  });
 
   AuthTokenBundle? storedBundle;
   String? legacyToken;
+  Object? clearError;
+  Object? saveError;
   int saveCount = 0;
   int clearCount = 0;
 
@@ -19,6 +26,8 @@ class MemoryTokenStorage implements TokenStorage {
   @override
   Future<void> clearAuth() async {
     clearCount += 1;
+    final error = clearError;
+    if (error != null) throw error;
     storedBundle = null;
     legacyToken = null;
   }
@@ -46,6 +55,8 @@ class MemoryTokenStorage implements TokenStorage {
   @override
   Future<void> saveBundle(AuthTokenBundle bundle) async {
     saveCount += 1;
+    final error = saveError;
+    if (error != null) throw error;
     storedBundle = bundle;
     legacyToken = null;
   }

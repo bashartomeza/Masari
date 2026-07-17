@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -68,7 +69,7 @@ void main() {
   });
 
   test(
-    'failed single-flight reaches all waiters and a later refresh can run',
+    'failed single-flight reaches all waiters and explicit retry can recover',
     () async {
       var refreshCalls = 0;
       var failRefresh = true;
@@ -109,9 +110,203 @@ void main() {
       expect(harness.storage.bundle?.refreshToken, 'old-refresh');
 
       failRefresh = false;
+      await harness.coordinator.retryRefresh();
       await harness.client.getJson('/dashboard');
       expect(refreshCalls, 2);
       expect(harness.storage.bundle?.refreshToken, 'later-refresh');
+    },
+  );
+
+  test(
+    'retryable failure suppresses polling refreshes until explicit retry',
+    () async {
+      var refreshCalls = 0;
+      var failRefresh = true;
+      final harness = TestAuthenticatedClient(
+        now: () => fixedNow,
+        bundle: _bundle(fixedNow, accessExpiresIn: const Duration(seconds: 20)),
+        handler: (request) async {
+          if (request.url.path.endsWith('/auth/refresh')) {
+            refreshCalls += 1;
+            if (failRefresh) throw http.ClientException('offline');
+            return http.Response(
+              _refreshResponse('recovered-access', 'recovered-refresh'),
+              200,
+            );
+          }
+          return http.Response('{"ok":true}', 200);
+        },
+      );
+
+      await expectLater(
+        harness.client.getJson('/dashboard'),
+        throwsA(isA<ApiException>()),
+      );
+      final pollingErrors = await Future.wait(
+        List.generate(5, (_) async {
+          try {
+            await harness.client.getJson('/poll');
+            return null;
+          } catch (error) {
+            return error;
+          }
+        }),
+      );
+
+      expect(refreshCalls, 1);
+      expect(pollingErrors, everyElement(isA<ApiException>()));
+
+      failRefresh = false;
+      await harness.coordinator.retryRefresh();
+      expect(refreshCalls, 2);
+      await expectLater(
+        harness.client.getJson('/poll'),
+        completion({'ok': true}),
+      );
+    },
+  );
+
+  test(
+    'staggered expired responses reuse one rotated same-session bundle',
+    () async {
+      var refreshCalls = 0;
+      var oldAccessCalls = 0;
+      var newAccessCalls = 0;
+      final releaseLateResponses = Completer<void>();
+      final harness = TestAuthenticatedClient(
+        now: () => fixedNow,
+        bundle: _bundle(fixedNow, accessExpiresIn: const Duration(minutes: 10)),
+        handler: (request) async {
+          if (request.url.path.endsWith('/auth/refresh')) {
+            refreshCalls += 1;
+            return http.Response(
+              _refreshResponse('new-access', 'new-refresh'),
+              200,
+            );
+          }
+          final authorization =
+              request.headers[HttpHeaders.authorizationHeader];
+          if (authorization == 'Bearer old-access') {
+            oldAccessCalls += 1;
+            if (oldAccessCalls > 1) await releaseLateResponses.future;
+            return http.Response('{"error":"access_token_expired"}', 401);
+          }
+          expect(authorization, 'Bearer new-access');
+          newAccessCalls += 1;
+          return http.Response('{"ok":true}', 200);
+        },
+      );
+
+      final requests = List.generate(
+        6,
+        (_) => harness.client.getJson('/dashboard'),
+      );
+      for (var attempt = 0; attempt < 200; attempt += 1) {
+        if (harness.storage.bundle?.accessToken == 'new-access') break;
+        await Future<void>.delayed(const Duration(milliseconds: 1));
+      }
+      expect(harness.storage.bundle?.accessToken, 'new-access');
+      releaseLateResponses.complete();
+
+      final results = await Future.wait(requests);
+      expect(results, everyElement({'ok': true}));
+      expect(oldAccessCalls, 6);
+      expect(newAccessCalls, 6);
+      expect(refreshCalls, 1);
+    },
+  );
+
+  test(
+    'stale terminal response cannot clear a newly installed session',
+    () async {
+      final requestStarted = Completer<void>();
+      final releaseResponse = Completer<void>();
+      final harness = TestAuthenticatedClient(
+        now: () => fixedNow,
+        bundle: _bundle(fixedNow, accessExpiresIn: const Duration(minutes: 10)),
+        handler: (_) async => http.Response('{"ok":true}', 200),
+      );
+      final pending = harness.coordinator.sendAuthenticated((_) async {
+        requestStarted.complete();
+        await releaseResponse.future;
+        throw const ApiException(
+          ApiErrorType.unauthorized,
+          'session_revoked',
+          statusCode: 401,
+        );
+      });
+      await requestStarted.future;
+      await harness.coordinator.installBundle(
+        AuthTokenBundle(
+          accessToken: 'new-login-access',
+          refreshToken: 'new-login-refresh',
+          accessTokenExpiresAt: fixedNow.add(const Duration(minutes: 10)),
+          refreshTokenExpiresAt: fixedNow.add(const Duration(days: 1)),
+          sessionId: 'session_2',
+        ),
+      );
+      releaseResponse.complete();
+
+      await expectLater(pending, throwsA(isA<ApiException>()));
+      expect(harness.coordinator.cachedBundle?.sessionId, 'session_2');
+      expect(harness.storage.bundle?.accessToken, 'new-login-access');
+    },
+  );
+
+  test('refresh completion after logout cannot restore credentials', () async {
+    final refreshStarted = Completer<void>();
+    final releaseRefresh = Completer<void>();
+    final harness = TestAuthenticatedClient(
+      now: () => fixedNow,
+      bundle: _bundle(fixedNow, accessExpiresIn: const Duration(seconds: 10)),
+      handler: (request) async {
+        if (request.url.path.endsWith('/auth/refresh')) {
+          refreshStarted.complete();
+          await releaseRefresh.future;
+          return http.Response(
+            _refreshResponse('late-access', 'late-refresh'),
+            200,
+          );
+        }
+        return http.Response('{"ok":true}', 200);
+      },
+    );
+
+    final pending = harness.client.getJson('/dashboard');
+    await refreshStarted.future;
+    await harness.coordinator.clearCredentials();
+    releaseRefresh.complete();
+
+    await expectLater(
+      pending,
+      throwsA(
+        isA<ApiException>().having(
+          (error) => error.message,
+          'code',
+          'auth_state_changed',
+        ),
+      ),
+    );
+    expect(harness.coordinator.cachedBundle, isNull);
+    expect(harness.storage.bundle, isNull);
+  });
+
+  test(
+    'storage deletion failure still clears in-memory authentication',
+    () async {
+      final harness = TestAuthenticatedClient(
+        now: () => fixedNow,
+        bundle: _bundle(fixedNow, accessExpiresIn: const Duration(minutes: 10)),
+        handler: (_) async => http.Response('{"ok":true}', 200),
+      );
+      await harness.coordinator.restoreBundle();
+      harness.storage.clearError = StateError('secure storage unavailable');
+
+      await harness.coordinator.clearCredentials();
+
+      expect(harness.coordinator.cachedBundle, isNull);
+      expect(harness.storage.bundle, isNotNull);
+      expect(harness.storage.clearCount, 1);
     },
   );
 

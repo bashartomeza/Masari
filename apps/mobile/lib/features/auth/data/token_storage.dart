@@ -66,8 +66,19 @@ class TokenStorage {
   }
 
   Future<void> clearAuth() async {
-    await _storage.delete(key: bundleKey);
-    await _storage.delete(key: tokenKey);
+    Object? firstError;
+    StackTrace? firstStackTrace;
+    for (final key in [bundleKey, tokenKey]) {
+      try {
+        await _storage.delete(key: key);
+      } catch (error, stackTrace) {
+        firstError ??= error;
+        firstStackTrace ??= stackTrace;
+      }
+    }
+    if (firstError != null) {
+      Error.throwWithStackTrace(firstError, firstStackTrace!);
+    }
   }
 
   Future<String?> readToken() async => (await readBundle())?.accessToken;

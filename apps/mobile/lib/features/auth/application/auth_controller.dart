@@ -108,7 +108,7 @@ class AuthController extends AsyncNotifier<AuthState> {
 
   Future<void> retryRefresh() async {
     try {
-      await _coordinator.refresh();
+      await _coordinator.retryRefresh();
     } on ApiException {
       // The coordinator publishes either retryable or terminal state.
     }

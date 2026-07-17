@@ -6,6 +6,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/presentation/localized_labels.dart';
 import '../../../core/widgets/language_switch.dart';
 import '../../../core/widgets/masari_card.dart';
+import '../../security/presentation/session_status_banner.dart';
 import '../application/merchant_controller.dart';
 import '../data/merchant_models.dart';
 import 'merchant_ui.dart';
@@ -66,6 +67,8 @@ class _MerchantTripScreenState extends ConsumerState<MerchantTripScreen>
               ),
               Text(l10n.waitingReadOnly),
               const SizedBox(height: AppTokens.spaceLarge),
+              const SessionStatusBanner(),
+              const SizedBox(height: AppTokens.spaceMedium),
               trip.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (error, _) => FilledButton(

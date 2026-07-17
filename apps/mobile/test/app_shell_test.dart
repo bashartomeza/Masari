@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,6 +21,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'test_app_config.dart';
 
 void main() {
+  test('Android excludes secure authentication storage from backup', () {
+    final manifest = File(
+      'android/app/src/main/AndroidManifest.xml',
+    ).readAsStringSync();
+    expect(manifest, contains('android:allowBackup="false"'));
+  });
+
   test('AppConfig validates explicit production values', () {
     final config = AppConfig.fromValues(
       appEnvironment: 'production',
