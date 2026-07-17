@@ -6,7 +6,7 @@ export async function recordConsent(
   db: PrismaClient,
   input: {
     documentId: string;
-    userId?: string;
+    userId: string;
     source: string;
     requestId?: string;
     ipDigest?: string;
@@ -14,7 +14,6 @@ export async function recordConsent(
     appRelease?: string;
   }
 ) {
-  if (!input.userId) throw new Error("consent_user_required");
   return db.$transaction(async (tx) => {
     const consent = await tx.userConsent.create({
       data: {
