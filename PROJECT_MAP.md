@@ -2019,7 +2019,7 @@ CI and security contract:
 - Admin and mobile build production-like artifacts without demo configuration or signing secrets and scan outputs for reset/simulation/demo markers.
 - Production APK scanning proved runtime-only UI gating retained driver simulation endpoint strings. A surgical compile-time product-build guard now removes those two existing calls from release artifacts while preserving demo/debug behavior; no screen or backend contract changed.
 - Security CI rejects prohibited tracked artifacts and high-confidence credentials without printing values; high/critical and unapproved moderate dependency advisories fail. The moderate exception is limited to the documented Prisma CLI chain.
-- External GitHub actions are immutable-SHA pinned. CI remains pending activation because no private remote URL has been supplied.
+- External GitHub actions are immutable-SHA pinned. CI is active on the private `origin` repository for pushes and pull requests targeting `production-readiness`.
 
 Operator commands:
 - `npm run validate`, `validate:backend`, `validate:admin`, `validate:security`, and `validate:all`.
@@ -2038,4 +2038,14 @@ M6B2 validation status (2026-07-13):
 - Both API Docker targets built. Runtime user `node`, missing-configuration failure, explicit empty-database migration, live/ready `200`, protected route `401`, demo reset/comparison/simulation `404`, HSTS/security/request-ID headers, structured logs, and graceful shutdown (0.41 seconds) passed against an isolated MySQL 8 staging simulation with no seeded users.
 - A real local MySQL logical backup and SHA-256 sidecar were created in the ignored backup directory. Restore into `masari_restore_m6b2_20260713` passed checksum, Prisma migration status, Masari physical-table identity, and read-only connectivity checks; verification took 2.876 seconds (3.53 seconds command elapsed) and cleanup removed only the isolated database.
 - Demo preflight passed 19/19 and the real MySQL deterministic smoke retained score `0.9317`, tracking sequence `2`, trips `1` versus `6`, distance `21.53` versus `129.19`, cost `43.06` versus `258.38`, winner `masari`, and reset recovery.
-- Safe release metadata generation passed with two migration checksums and reproducible output under `SOURCE_DATE_EPOCH`. No remote was configured and no CI run is claimed; private GitHub activation remains pending the team leader's exact approved URL.
+- Safe release metadata generation passed with two migration checksums and reproducible output under `SOURCE_DATE_EPOCH`.
+
+M6B2A private remote and real CI execution (2026-07-17):
+- Repository-local Git identity is configured for Bashar Tomeza. `origin` is `https://github.com/bashartomeza/Masari.git`; GitHub confirmed the repository is private and the authenticated `bashartomeza` account has `ADMIN` permission.
+- Local and remote history were compared before every push. `production-readiness` was synchronized only by normal fast-forward pushes; no force, history rewrite, branch deletion, or tag replacement was used.
+- Frozen annotated tags were pushed unchanged: `v0.1.0-hackathon` still peels to PostgreSQL release `074fc4e7cc79c6b08a2baa18ca251b4802aa48c7`, and `v0.2.0-hackathon-mysql` still peels to MySQL release `7f5c5bace1b081c32f6a24a7352c6b163ac97438`.
+- The first real execution proved two CI/tooling defects rather than product regressions: security test paths were incorrectly rooted for the API workspace and the Ubuntu APK scan used GNU `tar` for a ZIP-format APK. Corrective commits `3a14206`, `e15bf56`, and `3eb16a9` use workspace-relative test paths, generate the ignored Prisma client with a credential-free generation-only URL, and use the provisioned JDK's cross-platform `jar` extraction with the prior local fallback.
+- All workflows completed successfully on `3eb16a91b953b1a7384b3d9d211f70a3449b24ee`: Admin CI run `29568556711`, Backend and MySQL CI run `29568556661`, Security and Configuration CI run `29568556715`, and Flutter Android CI run `29568556794`. This includes the ephemeral real-MySQL deterministic integration smoke and the Ubuntu production-like APK build/artifact scan.
+- Exact successful check contexts are `admin`, `backend-mysql`, `mobile`, and `security`.
+- Branch protection was not activated. Read-only branch-protection and ruleset queries returned HTTP 403 because the current GitHub plan does not support protection for this private repository. After a plan upgrade, the recommended single-owner policy is strict required checks for all four contexts, blocked force pushes/deletions, no mandatory second-person approval, and administrator bypass retained for emergency owner recovery.
+- M6C identity/session development has not started. The remaining M6B2A delivery decision is whether to upgrade the GitHub plan and approve the verified protection policy.
