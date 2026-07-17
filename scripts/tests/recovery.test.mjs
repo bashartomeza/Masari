@@ -59,7 +59,8 @@ test("release metadata is reproducible with SOURCE_DATE_EPOCH and excludes secre
     [
       "20260713114812_mysql_baseline",
       "20260713114851_preserve_text_capacity",
-      "20260717094000_trusted_sessions"
+      "20260717094000_trusted_sessions",
+      "20260717195454_onboarding_foundation"
     ]
   );
   rmSync(directory, { recursive: true, force: true });

@@ -65,7 +65,17 @@ try {
     LOG_LEVEL: "silent",
     PORT: "3101",
     API_BASE_URL: apiOrigin,
-    DEMO_API_BASE_URL: apiOrigin
+    DEMO_API_BASE_URL: apiOrigin,
+    INVITATIONS_ENABLED: "true",
+    PUBLIC_ONBOARDING_ENABLED: "false",
+    OTP_PROVIDER: "fake",
+    SUPPORTED_PHONE_REGIONS: "PS",
+    INVITATION_CODE_PEPPER: "local-integration-invitation-pepper-at-least-thirty-two-characters",
+    PHONE_DIGEST_PEPPER: "local-integration-phone-pepper-at-least-thirty-two-characters",
+    OTP_CODE_PEPPER: "local-integration-otp-pepper-at-least-thirty-two-characters",
+    ONBOARDING_SESSION_PEPPER: "local-integration-session-pepper-at-least-thirty-two-characters",
+    IDEMPOTENCY_KEY_PEPPER: "local-integration-idempotency-pepper-at-least-thirty-two-characters",
+    ABUSE_KEY_PEPPER: "local-integration-abuse-pepper-at-least-thirty-two-characters"
   };
   for (const command of ["db:migrate", "db:migrate", "db:migrate:status", "build:api", "test:integration:mysql"]) {
     run("npm", ["run", command], { cwd: root, env: environment });
@@ -92,7 +102,10 @@ try {
   );
   expectCount("SELECT COUNT(*) FROM auth_sessions", 0, "Demo reset left orphan sessions");
   expectCount("SELECT COUNT(*) FROM refresh_tokens", 0, "Demo reset left orphan refresh tokens");
-  run("node", ["scripts/production-session-integration.mjs"], { cwd: root, env: environment });
+  run("node", ["scripts/production-session-integration.mjs"], {
+    cwd: root,
+    env: { ...environment, INVITATIONS_ENABLED: "false", OTP_PROVIDER: "disabled" }
+  });
   console.log(`Trusted-session integration passed on disposable database ${database}.`);
 } catch (error) {
   console.error(`Trusted-session integration failed safely: ${error instanceof Error ? error.message : "unknown error"}`);
