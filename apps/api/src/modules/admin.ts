@@ -6,6 +6,7 @@ import { revokeAllUserSessions } from "../lib/refreshTokens.js";
 import { requireAuth, requireRole, type AuthenticatedRequest } from "../middleware/auth.js";
 import { HttpError } from "../middleware/error.js";
 import { AccountStatus, AuditAction } from "../generated/prisma/enums.js";
+import { Prisma } from "../generated/prisma/client.js";
 
 export const adminRouter = Router();
 
@@ -66,6 +67,10 @@ const accountStatusSchema = z
     }
   });
 
+function isTransactionWriteConflict(error: unknown) {
+  return Boolean(error && typeof error === "object" && "code" in error && error.code === "P2034");
+}
+
 adminRouter.patch("/admin/users/:id/status", async (req: AuthenticatedRequest, res, next) => {
   try {
     const targetId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
@@ -74,51 +79,54 @@ adminRouter.patch("/admin/users/:id/status", async (req: AuthenticatedRequest, r
       throw new HttpError(409, "cannot_suspend_current_admin");
     }
 
-    const result = await prisma.$transaction(async (tx) => {
-      const target = await tx.user.findUnique({ where: { id: targetId }, select: safeUserSelect });
-      if (!target) throw new HttpError(404, "user_not_found");
-      if (target.account_status === input.status) return target;
+    const result = await prisma.$transaction(
+      async (tx) => {
+        const target = await tx.user.findUnique({ where: { id: targetId }, select: safeUserSelect });
+        if (!target) throw new HttpError(404, "user_not_found");
+        if (target.account_status === input.status) return target;
 
-      if (target.role === "admin" && input.status !== AccountStatus.active) {
-        const otherActiveAdmins = await tx.user.count({
-          where: { role: "admin", account_status: AccountStatus.active, id: { not: target.id } }
-        });
-        if (otherActiveAdmins === 0) throw new HttpError(409, "last_active_admin_required");
-      }
-
-      const now = new Date();
-      if (input.status !== AccountStatus.active) {
-        await revokeAllUserSessions(tx, { userId: target.id, reason: `account_${input.status}`, now });
-      }
-      const updated = await tx.user.update({
-        where: { id: target.id },
-        data: {
-          account_status: input.status,
-          status_reason: input.reason ?? null,
-          status_updated_at: now,
-          ...(input.status !== AccountStatus.active ? { security_version: { increment: 1 } } : {})
-        },
-        select: safeUserSelect
-      });
-      await auditEvent(tx, {
-        userId: req.user!.id,
-        action: AuditAction.account_status_changed,
-        entityType: "User",
-        entityId: target.id,
-        metadata: {
-          target_user_id: target.id,
-          previous_status: target.account_status,
-          new_status: input.status,
-          reason: input.reason ?? null,
-          request_id: req.requestId
+        if (target.role === "admin" && input.status !== AccountStatus.active) {
+          const otherActiveAdmins = await tx.user.count({
+            where: { role: "admin", account_status: AccountStatus.active, id: { not: target.id } }
+          });
+          if (otherActiveAdmins === 0) throw new HttpError(409, "last_active_admin_required");
         }
-      });
-      return updated;
-    });
+
+        const now = new Date();
+        if (input.status !== AccountStatus.active) {
+          await revokeAllUserSessions(tx, { userId: target.id, reason: `account_${input.status}`, now });
+        }
+        const updated = await tx.user.update({
+          where: { id: target.id },
+          data: {
+            account_status: input.status,
+            status_reason: input.reason ?? null,
+            status_updated_at: now,
+            ...(input.status !== AccountStatus.active ? { security_version: { increment: 1 } } : {})
+          },
+          select: safeUserSelect
+        });
+        await auditEvent(tx, {
+          userId: req.user!.id,
+          action: AuditAction.account_status_changed,
+          entityType: "User",
+          entityId: target.id,
+          metadata: {
+            target_user_id: target.id,
+            previous_status: target.account_status,
+            new_status: input.status,
+            reason: input.reason ?? null,
+            request_id: req.requestId
+          }
+        });
+        return updated;
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+    );
 
     res.json({ user: serializeSafeUser(result) });
   } catch (error) {
-    next(error);
+    next(isTransactionWriteConflict(error) ? new HttpError(409, "account_status_conflict") : error);
   }
 });
 

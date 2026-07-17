@@ -6,7 +6,8 @@ const prismaMock = vi.hoisted(() => ({
   $transaction: vi.fn(),
   user: {
     findUnique: vi.fn(),
-    update: vi.fn()
+    update: vi.fn(),
+    updateMany: vi.fn()
   },
   authSession: { create: vi.fn() },
   refreshToken: { create: vi.fn() },
@@ -34,6 +35,7 @@ describe("auth", () => {
     });
     prismaMock.refreshToken.create.mockResolvedValue({});
     prismaMock.user.update.mockResolvedValue({});
+    prismaMock.user.updateMany.mockResolvedValue({ count: 1 });
     prismaMock.auditEvent.create.mockResolvedValue({ id: "audit_1" });
   });
 
@@ -60,11 +62,43 @@ describe("auth", () => {
     expect(response.body.session).toEqual(expect.objectContaining({ id: "session_1", is_current: true }));
     expect(response.body.user.role).toBe("passenger");
     expect(prismaMock.authSession.create).toHaveBeenCalledOnce();
+    expect(prismaMock.user.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "user_1",
+        role: "passenger",
+        account_status: "active",
+        security_version: 1
+      },
+      data: { last_login_at: expect.any(Date) }
+    });
     expect(prismaMock.refreshToken.create).toHaveBeenCalledOnce();
     expect(prismaMock.auditEvent.create).toHaveBeenCalledTimes(2);
     const storedHash = prismaMock.refreshToken.create.mock.calls[0]?.[0]?.data?.token_hash;
     expect(storedHash).toMatch(/^[a-f0-9]{64}$/);
     expect(JSON.stringify(response.body)).not.toContain(storedHash);
+  });
+
+  it("creates the access credential before the login transaction callback resolves", async () => {
+    prismaMock.user.findUnique.mockResolvedValue({
+      id: "user_1",
+      name: "Demo Passenger",
+      phone: "+970590000001",
+      password_hash: await bcrypt.hash("test-passenger-password", 4),
+      role: "passenger",
+      account_status: "active",
+      security_version: 1,
+      demo_account: true
+    });
+    prismaMock.$transaction.mockImplementationOnce(async (callback: (tx: typeof prismaMock) => unknown) => {
+      const result = await callback(prismaMock);
+      expect(result).toEqual(expect.objectContaining({ kind: "success", token: expect.any(String) }));
+      return result;
+    });
+
+    await request(createApp())
+      .post("/api/v1/auth/login")
+      .send({ phone: "+970590000001", password: "test-passenger-password" })
+      .expect(200);
   });
 
   it("creates an admin session without issuing a browser refresh token", async () => {
@@ -153,6 +187,29 @@ describe("auth", () => {
 
     expect(missingUser.body.error).toBe("invalid_credentials");
     expect(wrongPassword.body.error).toBe("invalid_credentials");
+  });
+
+  it("does not create a session when account eligibility changes before the transaction", async () => {
+    prismaMock.user.findUnique.mockResolvedValue({
+      id: "user_1",
+      name: "Demo Passenger",
+      phone: "+970590000001",
+      password_hash: await bcrypt.hash("test-passenger-password", 4),
+      role: "passenger",
+      account_status: "active",
+      security_version: 1,
+      demo_account: true
+    });
+    prismaMock.user.updateMany.mockResolvedValue({ count: 0 });
+
+    const response = await request(createApp())
+      .post("/api/v1/auth/login")
+      .send({ phone: "+970590000001", password: "test-passenger-password" })
+      .expect(403);
+
+    expect(response.body.error).toBe("account_unavailable");
+    expect(prismaMock.authSession.create).not.toHaveBeenCalled();
+    expect(prismaMock.refreshToken.create).not.toHaveBeenCalled();
   });
 
   it("allows local admin console CORS preflight", async () => {

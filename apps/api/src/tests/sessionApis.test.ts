@@ -61,7 +61,7 @@ function authorization() {
   return { Authorization: `Bearer ${accessToken()}` };
 }
 
-function storedRefresh(material = createRefreshToken(), overrides: Record<string, unknown> = {}) {
+function storedRefresh(material = createRefreshToken("passenger"), overrides: Record<string, unknown> = {}) {
   return {
     id: material.id,
     session_id: "session_1",
@@ -94,7 +94,7 @@ describe("refresh rotation and session APIs", () => {
   });
 
   it("rotates a valid refresh token once and lets the replacement rotate", async () => {
-    const initial = createRefreshToken();
+    const initial = createRefreshToken("passenger");
     prismaMock.refreshToken.findUnique.mockResolvedValue(storedRefresh(initial));
 
     const first = await request(createApp())
@@ -119,7 +119,12 @@ describe("refresh rotation and session APIs", () => {
     const replacement = parseRefreshToken(first.body.refresh_token)!;
     prismaMock.refreshToken.findUnique.mockResolvedValue(
       storedRefresh(
-        { id: replacement.id, rawToken: replacement.rawToken, tokenHash: firstCreated.token_hash },
+        {
+          id: replacement.id,
+          roleAtIssue: replacement.roleAtIssue,
+          rawToken: replacement.rawToken,
+          tokenHash: firstCreated.token_hash
+        },
         { id: replacement.id, token_hash: firstCreated.token_hash }
       )
     );
@@ -129,8 +134,29 @@ describe("refresh rotation and session APIs", () => {
       .expect(200);
   });
 
+  it("creates both replacement credentials before the refresh transaction callback resolves", async () => {
+    const initial = createRefreshToken("passenger");
+    prismaMock.refreshToken.findUnique.mockResolvedValue(storedRefresh(initial));
+    prismaMock.$transaction.mockImplementationOnce(async (callback: (tx: typeof prismaMock) => unknown) => {
+      const result = await callback(prismaMock);
+      expect(result).toEqual(
+        expect.objectContaining({
+          kind: "success",
+          token: expect.any(String),
+          refreshToken: expect.any(String)
+        })
+      );
+      return result;
+    });
+
+    await request(createApp())
+      .post("/api/v1/auth/refresh")
+      .send({ refresh_token: initial.rawToken })
+      .expect(200);
+  });
+
   it("detects reuse and revokes the affected session without exposing token internals", async () => {
-    const material = createRefreshToken();
+    const material = createRefreshToken("passenger");
     prismaMock.refreshToken.findUnique.mockResolvedValue(storedRefresh(material, { used_at: new Date() }));
 
     const response = await request(createApp())
@@ -151,7 +177,7 @@ describe("refresh rotation and session APIs", () => {
   });
 
   it("rejects expired and revoked refresh tokens", async () => {
-    const material = createRefreshToken();
+    const material = createRefreshToken("passenger");
     prismaMock.refreshToken.findUnique.mockResolvedValue(
       storedRefresh(material, { expires_at: new Date(Date.now() - 1) })
     );
@@ -162,7 +188,7 @@ describe("refresh rotation and session APIs", () => {
   });
 
   it("blocks refresh when the account is suspended", async () => {
-    const material = createRefreshToken();
+    const material = createRefreshToken("passenger");
     prismaMock.refreshToken.findUnique.mockResolvedValue(
       storedRefresh(material, { session: session({ user: { ...user, account_status: "suspended" } }) })
     );
@@ -171,6 +197,44 @@ describe("refresh rotation and session APIs", () => {
       .send({ refresh_token: material.rawToken })
       .expect(403);
     expect(response.body.error).toBe("account_unavailable");
+  });
+
+  it("revokes a mobile session instead of elevating a role-changed refresh credential", async () => {
+    const material = createRefreshToken("passenger");
+    prismaMock.refreshToken.findUnique.mockResolvedValue(
+      storedRefresh(material, {
+        session: session({ user: { ...user, role: "admin" } })
+      })
+    );
+
+    const response = await request(createApp())
+      .post("/api/v1/auth/refresh")
+      .send({ refresh_token: material.rawToken })
+      .expect(401);
+
+    expect(response.body.error).toBe("invalid_session");
+    expect(prismaMock.authSession.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ revoke_reason: "refresh_role_or_client_changed" }) })
+    );
+    expect(prismaMock.refreshToken.create).not.toHaveBeenCalled();
+  });
+
+  it("caps replacement lifetime at the absolute session expiry", async () => {
+    const material = createRefreshToken("passenger");
+    const sessionExpiry = new Date(Date.now() + 60_000);
+    prismaMock.refreshToken.findUnique.mockResolvedValue(
+      storedRefresh(material, { session: session({ expires_at: sessionExpiry }) })
+    );
+
+    const response = await request(createApp())
+      .post("/api/v1/auth/refresh")
+      .send({ refresh_token: material.rawToken })
+      .expect(200);
+
+    const created = prismaMock.refreshToken.create.mock.calls[0][0].data;
+    expect(created.expires_at.getTime()).toBe(sessionExpiry.getTime());
+    expect(response.body.refresh_token_expires_in).toBeGreaterThan(0);
+    expect(response.body.refresh_token_expires_in).toBeLessThanOrEqual(60);
   });
 
   it("lists only the authenticated user's safe session summaries", async () => {

@@ -5,27 +5,40 @@ import { config } from "../config.js";
 const REFRESH_SECRET_BYTES = 32;
 const TOKEN_ID_PATTERN = /^rt_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const TOKEN_SECRET_PATTERN = /^[A-Za-z0-9_-]{43}$/;
+const REFRESH_ROLES = ["passenger", "driver", "merchant"] as const;
+
+export type RefreshTokenRole = (typeof REFRESH_ROLES)[number];
 
 type SessionDatabase = PrismaClient | Prisma.TransactionClient;
 
 export type RefreshTokenMaterial = {
   id: string;
+  roleAtIssue: RefreshTokenRole;
   rawToken: string;
   tokenHash: string;
 };
 
-export function createRefreshToken(): RefreshTokenMaterial {
+export function isRefreshTokenRole(role: string): role is RefreshTokenRole {
+  return REFRESH_ROLES.some((candidate) => candidate === role);
+}
+
+export function createRefreshToken(roleAtIssue: RefreshTokenRole): RefreshTokenMaterial {
   const id = `rt_${randomUUID()}`;
   const secret = randomBytes(REFRESH_SECRET_BYTES).toString("base64url");
-  const rawToken = `${id}.${secret}`;
-  return { id, rawToken, tokenHash: hashRefreshToken(rawToken) };
+  const rawToken = `${id}.${roleAtIssue}.${secret}`;
+  return { id, roleAtIssue, rawToken, tokenHash: hashRefreshToken(rawToken) };
 }
 
 export function parseRefreshToken(rawToken: unknown) {
   if (typeof rawToken !== "string" || rawToken.length > 160) return null;
   const parts = rawToken.split(".");
-  if (parts.length !== 2 || !TOKEN_ID_PATTERN.test(parts[0]) || !TOKEN_SECRET_PATTERN.test(parts[1])) return null;
-  return { id: parts[0], rawToken };
+  if (
+    parts.length !== 3 ||
+    !TOKEN_ID_PATTERN.test(parts[0]) ||
+    !isRefreshTokenRole(parts[1]) ||
+    !TOKEN_SECRET_PATTERN.test(parts[2])
+  ) return null;
+  return { id: parts[0], roleAtIssue: parts[1], rawToken };
 }
 
 export function hashRefreshToken(rawToken: string) {

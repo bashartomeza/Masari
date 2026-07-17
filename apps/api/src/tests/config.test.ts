@@ -79,6 +79,13 @@ describe("fail-closed application configuration", () => {
     );
   });
 
+  it("rejects the exact documented template placeholders for both production secrets", () => {
+    expect(() => createConfig(environment({ JWT_SECRET: "<at-least-32-random-characters>" }))).toThrow(/JWT_SECRET/);
+    expect(() =>
+      createConfig(environment({ REFRESH_TOKEN_PEPPER: "<at-least-32-random-characters-separate-from-jwt>" }))
+    ).toThrow(/REFRESH_TOKEN_PEPPER uses a known placeholder/);
+  });
+
   it("never includes submitted secret values in validation errors", () => {
     const secret = "sensitive-value-that-must-never-appear";
     try {

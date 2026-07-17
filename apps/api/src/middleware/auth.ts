@@ -19,14 +19,14 @@ export function signAuthToken(user: AuthUser) {
   return jwt.sign(
     { role: user.role, sid: user.sessionId, ver: user.securityVersion },
     config.jwtSecret,
-    { subject: user.id, expiresIn: config.accessTokenTtlSeconds }
+    { algorithm: "HS256", subject: user.id, expiresIn: config.accessTokenTtlSeconds }
   );
 }
 
 export function verifyAuthToken(token: string): AuthUser {
   let payload: string | jwt.JwtPayload;
   try {
-    payload = jwt.verify(token, config.jwtSecret);
+    payload = jwt.verify(token, config.jwtSecret, { algorithms: ["HS256"] });
   } catch {
     throw new HttpError(401, "invalid_token");
   }

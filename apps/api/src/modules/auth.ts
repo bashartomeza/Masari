@@ -6,6 +6,7 @@ import { prisma } from "../lib/prisma.js";
 import { auditEvent } from "../lib/audit.js";
 import {
   createRefreshToken,
+  isRefreshTokenRole,
   parseRefreshToken,
   refreshTokenExpiresAt,
   refreshTokenHashMatches,
@@ -120,13 +121,24 @@ authRouter.post("/auth/login", async (req, res, next) => {
     }
 
     const now = new Date();
-    const clientType = user.role === "admin" ? "admin" : "mobile";
-    const refreshMaterial = clientType === "mobile" ? createRefreshToken() : null;
+    const refreshMaterial = isRefreshTokenRole(user.role) ? createRefreshToken(user.role) : null;
+    const clientType = refreshMaterial ? "mobile" : "admin";
     const refreshExpiresAt = refreshMaterial ? refreshTokenExpiresAt(now) : null;
     const sessionExpiresAt =
       refreshExpiresAt ?? new Date(now.getTime() + config.accessTokenTtlSeconds * 1_000);
 
-    const session = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
+      const eligible = await tx.user.updateMany({
+        where: {
+          id: user.id,
+          role: user.role,
+          account_status: "active",
+          security_version: user.security_version
+        },
+        data: { last_login_at: now }
+      });
+      if (eligible.count !== 1) return { kind: "account_unavailable" } as const;
+
       const created = await tx.authSession.create({
         data: {
           user_id: user.id,
@@ -149,7 +161,6 @@ authRouter.post("/auth/login", async (req, res, next) => {
           }
         });
       }
-      await tx.user.update({ where: { id: user.id }, data: { last_login_at: now } });
       await auditEvent(tx, {
         userId: user.id,
         action: AuditAction.auth_login,
@@ -164,13 +175,24 @@ authRouter.post("/auth/login", async (req, res, next) => {
         entityId: created.id,
         metadata: { client_type: clientType }
       });
-      return created;
+      const token = accessToken(user, created.id);
+      return { kind: "success", session: created, token } as const;
     });
 
-    const token = accessToken(user, session.id);
+    if (result.kind === "account_unavailable") {
+      await auditEvent(prisma, {
+        userId: user.id,
+        action: AuditAction.login_blocked_by_status,
+        entityType: "User",
+        entityId: user.id,
+        metadata: { account_status: "changed_during_login" }
+      });
+      throw new HttpError(403, "account_unavailable");
+    }
+
     res.json({
-      token,
-      access_token: token,
+      token: result.token,
+      access_token: result.token,
       access_token_expires_in: config.accessTokenTtlSeconds,
       ...(refreshMaterial
         ? {
@@ -178,7 +200,7 @@ authRouter.post("/auth/login", async (req, res, next) => {
             refresh_token_expires_in: config.refreshTokenTtlDays * 24 * 60 * 60
           }
         : {}),
-      session: safeSession(session, session.id),
+      session: safeSession(result.session, result.session.id),
       user: publicUser(user)
     });
   } catch (error) {
@@ -192,9 +214,7 @@ authRouter.post("/auth/refresh", async (req, res, next) => {
     const parsed = parseRefreshToken(input.refresh_token);
     if (!parsed) refreshFailure(401, "invalid_refresh_token");
 
-    const replacement = createRefreshToken();
     const now = new Date();
-    const replacementExpiresAt = refreshTokenExpiresAt(now);
     const result = await prisma.$transaction(
       async (tx) => {
         const current = await tx.refreshToken.findUnique({
@@ -203,6 +223,25 @@ authRouter.post("/auth/refresh", async (req, res, next) => {
         });
         if (!current || !refreshTokenHashMatches(parsed.rawToken, current.token_hash)) {
           return { kind: "invalid" } as const;
+        }
+        if (
+          current.session.client_type !== "mobile" ||
+          current.session.user.role === "admin" ||
+          current.session.user.role !== parsed.roleAtIssue
+        ) {
+          await revokeSessionRecords(tx, {
+            sessionId: current.session_id,
+            reason: "refresh_role_or_client_changed",
+            now
+          });
+          await auditEvent(tx, {
+            userId: current.session.user_id,
+            action: AuditAction.session_revoked,
+            entityType: "AuthSession",
+            entityId: current.session_id,
+            metadata: { reason: "refresh_role_or_client_changed" }
+          });
+          return { kind: "invalid_session" } as const;
         }
         if (current.used_at) {
           await markRefreshReuse(tx, {
@@ -218,6 +257,12 @@ authRouter.post("/auth/refresh", async (req, res, next) => {
         if (
           current.session.security_version_at_issue !== current.session.user.security_version
         ) return { kind: "invalid_session" } as const;
+
+        const replacement = createRefreshToken(parsed.roleAtIssue);
+        const configuredReplacementExpiry = refreshTokenExpiresAt(now);
+        const replacementExpiresAt = new Date(
+          Math.min(configuredReplacementExpiry.getTime(), current.session.expires_at.getTime())
+        );
 
         const consumed = await tx.refreshToken.updateMany({
           where: { id: current.id, used_at: null, revoked_at: null, expires_at: { gt: now } },
@@ -259,7 +304,15 @@ authRouter.post("/auth/refresh", async (req, res, next) => {
           entityId: current.session_id,
           metadata: { rotation: "one_time" }
         });
-        return { kind: "success", session, user: current.session.user } as const;
+        const token = accessToken(current.session.user, session.id);
+        return {
+          kind: "success",
+          session,
+          user: current.session.user,
+          token,
+          refreshToken: replacement.rawToken,
+          refreshTokenExpiresIn: Math.max(0, Math.floor((replacementExpiresAt.getTime() - now.getTime()) / 1_000))
+        } as const;
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted }
     );
@@ -271,13 +324,12 @@ authRouter.post("/auth/refresh", async (req, res, next) => {
     if (result.kind === "account_unavailable") refreshFailure(403, "account_unavailable");
     if (result.kind === "invalid_session") refreshFailure(401, "invalid_session");
 
-    const token = accessToken(result.user, result.session.id);
     res.json({
-      token,
-      access_token: token,
+      token: result.token,
+      access_token: result.token,
       access_token_expires_in: config.accessTokenTtlSeconds,
-      refresh_token: replacement.rawToken,
-      refresh_token_expires_in: config.refreshTokenTtlDays * 24 * 60 * 60,
+      refresh_token: result.refreshToken,
+      refresh_token_expires_in: result.refreshTokenExpiresIn,
       session: safeSession(result.session, result.session.id),
       user: publicUser(result.user)
     });

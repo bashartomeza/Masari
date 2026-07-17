@@ -169,4 +169,29 @@ describe("admin account status", () => {
       .expect(409);
     expect(prismaMock.user.update).not.toHaveBeenCalled();
   });
+
+  it("uses serializable isolation for the last-active-admin invariant", async () => {
+    await request(createApp())
+      .patch("/api/v1/admin/users/passenger_1/status")
+      .set(authorization())
+      .send({ status: "suspended", reason: "Policy violation" })
+      .expect(200);
+
+    expect(prismaMock.$transaction).toHaveBeenCalledWith(expect.any(Function), {
+      isolationLevel: "Serializable"
+    });
+  });
+
+  it("maps a serialization conflict to a safe account-status conflict", async () => {
+    prismaMock.$transaction.mockRejectedValueOnce(Object.assign(new Error("sensitive database detail"), { code: "P2034" }));
+
+    const response = await request(createApp())
+      .patch("/api/v1/admin/users/passenger_1/status")
+      .set(authorization())
+      .send({ status: "suspended", reason: "Policy violation" })
+      .expect(409);
+
+    expect(response.body.error).toBe("account_status_conflict");
+    expect(JSON.stringify(response.body)).not.toContain("sensitive database detail");
+  });
 });

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import jwt from "jsonwebtoken";
 
 const prismaMock = vi.hoisted(() => ({
   authSession: { findUnique: vi.fn(), update: vi.fn() }
@@ -85,5 +86,16 @@ describe("server-managed authentication middleware", () => {
   it("rejects user and session ownership mismatches", async () => {
     prismaMock.authSession.findUnique.mockResolvedValue(session({ user_id: "other_user" }));
     await expect(authenticateAuthToken(token())).rejects.toMatchObject({ statusCode: 401, message: "invalid_session" });
+  });
+
+  it("rejects a validly signed token that uses an unsupported HMAC algorithm", async () => {
+    const unsupported = jwt.sign(
+      { role: user.role, sid: "session_1", ver: 1 },
+      process.env.JWT_SECRET!,
+      { algorithm: "HS512", subject: user.id, expiresIn: "1h" }
+    );
+
+    await expect(authenticateAuthToken(unsupported)).rejects.toMatchObject({ statusCode: 401, message: "invalid_token" });
+    expect(prismaMock.authSession.findUnique).not.toHaveBeenCalled();
   });
 });

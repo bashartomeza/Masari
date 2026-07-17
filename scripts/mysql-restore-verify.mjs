@@ -62,7 +62,12 @@ try {
     const npmArgs = process.platform === "win32" && process.env.npm_execpath
       ? [process.env.npm_execpath, "run", script]
       : ["run", script];
-    return spawnSync(npmFile, npmArgs, { cwd: root, env: migrationEnvironment, encoding: "utf8" });
+    return spawnSync(npmFile, npmArgs, {
+      cwd: root,
+      env: migrationEnvironment,
+      encoding: "utf8",
+      shell: process.platform === "win32" && /\.cmd$/i.test(npmFile)
+    });
   };
   if (flags.has("--migrate") && runNpmScript("db:migrate").status !== 0) {
     throw new Error("Prisma migration deploy failed on the isolated restored database");
@@ -70,7 +75,18 @@ try {
   if (runNpmScript("db:migrate:status").status !== 0) {
     throw new Error("Prisma migration status is not current on the restored database");
   }
-  const expectedTables = ["users", "driver_routes", "passenger_requests", "merchant_orders", "matches", "trips", "location_events", "_prisma_migrations"];
+  const expectedTables = [
+    "users",
+    "auth_sessions",
+    "refresh_tokens",
+    "driver_routes",
+    "passenger_requests",
+    "merchant_orders",
+    "matches",
+    "trips",
+    "location_events",
+    "_prisma_migrations"
+  ];
   const tableCount = Number(mysql(["--batch", "--skip-column-names", "--database", destination, "-e",
     `SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name IN (${expectedTables.map((name) => `'${name}'`).join(",")})`]));
   if (tableCount !== expectedTables.length) throw new Error("Restored database does not have the expected Masari table identity");

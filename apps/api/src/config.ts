@@ -10,6 +10,14 @@ const PRODUCTION_ACCESS_TOKEN_MAX_SECONDS = 1_800;
 const PRODUCTION_REFRESH_TOKEN_MAX_DAYS = 90;
 const unsafeSecretMarkers = ["development-jwt-secret", "change-me", "replace-with", "placeholder"];
 
+function isUnsafeSecret(value: string) {
+  const normalized = value.trim().toLowerCase();
+  return (
+    unsafeSecretMarkers.some((marker) => normalized.includes(marker)) ||
+    (normalized.startsWith("<") && normalized.endsWith(">"))
+  );
+}
+
 const rawSchema = z.object({
   APP_ENV: z.enum(APP_ENVIRONMENTS),
   DATABASE_URL: z.string().min(1),
@@ -86,10 +94,10 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
     problems.push("ENABLE_DEMO_FEATURES cannot be enabled in staging or production");
   }
 
-  if (unsafeSecretMarkers.some((marker) => raw.JWT_SECRET.toLowerCase().includes(marker))) {
+  if (isUnsafeSecret(raw.JWT_SECRET)) {
     problems.push("JWT_SECRET uses a known placeholder or default value");
   }
-  if (raw.REFRESH_TOKEN_PEPPER && unsafeSecretMarkers.some((marker) => raw.REFRESH_TOKEN_PEPPER!.toLowerCase().includes(marker))) {
+  if (raw.REFRESH_TOKEN_PEPPER && isUnsafeSecret(raw.REFRESH_TOKEN_PEPPER)) {
     problems.push("REFRESH_TOKEN_PEPPER uses a known placeholder or default value");
   }
   if (productionLike && !raw.REFRESH_TOKEN_PEPPER) {
