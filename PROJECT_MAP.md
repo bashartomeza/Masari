@@ -2164,3 +2164,22 @@ Tests, validation, and delivery evidence:
 Remaining after M6C1B:
 - PR #2 requires team-leader review and approval before merge. This task does not merge it.
 - Registration/OTP/public onboarding, password recovery, cookie-based admin sessions or browser refresh, distributed rate/refresh coordination, expired-session cleanup scheduling, notifications, maps/live GPS/realtime, and incident automation remain outside this milestone.
+
+[M6C1B_MERGE_AND_POST_MERGE_VERIFICATION]
+Merge result (2026-07-17):
+- PR #2 was approved after independent security review and merged into `production-readiness` using a merge commit. The approved final feature head was `81fb8e1ed237968700f24501f8d6558f4c7d3ee7`; the merge commit is `131f7269af248ce864e4fb5fadcad2fd02a72d13`.
+- The remote feature branch was deleted by the approved merge command. The local feature branch was deleted normally only after verifying it was merged; no squash, rebase, force push, history reset, or tag modification occurred.
+
+Post-merge validation:
+- Prisma validation/generation, workspace typecheck/test/build, standard and security validation, admin typecheck/test/build, and Flutter dependency/localization/format/analyze/test checks passed. API regression is 13 files / 134 tests, admin regression is 3 files / 16 tests, and Flutter regression is 106 tests.
+- Real MySQL migration status remained current at three migrations. Disposable-database session integration passed refresh rotation, replay revocation, exactly-one-success concurrency, session revocation, logout-all, account-status and role binding, admin concurrency, persistence, cleanup, and production-configuration assertions.
+- Live demo preflight passed 22/22. Deterministic smoke retained score `0.9317`, tracking sequence `2`, trips `1` versus `6`, distance `21.53` versus `129.19`, cost `43.06` versus `258.38`, and winner `masari`.
+- Android-emulator regression confirmed Arabic default RTL, English LTR locale persistence across restart, passenger login, secure session restoration to the passenger route, and a successful post-expiry authenticated refresh. Revocation, logout-all, concurrent refresh, and admin-expiry behavior remained covered by the passing real integration and regression suites.
+- Raw `npm audit --omit=dev` retained only the documented three moderate Prisma CLI transitive findings whose proposed repair is a prohibited breaking force downgrade; no force fix was run.
+
+Merge-commit CI:
+- All required workflows passed on merge commit `131f7269af248ce864e4fb5fadcad2fd02a72d13`: Admin CI run `29605119294`, Backend and MySQL CI run `29605119237`, Flutter Android CI run `29605119252`, and Security and Configuration CI run `29605119160`. Exact successful contexts were `admin`, `backend-mysql`, `mobile`, and `security`.
+
+Remaining after merge verification:
+- A dedicated logout/logout-all busy-state treatment remains a low-priority UX hardening item to make an in-flight termination action clearer and discourage repeated taps; it is not a security or merge blocker.
+- M6C2 remains the next milestone and has not started. Registration/OTP/public onboarding, password recovery, cookie-based admin sessions or browser refresh, distributed rate/refresh coordination, expired-session cleanup scheduling, notifications, maps/live GPS/realtime, and incident automation remain outside M6C1B.
