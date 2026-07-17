@@ -2183,3 +2183,28 @@ Merge-commit CI:
 Remaining after merge verification:
 - A dedicated logout/logout-all busy-state treatment remains a low-priority UX hardening item to make an in-flight termination action clearer and discourage repeated taps; it is not a security or merge blocker.
 - M6C2 remains the next milestone and has not started. Registration/OTP/public onboarding, password recovery, cookie-based admin sessions or browser refresh, distributed rate/refresh coordination, expired-session cleanup scheduling, notifications, maps/live GPS/realtime, and incident automation remain outside M6C1B.
+
+[M6C2B1_INVITE_CONTROLLED_ONBOARDING_FOUNDATION]
+Scope and locked decisions (2026-07-17):
+- Public-beta onboarding is invitation-only, phone-bound, one-time, `+970`/`PS` only, and limited to passenger, driver, or merchant. Admin invitation and multi-role accounts are forbidden. `+972` remains disabled.
+- B1 adds foundation and admin operations only. No public start/send/verify/complete route, account/password creation, activation/pending-account workflow, operational session, Flutter/admin UI, real SMS/provider SDK, or legal content was added. `PUBLIC_ONBOARDING_ENABLED=true` fails startup.
+
+Schema and security boundary:
+- One forward-only MySQL migration `20260717195454_onboarding_foundation` adds Invitation/Redemption, OnboardingAttempt, OtpChallenge, narrow OnboardingSession, ConsentDocument/UserConsent, durable AbuseCounter, and IdempotencyRecord. Existing migrations and frozen tags are unchanged.
+- Attempts retain canonical E.164 only for delivery/retry/continuation, plus a versioned phone HMAC and last four. Invitation rows contain no raw phone; raw codes/OTPs/tokens are never stored. Distinct, versioned, domain-separated HMAC keys cover invitation code, phone, challenge-ID OTP, onboarding token, idempotency, and abuse subjects.
+- Strict phone normalization supports Latin, Arabic-Indic, and Eastern Arabic/Persian digits, `+970`, `00970`, safe separators, and explicit-`PS` local input. Unsupported/ambiguous/malformed input and `+972` fail. The preflight reported 5 total, 5 valid, 0 invalid, and 0 collisions without values.
+- OTP defaults are six crypto-random digits, five-minute expiry, 60-second cooldown, five attempts, three resends, and five phone sends/day. Dispatch promotion preserves a working previous code unless the provider accepts replacement. Atomic conditional consumption permits one verifier.
+- Onboarding opaque sessions are stored only as keyed digests, expire/revoke independently, and are never accepted by operational JWT middleware. Consent documents are immutable/versioned; no fake production legal records exist.
+- Durable MySQL atomic counters cover future phone/IP/invitation/verification/completion buckets plus active admin issuance. Idempotency binds operation, scope digest, key digest/version, payload digest, state, safe result reference, and expiry; raw bodies/secrets are excluded.
+
+Admin API and reset:
+- Feature-gated admin-only `POST /api/v1/admin/invitations`, `GET /api/v1/admin/invitations`, and `POST /api/v1/admin/invitations/:id/revoke` create/list/revoke with safe bounded input, exact normalized phone HMAC lookup, durable creation limits, request IDs, and audits. Create returns the raw code once; all summaries expose only masked phone and allowlisted fields.
+- Demo reset deletes every new foundation record in foreign-key-safe order and seeds no onboarding credential or legal document. Deterministic matching/tracking/comparison metrics remain unchanged.
+
+Migration/recovery and local validation:
+- A checksum-verified ignored backup preceded migration. Current-schema upgrade, empty disposable deploy, repeated deploy, current status, pre-migration restore+upgrade, post-migration backup restore, and isolated cleanup passed.
+- Real MySQL races passed for one-time invitation consumption, invitation use/revoke terminal state, one-success OTP verification, rejected resend preservation, exact durable counter increments/no bypass, and one-owner idempotency claims/replays. Fake-provider state, token isolation, admin authorization/serialization/filter/revoke, route absence, and reset cleanup passed.
+- Deterministic smoke retained score `0.9317`, tracking sequence `2`, trips `1` versus `6`, distance `21.53` versus `129.19`, cost `43.06` versus `258.38`, winner `masari`. Full workspace/security/mobile validation and draft-PR CI evidence are recorded after completion.
+
+Remaining after M6C2B1:
+- M6C2B2 must implement separately reviewed public onboarding APIs, password/account/consent completion without direct session issuance, pending-role status recovery, real-provider integration, and legal/operational gates. Public onboarding remains disabled. Retention cleanup scheduling, provider/carrier validation, phone recovery/change, driver/merchant evidence/approval, password recovery, and UI remain pending.

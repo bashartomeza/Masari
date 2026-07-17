@@ -1,0 +1,21 @@
+# Admin invitation API
+
+These endpoints exist only when `INVITATIONS_ENABLED=true`. They require an active admin M6C1 session, inherit request IDs/global HTTP limits, use a durable admin-generation counter, and write allowlisted audit events. When disabled, the path returns `404`.
+
+## Create
+
+`POST /api/v1/admin/invitations`
+
+Body: `role` (`passenger|driver|merchant`), `phone`, `region` (`PS`), optional `expires_in_days` (1–30), `campaign`, `source`, and a bounded JSON metadata object. The phone is mandatory. A `201` response returns a safe invitation summary plus `code`; this is the only response that can contain the raw code. No SMS, account, password, or session is created.
+
+## List
+
+`GET /api/v1/admin/invitations`
+
+Filters: `status`, `role`, exact `campaign`, exact `source`, and exact `phone` with `region=PS`. Pagination is `page` plus `limit` (maximum 50), newest first. The phone filter is normalized and HMAC-matched server-side. Results contain ID, role, masked phone, lifecycle times/status, use counts, safe campaign/source, and safe actor IDs. They never contain code, hashes, digests, raw phone, or metadata.
+
+## Revoke
+
+`POST /api/v1/admin/invitations/:id/revoke`
+
+Body: required bounded `reason`. Repeating revocation is safe. A consumed invitation cannot be revoked or unconsumed. Responses use the same safe summary.
