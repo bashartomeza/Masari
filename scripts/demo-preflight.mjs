@@ -52,6 +52,13 @@ for (const name of [
 if (process.env.APP_ENV === "demo") pass("application environment", "demo");
 else fail("application environment", "APP_ENV must be demo for rehearsal tooling");
 
+if (process.env.ACCESS_TOKEN_TTL_SECONDS) pass("access-token lifetime", "configured for demo");
+else pass("access-token lifetime", "safe non-production default");
+if (process.env.REFRESH_TOKEN_TTL_DAYS) pass("refresh-token lifetime", "configured for demo");
+else pass("refresh-token lifetime", "safe bounded default");
+if (process.env.REFRESH_TOKEN_PEPPER) pass("refresh-token protection", "configured without disclosure");
+else pass("refresh-token protection", "derived non-production protection; explicit value required in staging/production");
+
 if (process.env.DATABASE_URL) {
   let connection;
   try {

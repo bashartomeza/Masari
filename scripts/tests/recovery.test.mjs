@@ -54,6 +54,13 @@ test("release metadata is reproducible with SOURCE_DATE_EPOCH and excludes secre
     assert.equal(content.includes(forbidden), false);
   const metadata = JSON.parse(content);
   assert.ok(metadata.git.commit);
-  assert.equal(metadata.migrations.length, 2);
+  assert.deepEqual(
+    metadata.migrations.map((migration) => migration.name).sort(),
+    [
+      "20260713114812_mysql_baseline",
+      "20260713114851_preserve_text_capacity",
+      "20260717094000_trusted_sessions"
+    ]
+  );
   rmSync(directory, { recursive: true, force: true });
 });

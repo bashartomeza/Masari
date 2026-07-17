@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const prismaMock = vi.hoisted(() => ({
   user: { findUnique: vi.fn(), count: vi.fn() },
+  authSession: { findUnique: vi.fn(), update: vi.fn() },
   auditEvent: { create: vi.fn() },
   passengerRequest: { create: vi.fn(), findMany: vi.fn(), findFirst: vi.fn(), update: vi.fn(), count: vi.fn() },
   driverProfile: { findUnique: vi.fn(), findMany: vi.fn(), count: vi.fn() },
@@ -29,9 +30,11 @@ const users: Record<string, { id: string; role: Role; name: string; phone: strin
 };
 
 function token(id: keyof typeof users) {
-  return jwt.sign({ id, role: users[id].role }, "test-only-jwt-secret-with-at-least-thirty-two-characters", {
-    expiresIn: "1h"
-  });
+  return jwt.sign(
+    { role: users[id].role, sid: `session_${id}`, ver: 1 },
+    "test-only-jwt-secret-with-at-least-thirty-two-characters",
+    { subject: id, expiresIn: "1h" }
+  );
 }
 
 function auth(id: keyof typeof users) {
@@ -63,8 +66,23 @@ describe("manual role APIs", () => {
     vi.clearAllMocks();
     prismaMock.user.findUnique.mockImplementation(({ where }: { where: { id?: string } }) => {
       if (!where.id) return null;
-      return users[where.id] ?? null;
+      const user = users[where.id];
+      return user ? { ...user, account_status: "active", security_version: 1 } : null;
     });
+    prismaMock.authSession.findUnique.mockImplementation(({ where }: { where: { id: string } }) => {
+      const user = users[where.id.replace(/^session_/, "")];
+      return user
+        ? {
+            id: where.id,
+            user_id: user.id,
+            user: { ...user, account_status: "active", security_version: 1 },
+            security_version_at_issue: 1,
+            expires_at: new Date(Date.now() + 60_000),
+            revoked_at: null
+          }
+        : null;
+    });
+    prismaMock.authSession.update.mockResolvedValue({});
     prismaMock.auditEvent.create.mockResolvedValue({ id: "audit_1" });
   });
 

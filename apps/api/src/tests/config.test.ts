@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 import { ConfigurationError, createConfig } from "../config.js";
 
 const safeJwt = "a-safe-jwt-secret-with-more-than-thirty-two-characters";
+const safeRefreshPepper = "a-safe-refresh-pepper-with-more-than-thirty-two-characters";
 
 function environment(overrides: Record<string, string | undefined> = {}) {
   return {
     APP_ENV: "production",
     DATABASE_URL: "mysql://database-user:database-password@db.internal:3306/masari",
     JWT_SECRET: safeJwt,
+    REFRESH_TOKEN_PEPPER: safeRefreshPepper,
     CORS_ORIGINS: "https://admin.masari.example",
     APP_RELEASE: "m6b1a-test",
     TRUST_PROXY: "none",
@@ -59,6 +61,22 @@ describe("fail-closed application configuration", () => {
     expect(() => createConfig(environment({ RATE_LIMIT_LOGIN_MAX: "51" }))).toThrow(/too high/);
     expect(() => createConfig(environment({ RATE_LIMIT_LOGIN_WINDOW_MS: "1000" }))).toThrow(/at least 60000ms/);
     expect(() => createConfig(environment({ READINESS_TIMEOUT_MS: "10" }))).toThrow(/too low/);
+  });
+
+  it("enforces production access and refresh lifetime boundaries", () => {
+    expect(() => createConfig(environment({ ACCESS_TOKEN_TTL_SECONDS: "299" }))).toThrow(/between 300 and 1800/);
+    expect(() => createConfig(environment({ ACCESS_TOKEN_TTL_SECONDS: "1801" }))).toThrow(/between 300 and 1800/);
+    expect(() => createConfig(environment({ REFRESH_TOKEN_TTL_DAYS: "91" }))).toThrow(/between 1 and 90/);
+    expect(createConfig(environment({ ACCESS_TOKEN_TTL_SECONDS: "300", REFRESH_TOKEN_TTL_DAYS: "90" }))).toEqual(
+      expect.objectContaining({ accessTokenTtlSeconds: 300, refreshTokenTtlDays: 90 })
+    );
+  });
+
+  it("requires a non-placeholder refresh-token pepper in production-like environments", () => {
+    expect(() => createConfig(environment({ REFRESH_TOKEN_PEPPER: undefined }))).toThrow(/REFRESH_TOKEN_PEPPER is required/);
+    expect(() => createConfig(environment({ REFRESH_TOKEN_PEPPER: "replace-with-a-long-random-refresh-pepper" }))).toThrow(
+      /known placeholder/
+    );
   });
 
   it("never includes submitted secret values in validation errors", () => {
