@@ -23,7 +23,13 @@ let temporary;
 if (args.has("--admin-dir")) roots.push(resolve(args.get("--admin-dir")));
 if (args.has("--apk")) {
   temporary = mkdtempSync(join(tmpdir(), "masari-apk-scan-"));
-  run("tar", ["-xf", resolve(args.get("--apk")), "-C", temporary]);
+  const apk = resolve(args.get("--apk"));
+  try {
+    run("jar", ["-xf", apk], { cwd: temporary });
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+    run("tar", ["-xf", apk, "-C", temporary]);
+  }
   roots.push(temporary);
 }
 if (!roots.length) throw new Error("Provide --admin-dir <path> and/or --apk <path>");
