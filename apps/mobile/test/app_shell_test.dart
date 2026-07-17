@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,6 +13,7 @@ import 'package:masari_mobile/core/api/api_client.dart';
 import 'package:masari_mobile/core/config/app_config.dart';
 import 'package:masari_mobile/core/i18n/domain_labels.dart';
 import 'package:masari_mobile/core/routing/app_router.dart';
+import 'package:masari_mobile/features/auth/application/auth_controller.dart';
 import 'package:masari_mobile/features/auth/data/token_storage.dart';
 import 'package:masari_mobile/features/auth/domain/auth_models.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -19,6 +21,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'test_app_config.dart';
 
 void main() {
+  test('Android excludes secure authentication storage from backup', () {
+    final manifest = File(
+      'android/app/src/main/AndroidManifest.xml',
+    ).readAsStringSync();
+    expect(manifest, contains('android:allowBackup="false"'));
+  });
+
   test('AppConfig validates explicit production values', () {
     final config = AppConfig.fromValues(
       appEnvironment: 'production',
@@ -53,6 +62,21 @@ void main() {
     expect(routeForRole(UserRole.driver), '/driver');
     expect(routeForRole(UserRole.merchant), '/merchant');
     expect(routeForRole(UserRole.admin), '/unsupported-role');
+  });
+
+  test('refreshing preserves the authenticated routing projection', () {
+    const user = AuthUser(
+      id: 'user_1',
+      name: 'Passenger',
+      phone: '+970590000001',
+      role: UserRole.passenger,
+      demoAccount: false,
+    );
+
+    expect(
+      authRoutingSnapshotFor(const AsyncData(AuthState.refreshing(user))),
+      authRoutingSnapshotFor(const AsyncData(AuthState.authenticated(user))),
+    );
   });
 
   testWidgets('Arabic login screen defaults to RTL', (tester) async {
@@ -243,6 +267,16 @@ void main() {
       find.text('لوحة تحكم المسؤول متاحة عبر تطبيق الويب.'),
       findsOneWidget,
     );
+
+    GoRouter.of(
+      tester.element(find.text('لوحة تحكم المسؤول متاحة عبر تطبيق الويب.')),
+    ).go('/security/sessions');
+    await tester.pumpAndSettle();
+    expect(find.text('الأمان والجلسات'), findsNothing);
+    expect(
+      find.text('لوحة تحكم المسؤول متاحة عبر تطبيق الويب.'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('logout returns to login and preserves selected locale', (
@@ -258,9 +292,189 @@ void main() {
     expect(find.textContaining('Demo Passenger'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('logoutButton')));
     await tester.pumpAndSettle();
+    expect(find.text('Confirm logout'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('confirmSecurityActionButton')));
+    await tester.pumpAndSettle();
 
     expect(find.text('Sign in'), findsWidgets);
     expect(find.text('Arabic'), findsOneWidget);
+  });
+
+  testWidgets('shared session screen is Arabic RTL and hides sensitive IDs', (
+    tester,
+  ) async {
+    await _pumpApp(
+      tester,
+      secureValues: {TokenStorage.tokenKey: 'token'},
+      handler: _passengerHandler,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('securitySessionsButton')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('الأمان والجلسات'), findsWidgets);
+    expect(find.text('الجهاز الحالي'), findsOneWidget);
+    expect(find.text('Masari Android'), findsOneWidget);
+    expect(
+      Directionality.of(tester.element(find.text('الجلسات النشطة'))),
+      TextDirection.rtl,
+    );
+    expect(find.textContaining('session_1'), findsNothing);
+    expect(find.textContaining('token_hash'), findsNothing);
+    expect(find.textContaining('refresh_token'), findsNothing);
+  });
+
+  testWidgets('shared session screen uses English LTR', (tester) async {
+    await _pumpApp(
+      tester,
+      localeValues: {DomainLabels.localeStorageKey: 'en'},
+      secureValues: {TokenStorage.tokenKey: 'token'},
+      handler: _passengerHandler,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('securitySessionsButton')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Security and sessions'), findsWidgets);
+    expect(
+      Directionality.of(tester.element(find.text('Active sessions'))),
+      TextDirection.ltr,
+    );
+  });
+
+  testWidgets('revoking the current session returns immediately to login', (
+    tester,
+  ) async {
+    await _pumpApp(
+      tester,
+      secureValues: {TokenStorage.tokenKey: 'token'},
+      handler: _passengerHandler,
+    );
+    await tester.tap(find.byKey(const ValueKey('securitySessionsButton')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('revokeCurrentSession')));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.widgetWithText(FilledButton, 'إلغاء جلسة هذا الجهاز'),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('تسجيل الدخول'), findsWidgets);
+    expect(
+      await const FlutterSecureStorage().read(key: TokenStorage.bundleKey),
+      isNull,
+    );
+  });
+
+  testWidgets('revoking another session refreshes the list and stays signed in', (
+    tester,
+  ) async {
+    var listCalls = 0;
+    var revokeCalls = 0;
+    await _pumpApp(
+      tester,
+      secureValues: {TokenStorage.tokenKey: 'token'},
+      handler: (request) async {
+        final path = request.url.path;
+        if (path.endsWith('/auth/sessions') && request.method == 'GET') {
+          listCalls += 1;
+          return http.Response(
+            '{"sessions":[{"id":"session_1","client_type":"mobile","device_name":"Masari Android","created_at":"2026-07-17T10:00:00.000Z","last_used_at":"2026-07-17T10:05:00.000Z","expires_at":"2026-08-17T10:00:00.000Z","is_current":true,"revoked":false},{"id":"session_2","client_type":"mobile","device_name":"Other Android","created_at":"2026-07-16T10:00:00.000Z","last_used_at":"2026-07-16T10:05:00.000Z","expires_at":"2026-08-16T10:00:00.000Z","is_current":false,"revoked":false}]}',
+            200,
+          );
+        }
+        if (path.contains('/auth/sessions/') && request.method == 'DELETE') {
+          revokeCalls += 1;
+          return http.Response('{"ok":true}', 200);
+        }
+        return _passengerHandler(request);
+      },
+    );
+    await tester.tap(find.byKey(const ValueKey('securitySessionsButton')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('revokeSession')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'إلغاء الجلسة'));
+    await tester.pumpAndSettle();
+
+    expect(revokeCalls, 1);
+    expect(listCalls, 2);
+    expect(find.text('الأمان والجلسات'), findsWidgets);
+  });
+
+  testWidgets('logout-all success clears local state and returns to login', (
+    tester,
+  ) async {
+    await _pumpApp(
+      tester,
+      secureValues: {TokenStorage.tokenKey: 'token'},
+      handler: _passengerHandler,
+    );
+    await tester.tap(find.byKey(const ValueKey('securitySessionsButton')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('logoutAllSessions')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('confirmSecurityActionButton')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('تسجيل الدخول'), findsWidgets);
+  });
+
+  testWidgets('logout-all failure is reported and preserves the session', (
+    tester,
+  ) async {
+    await _pumpApp(
+      tester,
+      secureValues: {TokenStorage.tokenKey: 'token'},
+      handler: (request) async {
+        if (request.url.path.endsWith('/auth/logout-all')) {
+          throw http.ClientException('offline');
+        }
+        return _passengerHandler(request);
+      },
+    );
+    await tester.tap(find.byKey(const ValueKey('securitySessionsButton')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('logoutAllSessions')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('confirmSecurityActionButton')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('sessionActionError')), findsOneWidget);
+    expect(find.text('الأمان والجلسات'), findsWidgets);
+    expect(
+      await const FlutterSecureStorage().read(key: TokenStorage.bundleKey),
+      isNotNull,
+    );
+  });
+
+  testWidgets('explicit local logout succeeds during a network outage', (
+    tester,
+  ) async {
+    await _pumpApp(
+      tester,
+      secureValues: {TokenStorage.tokenKey: 'token'},
+      handler: (request) async {
+        if (request.url.path.endsWith('/auth/logout')) {
+          throw http.ClientException('offline');
+        }
+        return _passengerHandler(request);
+      },
+    );
+
+    await tester.tap(find.byKey(const ValueKey('logoutButton')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('confirmSecurityActionButton')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('تسجيل الدخول'), findsWidgets);
+    expect(
+      await const FlutterSecureStorage().read(key: TokenStorage.bundleKey),
+      isNull,
+    );
   });
 }
 
@@ -303,6 +517,18 @@ Future<http.Response> Function(http.Request request) _meHandler(String role) {
 Future<http.Response> _passengerHandler(http.Request request) async {
   final path = request.url.path;
   if (path.endsWith('/me')) return http.Response(_meBody('passenger'), 200);
+  if (path.endsWith('/auth/sessions') && request.method == 'GET') {
+    return http.Response(
+      '{"sessions":[{"id":"session_1","client_type":"mobile","device_name":"Masari Android","created_at":"2026-07-17T10:00:00.000Z","last_used_at":"2026-07-17T10:05:00.000Z","expires_at":"2026-08-17T10:00:00.000Z","is_current":true,"revoked":false}]}',
+      200,
+    );
+  }
+  if (path.contains('/auth/sessions/') && request.method == 'DELETE') {
+    return http.Response('{"ok":true,"session":{"revoked":true}}', 200);
+  }
+  if (path.endsWith('/auth/logout') || path.endsWith('/auth/logout-all')) {
+    return http.Response('{"ok":true}', 200);
+  }
   if (path.endsWith('/passenger/requests/active')) {
     return http.Response('{"requests":[${_requestBody()}]}', 200);
   }

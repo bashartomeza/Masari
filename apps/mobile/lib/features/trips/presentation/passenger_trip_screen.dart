@@ -6,6 +6,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/presentation/localized_labels.dart';
 import '../../../core/widgets/language_switch.dart';
 import '../../../core/widgets/masari_card.dart';
+import '../../security/presentation/session_status_banner.dart';
 import '../application/passenger_trip_controller.dart';
 
 class PassengerTripScreen extends ConsumerStatefulWidget {
@@ -62,6 +63,8 @@ class _PassengerTripScreenState extends ConsumerState<PassengerTripScreen>
               style: Theme.of(context).textTheme.headlineMedium,
             ),
             const SizedBox(height: AppTokens.spaceLarge),
+            const SessionStatusBanner(),
+            const SizedBox(height: AppTokens.spaceMedium),
             state.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (_, _) => FilledButton(

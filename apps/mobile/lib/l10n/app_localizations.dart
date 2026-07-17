@@ -299,7 +299,7 @@ abstract class AppLocalizations {
   /// No description provided for @sessionExpired.
   ///
   /// In ar, this message translates to:
-  /// **'انتهت الجلسة. يرجى تسجيل الدخول مرة أخرى.'**
+  /// **'انتهت جلستك، يرجى تسجيل الدخول مرة أخرى'**
   String get sessionExpired;
 
   /// No description provided for @invalidCredentials.
@@ -1315,6 +1315,162 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'تقدم التوصيل'**
   String get deliveryProgress;
+
+  /// No description provided for @securityAndSessions.
+  ///
+  /// In ar, this message translates to:
+  /// **'الأمان والجلسات'**
+  String get securityAndSessions;
+
+  /// No description provided for @activeSessions.
+  ///
+  /// In ar, this message translates to:
+  /// **'الجلسات النشطة'**
+  String get activeSessions;
+
+  /// No description provided for @currentDevice.
+  ///
+  /// In ar, this message translates to:
+  /// **'الجهاز الحالي'**
+  String get currentDevice;
+
+  /// No description provided for @otherDevice.
+  ///
+  /// In ar, this message translates to:
+  /// **'جهاز آخر'**
+  String get otherDevice;
+
+  /// No description provided for @mobileSession.
+  ///
+  /// In ar, this message translates to:
+  /// **'تطبيق الهاتف'**
+  String get mobileSession;
+
+  /// No description provided for @adminSession.
+  ///
+  /// In ar, this message translates to:
+  /// **'متصفح المسؤول'**
+  String get adminSession;
+
+  /// No description provided for @created.
+  ///
+  /// In ar, this message translates to:
+  /// **'تاريخ الإنشاء'**
+  String get created;
+
+  /// No description provided for @lastActive.
+  ///
+  /// In ar, this message translates to:
+  /// **'آخر نشاط'**
+  String get lastActive;
+
+  /// No description provided for @expires.
+  ///
+  /// In ar, this message translates to:
+  /// **'تنتهي في'**
+  String get expires;
+
+  /// No description provided for @revokeSession.
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء الجلسة'**
+  String get revokeSession;
+
+  /// No description provided for @revokeThisDevice.
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء جلسة هذا الجهاز'**
+  String get revokeThisDevice;
+
+  /// No description provided for @logoutAllDevices.
+  ///
+  /// In ar, this message translates to:
+  /// **'تسجيل الخروج من جميع الأجهزة'**
+  String get logoutAllDevices;
+
+  /// No description provided for @confirmLogout.
+  ///
+  /// In ar, this message translates to:
+  /// **'تأكيد تسجيل الخروج'**
+  String get confirmLogout;
+
+  /// No description provided for @confirmLogoutMessage.
+  ///
+  /// In ar, this message translates to:
+  /// **'هل تريد تسجيل الخروج من هذا الجهاز؟'**
+  String get confirmLogoutMessage;
+
+  /// No description provided for @confirmLogoutAll.
+  ///
+  /// In ar, this message translates to:
+  /// **'تأكيد تسجيل الخروج من جميع الأجهزة'**
+  String get confirmLogoutAll;
+
+  /// No description provided for @confirmLogoutAllMessage.
+  ///
+  /// In ar, this message translates to:
+  /// **'ستنتهي جميع الجلسات النشطة، وستحتاج إلى تسجيل الدخول مجدداً على كل جهاز.'**
+  String get confirmLogoutAllMessage;
+
+  /// No description provided for @confirmRevokeSession.
+  ///
+  /// In ar, this message translates to:
+  /// **'هل تريد إلغاء هذه الجلسة؟'**
+  String get confirmRevokeSession;
+
+  /// No description provided for @cancel.
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء'**
+  String get cancel;
+
+  /// No description provided for @sessionRevoked.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إلغاء الجلسة'**
+  String get sessionRevoked;
+
+  /// No description provided for @sessionEnded.
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت جلستك، يرجى تسجيل الدخول مرة أخرى'**
+  String get sessionEnded;
+
+  /// No description provided for @accountUnavailable.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا الحساب غير متاح. تواصل مع المسؤول إذا كنت بحاجة إلى مساعدة.'**
+  String get accountUnavailable;
+
+  /// No description provided for @refreshingSession.
+  ///
+  /// In ar, this message translates to:
+  /// **'جارٍ تحديث الجلسة...'**
+  String get refreshingSession;
+
+  /// No description provided for @unableToRefresh.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذر تحديث الجلسة. تحقق من الاتصال ثم أعد المحاولة.'**
+  String get unableToRefresh;
+
+  /// No description provided for @localLogout.
+  ///
+  /// In ar, this message translates to:
+  /// **'تسجيل الخروج من هذا الجهاز'**
+  String get localLogout;
+
+  /// No description provided for @noActiveSessions.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يتم إرجاع جلسات نشطة.'**
+  String get noActiveSessions;
+
+  /// No description provided for @sessionActionFailed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذر إكمال إجراء الجلسة. يرجى إعادة المحاولة.'**
+  String get sessionActionFailed;
 }
 
 class _AppLocalizationsDelegate

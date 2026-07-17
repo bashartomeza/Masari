@@ -1,40 +1,31 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/api/api_client.dart';
-import '../../auth/data/token_storage.dart';
+import '../../auth/data/authenticated_api_client.dart';
 import 'matching_models.dart';
 
 final matchingRepositoryProvider = Provider<MatchingRepository>((ref) {
   return MatchingRepository(
-    apiClient: ref.watch(apiClientProvider),
-    tokenStorage: ref.watch(tokenStorageProvider),
+    apiClient: ref.watch(authenticatedApiClientProvider),
   );
 });
 
 class MatchingRepository {
-  const MatchingRepository({
-    required this.apiClient,
-    required this.tokenStorage,
-  });
+  const MatchingRepository({required this.apiClient});
 
-  final ApiClient apiClient;
-  final TokenStorage tokenStorage;
+  final AuthenticatedApiClient apiClient;
 
   Future<MatchResult> runForPassengerRequest(String requestId) async {
     final json = await apiClient.postJson(
       '/matches/run',
-      token: await _token(),
       body: {'passengerRequestId': requestId},
     );
     return _match(json);
   }
 
   Future<MatchResult> detail(String id) async {
-    final json = await apiClient.getJson('/matches/$id', token: await _token());
+    final json = await apiClient.getJson('/matches/$id');
     return _match(json);
   }
-
-  Future<String> _token() async => await tokenStorage.readToken() ?? '';
 
   MatchResult _match(Map<String, dynamic> json) {
     return MatchResult.fromJson(

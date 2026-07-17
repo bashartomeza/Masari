@@ -10,6 +10,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/language_switch.dart';
 import '../../../core/widgets/masari_card.dart';
 import '../application/auth_controller.dart';
+import '../domain/auth_models.dart';
 import 'demo_accounts.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -36,8 +37,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final auth = ref.watch(authControllerProvider);
-    final loading = _submitting;
+    final loading =
+        _submitting || auth.value?.status == AuthStatus.authenticating;
     final error = auth.error;
+    final sessionEndReason = auth.value?.sessionEndReason;
     final config = ref.watch(appConfigProvider);
     final demoAccounts = demoAccountsFor(config);
 
@@ -110,6 +113,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     Text(
                       _errorMessage(l10n, error),
                       key: const ValueKey('loginError'),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  ],
+                  if (sessionEndReason != null) ...[
+                    const SizedBox(height: AppTokens.spaceMedium),
+                    Text(
+                      _sessionEndMessage(l10n, sessionEndReason),
+                      key: const ValueKey('sessionEndedMessage'),
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.error,
                       ),
@@ -194,6 +207,9 @@ String _errorMessage(AppLocalizations l10n, Object error) {
   if (error is! ApiException) {
     return l10n.requestFailed;
   }
+  if (error.message == 'account_unavailable') {
+    return l10n.accountUnavailable;
+  }
   return switch (error.type) {
     ApiErrorType.unauthorized => l10n.invalidCredentials,
     ApiErrorType.network => l10n.networkUnavailable,
@@ -204,3 +220,10 @@ String _errorMessage(AppLocalizations l10n, Object error) {
     ApiErrorType.unknown => l10n.requestFailed,
   };
 }
+
+String _sessionEndMessage(AppLocalizations l10n, SessionEndReason reason) =>
+    switch (reason) {
+      SessionEndReason.expired => l10n.sessionExpired,
+      SessionEndReason.ended => l10n.sessionEnded,
+      SessionEndReason.accountUnavailable => l10n.accountUnavailable,
+    };

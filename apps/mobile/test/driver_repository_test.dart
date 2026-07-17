@@ -2,11 +2,11 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
-import 'package:masari_mobile/core/api/api_client.dart';
-import 'package:masari_mobile/features/auth/data/token_storage.dart';
+import 'package:masari_mobile/features/auth/data/authenticated_api_client.dart';
 import 'package:masari_mobile/features/driver/data/driver_models.dart';
 import 'package:masari_mobile/features/driver/data/driver_repository.dart';
+
+import 'support/auth_test_support.dart';
 
 void main() {
   test(
@@ -33,7 +33,6 @@ void main() {
           }
           return http.Response('{"routes":[$_routeJson]}', 200);
         }),
-        tokenStorage: _TokenStorage(),
       );
 
       expect((await repository.listRoutes()).single.originLat, 31.5326);
@@ -79,7 +78,6 @@ void main() {
           filteredUri = request.url;
           return http.Response('{"matches":[$_matchJson]}', 200);
         }),
-        tokenStorage: _TokenStorage(),
       );
 
       final inbox = await repository.listMatches(status: 'proposed');
@@ -122,7 +120,6 @@ void main() {
           }
           return http.Response('{"trip":$_tripJson}', 200);
         }),
-        tokenStorage: _TokenStorage(),
       );
 
       expect(
@@ -140,18 +137,9 @@ void main() {
   );
 }
 
-ApiClient _client(
+AuthenticatedApiClient _client(
   Future<http.Response> Function(http.Request request) handler,
-) => ApiClient(baseUrl: 'http://api.test', client: MockClient(handler));
-
-class _TokenStorage implements TokenStorage {
-  @override
-  Future<void> clearToken() async {}
-  @override
-  Future<String?> readToken() async => 'driver-token';
-  @override
-  Future<void> saveToken(String token) async {}
-}
+) => TestAuthenticatedClient(handler: handler).client;
 
 const _routeJson =
     '{"id":"route_1","origin_label":"Hebron / PPU / Bab Al-Zawiya","origin_lat":"31.532600","origin_lng":"35.099800","destination_label":"Bethlehem","destination_lat":"31.705400","destination_lng":"35.202400","corridor_key":"hebron-ppu-bab-al-zawiya-to-bethlehem","seats_available":2,"parcel_capacity_available":5,"status":"active","activated_at":"2026-07-13T08:00:00.000Z","completed_at":null}';

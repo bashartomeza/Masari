@@ -112,7 +112,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get logout => 'Logout';
 
   @override
-  String get sessionExpired => 'Your session expired. Please sign in again.';
+  String get sessionExpired =>
+      'Your session has expired. Please sign in again.';
 
   @override
   String get invalidCredentials => 'Invalid phone or password.';
@@ -634,4 +635,86 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get deliveryProgress => 'Delivery progress';
+
+  @override
+  String get securityAndSessions => 'Security and sessions';
+
+  @override
+  String get activeSessions => 'Active sessions';
+
+  @override
+  String get currentDevice => 'Current device';
+
+  @override
+  String get otherDevice => 'Other device';
+
+  @override
+  String get mobileSession => 'Mobile app';
+
+  @override
+  String get adminSession => 'Admin browser';
+
+  @override
+  String get created => 'Created';
+
+  @override
+  String get lastActive => 'Last active';
+
+  @override
+  String get expires => 'Expires';
+
+  @override
+  String get revokeSession => 'Revoke session';
+
+  @override
+  String get revokeThisDevice => 'Revoke this device';
+
+  @override
+  String get logoutAllDevices => 'Log out all devices';
+
+  @override
+  String get confirmLogout => 'Confirm logout';
+
+  @override
+  String get confirmLogoutMessage => 'Log out this device?';
+
+  @override
+  String get confirmLogoutAll => 'Confirm logout from all devices';
+
+  @override
+  String get confirmLogoutAllMessage =>
+      'Every active session will be ended. You will need to sign in again on each device.';
+
+  @override
+  String get confirmRevokeSession => 'Revoke this session?';
+
+  @override
+  String get cancel => 'Cancel';
+
+  @override
+  String get sessionRevoked => 'Session revoked';
+
+  @override
+  String get sessionEnded => 'Your session has ended. Please sign in again.';
+
+  @override
+  String get accountUnavailable =>
+      'This account is unavailable. Contact an administrator if you need help.';
+
+  @override
+  String get refreshingSession => 'Refreshing session...';
+
+  @override
+  String get unableToRefresh =>
+      'Unable to refresh the session. Check the connection and retry.';
+
+  @override
+  String get localLogout => 'Log out on this device';
+
+  @override
+  String get noActiveSessions => 'No active sessions were returned.';
+
+  @override
+  String get sessionActionFailed =>
+      'The session action could not be completed. Please retry.';
 }

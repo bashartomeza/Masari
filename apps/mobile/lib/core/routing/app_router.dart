@@ -21,11 +21,12 @@ import '../../features/merchant/presentation/merchant_trip_screen.dart';
 import '../../features/passenger/presentation/create_request_screen.dart';
 import '../../features/passenger/presentation/passenger_home_screen.dart';
 import '../../features/passenger/presentation/request_detail_screen.dart';
+import '../../features/security/presentation/session_management_screen.dart';
 import '../../features/trips/presentation/passenger_trip_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
-  final auth = ref.watch(authControllerProvider);
-  final authenticating = auth.value?.status == AuthStatus.authenticating;
+  final auth = ref.watch(authControllerProvider.select(authRoutingSnapshotFor));
+  final authenticating = auth.status == AuthStatus.authenticating;
 
   return GoRouter(
     initialLocation: authenticating ? '/login' : '/splash',
@@ -118,6 +119,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/unsupported-role',
         builder: (context, state) => const UnsupportedRoleScreen(),
       ),
+      GoRoute(
+        path: '/security/sessions',
+        builder: (context, state) => const SessionManagementScreen(),
+      ),
     ],
     redirect: (context, state) {
       final path = state.uri.path;
@@ -131,21 +136,25 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         return path == '/login' ? null : '/login';
       }
 
-      final authState = auth.value ?? const AuthState.restoring();
-      if (authState.status == AuthStatus.restoring ||
-          authState.status == AuthStatus.restoreFailed) {
+      if (auth.status == AuthStatus.restoring ||
+          auth.status == AuthStatus.restoreFailed) {
         return path == '/splash' ? null : '/splash';
       }
 
-      if (authState.status == AuthStatus.authenticating) {
+      if (auth.status == AuthStatus.authenticating) {
         return path == '/login' ? null : '/login';
       }
 
-      if (!authState.isAuthenticated) {
+      if (auth.status != AuthStatus.authenticated || auth.user == null) {
         return path == '/login' ? null : '/login';
       }
 
-      final target = routeForRole(authState.user!.role);
+      final target = routeForRole(auth.user!.role);
+      if (path == '/security/sessions' &&
+          auth.user!.role != UserRole.admin &&
+          auth.user!.role != UserRole.unsupported) {
+        return null;
+      }
       if (path == target || path.startsWith('$target/')) {
         return null;
       }
@@ -153,6 +162,28 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     },
   );
 });
+
+typedef AuthRoutingSnapshot = ({
+  bool isLoading,
+  bool hasError,
+  AuthStatus status,
+  AuthUser? user,
+});
+
+AuthRoutingSnapshot authRoutingSnapshotFor(AsyncValue<AuthState> auth) {
+  final status = switch (auth.value?.status) {
+    AuthStatus.refreshing ||
+    AuthStatus.retryableFailure => AuthStatus.authenticated,
+    final status? => status,
+    null => AuthStatus.restoring,
+  };
+  return (
+    isLoading: auth.isLoading,
+    hasError: auth.hasError,
+    status: status,
+    user: auth.value?.user,
+  );
+}
 
 String routeForRole(UserRole role) {
   return switch (role) {

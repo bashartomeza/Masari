@@ -1,9 +1,12 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { createApiClient, createDemoApiClient, type BatchResponse, type Comparison, type DashboardResponse, type DriverRoute, type LocationEvent, type MatchRunResponse, type MerchantOrder, type PassengerRequest, type Trip, type User } from "./api";
 import { demoUiEnabled, getAdminBuildConfig, type AdminBuildConfig } from "./config";
 import { useLocale } from "./i18n/LocaleContext";
 import type { TranslationKey } from "./i18n/translations";
+import { ADMIN_TOKEN_KEY, clearAdminSession, createAdminSessionExpiryHandler, isAdminSessionEndError, type TokenStorage } from "./session";
+
+export { ADMIN_TOKEN_KEY, clearAdminSession } from "./session";
 
 const tripFlow = ["accepted", "pickup_started", "picked_up", "in_transit", "delivered", "completed"];
 
@@ -33,14 +36,6 @@ function Section({ title, action, children }: { title: string; action?: ReactNod
   );
 }
 
-type TokenStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
-export const ADMIN_TOKEN_KEY = "masari_admin_token";
-
-export function clearAdminSession(sessionStore: TokenStorage, legacyStore: TokenStorage) {
-  sessionStore.removeItem(ADMIN_TOKEN_KEY);
-  legacyStore.removeItem(ADMIN_TOKEN_KEY);
-}
-
 export function App({
   config = getAdminBuildConfig(),
   sessionStore = window.sessionStorage,
@@ -52,8 +47,6 @@ export function App({
 } = {}) {
   const { direction, locale, toggleLocale, t, status, source, number, dateTime } = useLocale();
   const demoEnabled = demoUiEnabled(config, __MASARI_DEMO_BUILD__);
-  const api = createApiClient(config.apiBaseUrl);
-  const demoApi = createDemoApiClient(config.apiBaseUrl);
   const [token, setToken] = useState(() => {
     legacyStore.removeItem(ADMIN_TOKEN_KEY);
     return sessionStore.getItem(ADMIN_TOKEN_KEY) ?? "";
@@ -77,6 +70,43 @@ export function App({
   const [latestLocation, setLatestLocation] = useState<LocationEvent | null>(null);
   const [locationTrail, setLocationTrail] = useState<LocationEvent[]>([]);
   const [demoSteps, setDemoSteps] = useState<DemoStep[]>([]);
+
+  function clearAuthenticatedData() {
+    setAdmin(null);
+    setDashboard(null);
+    setRoutes([]);
+    setRequests([]);
+    setOrders([]);
+    setMatchResult(null);
+    setBatchResult(null);
+    setComparison(null);
+    setTrips([]);
+    setActiveTrip(null);
+    setLatestLocation(null);
+    setLocationTrail([]);
+    setDemoSteps([]);
+  }
+
+  const sessionExpiry = useMemo(
+    () => createAdminSessionExpiryHandler({
+      sessionStore,
+      legacyStore,
+      onExpired: () => {
+        setToken("");
+        clearAuthenticatedData();
+        setNotice({ type: "error", message: t("sessionExpired") });
+      }
+    }),
+    [legacyStore, sessionStore, t]
+  );
+  const api = useMemo(
+    () => createApiClient(config.apiBaseUrl, { onSessionEnded: sessionExpiry.handle }),
+    [config.apiBaseUrl, sessionExpiry]
+  );
+  const demoApi = useMemo(
+    () => createDemoApiClient(config.apiBaseUrl, { onSessionEnded: sessionExpiry.handle }),
+    [config.apiBaseUrl, sessionExpiry]
+  );
 
   const selectedRequest = requests[0];
   const selectedOrder = orders[0];
@@ -102,14 +132,15 @@ export function App({
     return <button className="language-switch" type="button" onClick={() => { setNotice(null); toggleLocale(); }}>{t("languageSwitch")}</button>;
   }
 
-  async function runAction<T>(label: string, action: () => Promise<T>, success: string) {
+  async function runAction<T>(label: string, action: () => Promise<T>, success?: string) {
     setBusy(label);
     setNotice(null);
     try {
       const result = await action();
-      setNotice({ type: "success", message: success });
+      if (success) setNotice({ type: "success", message: success });
       return result;
     } catch (error) {
+      if (token && isAdminSessionEndError(error)) return null;
       setNotice({ type: "error", message: getErrorMessage(error, t) });
       return null;
     } finally {
@@ -142,6 +173,7 @@ export function App({
     event.preventDefault();
     const result = await runAction("login", () => api.login(phone, password), t("adminLoggedIn"));
     if (!result) return;
+    sessionExpiry.reset();
     sessionStore.setItem(ADMIN_TOKEN_KEY, result.token);
     setToken(result.token);
     setAdmin(result.user);
@@ -151,12 +183,14 @@ export function App({
   async function loadMe(currentToken = token) {
     const result = await runAction("me", () => api.me(currentToken), t("sessionLoaded"));
     if (result) setAdmin(result.user);
+    return result !== null;
   }
 
   async function resetDemo() {
     if (!demoApi) return;
     await runAction("reset", () => demoApi.reset(token || undefined, resetKey), t("demoDataReset"));
     const session = await api.login(phone, password);
+    sessionExpiry.reset();
     sessionStore.setItem(ADMIN_TOKEN_KEY, session.token);
     setToken(session.token);
     setAdmin(session.user);
@@ -279,6 +313,7 @@ export function App({
       await demoApi.reset(token || undefined, resetKey);
       mark("stepLogin");
       const session = await api.login(phone, password);
+      sessionExpiry.reset();
       sessionStore.setItem(ADMIN_TOKEN_KEY, session.token);
       setToken(session.token);
       setAdmin(session.user);
@@ -320,7 +355,9 @@ export function App({
 
   useEffect(() => {
     if (!token) return;
-    void loadMe(token).then(() => refreshOverview(token));
+    void loadMe(token).then((loaded) => {
+      if (loaded) void runAction("restore-overview", () => refreshOverview(token));
+    });
   }, [token]);
 
   if (!token) {
@@ -353,7 +390,7 @@ export function App({
           <strong>{admin?.name ?? "Admin"}</strong>
           <span className="technical">{admin?.phone}</span>
           <LanguageSwitch />
-          <button onClick={() => { clearAdminSession(sessionStore, legacyStore); setToken(""); }} disabled={Boolean(busy)}>{t("logout")}</button>
+          <button onClick={() => { clearAdminSession(sessionStore, legacyStore); sessionExpiry.reset(); clearAuthenticatedData(); setNotice(null); setToken(""); }} disabled={Boolean(busy)}>{t("logout")}</button>
         </div>
       </header>
 

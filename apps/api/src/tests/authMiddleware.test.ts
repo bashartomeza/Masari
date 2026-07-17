@@ -98,4 +98,18 @@ describe("server-managed authentication middleware", () => {
     await expect(authenticateAuthToken(unsupported)).rejects.toMatchObject({ statusCode: 401, message: "invalid_token" });
     expect(prismaMock.authSession.findUnique).not.toHaveBeenCalled();
   });
+
+  it("distinguishes an expired access token before session lookup", async () => {
+    const expired = jwt.sign(
+      { role: user.role, sid: "session_1", ver: 1 },
+      process.env.JWT_SECRET!,
+      { algorithm: "HS256", subject: user.id, expiresIn: -1 }
+    );
+
+    await expect(authenticateAuthToken(expired)).rejects.toMatchObject({
+      statusCode: 401,
+      message: "access_token_expired"
+    });
+    expect(prismaMock.authSession.findUnique).not.toHaveBeenCalled();
+  });
 });

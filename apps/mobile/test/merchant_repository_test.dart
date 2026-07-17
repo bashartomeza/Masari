@@ -2,11 +2,10 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
-import 'package:masari_mobile/core/api/api_client.dart';
-import 'package:masari_mobile/features/auth/data/token_storage.dart';
 import 'package:masari_mobile/features/merchant/data/merchant_models.dart';
 import 'package:masari_mobile/features/merchant/data/merchant_repository.dart';
+
+import 'support/auth_test_support.dart';
 
 void main() {
   test('order list/detail parse parcels and persisted safe batch', () async {
@@ -121,18 +120,8 @@ void main() {
 MerchantRepository _repository(
   Future<http.Response> Function(http.Request) handler,
 ) => MerchantRepository(
-  apiClient: ApiClient(baseUrl: 'http://api.test', client: MockClient(handler)),
-  tokenStorage: _TokenStorage(),
+  apiClient: TestAuthenticatedClient(handler: handler).client,
 );
-
-class _TokenStorage implements TokenStorage {
-  @override
-  Future<void> clearToken() async {}
-  @override
-  Future<String?> readToken() async => 'merchant-token';
-  @override
-  Future<void> saveToken(String token) async {}
-}
 
 const _routeJson =
     '{"id":"route_1","origin_label":"Hebron / PPU / Bab Al-Zawiya","destination_label":"Bethlehem","corridor_key":"hebron-ppu-bab-al-zawiya-to-bethlehem","parcel_capacity_available":5,"status":"active"}';

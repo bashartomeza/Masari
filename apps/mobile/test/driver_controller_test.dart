@@ -4,12 +4,19 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:masari_mobile/core/api/api_client.dart';
 import 'package:masari_mobile/core/api/api_error.dart';
+import 'package:masari_mobile/core/config/app_config.dart';
+import 'package:masari_mobile/features/auth/application/auth_controller.dart';
+import 'package:masari_mobile/features/auth/data/session_coordinator.dart';
 import 'package:masari_mobile/features/auth/data/token_storage.dart';
+import 'package:masari_mobile/features/auth/domain/auth_models.dart';
 import 'package:masari_mobile/features/driver/application/driver_controller.dart';
 import 'package:masari_mobile/features/driver/data/driver_models.dart';
 import 'package:masari_mobile/features/driver/data/driver_repository.dart';
 import 'package:masari_mobile/features/matching/data/matching_models.dart';
 import 'package:masari_mobile/features/trips/data/trip_models.dart';
+
+import 'support/auth_test_support.dart';
+import 'test_app_config.dart';
 
 void main() {
   test(
@@ -179,6 +186,60 @@ void main() {
       expect(notifier.activeTimerCount, 2);
     },
   );
+
+  test('terminal session state disposes active trip polling', () async {
+    final fake = _FakeDriverRepository(trips: [_trip()]);
+    final storage = MemoryTokenStorage(
+      storedBundle: AuthTokenBundle(
+        accessToken: 'driver-access',
+        accessTokenExpiresAt: DateTime.now().toUtc().add(
+          const Duration(hours: 1),
+        ),
+      ),
+    );
+    final container = ProviderContainer(
+      overrides: [
+        driverRepositoryProvider.overrideWithValue(fake),
+        appConfigProvider.overrideWithValue(demoTestAppConfig),
+        tokenStorageProvider.overrideWithValue(storage),
+        httpClientProvider.overrideWithValue(
+          MockClient(
+            (_) async => http.Response(
+              '{"user":{"id":"user_2","name":"Driver","phone":"+970590000002","role":"driver","demo_account":true}}',
+              200,
+            ),
+          ),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    await container.read(authControllerProvider.future);
+    await container.read(driverTripControllerProvider('trip_1').future);
+    final polling = container.read(
+      driverTripControllerProvider('trip_1').notifier,
+    );
+    expect(polling.activeTimerCount, 2);
+
+    await expectLater(
+      container
+          .read(authSessionCoordinatorProvider)
+          .sendAuthenticated(
+            (_) async => throw const ApiException(
+              ApiErrorType.unauthorized,
+              'session_revoked',
+              statusCode: 401,
+            ),
+          ),
+      throwsA(isA<ApiException>()),
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    expect(polling.activeTimerCount, 0);
+    expect(
+      container.read(authControllerProvider).value?.status,
+      AuthStatus.sessionEnded,
+    );
+  });
 }
 
 ProviderContainer _container(_FakeDriverRepository fake) {
@@ -196,13 +257,9 @@ class _FakeDriverRepository extends DriverRepository {
        matches = matches ?? [],
        trips = trips ?? [],
        super(
-         apiClient: ApiClient(
-           baseUrl: 'http://fake',
-           client: MockClient(
-             (_) async => http.Response('{"error":"unused"}', 500),
-           ),
-         ),
-         tokenStorage: _TokenStorage(),
+         apiClient: TestAuthenticatedClient(
+           handler: (_) async => http.Response('{"error":"unused"}', 500),
+         ).client,
        );
 
   List<DriverRoute> routes;
@@ -297,15 +354,6 @@ class _FakeDriverRepository extends DriverRepository {
     sequence: 0,
     recordedAt: _fixedTime,
   );
-}
-
-class _TokenStorage implements TokenStorage {
-  @override
-  Future<void> clearToken() async {}
-  @override
-  Future<String?> readToken() async => 'token';
-  @override
-  Future<void> saveToken(String token) async {}
 }
 
 final _fixedTime = DateTime.utc(2026, 7, 13, 8);

@@ -2,14 +2,14 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
-import 'package:masari_mobile/core/api/api_client.dart';
 import 'package:masari_mobile/core/api/api_error.dart';
-import 'package:masari_mobile/features/auth/data/token_storage.dart';
+import 'package:masari_mobile/features/auth/data/authenticated_api_client.dart';
 import 'package:masari_mobile/features/matching/data/matching_repository.dart';
 import 'package:masari_mobile/features/passenger/data/passenger_models.dart';
 import 'package:masari_mobile/features/passenger/data/passenger_repository.dart';
 import 'package:masari_mobile/features/trips/data/trip_repository.dart';
+
+import 'support/auth_test_support.dart';
 
 void main() {
   test(
@@ -43,7 +43,6 @@ void main() {
             200,
           );
         }),
-        tokenStorage: _TokenStorage(),
       );
 
       expect((await repo.listRequests()).single.id, 'request_1');
@@ -67,7 +66,6 @@ void main() {
   test('match run and scoring breakdown parsing', () async {
     final repo = MatchingRepository(
       apiClient: _client((request) async => http.Response(_matchResponse, 201)),
-      tokenStorage: _TokenStorage(),
     );
 
     final match = await repo.runForPassengerRequest('request_1');
@@ -91,7 +89,6 @@ void main() {
         }
         return http.Response('{"trip":$_tripJson}', 200);
       }),
-      tokenStorage: _TokenStorage(),
     );
 
     expect((await repo.listTrips()).single.status, 'accepted');
@@ -101,19 +98,10 @@ void main() {
   });
 }
 
-ApiClient _client(
+AuthenticatedApiClient _client(
   Future<http.Response> Function(http.Request request) handler,
 ) {
-  return ApiClient(baseUrl: 'http://api.test', client: MockClient(handler));
-}
-
-class _TokenStorage implements TokenStorage {
-  @override
-  Future<void> clearToken() async {}
-  @override
-  Future<String?> readToken() async => 'token';
-  @override
-  Future<void> saveToken(String token) async {}
+  return TestAuthenticatedClient(handler: handler).client;
 }
 
 String _requestJson(String status) =>

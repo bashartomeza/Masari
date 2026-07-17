@@ -1,14 +1,15 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:masari_mobile/core/api/api_client.dart';
 import 'package:masari_mobile/core/config/app_config.dart';
 import 'package:masari_mobile/features/auth/data/token_storage.dart';
+import 'package:masari_mobile/features/auth/domain/auth_models.dart';
 import 'package:masari_mobile/features/passenger/application/passenger_controller.dart';
 
 import 'test_app_config.dart';
+import 'support/auth_test_support.dart';
 
 void main() {
   test('dashboard refresh promotes a request failure to error state', () async {
@@ -16,7 +17,16 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         appConfigProvider.overrideWithValue(demoTestAppConfig),
-        tokenStorageProvider.overrideWithValue(_TokenStorage()),
+        tokenStorageProvider.overrideWithValue(
+          MemoryTokenStorage(
+            storedBundle: AuthTokenBundle(
+              accessToken: 'test-token',
+              accessTokenExpiresAt: DateTime.now().toUtc().add(
+                const Duration(hours: 1),
+              ),
+            ),
+          ),
+        ),
         httpClientProvider.overrideWithValue(
           MockClient((request) async {
             if (fail) throw StateError('dashboard unavailable');
@@ -38,11 +48,4 @@ void main() {
     );
     expect(container.read(passengerDashboardProvider).hasError, isTrue);
   });
-}
-
-class _TokenStorage extends TokenStorage {
-  _TokenStorage() : super(const FlutterSecureStorage());
-
-  @override
-  Future<String?> readToken() async => 'test-token';
 }

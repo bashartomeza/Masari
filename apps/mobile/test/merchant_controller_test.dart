@@ -1,14 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
-import 'package:masari_mobile/core/api/api_client.dart';
-import 'package:masari_mobile/features/auth/data/token_storage.dart';
 import 'package:masari_mobile/features/matching/data/matching_models.dart';
 import 'package:masari_mobile/features/merchant/application/merchant_controller.dart';
 import 'package:masari_mobile/features/merchant/data/merchant_models.dart';
 import 'package:masari_mobile/features/merchant/data/merchant_repository.dart';
 import 'package:masari_mobile/features/trips/data/trip_models.dart';
+
+import 'support/auth_test_support.dart';
 
 void main() {
   test(
@@ -129,11 +128,9 @@ class _FakeMerchantRepository extends MerchantRepository {
        matches = matches ?? [],
        trips = trips ?? [],
        super(
-         apiClient: ApiClient(
-           baseUrl: 'http://fake',
-           client: MockClient((_) async => http.Response('{}', 200)),
-         ),
-         tokenStorage: _TokenStorage(),
+         apiClient: TestAuthenticatedClient(
+           handler: (_) async => http.Response('{}', 200),
+         ).client,
        );
 
   List<MerchantOrder> orders;
@@ -193,15 +190,6 @@ class _FakeMerchantRepository extends MerchantRepository {
     sequence: 2,
     recordedAt: _time,
   );
-}
-
-class _TokenStorage implements TokenStorage {
-  @override
-  Future<void> clearToken() async {}
-  @override
-  Future<String?> readToken() async => 'token';
-  @override
-  Future<void> saveToken(String token) async {}
 }
 
 final _time = DateTime.utc(2026, 7, 13, 8);

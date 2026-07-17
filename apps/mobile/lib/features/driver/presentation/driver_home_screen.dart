@@ -8,6 +8,8 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/language_switch.dart';
 import '../../../core/widgets/masari_card.dart';
 import '../../auth/application/auth_controller.dart';
+import '../../security/presentation/security_actions.dart';
+import '../../security/presentation/session_status_banner.dart';
 import '../application/driver_controller.dart';
 import 'driver_ui.dart';
 
@@ -54,6 +56,8 @@ class DriverHomeScreen extends ConsumerWidget {
                   ],
                 ),
               ),
+              const SizedBox(height: AppTokens.spaceMedium),
+              const SessionStatusBanner(),
               const SizedBox(height: AppTokens.spaceMedium),
               dashboard.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
@@ -161,12 +165,7 @@ class DriverHomeScreen extends ConsumerWidget {
                     ref.read(driverDashboardProvider.notifier).refresh(),
                 child: Text(l10n.refresh),
               ),
-              FilledButton(
-                key: const ValueKey('logoutButton'),
-                onPressed: () =>
-                    ref.read(authControllerProvider.notifier).logout(),
-                child: Text(l10n.logout),
-              ),
+              const RoleSecurityActions(),
             ],
           ),
         ),
