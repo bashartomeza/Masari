@@ -2086,3 +2086,32 @@ Local validation (2026-07-17):
 Remaining after M6C1A:
 - M6C1B must add Flutter refresh-token secure persistence, single-flight refresh/retry, expiry handling, and logout cleanup. A later secure browser-session milestone must address admin expiry UX; admin refresh tokens remain intentionally excluded.
 - Expired-session cleanup scheduling, registration/OTP/public onboarding, distributed authentication caching, notifications, and incident automation are not implemented.
+
+[M6C1A_INDEPENDENT_SECURITY_REVIEW_CORRECTIONS]
+Review scope and disposition (2026-07-17):
+- Independently reviewed PR #1 from base `production-readiness` at `75e1e7f4d79cbaf26b697852cf2072d138c1aca1` through original head `0b65b3e31a83f6d88bc28ab2e2ae97e0bbc6e034`. The worktree and remote head matched, all 45 changed files were reviewed, both frozen release tags remained unchanged, and the PR remained draft/unmerged.
+- No Critical finding was identified. Three High findings blocked merge: concurrent removal of both active admins, acceptance of the documented refresh-pepper template placeholder, and refresh-based role elevation after a role change. Surgical Medium corrections also covered explicit JWT algorithm restriction, credential creation before transaction commit, transactional login eligibility, absolute refresh expiry, and persistent MySQL assertions.
+
+Corrected security and transaction behavior:
+- Account-status changes now use serializable MySQL transactions. A transaction write conflict maps to safe `account_status_conflict`; a real concurrent two-admin test persisted exactly one active and one inactive admin.
+- Staging/production reject template-shaped JWT/refresh secrets without echoing submitted values. HS256 is explicit for both access-token signing and verification; unsupported HMAC algorithms are rejected before session lookup.
+- Mobile refresh credentials bind the issued passenger/driver/merchant role into the HMAC-protected opaque value. A role/client mismatch revokes the session and refresh rows and cannot mint a newly elevated token; admin remains ineligible for long-lived refresh.
+- Login conditionally revalidates active status, role, and security version inside the transaction. Access JWT creation occurs before login/rotation transaction callbacks resolve, so signing failure rolls credential changes back rather than committing an undeliverable session or replacement.
+- Refresh rotation retains the original absolute session expiry. Replacement rows and `refresh_token_expires_in` are capped to the remaining session lifetime.
+- Issuer/audience omission is documented as deliberate for the current single issuer/resource-server trust domain. The existing global production limiter covers refresh; a dedicated distributed limiter remains a later evidence-driven abuse-control decision.
+
+Test and recovery hardening:
+- API regression is now 133 tests, including exact placeholder rejection, HS512 rejection, transactional issuance, concurrent-eligibility behavior, role-change revocation, absolute refresh expiry, serializable account status, and safe transaction-conflict mapping.
+- The real disposable-MySQL session smoke now checks persistent rows after sequential replay and simultaneous refresh: one used token, one linked replacement, the session revoked, and every token in the chain revoked. It also proves role-change revocation, concurrent login/suspension cleanup, and the last-active-admin invariant without logging credentials or record IDs.
+- Restore verification now requires `auth_sessions` and `refresh_tokens`. Its direct Windows invocation correctly launches npm migration commands. The ignored pre-migration backup restored and upgraded to all three migrations; the post-migration backup restored at current status; both checksum-verified isolated databases were removed.
+
+Independent local validation:
+- `npm ci`, Prisma validate/generate, workspace typecheck, 133 API tests, workspace builds, 12 admin tests, production admin build, workflow validation, tracked-secret scan, audit policy, and 6 tooling tests passed.
+- Raw `npm audit --omit=dev` still reports only the three documented moderate Prisma CLI transitive entries and proposes a breaking force downgrade; no force fix was run.
+- Flutter dependency resolution/localization generation, zero-change format check, analysis, and 65 tests passed. No Flutter or admin product source change was required.
+- Dedicated `masari_m6c1a_ci` migration applied from empty, redeployed idempotently, and reported current before the strengthened real-MySQL suite passed. Local demo preflight passed 22/22 with API, admin, and Android emulator.
+- Deterministic smoke remained score `0.9317`, tracking sequence `2`, trips `1` versus `6`, distance `21.53` versus `129.19`, cost `43.06` versus `258.38`, and winner `masari`.
+
+Remaining review risks:
+- The global in-memory refresh rate limit is acceptable for the controlled beta but must be reconsidered with distributed deployment or abuse evidence.
+- Automated expired-session cleanup, mobile refresh consumption (M6C1B), and a future secure admin browser-session/expiry UX remain pending. PR #1 must remain unmerged until the corrective head passes all four GitHub Actions contexts and the team leader approves merge.
