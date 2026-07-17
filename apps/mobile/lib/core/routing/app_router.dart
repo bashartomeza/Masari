@@ -21,6 +21,7 @@ import '../../features/merchant/presentation/merchant_trip_screen.dart';
 import '../../features/passenger/presentation/create_request_screen.dart';
 import '../../features/passenger/presentation/passenger_home_screen.dart';
 import '../../features/passenger/presentation/request_detail_screen.dart';
+import '../../features/security/presentation/session_management_screen.dart';
 import '../../features/trips/presentation/passenger_trip_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -118,6 +119,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/unsupported-role',
         builder: (context, state) => const UnsupportedRoleScreen(),
       ),
+      GoRoute(
+        path: '/security/sessions',
+        builder: (context, state) => const SessionManagementScreen(),
+      ),
     ],
     redirect: (context, state) {
       final path = state.uri.path;
@@ -146,6 +151,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       }
 
       final target = routeForRole(authState.user!.role);
+      if (path == '/security/sessions' &&
+          authState.user!.role != UserRole.admin &&
+          authState.user!.role != UserRole.unsupported) {
+        return null;
+      }
       if (path == target || path.startsWith('$target/')) {
         return null;
       }
