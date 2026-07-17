@@ -1,5 +1,5 @@
 export type ApiError = Error & { status?: number; details?: unknown };
-export type ApiClientOptions = { onSessionEnded?: (error: ApiError) => void };
+export type ApiClientOptions = { onSessionEnded?: (error: ApiError, requestToken: string) => void };
 
 export function createApiClient(apiBaseUrl: string, clientOptions: ApiClientOptions = {}) {
 async function apiRequest<T>(path: string, options: { method?: string; token?: string; body?: unknown } = {}) {
@@ -18,7 +18,7 @@ async function apiRequest<T>(path: string, options: { method?: string; token?: s
     const error = new Error(data?.error ?? `Request failed with ${response.status}`) as ApiError;
     error.status = response.status;
     error.details = data;
-    if (options.token) clientOptions.onSessionEnded?.(error);
+    if (options.token) clientOptions.onSessionEnded?.(error, options.token);
     throw error;
   }
   return data as T;
@@ -55,7 +55,7 @@ export function createDemoApiClient(apiBaseUrl: string, clientOptions: ApiClient
       const error = new Error(data?.error ?? `Request failed with ${response.status}`) as ApiError;
       error.status = response.status;
       error.details = data;
-      if (options.token) clientOptions.onSessionEnded?.(error);
+      if (options.token) clientOptions.onSessionEnded?.(error, options.token);
       throw error;
     }
     return data as T;

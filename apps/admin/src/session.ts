@@ -19,7 +19,8 @@ export function clearAdminSession(sessionStore: TokenStorage, legacyStore: Token
 export function isAdminSessionEndError(error: unknown) {
   if (!(error instanceof Error)) return false;
   const status = "status" in error && typeof error.status === "number" ? error.status : undefined;
-  return status === 401 && sessionEndCodes.has(error.message);
+  return (status === 401 && sessionEndCodes.has(error.message)) ||
+    (status === 403 && error.message === "account_unavailable");
 }
 
 export function createAdminSessionExpiryHandler({
@@ -33,8 +34,12 @@ export function createAdminSessionExpiryHandler({
 }) {
   let handled = false;
   return {
-    handle(error: unknown) {
-      if (handled || !isAdminSessionEndError(error)) return false;
+    handle(error: unknown, requestToken: string) {
+      if (
+        handled ||
+        !isAdminSessionEndError(error) ||
+        sessionStore.getItem(ADMIN_TOKEN_KEY) !== requestToken
+      ) return false;
       handled = true;
       clearAdminSession(sessionStore, legacyStore);
       onExpired();

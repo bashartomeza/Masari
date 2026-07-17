@@ -140,7 +140,7 @@ export function App({
       if (success) setNotice({ type: "success", message: success });
       return result;
     } catch (error) {
-      if (isAdminSessionEndError(error)) return null;
+      if (token && isAdminSessionEndError(error)) return null;
       setNotice({ type: "error", message: getErrorMessage(error, t) });
       return null;
     } finally {

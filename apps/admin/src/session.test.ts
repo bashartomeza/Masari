@@ -33,7 +33,7 @@ describe("admin access-token expiry", () => {
   });
 
   it("handles concurrent terminal responses once and clears both stores", async () => {
-    const session = storage({ [ADMIN_TOKEN_KEY]: "session-token" });
+    const session = storage({ [ADMIN_TOKEN_KEY]: "access-value" });
     const legacy = storage({ [ADMIN_TOKEN_KEY]: "legacy-token" });
     const expired = vi.fn();
     const handler = createAdminSessionExpiryHandler({ sessionStore: session, legacyStore: legacy, onExpired: expired });
@@ -61,6 +61,27 @@ describe("admin access-token expiry", () => {
     expect(isAdminSessionEndError(apiError("forbidden", 403))).toBe(false);
     expect(isAdminSessionEndError(apiError("invalid_credentials", 401))).toBe(false);
     expect(isAdminSessionEndError(apiError("session_revoked", 401))).toBe(true);
+    expect(isAdminSessionEndError(apiError("account_unavailable", 403))).toBe(true);
+  });
+
+  it("ends an unavailable account but ignores a stale response after reauthentication", () => {
+    const session = storage({ [ADMIN_TOKEN_KEY]: "old-access" });
+    const legacy = storage({ [ADMIN_TOKEN_KEY]: "legacy-token" });
+    const ended = vi.fn();
+    const handler = createAdminSessionExpiryHandler({
+      sessionStore: session,
+      legacyStore: legacy,
+      onExpired: ended
+    });
+
+    expect(handler.handle(apiError("account_unavailable", 403), "old-access")).toBe(true);
+    expect(ended).toHaveBeenCalledOnce();
+    session.setItem(ADMIN_TOKEN_KEY, "new-access");
+    handler.reset();
+
+    expect(handler.handle(apiError("session_revoked", 401), "old-access")).toBe(false);
+    expect(session.getItem(ADMIN_TOKEN_KEY)).toBe("new-access");
+    expect(ended).toHaveBeenCalledOnce();
   });
 
   it("uses the approved Arabic and English expiry messages", () => {
