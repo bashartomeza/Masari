@@ -2115,3 +2115,19 @@ Independent local validation:
 Remaining review risks:
 - The global in-memory refresh rate limit is acceptable for the controlled beta but must be reconsidered with distributed deployment or abuse evidence.
 - Automated expired-session cleanup, mobile refresh consumption (M6C1B), and a future secure admin browser-session/expiry UX remain pending. PR #1 must remain unmerged until the corrective head passes all four GitHub Actions contexts and the team leader approves merge.
+
+[M6C1A_MERGE_AND_POST_MERGE_VERIFICATION]
+Merge result (2026-07-17):
+- PR #1 was marked ready after the approved security gate and merged into `production-readiness` with a merge commit. The approved final feature head was `f1fa28c13492dcfe5a1b4c507607bbd250412335`; the merge commit is `c84ab84b9e3bd360e60edbf1a6b1c292e84b2f5b`.
+- The remote and safely merged local `m6c1a/trusted-sessions` branches were deleted after synchronization. Local `production-readiness` was updated by fast-forward only and matched `origin/production-readiness` at the merge commit before this documentation record.
+- Frozen release tags remain unchanged: `v0.1.0-hackathon` peels to `074fc4e7cc79c6b08a2baa18ca251b4802aa48c7`, and `v0.2.0-hackathon-mysql` peels to `7f5c5bace1b081c32f6a24a7352c6b163ac97438`.
+
+Post-merge migration and validation:
+- The intended local MySQL 8 `masari` database already contained `20260717094000_trusted_sessions`. Prisma validation/generation passed, migration deploy reported no pending migrations, and migration status was current at all three migrations; no migration SQL was edited.
+- `npm ci`, workspace validation, Prisma validation/generation, typecheck, 133 API tests, builds, 12 admin tests, production admin build, workflow validation, tracked-secret scan, audit policy, and 6 tooling tests passed. Raw production-dependency audit retained only the three documented moderate Prisma CLI transitive findings; no force fix was run.
+- Flutter dependency resolution/localization generation, zero-change format check, analysis, 65 tests, and the production-like APK scan passed. The disposable real-MySQL session suite reapplied all migrations from empty, verified idempotent deploy/status, and passed refresh rotation, replay/session revocation, exactly-one-winner concurrent refresh, logout/logout-all, account suspension/immediate rejection, role binding, admin concurrency, persistent-state assertions, and cleanup.
+- Live demo preflight passed 22/22 with MySQL, API, admin, and Android emulator. Deterministic smoke retained score `0.9317`, tracking sequence `2`, trips `1` versus `6`, distance `21.53` versus `129.19`, cost `43.06` versus `258.38`, and winner `masari`.
+
+Merge-commit CI:
+- All required workflows passed on merge commit `c84ab84b9e3bd360e60edbf1a6b1c292e84b2f5b`: Admin CI run `29576328593`, Backend and MySQL CI run `29576328601`, Flutter Android CI run `29576328515`, and Security and Configuration CI run `29576328563`. Exact successful contexts were `admin`, `backend-mysql`, `mobile`, and `security`.
+- M6C1A is merged and post-merge verified. M6C1B mobile refresh-token consumption remains the next milestone and has not started.
