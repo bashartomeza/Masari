@@ -14,6 +14,18 @@ enum UserRole {
   admin
 }
 
+enum AccountStatus {
+  active
+  pending
+  suspended
+  disabled
+}
+
+enum AuthClientType {
+  mobile
+  admin
+}
+
 enum DriverRouteStatus {
   inactive
   active
@@ -81,6 +93,13 @@ enum TripStatus {
 
 enum AuditAction {
   auth_login
+  session_created
+  session_refreshed
+  session_revoked
+  logout_all
+  refresh_token_reuse_detected
+  account_status_changed
+  login_blocked_by_status
   demo_reset
   passenger_request_created
   passenger_request_cancelled
@@ -100,20 +119,66 @@ enum AuditAction {
 }
 
 model User {
-  id             String             @id @default(cuid())
-  name           String
-  phone          String             @unique
-  password_hash  String
-  role           UserRole
-  demo_account   Boolean            @default(false)
-  created_at     DateTime           @default(now())
+  id                String        @id @default(cuid())
+  name              String
+  phone             String        @unique
+  password_hash     String
+  role              UserRole
+  account_status    AccountStatus @default(active)
+  security_version  Int           @default(1)
+  status_reason     String?       @db.VarChar(500)
+  status_updated_at DateTime      @default(now())
+  last_login_at     DateTime?
+  demo_account      Boolean       @default(false)
+  created_at        DateTime      @default(now())
 
   driver_profile DriverProfile?
   passenger_requests PassengerRequest[]
   merchant_orders MerchantOrder[]
   audit_events    AuditEvent[]
+  auth_sessions   AuthSession[]
 
   @@map("users")
+}
+
+model AuthSession {
+  id                        String         @id @default(cuid())
+  user_id                   String
+  client_type               AuthClientType
+  device_name               String?        @db.VarChar(120)
+  created_at                DateTime       @default(now())
+  last_used_at              DateTime       @default(now())
+  expires_at                DateTime
+  revoked_at                DateTime?
+  revoke_reason             String?        @db.VarChar(191)
+  security_version_at_issue Int
+
+  user           User           @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  refresh_tokens RefreshToken[]
+
+  @@index([user_id, revoked_at, expires_at])
+  @@index([expires_at])
+  @@map("auth_sessions")
+}
+
+model RefreshToken {
+  id             String   @id
+  session_id     String
+  token_hash     String   @unique @db.Char(64)
+  created_at     DateTime @default(now())
+  expires_at     DateTime
+  used_at        DateTime?
+  revoked_at     DateTime?
+  replaced_by_id String?  @unique
+
+  session     AuthSession    @relation(fields: [session_id], references: [id], onDelete: Cascade)
+  replaced_by RefreshToken?  @relation("RefreshTokenRotation", fields: [replaced_by_id], references: [id], onDelete: SetNull)
+  replaces    RefreshToken[] @relation("RefreshTokenRotation")
+
+  @@index([session_id, revoked_at, expires_at])
+  @@index([session_id, used_at, revoked_at])
+  @@index([expires_at])
+  @@map("refresh_tokens")
 }
 
 model DriverProfile {

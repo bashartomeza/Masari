@@ -4,12 +4,19 @@ export const APP_ENVIRONMENTS = ["local", "test", "demo", "staging", "production
 export type AppEnvironment = (typeof APP_ENVIRONMENTS)[number];
 
 const MINIMUM_JWT_SECRET_LENGTH = 32;
+const MINIMUM_REFRESH_PEPPER_LENGTH = 32;
+const PRODUCTION_ACCESS_TOKEN_MIN_SECONDS = 300;
+const PRODUCTION_ACCESS_TOKEN_MAX_SECONDS = 1_800;
+const PRODUCTION_REFRESH_TOKEN_MAX_DAYS = 90;
 const unsafeSecretMarkers = ["development-jwt-secret", "change-me", "replace-with", "placeholder"];
 
 const rawSchema = z.object({
   APP_ENV: z.enum(APP_ENVIRONMENTS),
   DATABASE_URL: z.string().min(1),
   JWT_SECRET: z.string().min(MINIMUM_JWT_SECRET_LENGTH),
+  ACCESS_TOKEN_TTL_SECONDS: z.coerce.number().int().min(60).max(86_400).optional(),
+  REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().min(1).max(365).optional(),
+  REFRESH_TOKEN_PEPPER: z.string().min(MINIMUM_REFRESH_PEPPER_LENGTH).optional(),
   CORS_ORIGINS: z.string().optional(),
   APP_RELEASE: z.string().min(1).optional(),
   ENABLE_DEMO_FEATURES: z.string().optional(),
@@ -82,6 +89,25 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
   if (unsafeSecretMarkers.some((marker) => raw.JWT_SECRET.toLowerCase().includes(marker))) {
     problems.push("JWT_SECRET uses a known placeholder or default value");
   }
+  if (raw.REFRESH_TOKEN_PEPPER && unsafeSecretMarkers.some((marker) => raw.REFRESH_TOKEN_PEPPER!.toLowerCase().includes(marker))) {
+    problems.push("REFRESH_TOKEN_PEPPER uses a known placeholder or default value");
+  }
+  if (productionLike && !raw.REFRESH_TOKEN_PEPPER) {
+    problems.push("REFRESH_TOKEN_PEPPER is required in staging and production");
+  }
+
+  const accessTokenTtlSeconds = raw.ACCESS_TOKEN_TTL_SECONDS ?? (productionLike ? 900 : 28_800);
+  const refreshTokenTtlDays = raw.REFRESH_TOKEN_TTL_DAYS ?? 30;
+  if (
+    productionLike &&
+    (accessTokenTtlSeconds < PRODUCTION_ACCESS_TOKEN_MIN_SECONDS ||
+      accessTokenTtlSeconds > PRODUCTION_ACCESS_TOKEN_MAX_SECONDS)
+  ) {
+    problems.push("ACCESS_TOKEN_TTL_SECONDS must be between 300 and 1800 in staging and production");
+  }
+  if (productionLike && refreshTokenTtlDays > PRODUCTION_REFRESH_TOKEN_MAX_DAYS) {
+    problems.push("REFRESH_TOKEN_TTL_DAYS must be between 1 and 90 in staging and production");
+  }
 
   const corsOrigins = (raw.CORS_ORIGINS ?? "")
     .split(",")
@@ -152,6 +178,9 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
     appEnv: raw.APP_ENV,
     databaseUrl: raw.DATABASE_URL,
     jwtSecret: raw.JWT_SECRET,
+    accessTokenTtlSeconds,
+    refreshTokenTtlDays,
+    refreshTokenPepper: raw.REFRESH_TOKEN_PEPPER ?? `masari-non-production:${raw.JWT_SECRET}`,
     corsOrigins,
     appRelease: raw.APP_RELEASE ?? "unreleased",
     port: raw.PORT,
