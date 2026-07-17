@@ -2081,6 +2081,7 @@ Local validation (2026-07-17):
 - Real MySQL rotation, replacement use, used-token replay, session revocation, repeated logout, logout-all, admin suspension, immediate rejection, reactivation/fresh login, and cleanup passed. Two concurrent refreshes produced exactly one success; replay defense revoked the affected session.
 - Deterministic regression remained score `0.9317`, tracking sequence `2`, trips `1` versus `6`, distance `21.53` versus `129.19`, cost `43.06` versus `258.38`, and winner `masari`.
 - Focused architecture and operations documentation: `docs/security/account-and-session-model.md`, `docs/security/refresh-token-rotation.md`, `docs/operations/session-revocation.md`, and `docs/decisions/ADR-004-server-managed-sessions.md`.
+- Draft PR #1 CI passed on implementation/documentation head `bd37dac7390c360e59130486cb317889c70157f7`: Admin CI run `29572269624`, Backend and MySQL CI run `29572269627`, Flutter Android CI run `29572269643`, and Security and Configuration CI run `29572269622`. Exact successful contexts were `admin`, `backend-mysql`, `mobile`, and `security`; the PR remained draft and unmerged.
 
 Remaining after M6C1A:
 - M6C1B must add Flutter refresh-token secure persistence, single-flight refresh/retry, expiry handling, and logout cleanup. A later secure browser-session milestone must address admin expiry UX; admin refresh tokens remain intentionally excluded.
