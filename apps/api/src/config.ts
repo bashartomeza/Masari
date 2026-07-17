@@ -5,6 +5,7 @@ export type AppEnvironment = (typeof APP_ENVIRONMENTS)[number];
 
 const MINIMUM_JWT_SECRET_LENGTH = 32;
 const MINIMUM_REFRESH_PEPPER_LENGTH = 32;
+const MINIMUM_ONBOARDING_PEPPER_LENGTH = 32;
 const PRODUCTION_ACCESS_TOKEN_MIN_SECONDS = 300;
 const PRODUCTION_ACCESS_TOKEN_MAX_SECONDS = 1_800;
 const PRODUCTION_REFRESH_TOKEN_MAX_DAYS = 90;
@@ -40,7 +41,30 @@ const rawSchema = z.object({
   RATE_LIMIT_GLOBAL_WINDOW_MS: z.coerce.number().int().min(1_000).max(3_600_000).default(900_000),
   RATE_LIMIT_GLOBAL_MAX: z.coerce.number().int().min(1).max(10_000).optional(),
   RATE_LIMIT_LOGIN_WINDOW_MS: z.coerce.number().int().min(1_000).max(3_600_000).default(900_000),
-  RATE_LIMIT_LOGIN_MAX: z.coerce.number().int().min(1).max(500).optional()
+  RATE_LIMIT_LOGIN_MAX: z.coerce.number().int().min(1).max(500).optional(),
+  INVITATIONS_ENABLED: z.string().optional(),
+  PUBLIC_ONBOARDING_ENABLED: z.string().optional(),
+  OTP_PROVIDER: z.enum(["disabled", "fake"]).default("disabled"),
+  SUPPORTED_PHONE_REGIONS: z.string().default("PS"),
+  INVITATION_CODE_PEPPER: z.string().min(MINIMUM_ONBOARDING_PEPPER_LENGTH).optional(),
+  INVITATION_CODE_KEY_VERSION: z.coerce.number().int().positive().default(1),
+  PHONE_DIGEST_PEPPER: z.string().min(MINIMUM_ONBOARDING_PEPPER_LENGTH).optional(),
+  PHONE_DIGEST_KEY_VERSION: z.coerce.number().int().positive().default(1),
+  OTP_CODE_PEPPER: z.string().min(MINIMUM_ONBOARDING_PEPPER_LENGTH).optional(),
+  OTP_CODE_KEY_VERSION: z.coerce.number().int().positive().default(1),
+  ONBOARDING_SESSION_PEPPER: z.string().min(MINIMUM_ONBOARDING_PEPPER_LENGTH).optional(),
+  ONBOARDING_SESSION_KEY_VERSION: z.coerce.number().int().positive().default(1),
+  IDEMPOTENCY_KEY_PEPPER: z.string().min(MINIMUM_ONBOARDING_PEPPER_LENGTH).optional(),
+  IDEMPOTENCY_KEY_VERSION: z.coerce.number().int().positive().default(1),
+  ABUSE_KEY_PEPPER: z.string().min(MINIMUM_ONBOARDING_PEPPER_LENGTH).optional(),
+  ABUSE_KEY_VERSION: z.coerce.number().int().positive().default(1),
+  INVITATION_EXPIRY_DAYS: z.coerce.number().int().min(1).max(30).default(7),
+  OTP_TTL_SECONDS: z.coerce.number().int().min(60).max(600).default(300),
+  OTP_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(10).default(5),
+  OTP_RESEND_COOLDOWN_SECONDS: z.coerce.number().int().min(10).max(600).default(60),
+  OTP_MAX_RESENDS: z.coerce.number().int().min(0).max(10).default(3),
+  OTP_MAX_SENDS_PER_PHONE_DAY: z.coerce.number().int().min(1).max(20).default(5),
+  ADMIN_INVITATION_MAX_PER_HOUR: z.coerce.number().int().min(1).max(500).default(20)
 });
 
 export type AppConfig = ReturnType<typeof createConfig>;
@@ -88,10 +112,42 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
   const productionLike = isStaging || isProduction;
   const explicitlyEnabled = parseBoolean("ENABLE_DEMO_FEATURES", raw.ENABLE_DEMO_FEATURES);
   const demoFeaturesEnabled = isDemo || isTest || (isLocal && explicitlyEnabled);
+  const invitationsEnabled = parseBoolean("INVITATIONS_ENABLED", raw.INVITATIONS_ENABLED);
+  const publicOnboardingEnabled = parseBoolean("PUBLIC_ONBOARDING_ENABLED", raw.PUBLIC_ONBOARDING_ENABLED);
   const problems: string[] = [];
 
   if (productionLike && explicitlyEnabled) {
     problems.push("ENABLE_DEMO_FEATURES cannot be enabled in staging or production");
+  }
+  if (publicOnboardingEnabled) problems.push("PUBLIC_ONBOARDING_ENABLED is not supported in M6C2B1");
+  if (productionLike && raw.OTP_PROVIDER === "fake") {
+    problems.push("OTP_PROVIDER=fake is forbidden in staging and production");
+  }
+
+  const supportedRegions = raw.SUPPORTED_PHONE_REGIONS.split(",")
+    .map((region) => region.trim().toUpperCase())
+    .filter(Boolean);
+  if (supportedRegions.length !== 1 || supportedRegions[0] !== "PS") {
+    problems.push("SUPPORTED_PHONE_REGIONS must be PS in M6C2B1");
+  }
+
+  const onboardingSecrets = {
+    invitationCode: raw.INVITATION_CODE_PEPPER,
+    phoneDigest: raw.PHONE_DIGEST_PEPPER,
+    otpCode: raw.OTP_CODE_PEPPER,
+    onboardingSession: raw.ONBOARDING_SESSION_PEPPER,
+    idempotency: raw.IDEMPOTENCY_KEY_PEPPER,
+    abuse: raw.ABUSE_KEY_PEPPER
+  };
+  if (invitationsEnabled) {
+    for (const [name, value] of Object.entries(onboardingSecrets)) {
+      if (!value) problems.push(`${name} pepper is required when invitations are enabled`);
+      else if (isUnsafeSecret(value)) problems.push(`${name} pepper uses a known placeholder or default value`);
+    }
+    const configuredSecrets = Object.values(onboardingSecrets).filter((value): value is string => Boolean(value));
+    if (new Set(configuredSecrets).size !== configuredSecrets.length) {
+      problems.push("onboarding peppers must be distinct from one another");
+    }
   }
 
   if (isUnsafeSecret(raw.JWT_SECRET)) {
@@ -198,6 +254,32 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
     isStaging,
     isProduction,
     demoFeaturesEnabled,
+    invitationsEnabled,
+    publicOnboardingEnabled,
+    onboarding: invitationsEnabled
+      ? {
+          otpProvider: raw.OTP_PROVIDER,
+          supportedRegions: ["PS"] as const,
+          invitationExpiryDays: raw.INVITATION_EXPIRY_DAYS,
+          otpTtlSeconds: raw.OTP_TTL_SECONDS,
+          otpMaxAttempts: raw.OTP_MAX_ATTEMPTS,
+          otpResendCooldownSeconds: raw.OTP_RESEND_COOLDOWN_SECONDS,
+          otpMaxResends: raw.OTP_MAX_RESENDS,
+          otpMaxSendsPerPhoneDay: raw.OTP_MAX_SENDS_PER_PHONE_DAY,
+          adminInvitationMaxPerHour: raw.ADMIN_INVITATION_MAX_PER_HOUR,
+          keys: {
+            invitationCode: { secret: onboardingSecrets.invitationCode!, version: raw.INVITATION_CODE_KEY_VERSION },
+            phoneDigest: { secret: onboardingSecrets.phoneDigest!, version: raw.PHONE_DIGEST_KEY_VERSION },
+            otpCode: { secret: onboardingSecrets.otpCode!, version: raw.OTP_CODE_KEY_VERSION },
+            onboardingSession: {
+              secret: onboardingSecrets.onboardingSession!,
+              version: raw.ONBOARDING_SESSION_KEY_VERSION
+            },
+            idempotency: { secret: onboardingSecrets.idempotency!, version: raw.IDEMPOTENCY_KEY_VERSION },
+            abuse: { secret: onboardingSecrets.abuse!, version: raw.ABUSE_KEY_VERSION }
+          }
+        }
+      : undefined,
     logLevel: raw.LOG_LEVEL ?? (isTest ? "silent" : "info"),
     trustProxy,
     readinessTimeoutMs: raw.READINESS_TIMEOUT_MS,

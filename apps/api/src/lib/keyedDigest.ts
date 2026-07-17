@@ -1,0 +1,37 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
+
+export type VersionedKey = { secret: string; version: number };
+
+export function keyedDigest(context: string, value: string, key: VersionedKey) {
+  return createHmac("sha256", key.secret).update(`${context}:v${key.version}\0${value}`, "utf8").digest("hex");
+}
+
+export function keyedDigestMatches(expectedHex: string, context: string, value: string, key: VersionedKey) {
+  const actual = Buffer.from(keyedDigest(context, value, key), "hex");
+  const expected = Buffer.from(expectedHex, "hex");
+  return actual.length === expected.length && timingSafeEqual(actual, expected);
+}
+
+export function invitationCodeDigest(code: string, key: VersionedKey) {
+  return keyedDigest("masari:invitation-code", code, key);
+}
+
+export function phoneDigest(phoneE164: string, key: VersionedKey) {
+  return keyedDigest("masari:phone", phoneE164, key);
+}
+
+export function otpCodeDigest(challengeId: string, code: string, key: VersionedKey) {
+  return keyedDigest(`masari:otp:${challengeId}`, code, key);
+}
+
+export function onboardingSessionDigest(token: string, key: VersionedKey) {
+  return keyedDigest("masari:onboarding-session", token, key);
+}
+
+export function idempotencyKeyDigest(scope: string, value: string, key: VersionedKey) {
+  return keyedDigest(`masari:idempotency:${scope}`, value, key);
+}
+
+export function abuseSubjectDigest(bucket: string, value: string, key: VersionedKey) {
+  return keyedDigest(`masari:abuse:${bucket}`, value, key);
+}
