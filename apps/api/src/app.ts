@@ -20,6 +20,7 @@ import { securityHeaders } from "./middleware/securityHeaders.js";
 import { createGlobalRateLimiter, createLoginRateLimiter } from "./middleware/rateLimit.js";
 import { createHealthRouter } from "./modules/health.js";
 import type { ReadinessCheck } from "./lib/readiness.js";
+import { createAdminInvitationRouter } from "./modules/adminInvitations.js";
 
 export const HTTP_JSON_LIMIT = "64kb";
 export const HTTP_FORM_LIMIT = "16kb";
@@ -58,6 +59,8 @@ export function createApp(appConfig: AppConfig = config, dependencies: AppDepend
     app.use("/api/v1", trackingSimulationRouter);
     app.use("/api/v1", comparisonRouter);
   }
+  if (appConfig.invitationsEnabled) app.use("/api/v1", createAdminInvitationRouter(appConfig));
+  else app.use("/api/v1/admin/invitations", notFoundHandler);
   app.use("/api/v1", adminRouter);
 
   app.use(notFoundHandler);

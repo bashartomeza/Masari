@@ -33,6 +33,14 @@ const demo = createConfig({
 });
 
 describe("environment route registration", () => {
+  it("does not register admin invitation or public onboarding routes when disabled", async () => {
+    const app = createApp(productionLike("production"));
+    await request(app).post("/api/v1/admin/invitations").send({}).expect(404);
+    await request(app).post("/api/v1/onboarding/start").send({}).expect(404);
+    await request(app).post("/api/v1/onboarding/otp/send").send({}).expect(404);
+    await request(app).post("/api/v1/onboarding/complete").send({}).expect(404);
+  });
+
   it("registers reset, simulation, and comparison only in demo mode", async () => {
     const app = createApp(demo);
     await request(app).post("/api/v1/demo/reset").expect(403);

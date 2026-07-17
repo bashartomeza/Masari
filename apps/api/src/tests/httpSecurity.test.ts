@@ -168,6 +168,22 @@ describe("production HTTP security baseline", () => {
     expect(output).not.toContain("refresh-pepper-marker");
   });
 
+  it("redacts onboarding codes, digests, phones, tokens, and peppers", async () => {
+    const { logger, lines } = capturedLogger();
+    const markers = ["invite-code", "otp-code", "phone-digest", "session-pepper", "idempotency-key", "abuse-pepper"];
+    logger.info({
+      invitation_code: markers[0],
+      otp_code: markers[1],
+      phone_digest: markers[2],
+      onboarding_session_pepper: markers[3],
+      idempotency_key: markers[4],
+      abuse_key_pepper: markers[5]
+    }, "onboarding redaction verification");
+    await settleLogs();
+    const output = lines.join("");
+    for (const marker of markers) expect(output).not.toContain(marker);
+  });
+
   it("adds authenticated actor identity without logging authorization material", async () => {
     const { logger, lines } = capturedLogger();
     const appConfig = testConfig();
