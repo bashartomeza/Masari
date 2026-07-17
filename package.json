@@ -29,6 +29,8 @@
     "security:audit": "node scripts/audit-policy.mjs",
     "security:artifacts": "node scripts/scan-production-artifacts.mjs",
     "test:integration:mysql": "node scripts/ci-mysql-integration.mjs",
+    "test:integration:sessions": "node scripts/session-integration-smoke.mjs",
+    "test:integration:sessions:local": "node scripts/local-trusted-session-integration.mjs --confirm-disposable --cleanup",
     "test:tooling": "node --test scripts/tests/*.test.mjs",
     "mysql:backup": "node scripts/mysql-backup.mjs",
     "mysql:restore:verify": "node scripts/mysql-restore-verify.mjs",

@@ -1,14 +1,12 @@
 import type { Logger } from "pino";
+import type { AuthUser } from "../middleware/auth.js";
 
 declare global {
   namespace Express {
     interface Request {
       requestId: string;
       operationalLog: Logger;
-      user?: {
-        id: string;
-        role: "passenger" | "driver" | "merchant" | "admin";
-      };
+      user?: AuthUser;
     }
   }
 }

@@ -11,6 +11,7 @@ import { requestIdMiddleware } from "../middleware/requestId.js";
 
 const prismaMock = vi.hoisted(() => ({
   user: { findUnique: vi.fn() },
+  authSession: { findUnique: vi.fn(), update: vi.fn() },
   auditEvent: { create: vi.fn() },
   driverRoute: { findMany: vi.fn() }
 }));
@@ -37,6 +38,7 @@ function productionConfig() {
     APP_ENV: "production",
     APP_RELEASE: "http-security-test",
     CORS_ORIGINS: "https://admin.masari.example",
+    REFRESH_TOKEN_PEPPER: "http-security-refresh-pepper-with-thirty-two-characters",
     TRUST_PROXY: "none"
   });
 }
@@ -149,11 +151,46 @@ describe("production HTTP security baseline", () => {
     }
   });
 
+  it("redacts refresh-token material and hashes from operational logs", async () => {
+    const { logger, lines } = capturedLogger();
+    logger.info(
+      {
+        refresh_token: "raw-refresh-marker",
+        token_hash: "refresh-hash-marker",
+        refresh_token_pepper: "refresh-pepper-marker"
+      },
+      "redaction verification"
+    );
+    await settleLogs();
+    const output = lines.join("");
+    expect(output).not.toContain("raw-refresh-marker");
+    expect(output).not.toContain("refresh-hash-marker");
+    expect(output).not.toContain("refresh-pepper-marker");
+  });
+
   it("adds authenticated actor identity without logging authorization material", async () => {
     const { logger, lines } = capturedLogger();
     const appConfig = testConfig();
-    prismaMock.user.findUnique.mockResolvedValue({ id: "driver_actor", role: "driver" });
-    const token = jwt.sign({ id: "driver_actor", role: "driver" }, process.env.JWT_SECRET!, { expiresIn: "1h" });
+    const user = {
+      id: "driver_actor",
+      role: "driver",
+      account_status: "active",
+      security_version: 1
+    };
+    prismaMock.authSession.findUnique.mockResolvedValue({
+      id: "session_driver_actor",
+      user_id: user.id,
+      user,
+      security_version_at_issue: 1,
+      expires_at: new Date(Date.now() + 60_000),
+      revoked_at: null
+    });
+    prismaMock.authSession.update.mockResolvedValue({});
+    const token = jwt.sign(
+      { role: "driver", sid: "session_driver_actor", ver: 1 },
+      process.env.JWT_SECRET!,
+      { subject: "driver_actor", expiresIn: "1h" }
+    );
     await request(createApp(appConfig, { logger }))
       .get("/api/v1/driver/routes")
       .set("Authorization", `Bearer ${token}`)

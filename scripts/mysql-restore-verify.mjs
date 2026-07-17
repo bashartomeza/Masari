@@ -15,7 +15,7 @@ for (let index = 2; index < process.argv.length; index++) {
     options.set(key, value.join("="));
     continue;
   }
-  if (["--confirm-isolated", "--cleanup"].includes(item)) flags.add(item);
+  if (["--confirm-isolated", "--cleanup", "--migrate"].includes(item)) flags.add(item);
   else options.set(item, process.argv[++index]);
 }
 const dumpPath = options.get("--dump") ? resolve(options.get("--dump")) : null;
@@ -57,16 +57,36 @@ try {
   mysql(["--database", destination], { input: readFileSync(dumpPath) });
 
   const npmFile = process.platform === "win32" && process.env.npm_execpath ? process.execPath : executable("npm");
-  const npmArgs = process.platform === "win32" && process.env.npm_execpath
-    ? [process.env.npm_execpath, "run", "db:migrate:status"]
-    : ["run", "db:migrate:status"];
-  const migration = spawnSync(npmFile, npmArgs, {
-    cwd: root,
-    env: { ...process.env, DATABASE_URL: databaseUrlFor(url, destination) },
-    encoding: "utf8"
-  });
-  if (migration.status !== 0) throw new Error("Prisma migration status is not current on the restored database");
-  const expectedTables = ["users", "driver_routes", "passenger_requests", "merchant_orders", "matches", "trips", "location_events", "_prisma_migrations"];
+  const migrationEnvironment = { ...process.env, DATABASE_URL: databaseUrlFor(url, destination) };
+  const runNpmScript = (script) => {
+    const npmArgs = process.platform === "win32" && process.env.npm_execpath
+      ? [process.env.npm_execpath, "run", script]
+      : ["run", script];
+    return spawnSync(npmFile, npmArgs, {
+      cwd: root,
+      env: migrationEnvironment,
+      encoding: "utf8",
+      shell: process.platform === "win32" && /\.cmd$/i.test(npmFile)
+    });
+  };
+  if (flags.has("--migrate") && runNpmScript("db:migrate").status !== 0) {
+    throw new Error("Prisma migration deploy failed on the isolated restored database");
+  }
+  if (runNpmScript("db:migrate:status").status !== 0) {
+    throw new Error("Prisma migration status is not current on the restored database");
+  }
+  const expectedTables = [
+    "users",
+    "auth_sessions",
+    "refresh_tokens",
+    "driver_routes",
+    "passenger_requests",
+    "merchant_orders",
+    "matches",
+    "trips",
+    "location_events",
+    "_prisma_migrations"
+  ];
   const tableCount = Number(mysql(["--batch", "--skip-column-names", "--database", destination, "-e",
     `SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name IN (${expectedTables.map((name) => `'${name}'`).join(",")})`]));
   if (tableCount !== expectedTables.length) throw new Error("Restored database does not have the expected Masari table identity");

@@ -31,6 +31,9 @@ jobs:
       APP_RELEASE: ci-${{ github.sha }}
       DATABASE_URL: mysql://masari_ci:ci-only-password@127.0.0.1:3306/masari_ci
       JWT_SECRET: ci-only-jwt-secret-at-least-thirty-two-characters
+      ACCESS_TOKEN_TTL_SECONDS: "3600"
+      REFRESH_TOKEN_TTL_DAYS: "30"
+      REFRESH_TOKEN_PEPPER: ci-only-refresh-token-pepper-at-least-thirty-two-characters
       CORS_ORIGINS: http://localhost:5173
       TRUST_PROXY: none
       LOG_LEVEL: silent
@@ -63,5 +66,5 @@ jobs:
       - run: npm run typecheck
       - run: npm run test
       - run: npm run build
-      - name: Real MySQL deterministic integration smoke
+      - name: Real MySQL deterministic and trusted-session integration smoke
         run: npm run test:integration:mysql

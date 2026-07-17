@@ -4,7 +4,7 @@ import type { Prisma, PrismaClient, UserRole } from "../generated/prisma/client.
 import { config } from "../config.js";
 import { prisma } from "../lib/prisma.js";
 import { auditEvent } from "../lib/audit.js";
-import { verifyAuthToken } from "../middleware/auth.js";
+import { authenticateAuthToken } from "../middleware/auth.js";
 import { HttpError } from "../middleware/error.js";
 import { AuditAction } from "../generated/prisma/enums.js";
 
@@ -33,6 +33,8 @@ async function createDemoUser(
       phone: input.phone,
       password_hash: await hashPassword(input.password),
       role: input.role,
+      account_status: "active",
+      security_version: 1,
       demo_account: true
     }
   });
@@ -45,6 +47,8 @@ export async function resetDemoData(db: PrismaClient = prisma) {
   }
   return db.$transaction(async (tx) => {
     await tx.auditEvent.deleteMany();
+    await tx.refreshToken.deleteMany();
+    await tx.authSession.deleteMany();
     await tx.locationEvent.deleteMany();
     await tx.trip.deleteMany();
     await tx.match.deleteMany();
@@ -250,7 +254,7 @@ async function canReset(req: { header(name: string): string | undefined }) {
   }
 
   try {
-    const user = verifyAuthToken(token);
+    const user = await authenticateAuthToken(token);
     return user.role === "admin";
   } catch {
     return false;
