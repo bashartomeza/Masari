@@ -12,6 +12,7 @@ import 'package:masari_mobile/core/api/api_client.dart';
 import 'package:masari_mobile/core/config/app_config.dart';
 import 'package:masari_mobile/core/i18n/domain_labels.dart';
 import 'package:masari_mobile/core/routing/app_router.dart';
+import 'package:masari_mobile/features/auth/application/auth_controller.dart';
 import 'package:masari_mobile/features/auth/data/token_storage.dart';
 import 'package:masari_mobile/features/auth/domain/auth_models.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -53,6 +54,21 @@ void main() {
     expect(routeForRole(UserRole.driver), '/driver');
     expect(routeForRole(UserRole.merchant), '/merchant');
     expect(routeForRole(UserRole.admin), '/unsupported-role');
+  });
+
+  test('refreshing preserves the authenticated routing projection', () {
+    const user = AuthUser(
+      id: 'user_1',
+      name: 'Passenger',
+      phone: '+970590000001',
+      role: UserRole.passenger,
+      demoAccount: false,
+    );
+
+    expect(
+      authRoutingSnapshotFor(const AsyncData(AuthState.refreshing(user))),
+      authRoutingSnapshotFor(const AsyncData(AuthState.authenticated(user))),
+    );
   });
 
   testWidgets('Arabic login screen defaults to RTL', (tester) async {
