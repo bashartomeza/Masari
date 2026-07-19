@@ -237,7 +237,7 @@ model Invitation {
   created_by  User                   @relation("InvitationCreator", fields: [created_by_id], references: [id], onDelete: Restrict)
   revoked_by  User?                  @relation("InvitationRevoker", fields: [revoked_by_id], references: [id], onDelete: SetNull)
   redemptions InvitationRedemption[]
-  attempts    OnboardingAttempt[]
+  attempt     OnboardingAttempt?
 
   @@index([created_at])
   @@index([expires_at, revoked_at])
@@ -262,9 +262,9 @@ model InvitationRedemption {
 
 model OnboardingAttempt {
   id                       String                  @id @default(cuid())
-  invitation_id            String
+  invitation_id            String                  @unique
   intended_role            OnboardingRole
-  phone_e164               String                  @db.VarChar(16)
+  phone_e164               String                  @db.VarChar(32)
   phone_digest             String                  @db.Char(64)
   phone_digest_version     Int
   phone_last4              String                  @db.Char(4)
@@ -279,6 +279,8 @@ model OnboardingAttempt {
   registration_grant_digest String?     @db.Char(64)
   registration_grant_key_version Int?
   registration_grant_expires_at DateTime?
+  otp_dispatch_claim_id    String?                 @db.VarChar(36)
+  otp_dispatch_started_at  DateTime?
   completed_at             DateTime?
   created_at               DateTime                @default(now())
   updated_at               DateTime                @updatedAt
@@ -378,7 +380,7 @@ model UserConsent {
   source                String   @db.VarChar(50)
   app_release           String?  @db.VarChar(100)
 
-  user               User             @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user               User             @relation(fields: [user_id], references: [id], onDelete: Restrict, map: "user_consents_user_id_restrict_fkey")
   consent_document   ConsentDocument  @relation(fields: [consent_document_id], references: [id], onDelete: Restrict)
 
   @@unique([user_id, consent_document_id])
@@ -410,6 +412,7 @@ model IdempotencyRecord {
   idempotency_key String           @db.Char(64)
   key_version     Int
   request_digest  String           @db.Char(64)
+  claim_version   Int              @default(1)
   state           IdempotencyState @default(processing)
   resource_type   String?          @db.VarChar(80)
   resource_id     String?          @db.VarChar(191)

@@ -7,9 +7,14 @@ export function keyedDigest(context: string, value: string, key: VersionedKey) {
 }
 
 export function keyedDigestMatches(expectedHex: string, context: string, value: string, key: VersionedKey) {
-  const actual = Buffer.from(keyedDigest(context, value, key), "hex");
+  return hexDigestMatches(expectedHex, keyedDigest(context, value, key));
+}
+
+export function hexDigestMatches(expectedHex: string, actualHex: string) {
+  if (!/^[a-f0-9]{64}$/.test(expectedHex) || !/^[a-f0-9]{64}$/.test(actualHex)) return false;
+  const actual = Buffer.from(actualHex, "hex");
   const expected = Buffer.from(expectedHex, "hex");
-  return actual.length === expected.length && timingSafeEqual(actual, expected);
+  return timingSafeEqual(actual, expected);
 }
 
 export function invitationCodeDigest(code: string, key: VersionedKey) {

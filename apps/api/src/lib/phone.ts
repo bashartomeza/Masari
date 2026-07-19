@@ -35,7 +35,7 @@ export function normalizePhoneToE164(
     extract: false
   });
 
-  if (!phone || !supportedRegions.includes(phone.country as CountryCode)) {
+  if (!phone || !phone.isValid() || !supportedRegions.includes(phone.country as CountryCode)) {
     throw new PhoneNormalizationError();
   }
 

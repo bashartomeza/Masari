@@ -11,6 +11,16 @@ export async function createOnboardingSession(
   const token = randomBytes(32).toString("base64url");
   const now = input.now ?? new Date();
   const session = await db.$transaction(async (tx) => {
+    const attempt = await tx.onboardingAttempt.findUnique({
+      where: { id: input.attemptId },
+      select: { status: true, expires_at: true, completed_user_id: true }
+    });
+    const eligible = input.userId
+      ? attempt?.status === "completed" && attempt.completed_user_id === input.userId
+      : attempt?.status === "phone_verified" && attempt.completed_user_id === null;
+    if (!attempt || attempt.expires_at <= now || !eligible) {
+      throw new Error("onboarding_session_attempt_unavailable");
+    }
     const created = await tx.onboardingSession.create({
       data: {
         onboarding_attempt_id: input.attemptId,
@@ -32,17 +42,40 @@ export async function consumeOnboardingSession(
 ) {
   const now = input.now ?? new Date();
   const digest = onboardingSessionDigest(input.token, input.key);
-  const consumed = await db.onboardingSession.updateMany({
-    where: {
-      token_digest: digest,
-      token_key_version: input.key.version,
-      consumed_at: null,
-      revoked_at: null,
-      expires_at: { gt: now }
-    },
-    data: { consumed_at: now, last_used_at: now }
+  return db.$transaction(async (tx) => {
+    const session = await tx.onboardingSession.findUnique({
+      where: { token_digest: digest },
+      include: { onboarding_attempt: true }
+    });
+    if (
+      !session ||
+      session.token_key_version !== input.key.version ||
+      session.consumed_at ||
+      session.revoked_at ||
+      session.expires_at <= now ||
+      session.onboarding_attempt.expires_at <= now
+    ) return false;
+    const attemptWhere = session.user_id
+      ? { id: session.onboarding_attempt_id, status: "completed" as const, completed_user_id: session.user_id }
+      : { id: session.onboarding_attempt_id, status: "phone_verified" as const, completed_user_id: null };
+    const eligibleAttempt = await tx.onboardingAttempt.updateMany({
+      where: { ...attemptWhere, expires_at: { gt: now } },
+      data: { status: attemptWhere.status }
+    });
+    if (eligibleAttempt.count !== 1) return false;
+    const consumed = await tx.onboardingSession.updateMany({
+      where: {
+        id: session.id,
+        token_digest: digest,
+        token_key_version: input.key.version,
+        consumed_at: null,
+        revoked_at: null,
+        expires_at: { gt: now }
+      },
+      data: { consumed_at: now, last_used_at: now }
+    });
+    return consumed.count === 1;
   });
-  return consumed.count === 1;
 }
 
 export async function revokeOnboardingSessions(
@@ -69,7 +102,7 @@ export async function revokeOnboardingSessions(
         action: AuditAction.onboarding_session_revoked,
         entityType: "OnboardingSession",
         entityId: session.id,
-        metadata: { reason: input.reason }
+        metadata: { reason_recorded: true }
       });
     }
   });

@@ -1,6 +1,7 @@
 import { Prisma, type PrismaClient } from "../generated/prisma/client.js";
 import { AuditAction } from "../generated/prisma/enums.js";
 import { auditEvent } from "./audit.js";
+import { hexDigestMatches } from "./keyedDigest.js";
 
 export async function claimIdempotency(
   db: PrismaClient,
@@ -11,17 +12,13 @@ export async function claimIdempotency(
     keyVersion: number;
     requestDigest: string;
     expiresAt: Date;
+    now?: Date;
   }
 ) {
-  await db.idempotencyRecord.deleteMany({
-    where: {
-      operation: input.operation,
-      scope_digest: input.scopeDigest,
-      idempotency_key: input.keyDigest,
-      key_version: input.keyVersion,
-      expires_at: { lte: new Date() }
-    }
-  });
+  if (![input.scopeDigest, input.keyDigest, input.requestDigest].every((digest) => /^[a-f0-9]{64}$/.test(digest))) {
+    throw new Error("idempotency_digest_invalid");
+  }
+  const now = input.now ?? new Date();
   try {
     const record = await db.idempotencyRecord.create({
       data: {
@@ -36,7 +33,7 @@ export async function claimIdempotency(
     return { kind: "claimed" as const, record };
   } catch (error) {
     if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2002") throw error;
-    const record = await db.idempotencyRecord.findUniqueOrThrow({
+    let record = await db.idempotencyRecord.findUniqueOrThrow({
       where: {
         operation_scope_digest_idempotency_key_key_version: {
           operation: input.operation,
@@ -46,7 +43,28 @@ export async function claimIdempotency(
         }
       }
     });
-    if (record.request_digest !== input.requestDigest) {
+    if (record.expires_at <= now) {
+      const reclaimed = await db.idempotencyRecord.updateMany({
+        where: { id: record.id, claim_version: record.claim_version, expires_at: { lte: now } },
+        data: {
+          request_digest: input.requestDigest,
+          claim_version: { increment: 1 },
+          state: "processing",
+          resource_type: null,
+          resource_id: null,
+          response_status: null,
+          completed_at: null,
+          failed_at: null,
+          expires_at: input.expiresAt
+        }
+      });
+      if (reclaimed.count === 1) {
+        record = await db.idempotencyRecord.findUniqueOrThrow({ where: { id: record.id } });
+        return { kind: "claimed" as const, record };
+      }
+      record = await db.idempotencyRecord.findUniqueOrThrow({ where: { id: record.id } });
+    }
+    if (!hexDigestMatches(record.request_digest, input.requestDigest)) {
       await auditEvent(db, {
         action: AuditAction.idempotency_conflict,
         entityType: "IdempotencyRecord",
@@ -61,10 +79,10 @@ export async function claimIdempotency(
 
 export async function completeIdempotency(
   db: PrismaClient,
-  input: { recordId: string; resourceType: string; resourceId: string; responseStatus: number }
+  input: { recordId: string; claimVersion: number; resourceType: string; resourceId: string; responseStatus: number }
 ) {
-  return db.idempotencyRecord.update({
-    where: { id: input.recordId },
+  const completed = await db.idempotencyRecord.updateMany({
+    where: { id: input.recordId, claim_version: input.claimVersion, state: "processing" },
     data: {
       state: "completed",
       resource_type: input.resourceType,
@@ -73,4 +91,6 @@ export async function completeIdempotency(
       completed_at: new Date()
     }
   });
+  if (completed.count !== 1) throw new Error("idempotency_claim_lost");
+  return db.idempotencyRecord.findUniqueOrThrow({ where: { id: input.recordId } });
 }

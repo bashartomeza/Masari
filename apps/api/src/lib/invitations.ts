@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
-import type { Prisma, PrismaClient } from "../generated/prisma/client.js";
+import { Prisma, type PrismaClient } from "../generated/prisma/client.js";
 import type { OnboardingRole } from "../generated/prisma/enums.js";
-import { invitationCodeDigest, phoneDigest, type VersionedKey } from "./keyedDigest.js";
+import { invitationCodeDigest, keyedDigestMatches, phoneDigest, type VersionedKey } from "./keyedDigest.js";
 import { normalizePhoneToE164, phoneLast4 } from "./phone.js";
 import { AuditAction } from "../generated/prisma/enums.js";
 import { auditEvent } from "./audit.js";
@@ -35,31 +35,36 @@ export async function createInvitation(
     phoneRegion?: "PS";
     campaign?: string;
     source?: string;
-    metadata?: Prisma.InputJsonValue;
     expiresAt: Date;
     keys: InvitationKeys;
   }
 ) {
-  const rawCode = generateInvitationCode();
-  const normalizedCode = normalizeInvitationCode(rawCode);
   if (!input.intendedPhone) throw new Error("invitation_phone_required");
   const canonicalPhone = normalizePhoneToE164(input.intendedPhone, { region: input.phoneRegion });
-  const invitation = await db.invitation.create({
-    data: {
-      code_digest: invitationCodeDigest(normalizedCode, input.keys.code),
-      code_key_version: input.keys.code.version,
-      intended_role: input.intendedRole,
-      intended_phone_digest: phoneDigest(canonicalPhone, input.keys.phone),
-      phone_digest_version: input.keys.phone.version,
-      phone_last4: phoneLast4(canonicalPhone),
-      campaign: input.campaign,
-      source: input.source,
-      metadata: input.metadata,
-      expires_at: input.expiresAt,
-      created_by_id: input.createdById
+  for (let collisionAttempt = 0; collisionAttempt < 5; collisionAttempt += 1) {
+    const rawCode = generateInvitationCode();
+    const normalizedCode = normalizeInvitationCode(rawCode);
+    try {
+      const invitation = await db.invitation.create({
+        data: {
+          code_digest: invitationCodeDigest(normalizedCode, input.keys.code),
+          code_key_version: input.keys.code.version,
+          intended_role: input.intendedRole,
+          intended_phone_digest: phoneDigest(canonicalPhone, input.keys.phone),
+          phone_digest_version: input.keys.phone.version,
+          phone_last4: phoneLast4(canonicalPhone),
+          campaign: input.campaign,
+          source: input.source,
+          expires_at: input.expiresAt,
+          created_by_id: input.createdById
+        }
+      });
+      return { invitation, code: rawCode };
+    } catch (error) {
+      if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2002") throw error;
     }
-  });
-  return { invitation, code: rawCode };
+  }
+  throw new Error("invitation_code_generation_failed");
 }
 
 export async function consumeInvitation(
@@ -68,9 +73,36 @@ export async function consumeInvitation(
 ) {
   const now = input.now ?? new Date();
   return db.$transaction(async (tx) => {
+    const attempt = await tx.onboardingAttempt.findFirst({
+      where: {
+        id: input.onboardingAttemptId,
+        invitation_id: input.invitationId,
+        status: "created",
+        expires_at: { gt: now }
+      },
+      select: {
+        id: true,
+        intended_role: true,
+        phone_e164: true,
+        phone_digest: true,
+        phone_digest_version: true
+      }
+    });
+    if (!attempt) return { consumed: false as const };
+    if (input.userId) {
+      const user = await tx.user.findFirst({
+        where: { id: input.userId, role: attempt.intended_role, phone: attempt.phone_e164 },
+        select: { id: true }
+      });
+      if (!user) return { consumed: false as const };
+    }
     const consumed = await tx.invitation.updateMany({
       where: {
         id: input.invitationId,
+        intended_role: attempt.intended_role,
+        intended_phone_digest: attempt.phone_digest,
+        phone_digest_version: attempt.phone_digest_version,
+        max_uses: 1,
         revoked_at: null,
         expires_at: { gt: now },
         used_count: { lt: 1 }
@@ -129,7 +161,7 @@ export async function findUsableInvitationByCode(
   }
   if (invitation.intended_phone_digest) {
     if (!input.phoneE164 || !input.phoneKey || invitation.phone_digest_version !== input.phoneKey.version) return null;
-    if (phoneDigest(input.phoneE164, input.phoneKey) !== invitation.intended_phone_digest) return null;
+    if (!keyedDigestMatches(invitation.intended_phone_digest, "masari:phone", input.phoneE164, input.phoneKey)) return null;
   }
   return invitation;
 }

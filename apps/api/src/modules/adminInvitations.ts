@@ -2,7 +2,6 @@ import { Router } from "express";
 import { z } from "zod";
 import type { AppConfig } from "../config.js";
 import { AuditAction, OnboardingRole } from "../generated/prisma/enums.js";
-import type { Prisma } from "../generated/prisma/client.js";
 import { consumeAbuseCounter } from "../lib/abuseCounters.js";
 import { auditEvent } from "../lib/audit.js";
 import { abuseSubjectDigest } from "../lib/keyedDigest.js";
@@ -16,15 +15,12 @@ import { HttpError } from "../middleware/error.js";
 const cleanOptional = (maximum: number) =>
   z.string().trim().min(1).max(maximum).regex(/^[^\u0000-\u001f\u007f]+$/).optional();
 
-const createSchema = z.object({
+const createSchema = z.strictObject({
   role: z.enum([OnboardingRole.passenger, OnboardingRole.driver, OnboardingRole.merchant]),
   phone: z.string().trim().min(7).max(32),
   region: z.literal("PS"),
   campaign: cleanOptional(100),
   source: cleanOptional(100),
-  metadata: z.record(z.string(), z.unknown()).superRefine((value, context) => {
-    if (Buffer.byteLength(JSON.stringify(value), "utf8") > 2_048) context.addIssue({ code: "custom", message: "Invalid value" });
-  }).optional(),
   expires_in_days: z.number().int().min(1).max(30).optional()
 });
 
@@ -113,7 +109,6 @@ export function createAdminInvitationRouter(appConfig: AppConfig) {
           phoneRegion: input.region,
           campaign: input.campaign,
           source: input.source,
-          metadata: input.metadata as Prisma.InputJsonValue | undefined,
           expiresAt: new Date(Date.now() + expiresInDays * 86_400_000),
           keys: { code: onboarding.keys.invitationCode, phone: onboarding.keys.phoneDigest }
         });
@@ -122,7 +117,7 @@ export function createAdminInvitationRouter(appConfig: AppConfig) {
           action: AuditAction.invitation_created,
           entityType: "Invitation",
           entityId: created.invitation.id,
-          metadata: { intended_role: input.role, campaign: input.campaign ?? null, source: input.source ?? null, request_id: req.requestId }
+          metadata: { intended_role: input.role, request_id: req.requestId }
         });
         return created;
       });
@@ -184,7 +179,7 @@ export function createAdminInvitationRouter(appConfig: AppConfig) {
           action: AuditAction.invitation_revoked,
           entityType: "Invitation",
           entityId: id,
-          metadata: { reason: input.reason, request_id: req.requestId }
+          metadata: { request_id: req.requestId }
         });
         return result;
       });

@@ -49,6 +49,8 @@ describe("onboarding foundation primitives", () => {
     expect(() => normalizePhoneToE164("+972501234567")).toThrow(PhoneNormalizationError);
     expect(() => normalizePhoneToE164("0590000001")).toThrow(PhoneNormalizationError);
     expect(() => normalizePhoneToE164("not-a-phone", { region: "PS" })).toThrow(PhoneNormalizationError);
+    expect(() => normalizePhoneToE164("+970500000000")).toThrow(PhoneNormalizationError);
+    expect(() => normalizePhoneToE164("+970123")).toThrow(PhoneNormalizationError);
     expect(() => normalizePhoneToE164("+970590000001\n")).toThrow(PhoneNormalizationError);
     expect(() => normalizePhoneToE164("+970590000001 ext 2")).toThrow(PhoneNormalizationError);
     expect(() => normalizePhoneToE164("++970590000001")).toThrow(PhoneNormalizationError);
@@ -107,6 +109,21 @@ describe("onboarding configuration isolation", () => {
     } catch (error) {
       expect(String(error)).not.toContain(repeated);
     }
+  });
+
+  it("rejects reuse of JWT and refresh-token secrets for onboarding digests", () => {
+    const jwtSecret = "local-test-jwt-secret-longer-than-thirty-two-characters";
+    const refreshSecret = "local-test-refresh-pepper-longer-than-thirty-two-characters";
+    expect(() => localConfig({
+      INVITATIONS_ENABLED: "true",
+      ...enabledSecrets,
+      OTP_CODE_PEPPER: jwtSecret
+    })).toThrow(/distinct from JWT and refresh-token secrets/);
+    expect(() => localConfig({
+      INVITATIONS_ENABLED: "true",
+      ...enabledSecrets,
+      OTP_CODE_PEPPER: refreshSecret
+    })).toThrow(/distinct from JWT and refresh-token secrets/);
   });
 
   it("rejects unsupported regions and any public-onboarding enablement", () => {

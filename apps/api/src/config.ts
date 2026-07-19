@@ -148,6 +148,12 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
     if (new Set(configuredSecrets).size !== configuredSecrets.length) {
       problems.push("onboarding peppers must be distinct from one another");
     }
+    const operationalSecrets = [raw.JWT_SECRET, raw.REFRESH_TOKEN_PEPPER].filter(
+      (value): value is string => Boolean(value)
+    );
+    if (configuredSecrets.some((secret) => operationalSecrets.includes(secret))) {
+      problems.push("onboarding peppers must be distinct from JWT and refresh-token secrets");
+    }
   }
 
   if (isUnsafeSecret(raw.JWT_SECRET)) {

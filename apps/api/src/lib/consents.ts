@@ -12,9 +12,21 @@ export async function recordConsent(
     ipDigest?: string;
     ipDigestVersion?: number;
     appRelease?: string;
+    now?: Date;
   }
 ) {
+  const now = input.now ?? new Date();
   return db.$transaction(async (tx) => {
+    const document = await tx.consentDocument.findFirst({
+      where: {
+        id: input.documentId,
+        legal_approved_at: { not: null },
+        effective_at: { lte: now },
+        OR: [{ retired_at: null }, { retired_at: { gt: now } }]
+      },
+      select: { id: true }
+    });
+    if (!document) throw new Error("consent_document_unavailable");
     const consent = await tx.userConsent.create({
       data: {
         consent_document_id: input.documentId,
@@ -31,7 +43,7 @@ export async function recordConsent(
       action: AuditAction.consent_recorded,
       entityType: "ConsentDocument",
       entityId: input.documentId,
-      metadata: { source: input.source, request_id: input.requestId ?? null }
+      metadata: { request_id: input.requestId ?? null }
     });
     return consent;
   });

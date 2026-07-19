@@ -6,7 +6,7 @@ These endpoints exist only when `INVITATIONS_ENABLED=true`. They require an acti
 
 `POST /api/v1/admin/invitations`
 
-Body: `role` (`passenger|driver|merchant`), `phone`, `region` (`PS`), optional `expires_in_days` (1–30), `campaign`, `source`, and a bounded JSON metadata object. The phone is mandatory. A `201` response returns a safe invitation summary plus `code`; this is the only response that can contain the raw code. No SMS, account, password, or session is created.
+Body: `role` (`passenger|driver|merchant`), `phone`, `region` (`PS`), optional `expires_in_days` (1–30), `campaign`, and `source`. Unknown fields are rejected so arbitrary operator input cannot become a hidden PII or secret store. The phone is mandatory. A `201` response returns a safe invitation summary plus `code`; this is the only response that can contain the raw code. No SMS, account, password, or session is created.
 
 ## List
 
