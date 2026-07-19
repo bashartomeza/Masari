@@ -2239,3 +2239,32 @@ Residual controls before public launch:
 - Public onboarding remains fail-closed and absent. M6C2B2 must add separately reviewed public orchestration, real-provider controls, legal document publication workflow, failed-idempotency policy, exact retention scheduling, and the approved storage-at-rest/backup protection boundary before enabling it.
 - Admin invitation creation intentionally has no automatic replay/idempotency behavior; response loss requires safe list/revoke/reissue handling as documented. A future admin UI must not add generic mutation retries.
 - PR #3 requires the corrective head to pass all four GitHub Actions contexts before it can be marked ready. It must remain unmerged until team-leader approval.
+
+[M6C2B1_MERGE_AND_POST_MERGE_VERIFICATION]
+Merge result (2026-07-19):
+- PR #3 was approved after independent schema/security review and merged into `production-readiness` using a merge commit. The approved final feature head was `afe3d8d61af74ada32e4f41f9e2da7688db64478`; the merge commit is `a8d0036cbeba9330fe082b74987c47a004344318`.
+- The remote feature branch was deleted by the approved merge command. The local `m6c2b1/onboarding-foundation` branch was deleted normally only after verifying the merge graph and synchronizing local `production-readiness` with `origin/production-readiness`; no squash, rebase, force push, reset, or tag movement occurred.
+- All feature and corrective commits remain visible. The merged migration history contains `20260717195454_onboarding_foundation`, `20260719120000_harden_onboarding_foundation`, and `20260719123000_enforce_single_invitation_attempt`; no previously applied migration was modified.
+
+Post-merge database and validation:
+- The ignored local environment was confirmed present and targeted the intended local Masari development database without exposing values. A fresh checksum-backed ignored backup preceded post-merge verification. Phone preflight reported `total=5`, `valid=5`, `invalid=0`, and `collisions=0` without printing phone values.
+- Prisma validation/generation passed. All six migrations were already applied to local MySQL; two migration deploys were idempotent and final status was current with no pending migration.
+- The disposable real-MySQL suite applied all six migrations from empty, redeployed idempotently, and passed deterministic smoke, trusted-session concurrency, invitation single-attempt/consume-revoke races, OTP verification/resend/stale-claim fencing, onboarding-session isolation, exact abuse-counter concurrency, idempotency owner fencing, consent retention, disabled route/provider controls, audit privacy, and demo-reset cleanup.
+- A checksum-verified pre-onboarding backup restored into an isolated database and upgraded through every migration. The fresh post-merge backup restored at current status. Each restore contained nine onboarding tables, 13 foreign keys, the single-attempt unique index, 13 `ascii_bin` digest columns, both required check constraints, and six completed migration rows; both isolated databases were removed after verification.
+- Workspace typecheck/build, 146 API tests, standard/security validation, 16 admin tests, explicit production admin validation, workflow/tooling/secret policy checks, production admin/release-APK artifact scans, and the configured-secret/captured-log scan passed. Flutter localization generation, zero-change formatting, analysis, and all 106 tests passed. Raw `npm audit --omit=dev` retained only the three approved moderate Prisma CLI transitive findings; no force fix was run.
+- Live demo preflight passed 22/22. Deterministic smoke retained score `0.9317`, tracking sequence `2`, trips `1` versus `6`, distance `21.53` versus `129.19`, cost `43.06` versus `258.38`, and winner `masari`.
+
+Merge-commit CI and locked boundaries:
+- All required workflows passed on merge commit `a8d0036cbeba9330fe082b74987c47a004344318`: Admin CI run `29701306641`, Backend and MySQL CI run `29701306635`, Flutter Android CI run `29701306653`, and Security and Configuration CI run `29701306648`. Exact successful contexts were `admin`, `backend-mysql`, `mobile`, and `security`.
+- Public onboarding remains absent and disabled; enabling it still fails configuration. Fake OTP remains forbidden in staging/production, no real provider SDK or SMS traffic exists, no registration/account-creation route or Flutter onboarding UI exists, the admin invitation API remains feature-gated, no invented legal content was added, and operational JWT/session behavior remains unchanged.
+- Frozen release tags remain unchanged: `v0.1.0-hackathon` peels to `074fc4e7cc79c6b08a2baa18ca251b4802aa48c7`, and `v0.2.0-hackathon-mysql` peels to `7f5c5bace1b081c32f6a24a7352c6b163ac97438`.
+
+Pre-public-launch obligations:
+1. Approve storage-at-rest protection and backup-retention policy.
+2. Establish a governed legal-document publication workflow.
+3. Approve a failed-idempotency recovery policy.
+4. Do not add automatic retries to admin invitation mutations without idempotency.
+5. Require independent review of every future public onboarding route.
+
+Remaining after merge verification:
+- M6C2B1 is merged and post-merge verified. M6C2B2 remains the next milestone and has not started.
