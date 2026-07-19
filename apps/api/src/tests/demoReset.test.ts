@@ -50,6 +50,15 @@ describe("demo reset", () => {
       .mockResolvedValueOnce({ id: "admin", phone: "+970590000005" });
     const tx = {
       auditEvent: { deleteMany: vi.fn(), create: vi.fn() },
+      userConsent: { deleteMany: vi.fn() },
+      onboardingSession: { deleteMany: vi.fn() },
+      invitationRedemption: { deleteMany: vi.fn() },
+      onboardingAttempt: { updateMany: vi.fn(), deleteMany: vi.fn() },
+      otpChallenge: { deleteMany: vi.fn() },
+      invitation: { deleteMany: vi.fn() },
+      consentDocument: { deleteMany: vi.fn() },
+      abuseCounter: { deleteMany: vi.fn() },
+      idempotencyRecord: { deleteMany: vi.fn() },
       refreshToken: { deleteMany: vi.fn() },
       authSession: { deleteMany: vi.fn() },
       locationEvent: { deleteMany: vi.fn() },
@@ -74,6 +83,8 @@ describe("demo reset", () => {
 
     expect(tx.refreshToken.deleteMany).toHaveBeenCalledOnce();
     expect(tx.authSession.deleteMany).toHaveBeenCalledOnce();
+    expect(tx.invitation.deleteMany).toHaveBeenCalledOnce();
+    expect(tx.otpChallenge.deleteMany).toHaveBeenCalledOnce();
     expect(tx.refreshToken.deleteMany.mock.invocationCallOrder[0]).toBeLessThan(
       tx.authSession.deleteMany.mock.invocationCallOrder[0]
     );

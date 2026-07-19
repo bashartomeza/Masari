@@ -47,6 +47,16 @@ export async function resetDemoData(db: PrismaClient = prisma) {
   }
   return db.$transaction(async (tx) => {
     await tx.auditEvent.deleteMany();
+    await tx.userConsent.deleteMany();
+    await tx.onboardingSession.deleteMany();
+    await tx.invitationRedemption.deleteMany();
+    await tx.onboardingAttempt.updateMany({ data: { current_challenge_id: null } });
+    await tx.otpChallenge.deleteMany();
+    await tx.onboardingAttempt.deleteMany();
+    await tx.invitation.deleteMany();
+    await tx.consentDocument.deleteMany();
+    await tx.abuseCounter.deleteMany();
+    await tx.idempotencyRecord.deleteMany();
     await tx.refreshToken.deleteMany();
     await tx.authSession.deleteMany();
     await tx.locationEvent.deleteMany();

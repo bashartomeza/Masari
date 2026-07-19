@@ -44,6 +44,16 @@ jobs:
       DEMO_MERCHANT_PASSWORD: ci-only-merchant-password
       DEMO_ADMIN_PASSWORD: ci-only-admin-password
       API_BASE_URL: http://127.0.0.1:3000
+      INVITATIONS_ENABLED: "true"
+      PUBLIC_ONBOARDING_ENABLED: "false"
+      OTP_PROVIDER: fake
+      SUPPORTED_PHONE_REGIONS: PS
+      INVITATION_CODE_PEPPER: ci-only-invitation-code-pepper-at-least-thirty-two-characters
+      PHONE_DIGEST_PEPPER: ci-only-phone-digest-pepper-at-least-thirty-two-characters
+      OTP_CODE_PEPPER: ci-only-otp-code-pepper-at-least-thirty-two-characters
+      ONBOARDING_SESSION_PEPPER: ci-only-onboarding-session-pepper-at-least-thirty-two-characters
+      IDEMPOTENCY_KEY_PEPPER: ci-only-idempotency-pepper-at-least-thirty-two-characters
+      ABUSE_KEY_PEPPER: ci-only-abuse-pepper-at-least-thirty-two-characters
       VITE_APP_ENV: production
       VITE_ENABLE_DEMO_FEATURES: "false"
       VITE_API_BASE_URL: https://api.staging.masari.invalid

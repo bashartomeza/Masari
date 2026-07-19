@@ -22,7 +22,8 @@ try {
   const npmFile = process.platform === "win32" && process.env.npm_execpath ? process.execPath : executable("npm");
   for (const [script, label] of [
     ["demo:smoke", "deterministic smoke"],
-    ["test:integration:sessions", "trusted-session smoke"]
+    ["test:integration:sessions", "trusted-session smoke"],
+    ["test:integration:onboarding", "onboarding foundation concurrency smoke"]
   ]) {
     const npmArgs = process.platform === "win32" && process.env.npm_execpath
       ? [process.env.npm_execpath, "run", script]

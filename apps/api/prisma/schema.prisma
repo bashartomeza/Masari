@@ -116,6 +116,71 @@ enum AuditAction {
   driver_verification
   match_decision
   admin_action
+  invitation_created
+  invitation_revoked
+  invitation_redeemed
+  otp_challenge_created
+  otp_verified
+  consent_recorded
+  invitation_consumed
+  onboarding_attempt_created
+  otp_dispatch_accepted
+  otp_dispatch_rejected
+  otp_verification_failed
+  onboarding_session_created
+  onboarding_session_revoked
+  consent_document_created
+  abuse_limit_reached
+  idempotency_conflict
+}
+
+enum OnboardingRole {
+  passenger
+  driver
+  merchant
+}
+
+enum OnboardingAttemptStatus {
+  created
+  otp_dispatching
+  otp_sent
+  phone_verified
+  completed
+  expired
+  locked
+  cancelled
+}
+
+enum OtpDeliveryStatus {
+  dispatching
+  accepted
+  rejected
+  unknown
+}
+
+enum OtpPurpose {
+  registration
+}
+
+enum OnboardingSessionPurpose {
+  onboarding_completion
+}
+
+enum ConsentDocumentType {
+  terms
+  privacy
+  adult_self_attestation
+}
+
+enum ConsentLocale {
+  ar
+  en
+}
+
+enum IdempotencyState {
+  processing
+  completed
+  failed
 }
 
 model User {
@@ -137,8 +202,230 @@ model User {
   merchant_orders MerchantOrder[]
   audit_events    AuditEvent[]
   auth_sessions   AuthSession[]
+  invitations_created Invitation[] @relation("InvitationCreator")
+  invitations_revoked Invitation[] @relation("InvitationRevoker")
+  invitation_redemptions InvitationRedemption[]
+  onboarding_attempts OnboardingAttempt[] @relation("CompletedOnboardingUser")
+  onboarding_sessions OnboardingSession[]
+  consents UserConsent[]
 
   @@map("users")
+}
+
+model Invitation {
+  id                    String         @id @default(cuid())
+  code_digest           String         @unique @db.Char(64)
+  code_key_version      Int
+  intended_role         OnboardingRole
+  intended_phone_digest String         @db.Char(64)
+  phone_digest_version  Int
+  phone_last4           String         @db.Char(4)
+  campaign              String?        @db.VarChar(100)
+  source                String?        @db.VarChar(100)
+  metadata              Json?
+  max_uses              Int            @default(1)
+  used_count            Int            @default(0)
+  expires_at            DateTime
+  revoked_at            DateTime?
+  revoke_reason         String?        @db.VarChar(500)
+  created_by_id         String
+  revoked_by_id         String?
+  last_used_at          DateTime?
+  created_at            DateTime       @default(now())
+  updated_at            DateTime       @updatedAt
+
+  created_by  User                   @relation("InvitationCreator", fields: [created_by_id], references: [id], onDelete: Restrict)
+  revoked_by  User?                  @relation("InvitationRevoker", fields: [revoked_by_id], references: [id], onDelete: SetNull)
+  redemptions InvitationRedemption[]
+  attempt     OnboardingAttempt?
+
+  @@index([created_at])
+  @@index([expires_at, revoked_at])
+  @@index([intended_role, created_at])
+  @@map("invitations")
+}
+
+model InvitationRedemption {
+  id                    String   @id @default(cuid())
+  invitation_id         String
+  onboarding_attempt_id String   @unique
+  user_id               String?
+  redeemed_at           DateTime @default(now())
+
+  invitation        Invitation       @relation(fields: [invitation_id], references: [id], onDelete: Cascade)
+  onboarding_attempt OnboardingAttempt @relation(fields: [onboarding_attempt_id], references: [id], onDelete: Cascade)
+  user              User?            @relation(fields: [user_id], references: [id], onDelete: SetNull)
+
+  @@index([invitation_id, redeemed_at])
+  @@map("invitation_redemptions")
+}
+
+model OnboardingAttempt {
+  id                       String                  @id @default(cuid())
+  invitation_id            String                  @unique
+  intended_role            OnboardingRole
+  phone_e164               String                  @db.VarChar(32)
+  phone_digest             String                  @db.Char(64)
+  phone_digest_version     Int
+  phone_last4              String                  @db.Char(4)
+  status                   OnboardingAttemptStatus @default(created)
+  current_challenge_id     String?                 @unique
+  completed_user_id        String?
+  request_ip_digest        String?                 @db.Char(64)
+  request_ip_digest_version Int?
+  created_request_id       String?                 @db.VarChar(64)
+  expires_at               DateTime
+  verified_at              DateTime?
+  registration_grant_digest String?     @db.Char(64)
+  registration_grant_key_version Int?
+  registration_grant_expires_at DateTime?
+  otp_dispatch_claim_id    String?                 @db.VarChar(36)
+  otp_dispatch_started_at  DateTime?
+  completed_at             DateTime?
+  created_at               DateTime                @default(now())
+  updated_at               DateTime                @updatedAt
+
+  invitation       Invitation             @relation(fields: [invitation_id], references: [id], onDelete: Cascade)
+  current_challenge OtpChallenge?          @relation("CurrentOtpChallenge", fields: [current_challenge_id], references: [id], onDelete: SetNull)
+  otp_challenges   OtpChallenge[]          @relation("AttemptOtpChallenges")
+  completed_user   User?                   @relation("CompletedOnboardingUser", fields: [completed_user_id], references: [id], onDelete: SetNull)
+  redemption       InvitationRedemption?
+  sessions         OnboardingSession[]
+
+  @@index([phone_digest, status])
+  @@index([invitation_id, created_at])
+  @@index([expires_at])
+  @@map("onboarding_attempts")
+}
+
+model OtpChallenge {
+  id                    String            @id @default(cuid())
+  onboarding_attempt_id String
+  generation            Int
+  purpose               OtpPurpose        @default(registration)
+  provider              String            @db.VarChar(50)
+  code_digest           String            @db.Char(64)
+  code_key_version      Int
+  delivery_status       OtpDeliveryStatus @default(dispatching)
+  provider_message_id   String?           @db.VarChar(191)
+  attempt_count         Int               @default(0)
+  max_attempts          Int
+  expires_at            DateTime
+  consumed_at           DateTime?
+  superseded_at         DateTime?
+  last_sent_at          DateTime?
+  locked_until          DateTime?
+  delivery_updated_at   DateTime
+  request_id            String?           @db.VarChar(64)
+  created_at            DateTime          @default(now())
+
+  onboarding_attempt OnboardingAttempt  @relation("AttemptOtpChallenges", fields: [onboarding_attempt_id], references: [id], onDelete: Cascade)
+  current_for_attempt OnboardingAttempt? @relation("CurrentOtpChallenge")
+
+  @@unique([onboarding_attempt_id, generation])
+  @@index([onboarding_attempt_id, expires_at])
+  @@map("otp_challenges")
+}
+
+model OnboardingSession {
+  id                    String                   @id @default(cuid())
+  onboarding_attempt_id String
+  user_id               String?
+  token_digest          String                   @unique @db.Char(64)
+  token_key_version     Int
+  purpose               OnboardingSessionPurpose @default(onboarding_completion)
+  expires_at            DateTime
+  last_used_at          DateTime?
+  consumed_at           DateTime?
+  revoked_at            DateTime?
+  revoke_reason         String?                  @db.VarChar(191)
+  created_at            DateTime                 @default(now())
+
+  onboarding_attempt OnboardingAttempt @relation(fields: [onboarding_attempt_id], references: [id], onDelete: Cascade)
+  user               User?             @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([onboarding_attempt_id, expires_at])
+  @@index([user_id, revoked_at, expires_at])
+  @@map("onboarding_sessions")
+}
+
+model ConsentDocument {
+  id              String              @id @default(cuid())
+  document_type   ConsentDocumentType
+  version         String              @db.VarChar(50)
+  locale          ConsentLocale
+  content_digest  String              @db.Char(64)
+  content_reference String?           @db.VarChar(500)
+  effective_at    DateTime
+  retired_at      DateTime?
+  legal_approved_at DateTime?
+  legal_approved_by String?            @db.VarChar(191)
+  created_at      DateTime            @default(now())
+
+  consents UserConsent[]
+
+  @@unique([document_type, version, locale])
+  @@index([document_type, locale, effective_at])
+  @@map("consent_documents")
+}
+
+model UserConsent {
+  id                    String   @id @default(cuid())
+  user_id               String
+  consent_document_id   String
+  accepted_at           DateTime @default(now())
+  request_id            String?  @db.VarChar(64)
+  ip_digest             String?  @db.Char(64)
+  ip_digest_version     Int?
+  source                String   @db.VarChar(50)
+  app_release           String?  @db.VarChar(100)
+
+  user               User             @relation(fields: [user_id], references: [id], onDelete: Restrict, map: "user_consents_user_id_restrict_fkey")
+  consent_document   ConsentDocument  @relation(fields: [consent_document_id], references: [id], onDelete: Restrict)
+
+  @@unique([user_id, consent_document_id])
+  @@index([consent_document_id, accepted_at])
+  @@map("user_consents")
+}
+
+model AbuseCounter {
+  id             String   @id @default(cuid())
+  bucket_type    String   @db.VarChar(50)
+  subject_digest String   @db.Char(64)
+  digest_version Int
+  window_start   DateTime
+  window_seconds Int
+  count          Int      @default(0)
+  expires_at     DateTime
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  @@unique([bucket_type, subject_digest, digest_version, window_start, window_seconds])
+  @@index([window_start])
+  @@map("abuse_counters")
+}
+
+model IdempotencyRecord {
+  id              String           @id @default(cuid())
+  operation       String           @db.VarChar(80)
+  scope_digest    String           @db.Char(64)
+  idempotency_key String           @db.Char(64)
+  key_version     Int
+  request_digest  String           @db.Char(64)
+  claim_version   Int              @default(1)
+  state           IdempotencyState @default(processing)
+  resource_type   String?          @db.VarChar(80)
+  resource_id     String?          @db.VarChar(191)
+  response_status Int?
+  completed_at    DateTime?
+  failed_at       DateTime?
+  expires_at      DateTime
+  created_at      DateTime         @default(now())
+  updated_at      DateTime         @updatedAt
+
+  @@unique([operation, scope_digest, idempotency_key, key_version], map: "idempotency_claim_key")
+  @@index([expires_at])
+  @@map("idempotency_records")
 }
 
 model AuthSession {
