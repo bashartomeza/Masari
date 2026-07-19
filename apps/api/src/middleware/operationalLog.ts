@@ -42,7 +42,15 @@ const SAFE_PATH_SEGMENTS = new Set([
   "status",
   "dashboard",
   "drivers",
-  "parcels"
+  "parcels",
+  "onboarding",
+  "config",
+  "consents",
+  "attempts",
+  "resend",
+  "verify",
+  "complete",
+  "status-sessions"
 ]);
 
 function normalizedRoute(req: Request) {

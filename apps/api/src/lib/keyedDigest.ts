@@ -37,6 +37,14 @@ export function idempotencyKeyDigest(scope: string, value: string, key: Versione
   return keyedDigest(`masari:idempotency:${scope}`, value, key);
 }
 
+export function idempotencyPayloadDigest(operation: string, canonicalPayload: string, key: VersionedKey) {
+  return keyedDigest(`onboarding-idempotency-payload:${operation}`, canonicalPayload, key);
+}
+
+export function registrationGrantDigest(grant: string, key: VersionedKey) {
+  return keyedDigest("masari:registration-grant", grant, key);
+}
+
 export function abuseSubjectDigest(bucket: string, value: string, key: VersionedKey) {
   return keyedDigest(`masari:abuse:${bucket}`, value, key);
 }

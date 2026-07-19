@@ -4,7 +4,7 @@ import { auditEvent } from "./audit.js";
 import { hexDigestMatches } from "./keyedDigest.js";
 
 export async function claimIdempotency(
-  db: PrismaClient,
+  db: PrismaClient | Prisma.TransactionClient,
   input: {
     operation: string;
     scopeDigest: string;
@@ -73,12 +73,19 @@ export async function claimIdempotency(
       });
       return { kind: "conflict" as const, record };
     }
-    return { kind: record.state === "completed" ? ("replay" as const) : ("in_progress" as const), record };
+    return {
+      kind: record.state === "completed"
+        ? ("replay" as const)
+        : record.state === "failed"
+          ? ("failed" as const)
+          : ("in_progress" as const),
+      record
+    };
   }
 }
 
 export async function completeIdempotency(
-  db: PrismaClient,
+  db: PrismaClient | Prisma.TransactionClient,
   input: { recordId: string; claimVersion: number; resourceType: string; resourceId: string; responseStatus: number }
 ) {
   const completed = await db.idempotencyRecord.updateMany({
@@ -93,4 +100,18 @@ export async function completeIdempotency(
   });
   if (completed.count !== 1) throw new Error("idempotency_claim_lost");
   return db.idempotencyRecord.findUniqueOrThrow({ where: { id: input.recordId } });
+}
+
+export async function failIdempotency(
+  db: PrismaClient | Prisma.TransactionClient,
+  input: { recordId: string; claimVersion: number; retryAfter?: Date }
+) {
+  const terminal = !input.retryAfter;
+  const failed = await db.idempotencyRecord.updateMany({
+    where: { id: input.recordId, claim_version: input.claimVersion, state: "processing" },
+    data: terminal
+      ? { state: "failed", failed_at: new Date() }
+      : { expires_at: input.retryAfter }
+  });
+  if (failed.count !== 1) throw new Error("idempotency_claim_lost");
 }

@@ -56,6 +56,8 @@ const rawSchema = z.object({
   ONBOARDING_SESSION_KEY_VERSION: z.coerce.number().int().positive().default(1),
   IDEMPOTENCY_KEY_PEPPER: z.string().min(MINIMUM_ONBOARDING_PEPPER_LENGTH).optional(),
   IDEMPOTENCY_KEY_VERSION: z.coerce.number().int().positive().default(1),
+  IDEMPOTENCY_PAYLOAD_PEPPER: z.string().min(MINIMUM_ONBOARDING_PEPPER_LENGTH).optional(),
+  IDEMPOTENCY_PAYLOAD_KEY_VERSION: z.coerce.number().int().positive().default(1),
   ABUSE_KEY_PEPPER: z.string().min(MINIMUM_ONBOARDING_PEPPER_LENGTH).optional(),
   ABUSE_KEY_VERSION: z.coerce.number().int().positive().default(1),
   INVITATION_EXPIRY_DAYS: z.coerce.number().int().min(1).max(30).default(7),
@@ -64,7 +66,12 @@ const rawSchema = z.object({
   OTP_RESEND_COOLDOWN_SECONDS: z.coerce.number().int().min(10).max(600).default(60),
   OTP_MAX_RESENDS: z.coerce.number().int().min(0).max(10).default(3),
   OTP_MAX_SENDS_PER_PHONE_DAY: z.coerce.number().int().min(1).max(20).default(5),
-  ADMIN_INVITATION_MAX_PER_HOUR: z.coerce.number().int().min(1).max(500).default(20)
+  ADMIN_INVITATION_MAX_PER_HOUR: z.coerce.number().int().min(1).max(500).default(20),
+  ONBOARDING_ATTEMPT_TTL_SECONDS: z.coerce.number().int().min(600).max(3_600).default(1_800),
+  ONBOARDING_REGISTRATION_GRANT_TTL_SECONDS: z.coerce.number().int().min(300).max(1_800).default(900),
+  ONBOARDING_CONTINUATION_TTL_SECONDS: z.coerce.number().int().min(300).max(3_600).default(1_800),
+  ONBOARDING_PENDING_STATUS_TTL_DAYS: z.coerce.number().int().min(1).max(7).default(7),
+  ONBOARDING_TEST_LEGAL_FIXTURES_ENABLED: z.string().optional()
 });
 
 export type AppConfig = ReturnType<typeof createConfig>;
@@ -114,12 +121,27 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
   const demoFeaturesEnabled = isDemo || isTest || (isLocal && explicitlyEnabled);
   const invitationsEnabled = parseBoolean("INVITATIONS_ENABLED", raw.INVITATIONS_ENABLED);
   const publicOnboardingEnabled = parseBoolean("PUBLIC_ONBOARDING_ENABLED", raw.PUBLIC_ONBOARDING_ENABLED);
+  const testLegalFixturesEnabled = parseBoolean(
+    "ONBOARDING_TEST_LEGAL_FIXTURES_ENABLED",
+    raw.ONBOARDING_TEST_LEGAL_FIXTURES_ENABLED
+  );
   const problems: string[] = [];
 
   if (productionLike && explicitlyEnabled) {
     problems.push("ENABLE_DEMO_FEATURES cannot be enabled in staging or production");
   }
-  if (publicOnboardingEnabled) problems.push("PUBLIC_ONBOARDING_ENABLED is not supported in M6C2B1");
+  if (publicOnboardingEnabled && productionLike) {
+    problems.push("PUBLIC_ONBOARDING_ENABLED cannot be enabled in staging or production without an approved provider");
+  }
+  if (publicOnboardingEnabled && !invitationsEnabled) {
+    problems.push("PUBLIC_ONBOARDING_ENABLED requires INVITATIONS_ENABLED");
+  }
+  if (publicOnboardingEnabled && raw.OTP_PROVIDER !== "fake") {
+    problems.push("PUBLIC_ONBOARDING_ENABLED requires the fake provider in local, test, or demo");
+  }
+  if (productionLike && testLegalFixturesEnabled) {
+    problems.push("ONBOARDING_TEST_LEGAL_FIXTURES_ENABLED is forbidden in staging and production");
+  }
   if (productionLike && raw.OTP_PROVIDER === "fake") {
     problems.push("OTP_PROVIDER=fake is forbidden in staging and production");
   }
@@ -153,6 +175,19 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
     );
     if (configuredSecrets.some((secret) => operationalSecrets.includes(secret))) {
       problems.push("onboarding peppers must be distinct from JWT and refresh-token secrets");
+    }
+  }
+  const idempotencyPayloadSecret = raw.IDEMPOTENCY_PAYLOAD_PEPPER;
+  if (publicOnboardingEnabled) {
+    if (!idempotencyPayloadSecret) problems.push("idempotency payload pepper is required when public onboarding is enabled");
+    else if (isUnsafeSecret(idempotencyPayloadSecret)) problems.push("idempotency payload pepper uses a known placeholder or default value");
+    const allSecrets = [
+      ...Object.values(onboardingSecrets),
+      raw.JWT_SECRET,
+      raw.REFRESH_TOKEN_PEPPER
+    ].filter((value): value is string => Boolean(value));
+    if (idempotencyPayloadSecret && allSecrets.includes(idempotencyPayloadSecret)) {
+      problems.push("idempotency payload pepper must be distinct from onboarding and operational secrets");
     }
   }
 
@@ -262,6 +297,19 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
     demoFeaturesEnabled,
     invitationsEnabled,
     publicOnboardingEnabled,
+    publicRegistration: publicOnboardingEnabled
+      ? {
+          attemptTtlSeconds: raw.ONBOARDING_ATTEMPT_TTL_SECONDS,
+          registrationGrantTtlSeconds: raw.ONBOARDING_REGISTRATION_GRANT_TTL_SECONDS,
+          continuationTtlSeconds: raw.ONBOARDING_CONTINUATION_TTL_SECONDS,
+          pendingStatusTtlDays: raw.ONBOARDING_PENDING_STATUS_TTL_DAYS,
+          testLegalFixturesEnabled,
+          idempotencyPayloadKey: {
+            secret: idempotencyPayloadSecret!,
+            version: raw.IDEMPOTENCY_PAYLOAD_KEY_VERSION
+          }
+        }
+      : undefined,
     onboarding: invitationsEnabled
       ? {
           otpProvider: raw.OTP_PROVIDER,
