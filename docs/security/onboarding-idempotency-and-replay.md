@@ -1,0 +1,5 @@
+# Onboarding idempotency and replay
+
+Each public mutation binds the operation, an HMAC scope, an HMAC idempotency key, and a separately keyed canonical request-payload HMAC. `IDEMPOTENCY_PAYLOAD_PEPPER` must differ from JWT, refresh, invitation, phone, OTP, onboarding-token, idempotency-key, and abuse secrets. Raw request bodies, phone values, OTPs, passwords, invitation codes, and registration grants are never persisted in idempotency records.
+
+Exact completed replay returns the same safe resource outcome. When an outcome contains raw credential material, the server rotates/reissues it: verify replay replaces the registration grant, completion replay replaces a pending-status token, and start recovery replaces a continuation token. Same key with different payload is a conflict. Processing ownership is fenced by `claim_version`; expiry permits safe reclaim and stale owners cannot complete reclaimed work. Terminal failures require a new idempotency key; provider/secret error bodies are never recorded.

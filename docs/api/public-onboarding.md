@@ -1,0 +1,9 @@
+# Public onboarding API
+
+M6C2B2 adds an invitation-only backend flow. `GET /api/v1/onboarding/config` is always registered; when disabled it returns `enabled: false`, an empty role list, and a request ID. Every other route is absent (`404`) unless the local, test, or demo feature gate is enabled with the injected fake provider and a complete approved legal-document set.
+
+Enabled endpoints are `GET /onboarding/consents?locale=ar|en`, `POST /onboarding/attempts`, `POST /onboarding/attempts/:id/resend`, `POST /onboarding/attempts/:id/verify`, `POST /onboarding/attempts/:id/complete`, `GET /onboarding/status`, and `POST /onboarding/status-sessions`, all under `/api/v1`. Mutation routes require the documented `Idempotency-Key`; attempt-bound routes require `Authorization: Onboarding <opaque-token>`. Bearer JWTs and onboarding credentials are intentionally not interchangeable.
+
+Start accepts an invitation code, immutable role, phone, explicit `PS` region, and locale. Equivalent retries resume the one existing attempt without another send and rotate the continuation token. Verification returns a one-time registration grant. Completion accepts the grant, display name, password, locale, exactly the current three consent IDs/hashes, and explicit adult self-attestation.
+
+Passenger completion creates an active account but no auth or refresh session and directs the client to normal login. Driver and merchant completion creates a pending account and returns only a narrow pending-status token. Safe errors use stable codes and always include `request_id`; invitation/account/provider details, raw phone, OTP, password, hashes, and internal state are never returned.
