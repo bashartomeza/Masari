@@ -12,6 +12,7 @@ const enabledSecrets = {
   OTP_CODE_PEPPER: "otp-test-secret-longer-than-thirty-two-characters",
   ONBOARDING_SESSION_PEPPER: "session-test-secret-longer-than-thirty-two-characters",
   IDEMPOTENCY_KEY_PEPPER: "idempotency-test-secret-longer-than-thirty-two-characters",
+  IDEMPOTENCY_PAYLOAD_PEPPER: "payload-test-secret-longer-than-thirty-two-characters",
   ABUSE_KEY_PEPPER: "abuse-test-secret-longer-than-thirty-two-characters"
 };
 
@@ -126,9 +127,23 @@ describe("onboarding configuration isolation", () => {
     })).toThrow(/distinct from JWT and refresh-token secrets/);
   });
 
-  it("rejects unsupported regions and any public-onboarding enablement", () => {
+  it("rejects unsupported regions and enables public onboarding only with its isolated prerequisites", () => {
     expect(() => localConfig({ SUPPORTED_PHONE_REGIONS: "PS,IL" })).toThrow(/must be PS/);
-    expect(() => localConfig({ PUBLIC_ONBOARDING_ENABLED: "true" })).toThrow(/not supported/);
+    expect(() => localConfig({ PUBLIC_ONBOARDING_ENABLED: "true" })).toThrow(/requires INVITATIONS_ENABLED/);
+    const parsed = localConfig({
+      INVITATIONS_ENABLED: "true",
+      PUBLIC_ONBOARDING_ENABLED: "true",
+      OTP_PROVIDER: "fake",
+      ONBOARDING_TEST_LEGAL_FIXTURES_ENABLED: "true",
+      ...enabledSecrets
+    });
+    expect(parsed.publicRegistration).toEqual(expect.objectContaining({
+      attemptTtlSeconds: 1800,
+      registrationGrantTtlSeconds: 900,
+      continuationTtlSeconds: 1800,
+      pendingStatusTtlDays: 7,
+      testLegalFixturesEnabled: true
+    }));
   });
 
   it("rejects the fake provider in production even when no routes are enabled", () => {

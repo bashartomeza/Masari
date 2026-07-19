@@ -62,7 +62,8 @@ test("release metadata is reproducible with SOURCE_DATE_EPOCH and excludes secre
       "20260717094000_trusted_sessions",
       "20260717195454_onboarding_foundation",
       "20260719120000_harden_onboarding_foundation",
-      "20260719123000_enforce_single_invitation_attempt"
+      "20260719123000_enforce_single_invitation_attempt",
+      "20260719203000_public_onboarding_scopes"
     ]
   );
   rmSync(directory, { recursive: true, force: true });

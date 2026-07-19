@@ -53,7 +53,7 @@ describe("demo reset", () => {
       userConsent: { deleteMany: vi.fn() },
       onboardingSession: { deleteMany: vi.fn() },
       invitationRedemption: { deleteMany: vi.fn() },
-      onboardingAttempt: { updateMany: vi.fn(), deleteMany: vi.fn() },
+      onboardingAttempt: { findMany: vi.fn().mockResolvedValue([]), updateMany: vi.fn(), deleteMany: vi.fn() },
       otpChallenge: { deleteMany: vi.fn() },
       invitation: { deleteMany: vi.fn() },
       consentDocument: { deleteMany: vi.fn() },
