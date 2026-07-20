@@ -2330,3 +2330,50 @@ Remaining obligations before public launch:
 
 Next milestone:
 - M6C2C remains next and has not started.
+
+[M6C2C_FLUTTER_CONTROLLED_ONBOARDING]
+Scope (2026-07-20):
+- Flutter now implements the controlled mobile onboarding client for the existing M6C2B2 backend. This is a mobile-only milestone with no schema change, no migration, no real SMS provider, no production onboarding enablement, no admin invitation UI, no password recovery, no phone change, no multi-role accounts, and no driver/merchant approval workflow.
+- The login screen fetches `/api/v1/onboarding/config` through a public onboarding client. Registration and pending-status recovery CTAs are hidden when onboarding is disabled or when config retrieval fails. Direct navigation to onboarding while disabled renders a safe unavailable state and returns to normal sign-in.
+
+Client architecture:
+- Public onboarding repository calls config, consents, start, and pending-status recovery without operational Bearer credentials.
+- Continuation operations use `Authorization: Onboarding <continuation-token>` for resend, verify, complete, and in-progress status. These requests never pass through the operational refresh coordinator.
+- Pending-status operations use `Authorization: Onboarding <pending-status-token>` and never attach operational JWT or refresh credentials. Tokens are never sent in URLs or route parameters.
+
+State machine and secure bundle:
+- The mobile onboarding controller uses explicit stages equivalent to checking availability, unavailable, choosing role, invitation/phone entry, starting, OTP sent/resending/verifying, phone verified, loading consents, account details, consent review, completion, passenger-created, pending-review, retryable failure, and terminal failure.
+- Secure onboarding state is stored in `masari_onboarding_bundle_v1`, separate from `masari_auth_bundle_v1` and `masari_jwt`. Corrupt, unsupported, incomplete, or expired bundles fail closed and clear only onboarding state.
+- Stored onboarding data is limited to bundle version/type, safe stage, role, locale, attempt ID, continuation token/expiry, registration grant/expiry, pending-status token/expiry, masked phone, resend time, and safe idempotency metadata. Raw invitation code, OTP, password, raw phone, full authorization headers, provider details, fake outbox data, JWTs, and refresh tokens are not stored in onboarding state.
+- Token/grant replacement follows the crash-consistent order: validate response, construct the replacement bundle, write secure storage, then publish controller state.
+
+User flow and outcomes:
+- Arabic remains default RTL; English remains optional LTR. Role labels are passenger/driver/merchant only; admin is never offered.
+- Invitation and Palestinian phone entry are kept in widget/controller memory only. Backend remains authoritative for phone normalization and invitation eligibility. The app shows only the backend-returned masked phone after start.
+- OTP entry is manual, six digits, paste-capable, and locally normalizes Arabic/Persian digits to ASCII for submission. The mobile app never reads or exposes the fake OTP outbox.
+- Consent retrieval requires exactly the three backend-approved documents: terms, privacy, and adult self-attestation. Content is rendered as inert text.
+- Password/display-name collection enforces client-side confirmation and delegates final policy enforcement to the backend. Completion rejects any passenger response containing operational token fields.
+- Passenger registration clears onboarding state and routes to normal login. Driver and merchant registration replaces continuation state with pending-status state and shows a pending-review screen; operational dashboards remain inaccessible.
+- Pending-status recovery asks for phone, `PS` region, and password, stores only the returned pending-status token on success, and uses generic invalid-credentials failure without account/role enumeration.
+
+Validation and tests:
+- Added Flutter tests for secure onboarding storage, public/continuation/pending repository header separation, disabled/enabled registration CTA behavior, config failure fail-closed behavior, direct disabled route safety, OTP digit normalization, random idempotency key shape, passenger token-field rejection, pending recovery generic failure, and preservation of operational auth storage independence.
+- Existing mobile regression remains passing with the new onboarding coverage: 122 Flutter tests passed locally after generation, formatting, and analysis.
+
+Documentation added:
+- `docs/mobile/onboarding-flow.md`
+- `docs/mobile/onboarding-secure-state.md`
+- `docs/mobile/onboarding-idempotency.md`
+- `docs/mobile/pending-account-experience.md`
+- `docs/mobile/onboarding-accessibility.md`
+- `docs/decisions/ADR-008-mobile-onboarding-state-machine.md`
+
+Validation evidence:
+- Full backend/workspace validation passed: clean install, Prisma validate/generate, seven-migration MySQL status current, workspace typecheck, 149 API tests, workspace build, standard validation, and security validation. Raw `npm audit --omit=dev` still reports only the approved three moderate Prisma CLI transitive findings and no force fix was run.
+- Explicit admin validation passed: typecheck, 16 tests, normal build, production-configured build, and production artifact scan.
+- Explicit Flutter validation passed: dependency resolution, localization generation, zero-change formatting, analysis, 122 tests, debug APK build for `http://10.0.2.2:3000`, production-like release APK build, and production APK scan.
+- Real MySQL public onboarding harness passed 67 checks. Live demo preflight passed 22/22 with API, admin, debug APK, MySQL, and Android emulator attached. Deterministic smoke retained score `0.9317`, tracking sequence `2`, trips `1` versus `6`, distance `21.53` versus `129.19`, cost `43.06` versus `258.38`, and winner `masari`.
+- Android emulator install/launch smoke passed for package `ps.masari.mobile` using the generated debug APK. The exhaustive invite/OTP/operator UI rehearsal remains required for independent review because the repository does not yet provide a full Flutter integration automation harness for reading fake-provider OTP externally and driving all screens.
+
+Remaining after M6C2C:
+- Draft PR creation and independent mobile security/state review remain required before merge. Public launch still requires full manual/operator onboarding rehearsal, a real OTP provider, governed legal publication, storage/backup/retention approval, retention automation, admin invitation UI if desired, and driver/merchant approval operations.
