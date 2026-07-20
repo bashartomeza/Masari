@@ -3,6 +3,8 @@ import request from "supertest";
 import { createApp } from "../app.js";
 import { config } from "../config.js";
 import { prisma } from "../lib/prisma.js";
+import { abuseSubjectDigest } from "../lib/keyedDigest.js";
+import { normalizeInvitationCode } from "../lib/invitations.js";
 import { FakeOtpProvider } from "../lib/otp.js";
 import { resetDemoData, DEMO_ACCOUNTS } from "../modules/demoReset.js";
 
@@ -55,13 +57,17 @@ async function adminToken() {
   return response.body.token as string;
 }
 
-async function invitation(token: string, role: "passenger" | "driver" | "merchant", phone: string) {
+async function invitationRecord(token: string, role: "passenger" | "driver" | "merchant", phone: string) {
   const response = await request(app)
     .post("/api/v1/admin/invitations")
     .set("authorization", `Bearer ${token}`)
     .send({ role, phone, region: "PS", source: "integration" });
   assert(response.status === 201, `Invitation creation failed for ${role}`);
-  return response.body.code as string;
+  return { id: response.body.invitation.id as string, code: response.body.code as string };
+}
+
+async function invitation(token: string, role: "passenger" | "driver" | "merchant", phone: string) {
+  return (await invitationRecord(token, role, phone)).code;
 }
 
 async function start(code: string, role: "passenger" | "driver" | "merchant", phone: string, idempotency = key("start")) {
@@ -173,9 +179,51 @@ async function main() {
     legal_approved_at: removedLegal.legal_approved_at,
     legal_approved_by: removedLegal.legal_approved_by
   } });
+  const duplicateLegal = await prisma.consentDocument.create({
+    data: {
+      document_type: "terms",
+      version: "test-demo-2026-07-v2",
+      locale: "ar",
+      content_digest: createHash("sha256").update("TEST/DEMO ONLY - DUPLICATE TERMS").digest("hex"),
+      content_reference: "TEST/DEMO ONLY - DUPLICATE TERMS",
+      effective_at: new Date("2026-07-19T00:00:00.000Z"),
+      legal_approved_at: new Date("2026-07-19T00:00:00.000Z"),
+      legal_approved_by: "TEST/DEMO ONLY"
+    }
+  });
+  check((await request(app).get("/api/v1/onboarding/consents").query({ locale: "ar" })).status === 503, "ambiguous active consent set fails closed");
+  check((await request(app).get("/api/v1/onboarding/config")).body.enabled === false, "ambiguous consent set disables onboarding");
+  await prisma.consentDocument.delete({ where: { id: duplicateLegal.id } });
 
   const invalid = await start("00000-00000-00000-00000", "passenger", "+970599111111");
   check(invalid.status === 404 && invalid.body.error === "onboarding_unavailable", "invalid invitation is generic");
+  const unknownInvitationDigest = abuseSubjectDigest(
+    "onboarding_start_invitation",
+    normalizeInvitationCode("11111-11111-11111-11111"),
+    config.onboarding!.keys.abuse
+  );
+  await start("11111-11111-11111-11111", "passenger", "+970599111119");
+  check(
+    (await prisma.abuseCounter.findFirst({ where: { bucket_type: "onboarding_start_invitation", subject_digest: unknownInvitationDigest } }))?.count === 1,
+    "unknown invitations are durably metered like known invitations"
+  );
+  const malformedInvitationDigest = abuseSubjectDigest(
+    "onboarding_start_invitation",
+    "malformed:????????????????????",
+    config.onboarding!.keys.abuse
+  );
+  await start("????????????????????", "passenger", "+970599111121");
+  check(
+    (await prisma.abuseCounter.findFirst({ where: { bucket_type: "onboarding_start_invitation", subject_digest: malformedInvitationDigest } }))?.count === 1,
+    "malformed invitations are durably metered without storing raw codes"
+  );
+  const idempotencyBeforeIneligible = await prisma.idempotencyRecord.count();
+  const expired = await invitationRecord(admin, "passenger", "+970599111122");
+  await prisma.invitation.update({ where: { id: expired.id }, data: { expires_at: new Date(Date.now() - 60_000) } });
+  check((await start(expired.code, "passenger", "+970599111122")).status === 404, "expired invitation remains generic");
+  const registered = await invitation(admin, "passenger", DEMO_ACCOUNTS.passenger.phone);
+  check((await start(registered, "passenger", DEMO_ACCOUNTS.passenger.phone)).status === 404, "already registered phone remains generic");
+  check(await prisma.idempotencyRecord.count() === idempotencyBeforeIneligible, "ineligible starts do not claim idempotency records");
   const mismatchCode = await invitation(admin, "passenger", "+970599111112");
   const mismatch = await start(mismatchCode, "driver", "+970599111112");
   check(mismatch.status === 404 && mismatch.body.error === "onboarding_unavailable", "role mismatch is generic");
@@ -259,6 +307,16 @@ async function main() {
   check(recovered.status === 200 && recovered.body.onboarding_status === "pending_review", "pending status recovery works");
   const wrongRecovery = await request(app).post("/api/v1/onboarding/status-sessions").send({ phone: "+970599111115", region: "PS", password: "wrong password value" });
   check(wrongRecovery.status === 401 && wrongRecovery.body.error === "invalid_credentials", "wrong recovery credentials are generic");
+  const driverUser = await prisma.user.findUniqueOrThrow({ where: { phone: "+970599111115" } });
+  const suspended = await request(app)
+    .patch(`/api/v1/admin/users/${driverUser.id}/status`)
+    .set("authorization", `Bearer ${admin}`)
+    .send({ status: "suspended", reason: "Integration validation" });
+  check(suspended.status === 200, "admin can suspend a pending onboarding account");
+  check(
+    (await request(app).get("/api/v1/onboarding/status").set("authorization", `Onboarding ${recovered.body.onboarding_status_token}`)).status === 401,
+    "suspension revokes pending status token"
+  );
 
   const merchant = await onboard(admin, "merchant", "+970599111116", "تاجر مساري", "merchant secure pass 2026");
   check(merchant.completed.status === 201 && merchant.completed.body.account_status === "pending", "merchant is pending");

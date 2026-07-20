@@ -95,6 +95,10 @@ adminRouter.patch("/admin/users/:id/status", async (req: AuthenticatedRequest, r
         const now = new Date();
         if (input.status !== AccountStatus.active) {
           await revokeAllUserSessions(tx, { userId: target.id, reason: `account_${input.status}`, now });
+          await tx.onboardingSession.updateMany({
+            where: { user_id: target.id, purpose: "pending_status", revoked_at: null },
+            data: { revoked_at: now, revoke_reason: `account_${input.status}` }
+          });
         }
         const updated = await tx.user.update({
           where: { id: target.id },

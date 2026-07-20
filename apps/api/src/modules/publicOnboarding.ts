@@ -95,6 +95,14 @@ function requestIp(req: Request) {
   return req.ip || "unknown";
 }
 
+function invitationAbuseSubject(value: string) {
+  try {
+    return normalizeInvitationCode(value);
+  } catch {
+    return `malformed:${value.trim().toUpperCase()}`;
+  }
+}
+
 function idempotencyKey(req: Request) {
   const value = req.header("idempotency-key");
   if (!value || !/^[A-Za-z0-9._:-]{8,128}$/.test(value)) throw new HttpError(400, "validation_error");
@@ -133,11 +141,16 @@ async function currentConsentDocuments(db: Db, locale: ConsentLocale, now = new 
     },
     orderBy: [{ document_type: "asc" }, { effective_at: "desc" }, { created_at: "desc" }]
   });
-  const selected = new Map<ConsentDocumentType, (typeof documents)[number]>();
-  for (const document of documents) if (!selected.has(document.document_type)) selected.set(document.document_type, document);
-  return REQUIRED_CONSENTS.map((type) => selected.get(type)).filter(
-    (document): document is NonNullable<typeof document> => Boolean(document)
-  );
+  const byType = new Map<ConsentDocumentType, Array<(typeof documents)[number]>>();
+  for (const document of documents) {
+    byType.set(document.document_type, [...(byType.get(document.document_type) ?? []), document]);
+  }
+  const selected = REQUIRED_CONSENTS.map((type) => {
+    const matches = byType.get(type) ?? [];
+    return matches.length === 1 ? matches[0] : null;
+  });
+  if (selected.some((document) => document === null)) return [];
+  return selected as Array<(typeof documents)[number]>;
 }
 
 async function legalSetReady(db: Db, appConfig: AppConfig) {
@@ -330,6 +343,7 @@ async function findBoundInvitation(appConfig: AppConfig, input: z.infer<typeof s
   const onboarding = appConfig.onboarding!;
   const normalizedCode = normalizeInvitationCode(input.invitation_code);
   const phone = normalizePhoneToE164(input.phone, { region: input.region });
+  const now = new Date();
   const invitation = await prisma.invitation.findUnique({
     where: { code_digest: invitationCodeDigest(normalizedCode, onboarding.keys.invitationCode) },
     include: { attempt: true }
@@ -341,6 +355,22 @@ async function findBoundInvitation(appConfig: AppConfig, input: z.infer<typeof s
     invitation.phone_digest_version !== onboarding.keys.phoneDigest.version ||
     !hexDigestMatches(invitation.intended_phone_digest, phoneDigest(phone, onboarding.keys.phoneDigest))
   ) throw new HttpError(404, "onboarding_unavailable");
+  const recoverableAttempt = Boolean(
+    invitation.attempt &&
+      invitation.attempt.phone_digest === phoneDigest(phone, onboarding.keys.phoneDigest) &&
+      invitation.attempt.intended_role === input.role &&
+      invitation.attempt.expires_at > now &&
+      ["created", "otp_dispatching", "otp_sent", "phone_verified"].includes(invitation.attempt.status)
+  );
+  const unusedInvitation =
+    !invitation.revoked_at &&
+    invitation.expires_at > now &&
+    invitation.used_count < invitation.max_uses &&
+    invitation.max_uses === 1;
+  if (!recoverableAttempt && !unusedInvitation) throw new HttpError(404, "onboarding_unavailable");
+  if (!recoverableAttempt && (await prisma.user.findUnique({ where: { phone }, select: { id: true } }))) {
+    throw new HttpError(404, "onboarding_unavailable");
+  }
   return { invitation, phone, normalizedCode };
 }
 
@@ -422,23 +452,25 @@ export function createPublicOnboardingRouter(
     try {
       const input = startSchema.parse(req.body);
       if (!(await legalSetReady(prisma, appConfig))) throw new HttpError(503, "onboarding_unavailable");
+      const phone = normalizePhoneToE164(input.phone, { region: input.region });
+      const normalizedCode = invitationAbuseSubject(input.invitation_code);
+      await consumeBuckets(req, appConfig, [
+        { type: "onboarding_start_ip", subject: requestIp(req), seconds: 3_600, limit: 30 },
+        { type: "onboarding_start_phone", subject: phone, seconds: 86_400, limit: 10 },
+        { type: "onboarding_start_invitation", subject: normalizedCode, seconds: 86_400, limit: 10 }
+      ]);
       let bound;
       try {
         bound = await findBoundInvitation(appConfig, input);
       } catch {
         throw new HttpError(404, "onboarding_unavailable");
       }
-      const { invitation, phone, normalizedCode } = bound;
+      const { invitation } = bound;
       recovery = { invitationId: invitation.id, phone, role: input.role };
-      await consumeBuckets(req, appConfig, [
-        { type: "onboarding_start_ip", subject: requestIp(req), seconds: 3_600, limit: 30 },
-        { type: "onboarding_start_phone", subject: phone, seconds: 86_400, limit: 10 },
-        { type: "onboarding_start_invitation", subject: normalizedCode, seconds: 86_400, limit: 10 }
-      ]);
       claim = await claimPublicOperation(req, appConfig, {
         operation: "onboarding_start",
         scope: invitation.id,
-        payload: input
+        payload: { invitation_code: bound.normalizedCode, role: input.role, phone, region: input.region, locale: input.locale }
       });
 
       const existing = invitation.attempt;
