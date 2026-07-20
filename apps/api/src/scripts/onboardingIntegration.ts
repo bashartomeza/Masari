@@ -523,10 +523,11 @@ async function main() {
     })
   });
   assert(unsafeMetadataResponse.status === 400, "Admin invitation accepted arbitrary sensitive metadata");
+  const privateCampaign = "operator-private-campaign";
   const createResponse = await fetch(`${api}/api/v1/admin/invitations`, {
     method: "POST",
     headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
-    body: JSON.stringify({ role: "merchant", phone: "+970590000004", region: "PS", campaign: "integration" })
+    body: JSON.stringify({ role: "merchant", phone: "+970590000004", region: "PS", campaign: privateCampaign })
   });
   const created = await json(createResponse);
   assert(createResponse.status === 201 && typeof created.code === "string", "Admin invitation creation failed");
@@ -537,8 +538,8 @@ async function main() {
     orderBy: { created_at: "desc" }
   });
   const createAuditText = JSON.stringify(createAudit.metadata);
-  assert(!createAuditText.includes("integration") && !createAuditText.includes("970"), "Invitation creation audit retained operator text or phone data");
-  const listResponse = await fetch(`${api}/api/v1/admin/invitations?campaign=integration`, { headers: { authorization: `Bearer ${token}` } });
+  assert(!createAuditText.includes(privateCampaign) && !createAuditText.includes("970"), "Invitation creation audit retained operator text or phone data");
+  const listResponse = await fetch(`${api}/api/v1/admin/invitations?campaign=${encodeURIComponent(privateCampaign)}`, { headers: { authorization: `Bearer ${token}` } });
   const listed = await json(listResponse);
   assert(listResponse.ok && Array.isArray(listed.invitations) && listed.invitations.length === 1, "Admin invitation listing failed");
   assert(!("code" in listed.invitations[0]) && !JSON.stringify(listed).includes("digest"), "Admin invitation list exposed sensitive material");
@@ -576,6 +577,7 @@ async function main() {
     keyDigest,
     abuseDigest,
     created.code,
+    privateCampaign,
     "integration cleanup",
     "integration revocation"
   ]) {

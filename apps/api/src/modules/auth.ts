@@ -22,9 +22,11 @@ import {
 } from "../middleware/auth.js";
 import { HttpError } from "../middleware/error.js";
 import { AuditAction, Prisma } from "../generated/prisma/client.js";
+import { normalizePhoneToE164 } from "../lib/phone.js";
 
 const loginSchema = z.object({
   phone: z.string().min(5),
+  region: z.literal("PS").optional(),
   password: z.string().min(1),
   device_name: z.string().trim().min(1).max(120).optional()
 });
@@ -104,7 +106,13 @@ export const authRouter = Router();
 authRouter.post("/auth/login", async (req, res, next) => {
   try {
     const input = loginSchema.parse(req.body);
-    const user = await prisma.user.findUnique({ where: { phone: input.phone } });
+    let phone: string;
+    try {
+      phone = normalizePhoneToE164(input.phone, { region: input.region });
+    } catch {
+      throw new HttpError(401, "invalid_credentials");
+    }
+    const user = await prisma.user.findUnique({ where: { phone } });
     if (!user) throw new HttpError(401, "invalid_credentials");
 
     const validPassword = await bcrypt.compare(input.password, user.password_hash);

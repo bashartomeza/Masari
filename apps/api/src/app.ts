@@ -21,6 +21,8 @@ import { createGlobalRateLimiter, createLoginRateLimiter } from "./middleware/ra
 import { createHealthRouter } from "./modules/health.js";
 import type { ReadinessCheck } from "./lib/readiness.js";
 import { createAdminInvitationRouter } from "./modules/adminInvitations.js";
+import { createPublicOnboardingRouter } from "./modules/publicOnboarding.js";
+import type { OtpProvider } from "./lib/otp.js";
 
 export const HTTP_JSON_LIMIT = "64kb";
 export const HTTP_FORM_LIMIT = "16kb";
@@ -28,6 +30,7 @@ export const HTTP_FORM_LIMIT = "16kb";
 type AppDependencies = {
   logger?: Logger;
   readinessCheck?: ReadinessCheck;
+  otpProvider?: OtpProvider;
 };
 
 export function createApp(appConfig: AppConfig = config, dependencies: AppDependencies = {}) {
@@ -46,6 +49,7 @@ export function createApp(appConfig: AppConfig = config, dependencies: AppDepend
   app.use("/api/v1", createHealthRouter(appConfig, dependencies.readinessCheck));
   app.use("/api/v1", createGlobalRateLimiter(appConfig));
   app.use("/api/v1/auth/login", createLoginRateLimiter(appConfig));
+  app.use("/api/v1", createPublicOnboardingRouter(appConfig, dependencies.otpProvider));
 
   app.use("/api/v1", authRouter);
   if (appConfig.demoFeaturesEnabled) app.use("/api/v1", demoRouter);

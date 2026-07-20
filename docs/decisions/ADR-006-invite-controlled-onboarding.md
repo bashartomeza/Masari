@@ -4,6 +4,8 @@
 - Date: 2026-07-17
 - Milestone: M6C2B1
 
+> M6C2B2 follow-up: ADR-007 and the public-onboarding documents supersede the statements below that public routes are absent. The production boundary remains unchanged: public onboarding is still rejected in staging/production and no real provider or UI exists.
+
 ## Context
 
 Masari needs controlled-beta onboarding without weakening the M6C1 account/session boundary. Public registration, passwords, account creation, operational sessions, and real SMS are deliberately deferred.

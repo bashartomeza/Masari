@@ -20,15 +20,20 @@ try {
   }
   if (!ready) throw new Error("CI API did not become ready");
   const npmFile = process.platform === "win32" && process.env.npm_execpath ? process.execPath : executable("npm");
-  for (const [script, label] of [
+  for (const [script, label, environment = {}] of [
     ["demo:smoke", "deterministic smoke"],
     ["test:integration:sessions", "trusted-session smoke"],
-    ["test:integration:onboarding", "onboarding foundation concurrency smoke"]
+    ["test:integration:onboarding", "onboarding foundation concurrency smoke"],
+    ["test:integration:public-onboarding", "public onboarding race and privacy smoke", {
+      PUBLIC_ONBOARDING_ENABLED: "true",
+      ONBOARDING_TEST_LEGAL_FIXTURES_ENABLED: "true",
+      IDEMPOTENCY_PAYLOAD_PEPPER: "ci-only-payload-pepper-at-least-thirty-two-characters"
+    }]
   ]) {
     const npmArgs = process.platform === "win32" && process.env.npm_execpath
       ? [process.env.npm_execpath, "run", script]
       : ["run", script];
-    const smoke = spawn(npmFile, npmArgs, { cwd: root, env: process.env, stdio: "inherit" });
+    const smoke = spawn(npmFile, npmArgs, { cwd: root, env: { ...process.env, ...environment }, stdio: "inherit" });
     const status = await new Promise((resolveStatus) => smoke.once("exit", resolveStatus));
     if (status !== 0) throw new Error(`Real-MySQL ${label} failed`);
   }

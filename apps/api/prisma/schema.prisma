@@ -132,6 +132,15 @@ enum AuditAction {
   consent_document_created
   abuse_limit_reached
   idempotency_conflict
+  onboarding_started
+  onboarding_resumed
+  otp_resent
+  registration_completed
+  registration_completion_failed
+  pending_status_session_created
+  onboarding_status_accessed
+  onboarding_rate_limited
+  onboarding_idempotency_conflict
 }
 
 enum OnboardingRole {
@@ -164,6 +173,8 @@ enum OtpPurpose {
 
 enum OnboardingSessionPurpose {
   onboarding_completion
+  continuation
+  pending_status
 }
 
 enum ConsentDocumentType {

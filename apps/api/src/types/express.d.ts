@@ -1,5 +1,6 @@
 import type { Logger } from "pino";
 import type { AuthUser } from "../middleware/auth.js";
+import type { OnboardingAuthContext } from "../middleware/onboardingAuth.js";
 
 declare global {
   namespace Express {
@@ -7,6 +8,7 @@ declare global {
       requestId: string;
       operationalLog: Logger;
       user?: AuthUser;
+      onboarding?: OnboardingAuthContext;
     }
   }
 }

@@ -46,6 +46,13 @@ export async function resetDemoData(db: PrismaClient = prisma) {
     throw new HttpError(404, "not_found");
   }
   return db.$transaction(async (tx) => {
+    const onboardedUsers = await tx.onboardingAttempt.findMany({
+      where: { completed_user_id: { not: null } },
+      select: { completed_user_id: true }
+    });
+    const onboardedUserIds = onboardedUsers.flatMap((attempt) =>
+      attempt.completed_user_id ? [attempt.completed_user_id] : []
+    );
     await tx.auditEvent.deleteMany();
     await tx.userConsent.deleteMany();
     await tx.onboardingSession.deleteMany();
@@ -70,7 +77,14 @@ export async function resetDemoData(db: PrismaClient = prisma) {
     await tx.driverRoute.deleteMany();
     await tx.driverProfile.deleteMany();
     await tx.demoScenario.deleteMany();
-    await tx.user.deleteMany({ where: { demo_account: true } });
+    await tx.user.deleteMany({
+      where: {
+        OR: [
+          { demo_account: true },
+          ...(onboardedUserIds.length > 0 ? [{ id: { in: onboardedUserIds } }] : [])
+        ]
+      }
+    });
 
     const passenger = await createDemoUser(tx, {
       ...DEMO_ACCOUNTS.passenger,

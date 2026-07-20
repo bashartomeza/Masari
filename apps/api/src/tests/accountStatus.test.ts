@@ -5,6 +5,7 @@ const prismaMock = vi.hoisted(() => ({
   $transaction: vi.fn(),
   user: { findUnique: vi.fn(), update: vi.fn(), count: vi.fn() },
   authSession: { findUnique: vi.fn(), findMany: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
+  onboardingSession: { updateMany: vi.fn() },
   refreshToken: { updateMany: vi.fn() },
   auditEvent: { create: vi.fn() }
 }));
@@ -69,6 +70,7 @@ describe("admin account status", () => {
     prismaMock.authSession.findMany.mockResolvedValue([{ id: "session_passenger_1" }]);
     prismaMock.authSession.update.mockResolvedValue({});
     prismaMock.authSession.updateMany.mockResolvedValue({ count: 1 });
+    prismaMock.onboardingSession.updateMany.mockResolvedValue({ count: 1 });
     prismaMock.refreshToken.updateMany.mockResolvedValue({ count: 1 });
     prismaMock.user.findUnique.mockResolvedValue(passenger);
     prismaMock.user.count.mockResolvedValue(1);
@@ -94,6 +96,12 @@ describe("admin account status", () => {
     expect(JSON.stringify(response.body)).not.toMatch(/password_hash|security_version|refresh_token|token_hash/);
     expect(prismaMock.authSession.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ revoke_reason: "account_suspended" }) })
+    );
+    expect(prismaMock.onboardingSession.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ user_id: passenger.id, purpose: "pending_status", revoked_at: null }),
+        data: expect.objectContaining({ revoke_reason: "account_suspended" })
+      })
     );
     expect(prismaMock.user.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ security_version: { increment: 1 } }) })
@@ -133,6 +141,7 @@ describe("admin account status", () => {
       .expect(200);
     expect(prismaMock.authSession.findMany).not.toHaveBeenCalled();
     expect(prismaMock.authSession.updateMany).not.toHaveBeenCalled();
+    expect(prismaMock.onboardingSession.updateMany).not.toHaveBeenCalled();
     expect(prismaMock.refreshToken.updateMany).not.toHaveBeenCalled();
   });
 
