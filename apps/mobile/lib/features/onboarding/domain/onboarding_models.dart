@@ -1,0 +1,465 @@
+enum OnboardingRole { passenger, driver, merchant }
+
+enum OnboardingStage {
+  checkingAvailability,
+  unavailable,
+  choosingRole,
+  enteringInvitation,
+  enteringPhone,
+  starting,
+  otpSent,
+  resending,
+  verifyingOtp,
+  phoneVerified,
+  loadingConsents,
+  enteringAccountDetails,
+  reviewingConsents,
+  completingRegistration,
+  passengerCreated,
+  pendingReview,
+  retryableFailure,
+  terminalFailure,
+}
+
+enum OnboardingBundleType { continuation, pendingStatus }
+
+class OnboardingConfig {
+  const OnboardingConfig({
+    required this.enabled,
+    required this.registrationRoles,
+    required this.supportedLocales,
+    required this.minimumPasswordCharacters,
+    required this.maximumPasswordCharacters,
+    required this.maximumPasswordUtf8Bytes,
+    required this.otpDigits,
+    required this.resendCooldownSeconds,
+    this.requestId,
+  });
+
+  final bool enabled;
+  final List<OnboardingRole> registrationRoles;
+  final List<String> supportedLocales;
+  final int minimumPasswordCharacters;
+  final int maximumPasswordCharacters;
+  final int maximumPasswordUtf8Bytes;
+  final int otpDigits;
+  final int resendCooldownSeconds;
+  final String? requestId;
+
+  factory OnboardingConfig.fromJson(Map<String, dynamic> json) {
+    final enabled = json['enabled'] == true;
+    final policy = json['password_policy'];
+    return OnboardingConfig(
+      enabled: enabled,
+      registrationRoles: enabled
+          ? _stringList(json['registration_roles'])
+                .map(_roleFromApi)
+                .whereType<OnboardingRole>()
+                .toList(growable: false)
+          : const [],
+      supportedLocales: enabled
+          ? _stringList(json['supported_locales'])
+          : const [],
+      minimumPasswordCharacters: policy is Map<String, dynamic>
+          ? _intValue(policy['minimum_characters'], fallback: 15)
+          : 15,
+      maximumPasswordCharacters: policy is Map<String, dynamic>
+          ? _intValue(policy['maximum_characters'], fallback: 64)
+          : 64,
+      maximumPasswordUtf8Bytes: policy is Map<String, dynamic>
+          ? _intValue(policy['maximum_utf8_bytes'], fallback: 72)
+          : 72,
+      otpDigits: _intValue(json['otp_digits'], fallback: 6),
+      resendCooldownSeconds: _intValue(
+        json['resend_cooldown_seconds'],
+        fallback: 60,
+      ),
+      requestId: json['request_id'] is String
+          ? json['request_id'] as String
+          : null,
+    );
+  }
+}
+
+class ConsentDocument {
+  const ConsentDocument({
+    required this.id,
+    required this.type,
+    required this.version,
+    required this.locale,
+    required this.content,
+    required this.contentHash,
+    required this.effectiveAt,
+  });
+
+  final String id;
+  final String type;
+  final String version;
+  final String locale;
+  final String content;
+  final String contentHash;
+  final DateTime effectiveAt;
+
+  factory ConsentDocument.fromJson(Map<String, dynamic> json) {
+    final id = _requiredString(json, 'id');
+    final type = _requiredString(json, 'type');
+    final version = _requiredString(json, 'version');
+    final locale = _requiredString(json, 'locale');
+    final content = _requiredString(json, 'content');
+    final hash = _requiredString(json, 'content_hash');
+    final effectiveAt = DateTime.tryParse(
+      _requiredString(json, 'effective_at'),
+    );
+    if (!requiredConsentTypes.contains(type) ||
+        !RegExp(r'^[a-f0-9]{64}$').hasMatch(hash) ||
+        effectiveAt == null) {
+      throw const FormatException('Invalid consent document');
+    }
+    return ConsentDocument(
+      id: id,
+      type: type,
+      version: version,
+      locale: locale,
+      content: content,
+      contentHash: hash,
+      effectiveAt: effectiveAt.toUtc(),
+    );
+  }
+}
+
+class StartAttemptResult {
+  const StartAttemptResult({
+    required this.attemptId,
+    required this.status,
+    required this.maskedPhone,
+    required this.expiresAt,
+    required this.resendAvailableAt,
+    required this.onboardingToken,
+    required this.nextAction,
+    this.requestId,
+  });
+
+  final String attemptId;
+  final String status;
+  final String maskedPhone;
+  final DateTime expiresAt;
+  final DateTime resendAvailableAt;
+  final String onboardingToken;
+  final String nextAction;
+  final String? requestId;
+
+  factory StartAttemptResult.fromJson(Map<String, dynamic> json) {
+    final attempt = json['attempt'];
+    if (attempt is! Map<String, dynamic>) {
+      throw const FormatException('Missing attempt');
+    }
+    return StartAttemptResult(
+      attemptId: _requiredString(attempt, 'id'),
+      status: _requiredString(attempt, 'status'),
+      maskedPhone: _requiredString(attempt, 'phone'),
+      expiresAt: _requiredDate(attempt, 'expires_at'),
+      resendAvailableAt: _requiredDate(attempt, 'resend_available_at'),
+      onboardingToken: _requiredString(json, 'onboarding_token'),
+      nextAction: _requiredString(json, 'next_action'),
+      requestId: json['request_id'] is String
+          ? json['request_id'] as String
+          : null,
+    );
+  }
+}
+
+class VerifyOtpResult {
+  const VerifyOtpResult({
+    required this.registrationGrant,
+    required this.nextAction,
+    this.requestId,
+  });
+
+  final String registrationGrant;
+  final String nextAction;
+  final String? requestId;
+
+  factory VerifyOtpResult.fromJson(Map<String, dynamic> json) {
+    if (json['status'] != 'phone_verified') {
+      throw const FormatException('Unexpected OTP status');
+    }
+    return VerifyOtpResult(
+      registrationGrant: _requiredString(json, 'registration_grant'),
+      nextAction: _requiredString(json, 'next_action'),
+      requestId: json['request_id'] is String
+          ? json['request_id'] as String
+          : null,
+    );
+  }
+}
+
+class CompleteRegistrationResult {
+  const CompleteRegistrationResult({
+    required this.role,
+    required this.accountStatus,
+    required this.nextAction,
+    this.pendingStatusToken,
+    this.requestId,
+  });
+
+  final OnboardingRole role;
+  final String accountStatus;
+  final String nextAction;
+  final String? pendingStatusToken;
+  final String? requestId;
+
+  factory CompleteRegistrationResult.fromJson(Map<String, dynamic> json) {
+    if (json['result'] != 'account_created') {
+      throw const FormatException('Unexpected registration result');
+    }
+    if (json.containsKey('access_token') ||
+        json.containsKey('refresh_token') ||
+        json.containsKey('token')) {
+      throw const FormatException('Registration returned operational token');
+    }
+    return CompleteRegistrationResult(
+      role: _roleFromApi(_requiredString(json, 'role'))!,
+      accountStatus: _requiredString(json, 'account_status'),
+      nextAction: _requiredString(json, 'next_action'),
+      pendingStatusToken: json['onboarding_status_token'] is String
+          ? json['onboarding_status_token'] as String
+          : null,
+      requestId: json['request_id'] is String
+          ? json['request_id'] as String
+          : null,
+    );
+  }
+}
+
+class PendingStatusResult {
+  const PendingStatusResult({
+    required this.role,
+    required this.status,
+    required this.nextAction,
+    this.pendingStatusToken,
+    this.requestId,
+  });
+
+  final OnboardingRole? role;
+  final String status;
+  final String nextAction;
+  final String? pendingStatusToken;
+  final String? requestId;
+
+  factory PendingStatusResult.fromJson(Map<String, dynamic> json) {
+    return PendingStatusResult(
+      role: json['role'] is String
+          ? _roleFromApi(json['role'] as String)
+          : null,
+      status: _requiredString(json, 'onboarding_status'),
+      nextAction: _requiredString(json, 'next_action'),
+      pendingStatusToken: json['onboarding_status_token'] is String
+          ? json['onboarding_status_token'] as String
+          : null,
+      requestId: json['request_id'] is String
+          ? json['request_id'] as String
+          : null,
+    );
+  }
+}
+
+class OnboardingBundle {
+  const OnboardingBundle({
+    required this.type,
+    required this.safeStage,
+    required this.locale,
+    required this.selectedRole,
+    this.attemptId,
+    this.continuationToken,
+    this.continuationExpiresAt,
+    this.registrationGrant,
+    this.registrationGrantExpiresAt,
+    this.pendingStatusToken,
+    this.pendingStatusExpiresAt,
+    this.maskedPhone,
+    this.resendAvailableAt,
+    this.idempotency,
+  });
+
+  final OnboardingBundleType type;
+  final OnboardingStage safeStage;
+  final String locale;
+  final OnboardingRole? selectedRole;
+  final String? attemptId;
+  final String? continuationToken;
+  final DateTime? continuationExpiresAt;
+  final String? registrationGrant;
+  final DateTime? registrationGrantExpiresAt;
+  final String? pendingStatusToken;
+  final DateTime? pendingStatusExpiresAt;
+  final String? maskedPhone;
+  final DateTime? resendAvailableAt;
+  final Map<String, String>? idempotency;
+
+  bool isExpired(DateTime now) {
+    final utc = now.toUtc();
+    return switch (type) {
+      OnboardingBundleType.continuation =>
+        continuationExpiresAt == null || !continuationExpiresAt!.isAfter(utc),
+      OnboardingBundleType.pendingStatus =>
+        pendingStatusExpiresAt == null || !pendingStatusExpiresAt!.isAfter(utc),
+    };
+  }
+
+  OnboardingBundle copyWith({
+    OnboardingStage? safeStage,
+    String? registrationGrant,
+    DateTime? registrationGrantExpiresAt,
+    String? pendingStatusToken,
+    DateTime? pendingStatusExpiresAt,
+    DateTime? resendAvailableAt,
+    Map<String, String>? idempotency,
+    bool clearGrant = false,
+  }) {
+    return OnboardingBundle(
+      type: type,
+      safeStage: safeStage ?? this.safeStage,
+      locale: locale,
+      selectedRole: selectedRole,
+      attemptId: attemptId,
+      continuationToken: continuationToken,
+      continuationExpiresAt: continuationExpiresAt,
+      registrationGrant: clearGrant
+          ? null
+          : registrationGrant ?? this.registrationGrant,
+      registrationGrantExpiresAt: clearGrant
+          ? null
+          : registrationGrantExpiresAt ?? this.registrationGrantExpiresAt,
+      pendingStatusToken: pendingStatusToken ?? this.pendingStatusToken,
+      pendingStatusExpiresAt:
+          pendingStatusExpiresAt ?? this.pendingStatusExpiresAt,
+      maskedPhone: maskedPhone,
+      resendAvailableAt: resendAvailableAt ?? this.resendAvailableAt,
+      idempotency: idempotency ?? this.idempotency,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'version': 1,
+    'type': type.name,
+    'safe_stage': safeStage.name,
+    'locale': locale,
+    'selected_role': selectedRole?.apiValue,
+    'attempt_id': attemptId,
+    'continuation_token': continuationToken,
+    'continuation_expires_at': continuationExpiresAt?.toUtc().toIso8601String(),
+    'registration_grant': registrationGrant,
+    'registration_grant_expires_at': registrationGrantExpiresAt
+        ?.toUtc()
+        .toIso8601String(),
+    'pending_status_token': pendingStatusToken,
+    'pending_status_expires_at': pendingStatusExpiresAt
+        ?.toUtc()
+        .toIso8601String(),
+    'masked_phone': maskedPhone,
+    'resend_available_at': resendAvailableAt?.toUtc().toIso8601String(),
+    'idempotency': idempotency,
+  };
+
+  factory OnboardingBundle.fromJson(Map<String, dynamic> json) {
+    if (json['version'] != 1) throw const FormatException('Unsupported bundle');
+    final type = OnboardingBundleType.values.byName(
+      _requiredString(json, 'type'),
+    );
+    final stage = OnboardingStage.values.byName(
+      _requiredString(json, 'safe_stage'),
+    );
+    final roleValue = json['selected_role'];
+    final role = roleValue is String ? _roleFromApi(roleValue) : null;
+    final idempotencyJson = json['idempotency'];
+    final idempotency = idempotencyJson is Map
+        ? idempotencyJson.map((key, value) {
+            if (key is! String || value is! String) {
+              throw const FormatException('Invalid idempotency');
+            }
+            return MapEntry(key, value);
+          })
+        : null;
+    final bundle = OnboardingBundle(
+      type: type,
+      safeStage: stage,
+      locale: _requiredString(json, 'locale'),
+      selectedRole: role,
+      attemptId: _optionalString(json, 'attempt_id'),
+      continuationToken: _optionalString(json, 'continuation_token'),
+      continuationExpiresAt: _optionalDate(json, 'continuation_expires_at'),
+      registrationGrant: _optionalString(json, 'registration_grant'),
+      registrationGrantExpiresAt: _optionalDate(
+        json,
+        'registration_grant_expires_at',
+      ),
+      pendingStatusToken: _optionalString(json, 'pending_status_token'),
+      pendingStatusExpiresAt: _optionalDate(json, 'pending_status_expires_at'),
+      maskedPhone: _optionalString(json, 'masked_phone'),
+      resendAvailableAt: _optionalDate(json, 'resend_available_at'),
+      idempotency: idempotency,
+    );
+    if (type == OnboardingBundleType.continuation &&
+        (bundle.attemptId == null || bundle.continuationToken == null)) {
+      throw const FormatException('Invalid continuation bundle');
+    }
+    if (type == OnboardingBundleType.pendingStatus &&
+        bundle.pendingStatusToken == null) {
+      throw const FormatException('Invalid pending bundle');
+    }
+    return bundle;
+  }
+}
+
+const requiredConsentTypes = {'terms', 'privacy', 'adult_self_attestation'};
+
+extension OnboardingRoleApi on OnboardingRole {
+  String get apiValue => switch (this) {
+    OnboardingRole.passenger => 'passenger',
+    OnboardingRole.driver => 'driver',
+    OnboardingRole.merchant => 'merchant',
+  };
+}
+
+OnboardingRole? _roleFromApi(String value) => switch (value) {
+  'passenger' => OnboardingRole.passenger,
+  'driver' => OnboardingRole.driver,
+  'merchant' => OnboardingRole.merchant,
+  _ => null,
+};
+
+List<String> _stringList(Object? value) {
+  if (value is! List) return const [];
+  return value.whereType<String>().toList(growable: false);
+}
+
+int _intValue(Object? value, {required int fallback}) =>
+    value is int ? value : fallback;
+
+String _requiredString(Map<String, dynamic> json, String key) {
+  final value = json[key];
+  if (value is String && value.isNotEmpty) return value;
+  throw FormatException('Missing $key');
+}
+
+String? _optionalString(Map<String, dynamic> json, String key) {
+  final value = json[key];
+  if (value == null) return null;
+  if (value is String && value.isNotEmpty) return value;
+  throw FormatException('Invalid $key');
+}
+
+DateTime _requiredDate(Map<String, dynamic> json, String key) {
+  final parsed = _optionalDate(json, key);
+  if (parsed == null) throw FormatException('Missing $key');
+  return parsed;
+}
+
+DateTime? _optionalDate(Map<String, dynamic> json, String key) {
+  final value = json[key];
+  if (value == null) return null;
+  if (value is! String) throw FormatException('Invalid $key');
+  final parsed = DateTime.tryParse(value);
+  if (parsed == null) throw FormatException('Invalid $key');
+  return parsed.toUtc();
+}
