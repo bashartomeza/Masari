@@ -434,6 +434,9 @@ export function createPublicOnboardingRouter(
   const onboarding = appConfig.onboarding;
   if (provider.name !== "fake") throw new Error("public_onboarding_fake_provider_required");
   const continuation = requireOnboardingToken(appConfig, ["continuation"]);
+  const completionContinuation = requireOnboardingToken(appConfig, ["continuation"], {
+    allowCompletedContinuationReplay: true
+  });
   const statusToken = requireOnboardingToken(appConfig, ["continuation", "pending_status"]);
 
   router.get("/onboarding/consents", async (req, res, next) => {
@@ -631,21 +634,36 @@ export function createPublicOnboardingRouter(
       const attemptId = String(req.params.id);
       if (req.onboarding!.attemptId !== attemptId) throw new HttpError(401, "onboarding_unavailable");
       const attempt = await prisma.onboardingAttempt.findUniqueOrThrow({ where: { id: attemptId } });
-      await consumeBuckets(req, appConfig, [
-        { type: "otp_phone_day", subject: attempt.phone_e164, seconds: 86_400, limit: onboarding.otpMaxSendsPerPhoneDay },
-        { type: "otp_ip_hour", subject: requestIp(req), seconds: 3_600, limit: 20 },
-        { type: "otp_attempt", subject: attempt.id, seconds: 86_400, limit: onboarding.otpMaxResends + 1 },
-        { type: "otp_invitation", subject: attempt.invitation_id, seconds: 86_400, limit: onboarding.otpMaxResends + 1 }
-      ]);
       claim = await claimPublicOperation(req, appConfig, {
         operation: "onboarding_resend",
         scope: attempt.id,
         payload: { attempt_id: attempt.id }
       });
       if (claim.kind === "replay") {
-        res.json({ status: attempt.status, request_id: req.requestId });
+        const challenge = claim.record.resource_id
+          ? await prisma.otpChallenge.findUnique({ where: { id: claim.record.resource_id } })
+          : null;
+        if (!challenge || challenge.onboarding_attempt_id !== attempt.id) {
+          throw new HttpError(409, "registration_conflict");
+        }
+        const accepted =
+          challenge.delivery_status === "accepted" &&
+          challenge.id === attempt.current_challenge_id &&
+          !challenge.superseded_at;
+        const deliveryAt = challenge.last_sent_at ?? challenge.delivery_updated_at;
+        res.json({
+          status: accepted ? "otp_sent" : "verification_temporarily_unavailable",
+          resend_available_at: new Date(deliveryAt.getTime() + onboarding.otpResendCooldownSeconds * 1_000),
+          request_id: req.requestId
+        });
         return;
       }
+      await consumeBuckets(req, appConfig, [
+        { type: "otp_phone_day", subject: attempt.phone_e164, seconds: 86_400, limit: onboarding.otpMaxSendsPerPhoneDay },
+        { type: "otp_ip_hour", subject: requestIp(req), seconds: 3_600, limit: 20 },
+        { type: "otp_attempt", subject: attempt.id, seconds: 86_400, limit: onboarding.otpMaxResends + 1 },
+        { type: "otp_invitation", subject: attempt.invitation_id, seconds: 86_400, limit: onboarding.otpMaxResends + 1 }
+      ]);
       const delivery = await dispatchOtpChallenge(prisma, provider, {
         attemptId,
         key: onboarding.keys.otpCode,
@@ -662,6 +680,11 @@ export function createPublicOnboardingRouter(
         resourceId: delivery.challengeId,
         responseStatus: 200
       });
+      const persistedChallenge = await prisma.otpChallenge.findUniqueOrThrow({
+        where: { id: delivery.challengeId },
+        select: { last_sent_at: true, delivery_updated_at: true }
+      });
+      const persistedDeliveryAt = persistedChallenge.last_sent_at ?? persistedChallenge.delivery_updated_at;
       await auditEvent(prisma, {
         action: AuditAction.otp_resent,
         entityType: "OnboardingAttempt",
@@ -670,7 +693,7 @@ export function createPublicOnboardingRouter(
       });
       res.json({
         status: delivery.accepted ? "otp_sent" : "verification_temporarily_unavailable",
-        resend_available_at: new Date(Date.now() + onboarding.otpResendCooldownSeconds * 1_000),
+        resend_available_at: new Date(persistedDeliveryAt.getTime() + onboarding.otpResendCooldownSeconds * 1_000),
         request_id: req.requestId
       });
     } catch (error) {
@@ -745,7 +768,7 @@ export function createPublicOnboardingRouter(
     }
   });
 
-  router.post("/onboarding/attempts/:id/complete", continuation, async (req: OnboardingAuthenticatedRequest, res, next) => {
+  router.post("/onboarding/attempts/:id/complete", completionContinuation, async (req: OnboardingAuthenticatedRequest, res, next) => {
     let claim: Awaited<ReturnType<typeof claimPublicOperation>> | undefined;
     try {
       const attemptId = String(req.params.id);
@@ -767,6 +790,16 @@ export function createPublicOnboardingRouter(
         scope: attemptId,
         payload: { ...input, display_name: displayName }
       });
+      if (req.onboarding!.completedReplayOnly && claim.kind !== "replay") {
+        if (claim.kind === "claimed") {
+          await failIdempotency(prisma, {
+            recordId: claim.record.id,
+            claimVersion: claim.record.claim_version
+          }).catch(() => undefined);
+          claim = undefined;
+        }
+        throw new HttpError(401, "onboarding_unavailable");
+      }
       if (claim.kind === "replay") {
         const attempt = await prisma.onboardingAttempt.findUnique({ where: { id: attemptId }, include: { completed_user: true } });
         if (!attempt?.completed_user) throw new HttpError(409, "registration_conflict");

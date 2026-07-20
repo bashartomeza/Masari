@@ -97,8 +97,22 @@ class OnboardingRepository {
       onboardingToken: continuationToken,
       idempotencyKey: idempotencyKey,
     );
+    final status = json['status'];
+    if (status == 'verification_temporarily_unavailable') {
+      throw const ApiException(
+        ApiErrorType.validation,
+        'verification_temporarily_unavailable',
+      );
+    }
+    if (status != 'otp_sent') {
+      throw const ApiException(ApiErrorType.validation, 'invalid_response');
+    }
     final value = json['resend_available_at'];
-    return value is String ? DateTime.tryParse(value)?.toUtc() : null;
+    final resendAt = value is String ? DateTime.tryParse(value)?.toUtc() : null;
+    if (resendAt == null) {
+      throw const ApiException(ApiErrorType.validation, 'invalid_response');
+    }
+    return resendAt;
   }
 
   Future<VerifyOtpResult> verify({

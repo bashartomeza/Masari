@@ -99,6 +99,38 @@ void main() {
     expect(find.byKey(const ValueKey('onboardingPhoneField')), findsOneWidget);
   });
 
+  testWidgets('registration entry preserves normal back navigation', (
+    tester,
+  ) async {
+    await _pumpApp(tester, onboardingEnabled: true);
+
+    await tester.tap(find.byKey(const ValueKey('createInvitedAccountButton')));
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('رجوع'), findsOneWidget);
+    await tester.tap(find.byTooltip('رجوع'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('loginButton')), findsOneWidget);
+  });
+
+  testWidgets('status recovery entry preserves normal back navigation', (
+    tester,
+  ) async {
+    await _pumpApp(tester, onboardingEnabled: true);
+
+    await tester.tap(
+      find.byKey(const ValueKey('checkApplicationStatusButton')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('رجوع'), findsOneWidget);
+    await tester.tap(find.byTooltip('رجوع'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('loginButton')), findsOneWidget);
+  });
+
   testWidgets('consent version change clears all prior acceptance', (
     tester,
   ) async {
@@ -147,6 +179,15 @@ void main() {
     );
     await tester.tap(find.text('متابعة التسجيل'));
     await tester.pumpAndSettle();
+
+    expect(find.byTooltip('رجوع'), findsOneWidget);
+    await tester.tap(find.byTooltip('رجوع'));
+    await tester.pumpAndSettle();
+    expect(find.text('مغادرة التسجيل'), findsWidgets);
+    await tester.tap(find.text('إلغاء'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('displayNameField')), findsOneWidget);
+
     await tester.enterText(
       find.byKey(const ValueKey('displayNameField')),
       'Secure User',

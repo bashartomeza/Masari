@@ -139,15 +139,18 @@ async function onboard(
   const verified = await verify(started.body.attempt.id, started.body.onboarding_token, otp);
   assert(verified.status === 200, `${role} phone verification failed`);
   assert(Date.parse(verified.body.registration_grant_expires_at) > Date.now(), `${role} grant expiry missing`);
+  const documents = await consents();
+  const completionKey = key("complete");
   const completed = await complete(
     started.body.attempt.id,
     started.body.onboarding_token,
     verified.body.registration_grant,
-    await consents(),
+    documents,
     name,
-    password
+    password,
+    completionKey
   );
-  return { started, verified, completed };
+  return { started, verified, completed, documents, completionKey, name, password };
 }
 
 async function main() {
@@ -261,22 +264,46 @@ async function main() {
   const firstChallenge = await prisma.onboardingAttempt.findUniqueOrThrow({ where: { id: raceAttemptId }, select: { current_challenge_id: true } });
   await prisma.otpChallenge.update({ where: { id: firstChallenge.current_challenge_id! }, data: { last_sent_at: new Date(Date.now() - 120_000) } });
   provider.outbox.clear();
+  const acceptedResendKey = key("resend-accepted");
   const acceptedResend = await request(app)
     .post(`/api/v1/onboarding/attempts/${raceAttemptId}/resend`)
     .set("authorization", `Onboarding ${resumed.body.onboarding_token}`)
-    .set("idempotency-key", key("resend-accepted"))
+    .set("idempotency-key", acceptedResendKey)
     .send({});
   check(acceptedResend.status === 200 && acceptedResend.body.status === "otp_sent", "resend acceptance succeeds");
+  const acceptedResendReplay = await request(app)
+    .post(`/api/v1/onboarding/attempts/${raceAttemptId}/resend`)
+    .set("authorization", `Onboarding ${resumed.body.onboarding_token}`)
+    .set("idempotency-key", acceptedResendKey)
+    .send({});
+  check(
+    acceptedResendReplay.status === 200 &&
+      acceptedResendReplay.body.status === "otp_sent" &&
+      acceptedResendReplay.body.resend_available_at === acceptedResend.body.resend_available_at,
+    "accepted resend replay preserves its exact safe outcome and cooldown"
+  );
   const afterAcceptedResend = await prisma.onboardingAttempt.findUniqueOrThrow({ where: { id: raceAttemptId }, select: { current_challenge_id: true } });
   check(afterAcceptedResend.current_challenge_id !== firstChallenge.current_challenge_id, "accepted resend promotes a new challenge");
   check((await prisma.otpChallenge.findUniqueOrThrow({ where: { id: firstChallenge.current_challenge_id! } })).superseded_at !== null, "accepted resend supersedes previous challenge");
   await prisma.otpChallenge.update({ where: { id: afterAcceptedResend.current_challenge_id! }, data: { last_sent_at: new Date(Date.now() - 120_000) } });
+  const rejectedResendKey = key("resend-rejected");
   const rejectedResend = await request(rejectedApp)
     .post(`/api/v1/onboarding/attempts/${raceAttemptId}/resend`)
     .set("authorization", `Onboarding ${resumed.body.onboarding_token}`)
-    .set("idempotency-key", key("resend-rejected"))
+    .set("idempotency-key", rejectedResendKey)
     .send({});
   check(rejectedResend.status === 200 && rejectedResend.body.status === "verification_temporarily_unavailable", "rejected resend is safely retryable");
+  const rejectedResendReplay = await request(rejectedApp)
+    .post(`/api/v1/onboarding/attempts/${raceAttemptId}/resend`)
+    .set("authorization", `Onboarding ${resumed.body.onboarding_token}`)
+    .set("idempotency-key", rejectedResendKey)
+    .send({});
+  check(
+    rejectedResendReplay.status === 200 &&
+      rejectedResendReplay.body.status === "verification_temporarily_unavailable" &&
+      rejectedResendReplay.body.resend_available_at === rejectedResend.body.resend_available_at,
+    "rejected resend replay preserves its exact retryable outcome and cooldown"
+  );
   check((await prisma.onboardingAttempt.findUniqueOrThrow({ where: { id: raceAttemptId } })).current_challenge_id === afterAcceptedResend.current_challenge_id, "rejected resend preserves prior challenge");
   await prisma.otpChallenge.update({ where: { id: afterAcceptedResend.current_challenge_id! }, data: { last_sent_at: new Date(Date.now() - 120_000) } });
   const concurrentResends = await Promise.all([
@@ -291,6 +318,47 @@ async function main() {
   check(passenger.completed.status === 201, "passenger completion succeeds");
   check(passenger.completed.body.account_status === "active" && passenger.completed.body.next_action === "login", "passenger is active and must login");
   check(!passenger.completed.body.token && !passenger.completed.body.refresh_token, "completion issues no operational session");
+  const passengerCompletionReplay = await complete(
+    passenger.started.body.attempt.id,
+    passenger.started.body.onboarding_token,
+    passenger.verified.body.registration_grant,
+    passenger.documents,
+    passenger.name,
+    passenger.password,
+    passenger.completionKey
+  );
+  check(
+    passengerCompletionReplay.status === 200 &&
+      passengerCompletionReplay.body.account_status === "active" &&
+      passengerCompletionReplay.body.next_action === "login",
+    "passenger exact completion replay survives revoked continuation session"
+  );
+  const changedPassengerReplay = await complete(
+    passenger.started.body.attempt.id,
+    passenger.started.body.onboarding_token,
+    passenger.verified.body.registration_grant,
+    passenger.documents,
+    "Changed Replay Name",
+    passenger.password,
+    passenger.completionKey
+  );
+  check(
+    changedPassengerReplay.status === 409 && changedPassengerReplay.body.error === "registration_conflict",
+    "completed continuation accepts only the original completion payload"
+  );
+  const newKeyPassengerReplay = await complete(
+    passenger.started.body.attempt.id,
+    passenger.started.body.onboarding_token,
+    passenger.verified.body.registration_grant,
+    passenger.documents,
+    passenger.name,
+    passenger.password,
+    key("complete-after-revocation")
+  );
+  check(
+    newKeyPassengerReplay.status === 401 && newKeyPassengerReplay.body.error === "onboarding_unavailable",
+    "completed continuation cannot authorize a new completion operation"
+  );
   const passengerUser = await prisma.user.findUniqueOrThrow({ where: { phone: "+970599111114" } });
   check(await prisma.authSession.count({ where: { user_id: passengerUser.id } }) === 0, "passenger completion creates no auth session");
   check(await prisma.refreshToken.count({ where: { session: { user_id: passengerUser.id } } }) === 0, "passenger completion creates no refresh token");
@@ -301,8 +369,28 @@ async function main() {
   const driver = await onboard(admin, "driver", "+970599111115", "سائق مساري", driverPassword);
   check(driver.completed.status === 201 && driver.completed.body.account_status === "pending", "driver is pending");
   check(Boolean(driver.completed.body.onboarding_status_token), "driver receives narrow status token");
+  const driverCompletionReplay = await complete(
+    driver.started.body.attempt.id,
+    driver.started.body.onboarding_token,
+    driver.verified.body.registration_grant,
+    driver.documents,
+    driver.name,
+    driver.password,
+    driver.completionKey
+  );
+  check(
+    driverCompletionReplay.status === 200 &&
+      driverCompletionReplay.body.account_status === "pending" &&
+      Boolean(driverCompletionReplay.body.onboarding_status_token) &&
+      driverCompletionReplay.body.onboarding_status_token !== driver.completed.body.onboarding_status_token,
+    "driver exact completion replay rotates a fresh pending credential"
+  );
   check(Date.parse(driver.completed.body.onboarding_status_expires_at) > Date.now(), "driver receives exact pending-session expiry");
-  const driverStatus = await request(app).get("/api/v1/onboarding/status").set("authorization", `Onboarding ${driver.completed.body.onboarding_status_token}`);
+  check(
+    (await request(app).get("/api/v1/onboarding/status").set("authorization", `Onboarding ${driver.completed.body.onboarding_status_token}`)).status === 401,
+    "driver completion replay revokes the superseded pending credential"
+  );
+  const driverStatus = await request(app).get("/api/v1/onboarding/status").set("authorization", `Onboarding ${driverCompletionReplay.body.onboarding_status_token}`);
   check(driverStatus.status === 200 && driverStatus.body.onboarding_status === "pending_review", "pending status endpoint works");
   check((await request(app).get("/api/v1/driver/routes").set("authorization", `Onboarding ${driver.completed.body.onboarding_status_token}`)).status === 401, "pending token cannot access operational routes");
   check((await request(app).post("/api/v1/auth/login").send({ phone: "+970599111115", password: driverPassword })).status === 403, "pending driver cannot login");
@@ -330,6 +418,22 @@ async function main() {
   const merchant = await onboard(admin, "merchant", "+970599111116", "تاجر مساري", "merchant secure pass 2026");
   check(merchant.completed.status === 201 && merchant.completed.body.account_status === "pending", "merchant is pending");
   check(!merchant.completed.body.token && Boolean(merchant.completed.body.onboarding_status_token), "merchant receives status token only");
+  const merchantCompletionReplay = await complete(
+    merchant.started.body.attempt.id,
+    merchant.started.body.onboarding_token,
+    merchant.verified.body.registration_grant,
+    merchant.documents,
+    merchant.name,
+    merchant.password,
+    merchant.completionKey
+  );
+  check(
+    merchantCompletionReplay.status === 200 &&
+      merchantCompletionReplay.body.account_status === "pending" &&
+      Boolean(merchantCompletionReplay.body.onboarding_status_token) &&
+      merchantCompletionReplay.body.onboarding_status_token !== merchant.completed.body.onboarding_status_token,
+    "merchant exact completion replay rotates a fresh pending credential"
+  );
 
   const replayKey = key("verify-replay");
   const replayCode = await invitation(admin, "passenger", "+970599111117");

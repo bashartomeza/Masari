@@ -89,6 +89,56 @@ void main() {
   });
 
   test(
+    'resend rejects a provider failure outcome as retryable UI error',
+    () async {
+      final repository = _repository((request) async {
+        expect(
+          request.url.path,
+          '/api/v1/onboarding/attempts/attempt_1/resend',
+        );
+        expect(request.headers['Idempotency-Key'], 'idem-resend');
+        return http.Response(
+          '{"status":"verification_temporarily_unavailable","resend_available_at":"2026-07-20T09:01:00.000Z","request_id":"req"}',
+          200,
+        );
+      });
+
+      await expectLater(
+        repository.resend(
+          attemptId: 'attempt_1',
+          continuationToken: 'continuation',
+          idempotencyKey: 'idem-resend',
+        ),
+        throwsA(
+          isA<ApiException>().having(
+            (error) => error.message,
+            'message',
+            'verification_temporarily_unavailable',
+          ),
+        ),
+      );
+    },
+  );
+
+  test(
+    'resend requires an accepted status and a valid cooldown timestamp',
+    () async {
+      final repository = _repository((_) async {
+        return http.Response('{"status":"otp_sent","request_id":"req"}', 200);
+      });
+
+      await expectLater(
+        repository.resend(
+          attemptId: 'attempt_1',
+          continuationToken: 'continuation',
+          idempotencyKey: 'idem-resend',
+        ),
+        throwsA(isA<ApiException>()),
+      );
+    },
+  );
+
+  test(
     'completion rejects operational token fields as contract violation',
     () async {
       final repository = _repository((request) async {

@@ -109,6 +109,9 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
       },
       child: Scaffold(
         appBar: AppBar(
+          leading: warnBeforeLeaving
+              ? BackButton(onPressed: () => Navigator.of(context).maybePop())
+              : null,
           title: Text(l10n.createInvitedAccount),
           actions: const [LanguageSwitch()],
         ),

@@ -238,7 +238,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ref.read(onboardingControllerProvider).value?.enabled == true;
     if (!mounted) return;
     setState(() => _openingOnboarding = false);
-    if (enabled) context.go(route);
+    if (enabled) await context.push<void>(route);
   }
 }
 
