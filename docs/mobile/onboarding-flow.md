@@ -17,4 +17,11 @@ When enabled in local/demo only, the Arabic-first flow is:
 9. Complete registration.
 10. Passenger accounts return to normal login. Driver and merchant accounts move to pending review.
 
+Every entry revalidates feature availability. A transient config/network
+failure hides entry actions but preserves a valid secure continuation or
+pending bundle; an authoritative `enabled=false` clears it. Process restoration
+queries server status before choosing OTP, account-details, pending, approved,
+or unavailable UI. A valid operational session clears stale onboarding state
+and always wins routing precedence.
+
 The mobile app does not issue or fabricate an operational session after registration. Existing login, refresh, logout, and role routing remain the only operational-auth path.

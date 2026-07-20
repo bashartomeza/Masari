@@ -20,4 +20,21 @@ Rules implemented in Flutter:
 - no key contains invitation, phone, OTP, password, token, or grant values;
 - retry is user-driven for mutations.
 
-The app treats ambiguous network failures as retryable UI states and preserves the safe controller context. Terminal validation, locked OTP, expired OTP, invalid grant, and consent-version conflicts are not silently retried under changed payloads.
+Secret-bearing start, verify, and completion payloads are retained only in the
+live controller/widget process. Their random keys are reused only while the
+exact payload remains available in memory. The app deliberately does not
+persist invitation, phone, OTP, display name, password, or a replayable secret
+fingerprint. After process death it therefore does not claim that these
+uncertain operations can be replayed automatically: the user must re-enter the
+input, use normal login if passenger completion may already have committed, or
+use pending-status recovery for a driver/merchant completion.
+
+Resend has no secret request payload. Its uncertain-operation key is the only
+idempotency key that may be stored in the continuation bundle, scoped to the
+current attempt and cleared after a known success or terminal response.
+
+The app treats ambiguous network failures as retryable UI states and preserves
+the exact in-memory payload and key while the process survives. Known outcomes
+clear the operation record. Consent-version conflict clears the old completion
+record, reloads current documents, and requires fresh acceptance before a new
+completion key is created.

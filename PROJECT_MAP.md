@@ -2377,3 +2377,34 @@ Validation evidence:
 
 Remaining after M6C2C:
 - Draft PR creation and independent mobile security/state review remain required before merge. Public launch still requires full manual/operator onboarding rehearsal, a real OTP provider, governed legal publication, storage/backup/retention approval, retention automation, admin invitation UI if desired, and driver/merchant approval operations.
+
+[M6C2C_INDEPENDENT_REVIEW_REMEDIATION]
+Review scope (2026-07-20):
+- Independent review of draft PR #5 confirmed the expected base/head SHAs, clean merge state, four successful CI contexts, unchanged frozen tags, and no dependency/schema/migration change in the submitted PR.
+- The review did not accept green CI as sufficient. It identified merge-blocking gaps in stale-response generation fencing, idempotency lifecycle, ambiguous secret-bearing retries, consent-version refresh, strict config/bundle parsing, storage-failure behavior, server-authoritative restoration, immutable role/transition enforcement, response-contract validation, exact credential expiries, and stale availability entry.
+
+Surgical corrections:
+- All onboarding async mutations and restoration are now generation-fenced. Clear, abandonment, authenticated-session installation/restoration, provider disposal, or a newer load prevents an older response from persisting or publishing.
+- Start, verify, and completion retain exact payload/key pairs only in live private controller memory; known outcomes clear them, exact ambiguous retries reuse them, and edited payloads rotate them. Secret-bearing operations are deliberately not advertised as replayable after process death. Resend alone may persist its safe attempt-scoped key.
+- Enabled config parsing now requires `PS`, recognized unique roles/locales, complete password constraints, six OTP digits, and a positive cooldown. Entry/direct routes revalidate availability; transient retrieval failure preserves a valid secure bundle, while authoritative disablement clears it.
+- Bundle decoding now rejects unknown enums, illegal stages, missing role/expiry, mixed continuation/pending credentials, and invalid idempotency metadata. Expired writes fail instead of publishing a false success, and secure-storage failures return controlled retry state.
+- Restoration validates `/api/v1/onboarding/status` before exposing OTP/account/pending state. Operational authentication clears stale onboarding storage and retains routing precedence.
+- Consent conflict now clears completion idempotency, reloads the active documents, increments a UI revision fence, clears all prior checks, shows document versions, and requires fresh explicit acceptance.
+- Completion validates immutable role, account status, next action, token/session-field absence, exact server expiry, and passenger versus pending outcome shape. Pending recovery returns role only after valid credentials.
+- The backend contract received additive, migration-free expiry fields for continuation, registration grant, and pending status session plus the authenticated pending role. Flutter no longer invents token lifetimes.
+- UI hardening adds honest ambiguous retry retention, secret clearing on known outcomes/abandonment, post-attempt back confirmation, filtered/obscured OTP entry, password visibility controls, client-side character/UTF-8 byte checks, localized consent versions/countdown, network/timeout messages, and approved-sign-in copy.
+
+Focused regression coverage:
+- Added tests for late-response fencing, exact-key reuse, edited-payload rotation for start/verify/complete, secure-write failure, strict config parsing, mixed/corrupt bundle rejection, masked-phone preservation, server-expiry parsing, passenger session-field rejection, stale-enabled CTA revalidation, consent-version acceptance reset, and operational-auth precedence over stale onboarding state.
+- Emulator execution found and corrected two additional state/routing defects: passenger completion and approved-pending result stages had been swapped, and a server-validated restored onboarding bundle was not handed off from login to the onboarding route after process death. Focused controller/widget tests now lock the passenger-created, approved-sign-in, and pending-restoration outcomes.
+
+Independent validation and emulator evidence:
+- Final clean install and validation passed: Prisma validate/generate, current seven-migration MySQL status, workspace typecheck/build, 149 API tests, standard/security validation, six tooling tests, 16 admin tests, real MySQL public-onboarding integration, Flutter localization generation, zero-change formatting, analysis, 137 Flutter tests, local debug APK, and production-like release APK.
+- Raw `npm audit --omit=dev` retains only the three documented moderate Prisma CLI transitives whose proposed repair is the prohibited breaking force downgrade. No force fix was run.
+- Live preflight passed 22/22. Deterministic smoke retained score `0.9317`, sequence `2`, trips `1` versus `6`, distance `21.53` versus `129.19`, cost `43.06` versus `258.38`, and winner `masari`.
+- Passenger completed invitation, externally read/manual OTP entry, all three consents, creation without auto-login, normal access/refresh login, dashboard entry, and confirmed logout. Driver and merchant each completed registration into pending isolation, restored after real process death, remained unable to login, recovered pending status with credentials, refreshed status, and cleared local pending state.
+- A real consent-set switch from operator version A to B produced `consent_version_changed`; Flutter cleared all three prior acceptances, rendered B, required fresh acceptance, and then completed. Arabic default, English switch, semantic accessibility tree, and 1.5x font-scale login layout passed. A production-like APK launched fail-closed with Arabic login available and registration/recovery absent; artifact scans found no local secret or temporary review marker.
+- A response-loss proxy confirmed start and verify response loss can be retried in-process without losing the workflow. Completion response loss committed server-side and retained the exact form/three acceptances for explicit retry, but the operator automation did not obtain a final replayed-result observation. Resend temporary failure, pending-status temporary failure, TalkBack, and rotation remain uncompleted manual gates.
+
+Independent-review readiness:
+- PR #5 must remain draft and unmerged until the remaining response-loss/accessibility gates above are completed and the corrective head passes all four required CI contexts. No schema, migration, dependency, real provider, production enablement, admin onboarding UI, or approval workflow was added.

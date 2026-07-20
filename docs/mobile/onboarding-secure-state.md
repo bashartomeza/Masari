@@ -8,7 +8,10 @@ Secure storage keys:
 - `masari_jwt`: legacy operational access token.
 - `masari_onboarding_bundle_v1`: onboarding-only bundle.
 
-The onboarding bundle is versioned and fail-closed. Corrupt, unsupported, incomplete, or expired bundles are cleared. Pending-status bundles cannot be interpreted as continuation bundles, and continuation bundles cannot be interpreted as pending-status bundles.
+The onboarding bundle is versioned and fail-closed. Corrupt, unsupported,
+incomplete, mixed-purpose, illegal-stage, or expired bundles are cleared.
+Pending-status bundles cannot contain continuation/grant credentials, and
+continuation bundles cannot contain pending-status credentials.
 
 Allowed stored fields:
 
@@ -24,6 +27,12 @@ Allowed stored fields:
 - resend availability time;
 - safe idempotency metadata if needed for recovery.
 
+Continuation, registration-grant, and pending-status expiries come from
+additive API response fields representing the actual server session/grant
+records. The client does not invent a local token lifetime. On restoration it
+revalidates the credential with `/api/v1/onboarding/status` before exposing a
+resumable stage.
+
 Never stored:
 
 - raw invitation code;
@@ -35,4 +44,8 @@ Never stored:
 - fake OTP outbox data;
 - operational JWT or refresh token inside the onboarding bundle.
 
-Token rotation follows a crash-consistent order: validate response, construct a complete replacement bundle, write it to secure storage, then publish controller state.
+Token rotation follows a crash-consistent order: validate response, construct a
+complete replacement bundle, write it to secure storage, verify the workflow
+generation is still current, then publish controller state. A storage failure
+does not publish the new stage, and clearing/authenticating invalidates any
+late onboarding response.

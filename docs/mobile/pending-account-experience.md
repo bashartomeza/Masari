@@ -20,6 +20,9 @@ It does not display:
 - audit or security-version data;
 - internal review reason.
 
-Refreshing pending status uses `Authorization: Onboarding <pending-status-token>`. If the backend returns `approved_sign_in`, the app clears the pending bundle and returns to normal login. If the account is unavailable, the app clears local pending state and returns safely to sign-in/help flow.
+Refreshing pending status uses `Authorization: Onboarding <pending-status-token>`. If the backend returns `approved_sign_in`, the app clears the pending bundle and returns to normal login. If the account is unavailable or the narrow token is rejected, the app clears local pending state and returns safely to sign-in/help flow.
 
-Pending-status recovery asks for phone, `PS` region, and password. Failures use generic invalid-credentials messaging and do not reveal whether a pending account exists.
+Pending-status recovery asks for phone, `PS` region, and password. Failures use
+generic invalid-credentials messaging and do not reveal whether a pending
+account exists. Only a successful authenticated recovery response returns the
+pending driver/merchant role and the exact pending-session expiry.

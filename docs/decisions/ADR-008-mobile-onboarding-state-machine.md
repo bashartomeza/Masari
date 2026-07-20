@@ -31,6 +31,12 @@ Flutter uses one canonical onboarding controller with explicit stages:
 
 The controller owns non-secret workflow projection. Tokens and grants are held in a separate versioned secure bundle and are never placed in routes, query strings, visible debug state, snackbars, or logs.
 
+Each asynchronous workflow is generation-fenced. Clear, abandonment,
+operational authentication, provider disposal, or a newer restoration advances
+the generation; an older response may neither write secure storage nor publish
+UI state. Legal transitions are checked in controller methods rather than
+being inferred only from which screen is visible.
+
 ## Consequences
 
 - Restart restoration is bounded by bundle type, purpose, expiry, and safe stage.
