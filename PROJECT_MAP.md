@@ -3,7 +3,7 @@
 [PROJECT_OVERVIEW]
 Masari is a Palestine-focused smart route-sharing logistics MVP.
 
-Current implementation status: M6B1B Production HTTP Security, Request Traceability, Rate Limiting, and Readiness.
+Current implementation status: M6C2B2 Controlled Public Onboarding Backend is merged and post-merge verified on `production-readiness`. M6C2C has not started.
 
 Locked MVP corridor:
 Hebron / PPU / Bab Al-Zawiya -> Bethlehem.
@@ -2291,4 +2291,42 @@ Schema, test fixtures, reset, and evidence:
 - Committed-head local validation passed clean install, Prisma validation/generation, current seven-migration deploy/status, workspace typecheck/build, 149 API tests, 16 admin tests, security/workflow/tooling policy, the 58-check real-MySQL harness, 106 Flutter tests with zero formatting/analyzer findings, production admin/release-APK artifact scan, 22/22 live preflight, and deterministic smoke (`0.9317`, sequence `2`, trips `1` versus `6`, distance `21.53` versus `129.19`, cost `43.06` versus `258.38`, winner `masari`). Raw dependency audit retains only the three approved moderate Prisma CLI transitives and no force fix was run.
 
 Remaining after M6C2B2:
-- Production remains blocked on a real provider, approved legal publication workflow/content, storage-at-rest and backup policy, retention automation, independent security review, Flutter onboarding UI, and driver/merchant approval operations. Draft PR must remain unmerged pending team-leader review.
+- M6C2B2 is merged and post-merge verified. Production remains blocked on a real provider, approved legal publication workflow/content, storage-at-rest and backup policy, retention automation, Flutter onboarding UI, and driver/merchant approval operations.
+
+[M6C2B2_MERGE_AND_POST_MERGE_VERIFICATION]
+Merge result (2026-07-20):
+- PR #4 was approved after independent public-route security review and merged into `production-readiness` using the required merge-commit strategy. The approved final feature head was `11359da8aef6594d62b7ae972392ad58c32caf35`; the merge commit is `05029cc843c362bf895df0f8510439950dacf779`.
+- The remote feature branch `m6c2b2/public-onboarding-backend` was deleted by the approved merge command. The local feature branch was deleted normally only after verifying the merge graph and synchronizing local `production-readiness` with `origin/production-readiness`; no squash, rebase, force push, reset, or tag movement occurred.
+- All feature, test, review, and documentation commits remain visible in the merge graph. The merged migration history contains seven forward-only migrations, including `20260719203000_public_onboarding_scopes`; no previously applied migration was modified.
+
+Security review outcome:
+- The independent review found no Critical or High severity issue remaining at merge. Corrective work before merge fixed invitation enumeration leakage, consent-adult-attestation ambiguity, pending-status token/session revocation on suspension, and audit privacy marker coverage.
+- Public onboarding remains restricted to local/test/demo fake-provider operation. Staging/production reject public onboarding enablement and fake delivery; no real provider SDK, SMS traffic, Flutter onboarding UI, admin onboarding UI, or operational auto-session issuance was added.
+- Enabled public routes remain invitation-controlled, generic on ineligible/unknown inputs, bounded by durable abuse/idempotency controls, and separated from operational Bearer JWT authorization through `Onboarding` tokens with narrow purposes.
+
+Post-merge database and validation:
+- Prisma validation/generation passed against the local ignored MySQL environment. `npm run db:migrate` reported all seven migrations applied and no pending migration; migration status was current.
+- Full local validation passed after synchronization: clean install, workspace typecheck, workspace build, 149 API tests, standard validation, security validation, 16 admin tests, admin build, Flutter localization generation, zero-change Dart formatting, Flutter analyze, and 106 Flutter tests.
+- Raw `npm audit --omit=dev` still reports only the documented three moderate Prisma CLI transitive findings whose suggested repair is the prohibited breaking force downgrade; no force fix was run.
+
+Real MySQL and runtime evidence:
+- The real MySQL public onboarding harness passed 67 checks covering disabled/enabled configuration, enumeration-safe eligibility, one-attempt redemption, lost-response recovery, resend fencing, provider rejection recovery, verify replay/grant rotation, passenger active creation without session issuance, driver/merchant pending access, pending-token isolation, operational-route denial, pending-login denial, consent fail-closed behavior, idempotency fencing, suspension revocation, audit privacy, and clean demo-reset cleanup.
+- The live onboarding foundation harness passed against the running API. Live demo preflight passed 22/22 with the MySQL-backed API, admin URL, mobile emulator URL, and Android emulator attached.
+- Deterministic smoke retained score `0.9317`, tracking sequence `2`, trips `1` versus `6`, distance `21.53` versus `129.19`, cost `43.06` versus `258.38`, and winner `masari`.
+- Production-like artifact boundary scans passed for the release APK and a production-configured admin build. Explicit route-boundary tests passed for public-onboarding disablement, staging/production fail-closed behavior, fake-provider rejection outside local/test/demo, log redaction, route isolation, and foundation security.
+
+Merge-commit CI:
+- All required workflows passed on merge commit `05029cc843c362bf895df0f8510439950dacf779`: Admin CI run `29730014643`, Backend and MySQL CI run `29730014653`, Flutter Android CI run `29730014631`, and Security and Configuration CI run `29730014675`. Exact successful contexts were `admin`, `backend-mysql`, `mobile`, and `security`.
+- Frozen release tags remain unchanged: `v0.1.0-hackathon` peels to `074fc4e7cc79c6b08a2baa18ca251b4802aa48c7`, and `v0.2.0-hackathon-mysql` peels to `7f5c5bace1b081c32f6a24a7352c6b163ac97438`.
+
+Remaining obligations before public launch:
+1. Build and independently review the Flutter Arabic/English onboarding UI.
+2. Select and validate a real OTP provider, including carrier/error-mode tests.
+3. Establish governed production legal-document publication with approved content and hashes.
+4. Approve storage-at-rest, backup-retention, and restore policy.
+5. Implement retention cleanup automation.
+6. Implement driver/merchant review and approval operations.
+7. Independently review any future mobile onboarding integration and production-provider path.
+
+Next milestone:
+- M6C2C remains next and has not started.
