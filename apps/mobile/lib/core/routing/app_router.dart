@@ -18,6 +18,8 @@ import '../../features/merchant/presentation/merchant_match_detail_screen.dart';
 import '../../features/merchant/presentation/merchant_match_inbox_screen.dart';
 import '../../features/merchant/presentation/merchant_order_detail_screen.dart';
 import '../../features/merchant/presentation/merchant_trip_screen.dart';
+import '../../features/onboarding/presentation/onboarding_flow_screen.dart';
+import '../../features/onboarding/presentation/pending_status_recovery_screen.dart';
 import '../../features/passenger/presentation/create_request_screen.dart';
 import '../../features/passenger/presentation/passenger_home_screen.dart';
 import '../../features/passenger/presentation/request_detail_screen.dart';
@@ -37,6 +39,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const SplashScreen(),
       ),
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
+      GoRoute(
+        path: '/onboarding',
+        builder: (context, state) => const OnboardingFlowScreen(),
+      ),
+      GoRoute(
+        path: '/onboarding/recover',
+        builder: (context, state) => const PendingStatusRecoveryScreen(),
+      ),
       GoRoute(
         path: '/passenger',
         builder: (context, state) => const PassengerHomeScreen(),
@@ -146,7 +156,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       }
 
       if (auth.status != AuthStatus.authenticated || auth.user == null) {
-        return path == '/login' ? null : '/login';
+        if (path == '/login' || path.startsWith('/onboarding')) return null;
+        return '/login';
       }
 
       final target = routeForRole(auth.user!.role);

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:masari_mobile/l10n/app_localizations.dart';
 
 import '../../../core/api/api_error.dart';
@@ -9,6 +10,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/language_switch.dart';
 import '../../../core/widgets/masari_card.dart';
+import '../../onboarding/application/onboarding_controller.dart';
 import '../application/auth_controller.dart';
 import '../domain/auth_models.dart';
 import 'demo_accounts.dart';
@@ -43,6 +45,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final sessionEndReason = auth.value?.sessionEndReason;
     final config = ref.watch(appConfigProvider);
     final demoAccounts = demoAccountsFor(config);
+    final onboarding = ref.watch(onboardingControllerProvider).value;
+    final onboardingEnabled = onboarding?.enabled == true;
 
     return Scaffold(
       body: SafeArea(
@@ -139,6 +143,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           )
                         : Text(l10n.signIn),
                   ),
+                  if (onboardingEnabled) ...[
+                    const SizedBox(height: AppTokens.spaceMedium),
+                    OutlinedButton(
+                      key: const ValueKey('createInvitedAccountButton'),
+                      onPressed: loading
+                          ? null
+                          : () => context.go('/onboarding'),
+                      child: Text(l10n.createInvitedAccount),
+                    ),
+                    TextButton(
+                      key: const ValueKey('checkApplicationStatusButton'),
+                      onPressed: loading
+                          ? null
+                          : () => context.go('/onboarding/recover'),
+                      child: Text(l10n.checkApplicationStatus),
+                    ),
+                  ],
                 ],
               ),
             ),
