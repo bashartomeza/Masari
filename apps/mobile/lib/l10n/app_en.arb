@@ -268,5 +268,10 @@
   "consentDocumentsChanged": "Consent documents changed. Please review them again.",
   "requestReference": "Request reference",
   "leaveRegistration": "Leave registration",
-  "continueRegistration": "Continue registration"
+  "continueRegistration": "Continue registration",
+  "leaveRegistrationWarning": "Leaving will clear the registration state saved on this device. Continue?",
+  "secondsShort": "seconds",
+  "consentVersion": "Version",
+  "accountApproved": "Account approved",
+  "signInAfterApproval": "Your account was approved. Sign in to continue."
 }

@@ -25,6 +25,16 @@ class _PendingStatusRecoveryScreenState
   final _password = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(onboardingControllerProvider.notifier).refreshAvailability();
+      }
+    });
+  }
+
+  @override
   void dispose() {
     _phone.dispose();
     _password.dispose();
@@ -41,6 +51,36 @@ class _PendingStatusRecoveryScreenState
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) context.go('/onboarding');
       });
+    }
+
+    if (state == null) {
+      return const Scaffold(
+        body: SafeArea(child: Center(child: CircularProgressIndicator())),
+      );
+    }
+    if (!state.enabled) {
+      return Scaffold(
+        appBar: AppBar(title: Text(l10n.checkApplicationStatus)),
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(AppTokens.spaceLarge),
+            child: MasariCard(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(l10n.registrationUnavailable),
+                  const SizedBox(height: AppTokens.spaceMedium),
+                  FilledButton(
+                    onPressed: () => context.go('/login'),
+                    child: Text(l10n.signIn),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
     }
 
     return Scaffold(
@@ -72,10 +112,7 @@ class _PendingStatusRecoveryScreenState
                           RegExp(r'[+0-9٠-٩۰-۹ ]'),
                         ),
                       ],
-                      decoration: InputDecoration(
-                        labelText: l10n.phoneNumber,
-                        prefixText: '+970 ',
-                      ),
+                      decoration: InputDecoration(labelText: l10n.phoneNumber),
                     ),
                   ),
                   const SizedBox(height: AppTokens.spaceMedium),
@@ -85,10 +122,10 @@ class _PendingStatusRecoveryScreenState
                     obscureText: true,
                     decoration: InputDecoration(labelText: l10n.password),
                   ),
-                  if (state?.errorCode != null) ...[
+                  if (state.errorCode != null) ...[
                     const SizedBox(height: AppTokens.spaceMedium),
                     Text(
-                      state!.errorCode == 'invalid_credentials'
+                      state.errorCode == 'invalid_credentials'
                           ? l10n.invalidCredentials
                           : l10n.requestFailed,
                       style: TextStyle(
@@ -122,9 +159,14 @@ class _PendingStatusRecoveryScreenState
         ? 'en'
         : 'ar';
     final password = _password.text;
-    _password.clear();
     await ref
         .read(onboardingControllerProvider.notifier)
         .recoverPending(phone: _phone.text, password: password, locale: locale);
+    final result = ref.read(onboardingControllerProvider).value;
+    if (result?.stage == OnboardingStage.pendingReview ||
+        result?.ambiguousFailure == false) {
+      _password.clear();
+    }
+    if (result?.stage == OnboardingStage.pendingReview) _phone.clear();
   }
 }

@@ -93,7 +93,7 @@ void main() {
           const Duration(seconds: 1),
         ),
       );
-      await storage.saveBundle(expired);
+      await expectLater(storage.saveBundle(expired), throwsStateError);
       expect(await storage.readBundle(), isNull);
     },
   );
@@ -125,5 +125,34 @@ void main() {
     expect(encoded, isNot(contains('123456')));
     expect(encoded, isNot(contains('password')));
     expect(encoded, isNot(contains('+970590000001')));
+  });
+
+  test('unknown enum and mixed-purpose bundles fail closed', () async {
+    FlutterSecureStorage.setMockInitialValues({
+      OnboardingStorage.bundleKey:
+          '{"version":1,"type":"continuation","safe_stage":"unknown","locale":"ar","selected_role":"passenger","attempt_id":"attempt_1","continuation_token":"token","continuation_expires_at":"2099-01-01T00:00:00.000Z"}',
+    });
+    final storage = OnboardingStorage(secureStorage);
+
+    expect(await storage.readBundle(), isNull);
+    expect(await secureStorage.read(key: OnboardingStorage.bundleKey), isNull);
+  });
+
+  test('bundle copy preserves masked phone', () {
+    final bundle = OnboardingBundle(
+      type: OnboardingBundleType.continuation,
+      safeStage: OnboardingStage.otpSent,
+      locale: 'ar',
+      selectedRole: OnboardingRole.passenger,
+      attemptId: 'attempt_1',
+      continuationToken: 'token',
+      continuationExpiresAt: DateTime.utc(2099),
+      maskedPhone: '+970*****01',
+    );
+
+    expect(
+      bundle.copyWith(resendAvailableAt: DateTime.utc(2099)).maskedPhone,
+      '+970*****01',
+    );
   });
 }

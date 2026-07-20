@@ -24,6 +24,20 @@ void main() {
   });
 
   test(
+    'enabled config fails closed when policy or region is malformed',
+    () async {
+      final repository = _repository((_) async {
+        return http.Response(
+          '{"enabled":true,"registration_roles":["passenger","admin"],"supported_region":"ZZ","supported_locales":["ar","en"],"otp_digits":6,"resend_cooldown_seconds":60}',
+          200,
+        );
+      });
+
+      await expectLater(repository.config(), throwsA(isA<ApiException>()));
+    },
+  );
+
+  test(
     'start sends public request with idempotency and no bearer token',
     () async {
       final repository = _repository((request) async {
@@ -33,7 +47,7 @@ void main() {
         expect(request.headers[HttpHeaders.authorizationHeader], isNull);
         expect(request.body, contains('invitation_code'));
         return http.Response(
-          '{"attempt":{"id":"attempt_1","status":"otp_sent","phone":"+970*****01","expires_at":"2026-07-20T10:00:00.000Z","resend_available_at":"2026-07-20T09:01:00.000Z"},"onboarding_token":"continuation","next_action":"verify_otp","request_id":"req"}',
+          '{"attempt":{"id":"attempt_1","status":"otp_sent","phone":"+970*****01","expires_at":"2026-07-20T10:00:00.000Z","resend_available_at":"2026-07-20T09:01:00.000Z"},"onboarding_token":"continuation","onboarding_token_expires_at":"2026-07-20T09:30:00.000Z","next_action":"verify_otp","request_id":"req"}',
           201,
         );
       });
@@ -59,7 +73,7 @@ void main() {
       );
       expect(request.headers['Idempotency-Key'], 'idem-verify');
       return http.Response(
-        '{"status":"phone_verified","registration_grant":"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNO12","next_action":"complete_registration","request_id":"req"}',
+        '{"status":"phone_verified","registration_grant":"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNO12","registration_grant_expires_at":"2026-07-20T09:15:00.000Z","next_action":"complete_registration","request_id":"req"}',
         200,
       );
     });
@@ -103,6 +117,33 @@ void main() {
       );
     },
   );
+
+  test('completion rejects nested session contract fields', () async {
+    final repository = _repository((_) async {
+      return http.Response(
+        '{"result":"account_created","role":"passenger","account_status":"active","next_action":"login","session":{},"request_id":"req"}',
+        201,
+      );
+    });
+
+    await expectLater(
+      repository.complete(
+        attemptId: 'attempt_1',
+        continuationToken: 'continuation',
+        registrationGrant: 'grant',
+        displayName: 'Name',
+        password: 'long-password-value',
+        locale: 'ar',
+        consents: [
+          _doc('terms'),
+          _doc('privacy'),
+          _doc('adult_self_attestation'),
+        ],
+        idempotencyKey: 'idem-complete',
+      ),
+      throwsA(isA<ApiException>()),
+    );
+  });
 
   test('pending recovery maps generic invalid credentials safely', () async {
     final repository = _repository((request) async {

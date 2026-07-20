@@ -1669,6 +1669,36 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'متابعة التسجيل'**
   String get continueRegistration;
+
+  /// No description provided for @leaveRegistrationWarning.
+  ///
+  /// In ar, this message translates to:
+  /// **'سيؤدي الخروج إلى مسح حالة التسجيل المحفوظة على هذا الجهاز. هل تريد المتابعة؟'**
+  String get leaveRegistrationWarning;
+
+  /// No description provided for @secondsShort.
+  ///
+  /// In ar, this message translates to:
+  /// **'ثانية'**
+  String get secondsShort;
+
+  /// No description provided for @consentVersion.
+  ///
+  /// In ar, this message translates to:
+  /// **'الإصدار'**
+  String get consentVersion;
+
+  /// No description provided for @accountApproved.
+  ///
+  /// In ar, this message translates to:
+  /// **'تمت الموافقة على الحساب'**
+  String get accountApproved;
+
+  /// No description provided for @signInAfterApproval.
+  ///
+  /// In ar, this message translates to:
+  /// **'تمت الموافقة على حسابك. سجّل الدخول للمتابعة.'**
+  String get signInAfterApproval;
 }
 
 class _AppLocalizationsDelegate

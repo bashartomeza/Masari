@@ -134,9 +134,11 @@ async function onboard(
   const code = await invitation(admin, role, phone);
   const started = await start(code, role, phone);
   assert(started.status === 201, `${role} onboarding did not start`);
+  assert(Date.parse(started.body.onboarding_token_expires_at) > Date.now(), `${role} continuation expiry missing`);
   const otp = latestOtp();
   const verified = await verify(started.body.attempt.id, started.body.onboarding_token, otp);
   assert(verified.status === 200, `${role} phone verification failed`);
+  assert(Date.parse(verified.body.registration_grant_expires_at) > Date.now(), `${role} grant expiry missing`);
   const completed = await complete(
     started.body.attempt.id,
     started.body.onboarding_token,
@@ -299,12 +301,19 @@ async function main() {
   const driver = await onboard(admin, "driver", "+970599111115", "سائق مساري", driverPassword);
   check(driver.completed.status === 201 && driver.completed.body.account_status === "pending", "driver is pending");
   check(Boolean(driver.completed.body.onboarding_status_token), "driver receives narrow status token");
+  check(Date.parse(driver.completed.body.onboarding_status_expires_at) > Date.now(), "driver receives exact pending-session expiry");
   const driverStatus = await request(app).get("/api/v1/onboarding/status").set("authorization", `Onboarding ${driver.completed.body.onboarding_status_token}`);
   check(driverStatus.status === 200 && driverStatus.body.onboarding_status === "pending_review", "pending status endpoint works");
   check((await request(app).get("/api/v1/driver/routes").set("authorization", `Onboarding ${driver.completed.body.onboarding_status_token}`)).status === 401, "pending token cannot access operational routes");
   check((await request(app).post("/api/v1/auth/login").send({ phone: "+970599111115", password: driverPassword })).status === 403, "pending driver cannot login");
   const recovered = await request(app).post("/api/v1/onboarding/status-sessions").send({ phone: "+970599111115", region: "PS", password: driverPassword });
-  check(recovered.status === 200 && recovered.body.onboarding_status === "pending_review", "pending status recovery works");
+  check(
+    recovered.status === 200 &&
+      recovered.body.onboarding_status === "pending_review" &&
+      recovered.body.role === "driver" &&
+      Date.parse(recovered.body.onboarding_status_expires_at) > Date.now(),
+    "pending status recovery works without disclosing role before authentication"
+  );
   const wrongRecovery = await request(app).post("/api/v1/onboarding/status-sessions").send({ phone: "+970599111115", region: "PS", password: "wrong password value" });
   check(wrongRecovery.status === 401 && wrongRecovery.body.error === "invalid_credentials", "wrong recovery credentials are generic");
   const driverUser = await prisma.user.findUniqueOrThrow({ where: { phone: "+970599111115" } });

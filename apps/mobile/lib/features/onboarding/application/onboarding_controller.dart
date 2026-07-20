@@ -26,6 +26,8 @@ class OnboardingState {
     this.requestId,
     this.errorCode,
     this.restored = false,
+    this.ambiguousFailure = false,
+    this.consentRevision = 0,
   });
 
   const OnboardingState.checking()
@@ -42,6 +44,8 @@ class OnboardingState {
   final String? requestId;
   final String? errorCode;
   final bool restored;
+  final bool ambiguousFailure;
+  final int consentRevision;
 
   bool get enabled => config?.enabled == true;
   bool get busy => switch (stage) {
@@ -66,6 +70,8 @@ class OnboardingState {
     String? requestId,
     String? errorCode,
     bool? restored,
+    bool? ambiguousFailure,
+    int? consentRevision,
     bool clearError = false,
   }) {
     return OnboardingState(
@@ -80,6 +86,8 @@ class OnboardingState {
       requestId: requestId ?? this.requestId,
       errorCode: clearError ? null : errorCode ?? this.errorCode,
       restored: restored ?? this.restored,
+      ambiguousFailure: ambiguousFailure ?? this.ambiguousFailure,
+      consentRevision: consentRevision ?? this.consentRevision,
     );
   }
 }
@@ -90,34 +98,38 @@ class OnboardingController extends AsyncNotifier<OnboardingState> {
   OnboardingStorage get _storage => ref.read(onboardingStorageProvider);
 
   OnboardingBundle? _bundle;
-  final Map<String, String> _pendingIdempotencyKeys = {};
+  final Map<String, _PendingMutation> _pendingMutations = {};
   int _generation = 0;
   bool _inFlight = false;
 
   @override
   Future<OnboardingState> build() async {
-    final config = await _safeConfig();
-    if (!config.enabled) {
-      await _storage.clear();
-      return OnboardingState(
-        stage: OnboardingStage.unavailable,
-        config: config,
-      );
-    }
-    _bundle = await _storage.readBundle();
-    final restored = _bundle;
-    if (restored != null) return _stateFromBundle(config, restored);
-    return OnboardingState(stage: OnboardingStage.choosingRole, config: config);
+    final generation = ++_generation;
+    ref.onDispose(() => _generation += 1);
+    return _load(generation);
   }
 
   Future<void> refreshAvailability() async {
+    final generation = ++_generation;
     state = const AsyncData(OnboardingState.checking());
-    state = AsyncData(await build());
+    try {
+      final loaded = await _load(generation);
+      _ensureCurrent(generation);
+      state = AsyncData(loaded);
+    } on _StaleOnboardingOperation {
+      // A newer workflow owns controller state.
+    }
   }
 
   void chooseRole(OnboardingRole role) {
     final current = state.value;
-    if (current == null || !current.enabled || current.busy) return;
+    if (current == null ||
+        current.stage != OnboardingStage.choosingRole ||
+        !current.enabled ||
+        current.busy ||
+        current.config?.registrationRoles.contains(role) != true) {
+      return;
+    }
     state = AsyncData(
       current.copyWith(
         stage: OnboardingStage.enteringInvitation,
@@ -129,7 +141,12 @@ class OnboardingController extends AsyncNotifier<OnboardingState> {
 
   void backToRoles() {
     final current = state.value;
-    if (current == null || current.attemptId != null || current.busy) return;
+    if (current == null ||
+        current.stage != OnboardingStage.enteringInvitation ||
+        current.attemptId != null ||
+        current.busy) {
+      return;
+    }
     state = AsyncData(current.copyWith(stage: OnboardingStage.choosingRole));
   }
 
@@ -140,78 +157,116 @@ class OnboardingController extends AsyncNotifier<OnboardingState> {
   }) async {
     final current = state.value;
     final role = current?.selectedRole;
-    if (current == null || role == null || _inFlight || !current.enabled) {
+    if (current == null ||
+        current.stage != OnboardingStage.enteringInvitation ||
+        role == null ||
+        current.config?.registrationRoles.contains(role) != true ||
+        _inFlight ||
+        !current.enabled) {
       return;
     }
-    final payload = _payloadDigest({
+    final payload = <String, String>{
       'invitation': invitationCode.trim(),
       'phone': phone.trim(),
       'role': role.apiValue,
       'locale': locale,
       'region': 'PS',
-    });
+    };
     final key = _keyFor('start', payload);
-    await _guarded(() async {
-      state = AsyncData(current.copyWith(stage: OnboardingStage.starting));
-      final result = await _repository.start(
-        invitationCode: invitationCode,
-        role: role,
-        phone: phone,
-        locale: locale,
-        idempotencyKey: key,
-      );
-      final bundle = OnboardingBundle(
-        type: OnboardingBundleType.continuation,
-        safeStage: OnboardingStage.otpSent,
-        locale: locale,
-        selectedRole: role,
-        attemptId: result.attemptId,
-        continuationToken: result.onboardingToken,
-        continuationExpiresAt: result.expiresAt,
-        maskedPhone: result.maskedPhone,
-        resendAvailableAt: result.resendAvailableAt,
-      );
-      await _persistBeforePublish(bundle);
-      state = AsyncData(
-        current.copyWith(
-          stage: OnboardingStage.otpSent,
+    final generation = _generation;
+    await _guarded(
+      operation: 'start',
+      generation: generation,
+      failureStage: OnboardingStage.enteringInvitation,
+      action: () async {
+        state = AsyncData(current.copyWith(stage: OnboardingStage.starting));
+        final result = await _repository.start(
+          invitationCode: invitationCode,
+          role: role,
+          phone: phone,
+          locale: locale,
+          idempotencyKey: key,
+        );
+        _ensureCurrent(generation);
+        if (!{
+              'otp_sent',
+              'otp_dispatching',
+              'verification_temporarily_unavailable',
+            }.contains(result.status) ||
+            !{'verify_otp', 'resend_otp'}.contains(result.nextAction)) {
+          throw const ApiException(ApiErrorType.validation, 'invalid_response');
+        }
+        final bundle = OnboardingBundle(
+          type: OnboardingBundleType.continuation,
+          safeStage: OnboardingStage.otpSent,
+          locale: locale,
+          selectedRole: role,
           attemptId: result.attemptId,
+          continuationToken: result.onboardingToken,
+          continuationExpiresAt: result.onboardingTokenExpiresAt,
           maskedPhone: result.maskedPhone,
-          attemptExpiresAt: result.expiresAt,
           resendAvailableAt: result.resendAvailableAt,
-          requestId: result.requestId,
-          clearError: true,
-        ),
-      );
-    });
+        );
+        await _persistBeforePublish(bundle, generation);
+        _completeMutation('start');
+        state = AsyncData(
+          current.copyWith(
+            stage: OnboardingStage.otpSent,
+            attemptId: result.attemptId,
+            maskedPhone: result.maskedPhone,
+            attemptExpiresAt: result.expiresAt,
+            resendAvailableAt: result.resendAvailableAt,
+            requestId: result.requestId,
+            ambiguousFailure: false,
+            clearError: true,
+          ),
+        );
+      },
+    );
   }
 
   Future<void> resend() async {
     final current = state.value;
     final bundle = _bundle;
-    if (current == null || bundle?.attemptId == null || _inFlight) return;
-    final key = _keyFor('resend', bundle!.attemptId!);
-    await _guarded(() async {
-      state = AsyncData(current.copyWith(stage: OnboardingStage.resending));
-      final resendAt = await _repository.resend(
-        attemptId: bundle.attemptId!,
-        continuationToken: bundle.continuationToken!,
-        idempotencyKey: key,
-      );
-      final updated = bundle.copyWith(
-        safeStage: OnboardingStage.otpSent,
-        resendAvailableAt: resendAt,
-        idempotency: const {},
-      );
-      await _persistBeforePublish(updated);
-      state = AsyncData(
-        current.copyWith(
-          stage: OnboardingStage.otpSent,
+    if (current == null ||
+        current.stage != OnboardingStage.otpSent ||
+        bundle?.attemptId == null ||
+        _inFlight) {
+      return;
+    }
+    final generation = _generation;
+    final key = _keyFor('resend', {'attempt': bundle!.attemptId!});
+    await _guarded(
+      operation: 'resend',
+      generation: generation,
+      failureStage: OnboardingStage.otpSent,
+      action: () async {
+        final prepared = bundle.copyWith(idempotency: {'resend_key': key});
+        await _persistBeforePublish(prepared, generation);
+        state = AsyncData(current.copyWith(stage: OnboardingStage.resending));
+        final resendAt = await _repository.resend(
+          attemptId: prepared.attemptId!,
+          continuationToken: prepared.continuationToken!,
+          idempotencyKey: key,
+        );
+        _ensureCurrent(generation);
+        final updated = prepared.copyWith(
+          safeStage: OnboardingStage.otpSent,
           resendAvailableAt: resendAt,
-          clearError: true,
-        ),
-      );
-    });
+          clearIdempotency: true,
+        );
+        await _persistBeforePublish(updated, generation);
+        _completeMutation('resend');
+        state = AsyncData(
+          current.copyWith(
+            stage: OnboardingStage.otpSent,
+            resendAvailableAt: resendAt,
+            ambiguousFailure: false,
+            clearError: true,
+          ),
+        );
+      },
+    );
   }
 
   Future<void> verifyOtp(String otp) async {
@@ -220,63 +275,96 @@ class OnboardingController extends AsyncNotifier<OnboardingState> {
     final normalizedOtp = normalizeOtpDigits(otp);
     if (current == null ||
         bundle?.attemptId == null ||
-        normalizedOtp.length != 6 ||
+        current.stage != OnboardingStage.otpSent ||
+        normalizedOtp.length != (current.config?.otpDigits ?? 6) ||
+        !RegExp(r'^\d{6}$').hasMatch(normalizedOtp) ||
         _inFlight) {
       return;
     }
-    final key = _keyFor('verify', normalizedOtp);
-    await _guarded(() async {
-      state = AsyncData(current.copyWith(stage: OnboardingStage.verifyingOtp));
-      final result = await _repository.verify(
-        attemptId: bundle!.attemptId!,
-        continuationToken: bundle.continuationToken!,
-        otp: normalizedOtp,
-        idempotencyKey: key,
-      );
-      final updated = bundle.copyWith(
-        safeStage: OnboardingStage.phoneVerified,
-        registrationGrant: result.registrationGrant,
-        registrationGrantExpiresAt: bundle.continuationExpiresAt,
-        idempotency: const {},
-      );
-      await _persistBeforePublish(updated);
-      final documents = await _repository.consents(bundle.locale);
-      final ready = updated.copyWith(
-        safeStage: OnboardingStage.enteringAccountDetails,
-      );
-      await _persistBeforePublish(ready);
-      state = AsyncData(
-        current.copyWith(
-          stage: OnboardingStage.enteringAccountDetails,
-          documents: documents,
-          requestId: result.requestId,
-          clearError: true,
-        ),
-      );
+    final generation = _generation;
+    final key = _keyFor('verify', {
+      'attempt': bundle!.attemptId!,
+      'otp': normalizedOtp,
     });
+    await _guarded(
+      operation: 'verify',
+      generation: generation,
+      failureStage: OnboardingStage.otpSent,
+      action: () async {
+        state = AsyncData(
+          current.copyWith(stage: OnboardingStage.verifyingOtp),
+        );
+        final result = await _repository.verify(
+          attemptId: bundle.attemptId!,
+          continuationToken: bundle.continuationToken!,
+          otp: normalizedOtp,
+          idempotencyKey: key,
+        );
+        _ensureCurrent(generation);
+        if (result.nextAction != 'complete_registration') {
+          throw const ApiException(ApiErrorType.validation, 'invalid_response');
+        }
+        final updated = bundle.copyWith(
+          safeStage: OnboardingStage.phoneVerified,
+          registrationGrant: result.registrationGrant,
+          registrationGrantExpiresAt: result.registrationGrantExpiresAt,
+          clearIdempotency: true,
+        );
+        await _persistBeforePublish(updated, generation);
+        _completeMutation('verify');
+        final documents = await _repository.consents(bundle.locale);
+        _ensureCurrent(generation);
+        final ready = updated.copyWith(
+          safeStage: OnboardingStage.enteringAccountDetails,
+        );
+        await _persistBeforePublish(ready, generation);
+        state = AsyncData(
+          current.copyWith(
+            stage: OnboardingStage.enteringAccountDetails,
+            documents: documents,
+            requestId: result.requestId,
+            ambiguousFailure: false,
+            clearError: true,
+          ),
+        );
+      },
+    );
   }
 
   Future<void> loadConsents() async {
     final current = state.value;
     final bundle = _bundle;
-    if (current == null || bundle == null || _inFlight) return;
-    await _guarded(() async {
-      state = AsyncData(
-        current.copyWith(stage: OnboardingStage.loadingConsents),
-      );
-      final documents = await _repository.consents(bundle.locale);
-      final updated = bundle.copyWith(
-        safeStage: OnboardingStage.enteringAccountDetails,
-      );
-      await _persistBeforePublish(updated);
-      state = AsyncData(
-        current.copyWith(
-          stage: OnboardingStage.enteringAccountDetails,
-          documents: documents,
-          clearError: true,
-        ),
-      );
-    });
+    if (current == null ||
+        current.stage != OnboardingStage.enteringAccountDetails ||
+        bundle == null ||
+        bundle.registrationGrant == null ||
+        _inFlight) {
+      return;
+    }
+    final generation = _generation;
+    await _guarded(
+      generation: generation,
+      failureStage: OnboardingStage.enteringAccountDetails,
+      action: () async {
+        state = AsyncData(
+          current.copyWith(stage: OnboardingStage.loadingConsents),
+        );
+        final documents = await _repository.consents(bundle.locale);
+        _ensureCurrent(generation);
+        final updated = bundle.copyWith(
+          safeStage: OnboardingStage.enteringAccountDetails,
+        );
+        await _persistBeforePublish(updated, generation);
+        state = AsyncData(
+          current.copyWith(
+            stage: OnboardingStage.enteringAccountDetails,
+            documents: documents,
+            ambiguousFailure: false,
+            clearError: true,
+          ),
+        );
+      },
+    );
   }
 
   Future<void> complete({
@@ -289,7 +377,13 @@ class OnboardingController extends AsyncNotifier<OnboardingState> {
   }) async {
     final current = state.value;
     final bundle = _bundle;
-    if (current == null || bundle?.attemptId == null || _inFlight) return;
+    if (current == null ||
+        current.stage != OnboardingStage.enteringAccountDetails ||
+        current.documents.length != requiredConsentTypes.length ||
+        bundle?.attemptId == null ||
+        _inFlight) {
+      return;
+    }
     if (password != confirmPassword ||
         !acceptedTerms ||
         !acceptedPrivacy ||
@@ -298,97 +392,160 @@ class OnboardingController extends AsyncNotifier<OnboardingState> {
       state = AsyncData(current.copyWith(errorCode: 'validation_error'));
       return;
     }
-    final payload = _payloadDigest({
-      'attempt': bundle.attemptId,
-      'display': displayName.trim(),
+    final config = current.config;
+    final normalizedName = displayName.trim().replaceAll(RegExp(r'\s+'), ' ');
+    final passwordCharacters = password.runes.length;
+    if (config == null ||
+        normalizedName.runes.length < 2 ||
+        normalizedName.runes.length > 80 ||
+        RegExp(r'[\x00-\x1f\x7f<>]').hasMatch(normalizedName) ||
+        passwordCharacters < config.minimumPasswordCharacters ||
+        passwordCharacters > config.maximumPasswordCharacters ||
+        utf8.encode(password).length > config.maximumPasswordUtf8Bytes ||
+        password.trim().isEmpty) {
+      state = AsyncData(current.copyWith(errorCode: 'validation_error'));
+      return;
+    }
+    final payload = <String, String>{
+      'attempt': bundle.attemptId!,
+      'display': normalizedName,
+      'password': password,
+      'confirm_password': confirmPassword,
       'locale': bundle.locale,
-      'consents': current.documents.map((document) => document.id).join(','),
-    });
+      'terms': acceptedTerms.toString(),
+      'privacy': acceptedPrivacy.toString(),
+      'adult': adult.toString(),
+      'consents': current.documents
+          .map(
+            (document) =>
+                '${document.id}:${document.type}:${document.contentHash}',
+          )
+          .join('|'),
+    };
     final key = _keyFor('complete', payload);
-    await _guarded(() async {
-      state = AsyncData(
-        current.copyWith(stage: OnboardingStage.completingRegistration),
-      );
-      final result = await _repository.complete(
-        attemptId: bundle.attemptId!,
-        continuationToken: bundle.continuationToken!,
-        registrationGrant: bundle.registrationGrant!,
-        displayName: displayName,
-        password: password,
-        locale: bundle.locale,
-        consents: current.documents,
-        idempotencyKey: key,
-      );
-      if (result.role == OnboardingRole.passenger &&
-          result.accountStatus == 'active' &&
-          result.pendingStatusToken == null) {
-        await clear();
+    final generation = _generation;
+    await _guarded(
+      operation: 'complete',
+      generation: generation,
+      failureStage: OnboardingStage.enteringAccountDetails,
+      action: () async {
         state = AsyncData(
-          current.copyWith(
-            stage: OnboardingStage.passengerCreated,
-            requestId: result.requestId,
-            clearError: true,
-          ),
+          current.copyWith(stage: OnboardingStage.completingRegistration),
         );
-        return;
-      }
-      if ((result.role == OnboardingRole.driver ||
-              result.role == OnboardingRole.merchant) &&
-          result.accountStatus == 'pending' &&
-          result.pendingStatusToken != null) {
-        final pending = OnboardingBundle(
-          type: OnboardingBundleType.pendingStatus,
-          safeStage: OnboardingStage.pendingReview,
+        final result = await _repository.complete(
+          attemptId: bundle.attemptId!,
+          continuationToken: bundle.continuationToken!,
+          registrationGrant: bundle.registrationGrant!,
+          displayName: normalizedName,
+          password: password,
           locale: bundle.locale,
-          selectedRole: result.role,
-          pendingStatusToken: result.pendingStatusToken,
-          pendingStatusExpiresAt: DateTime.now().toUtc().add(
-            const Duration(days: 30),
-          ),
+          consents: current.documents,
+          idempotencyKey: key,
         );
-        await _persistBeforePublish(pending);
-        state = AsyncData(
-          current.copyWith(
-            stage: OnboardingStage.pendingReview,
+        _ensureCurrent(generation);
+        if (result.role != bundle.selectedRole) {
+          throw const ApiException(ApiErrorType.validation, 'invalid_response');
+        }
+        if (result.role == OnboardingRole.passenger &&
+            result.accountStatus == 'active' &&
+            result.pendingStatusToken == null &&
+            result.nextAction == 'login') {
+          _completeMutation('complete');
+          await clear();
+          state = AsyncData(
+            current.copyWith(
+              stage: OnboardingStage.passengerCreated,
+              requestId: result.requestId,
+              ambiguousFailure: false,
+              clearError: true,
+            ),
+          );
+          return;
+        }
+        if ((result.role == OnboardingRole.driver ||
+                result.role == OnboardingRole.merchant) &&
+            result.accountStatus == 'pending' &&
+            result.pendingStatusToken != null &&
+            result.pendingStatusExpiresAt != null &&
+            result.nextAction == 'await_approval') {
+          final pending = OnboardingBundle(
+            type: OnboardingBundleType.pendingStatus,
+            safeStage: OnboardingStage.pendingReview,
+            locale: bundle.locale,
             selectedRole: result.role,
-            requestId: result.requestId,
-            clearError: true,
-          ),
-        );
-        return;
-      }
-      throw const ApiException(ApiErrorType.validation, 'invalid_response');
-    });
+            pendingStatusToken: result.pendingStatusToken,
+            pendingStatusExpiresAt: result.pendingStatusExpiresAt,
+          );
+          await _persistBeforePublish(pending, generation);
+          _completeMutation('complete');
+          state = AsyncData(
+            current.copyWith(
+              stage: OnboardingStage.pendingReview,
+              selectedRole: result.role,
+              requestId: result.requestId,
+              ambiguousFailure: false,
+              clearError: true,
+            ),
+          );
+          return;
+        }
+        throw const ApiException(ApiErrorType.validation, 'invalid_response');
+      },
+    );
   }
 
   Future<void> checkPendingStatus() async {
     final current = state.value;
     final bundle = _bundle;
     final token = bundle?.pendingStatusToken;
-    if (current == null || token == null || _inFlight) return;
-    await _guarded(() async {
-      final result = await _repository.status(token);
-      if (result.status == 'approved_sign_in') {
-        await clear();
-        state = AsyncData(
-          current.copyWith(
-            stage: OnboardingStage.passengerCreated,
-            requestId: result.requestId,
-          ),
-        );
-      } else if (result.status == 'pending_review') {
-        state = AsyncData(
-          current.copyWith(
-            stage: OnboardingStage.pendingReview,
-            selectedRole: result.role,
-            requestId: result.requestId,
-          ),
-        );
-      } else {
-        await clear();
-        state = AsyncData(current.copyWith(stage: OnboardingStage.unavailable));
-      }
-    });
+    if (current == null ||
+        current.stage != OnboardingStage.pendingReview ||
+        token == null ||
+        _inFlight) {
+      return;
+    }
+    final generation = _generation;
+    await _guarded(
+      generation: generation,
+      failureStage: OnboardingStage.pendingReview,
+      action: () async {
+        final result = await _repository.status(token);
+        _ensureCurrent(generation);
+        if (result.role != null && result.role != bundle!.selectedRole) {
+          throw const ApiException(ApiErrorType.validation, 'invalid_response');
+        }
+        if (result.status == 'approved_sign_in') {
+          await clear();
+          state = AsyncData(
+            current.copyWith(
+              stage: OnboardingStage.approvedSignIn,
+              requestId: result.requestId,
+              ambiguousFailure: false,
+            ),
+          );
+        } else if (result.status == 'pending_review') {
+          if (result.nextAction != 'await_approval') {
+            throw const ApiException(
+              ApiErrorType.validation,
+              'invalid_response',
+            );
+          }
+          state = AsyncData(
+            current.copyWith(
+              stage: OnboardingStage.pendingReview,
+              selectedRole: result.role ?? bundle!.selectedRole,
+              requestId: result.requestId,
+              ambiguousFailure: false,
+            ),
+          );
+        } else {
+          await clear();
+          state = AsyncData(
+            current.copyWith(stage: OnboardingStage.unavailable),
+          );
+        }
+      },
+    );
   }
 
   Future<void> recoverPending({
@@ -397,57 +554,166 @@ class OnboardingController extends AsyncNotifier<OnboardingState> {
     required String locale,
   }) async {
     final current = state.value ?? const OnboardingState.checking();
-    if (_inFlight) return;
-    await _guarded(() async {
-      state = AsyncData(current.copyWith(stage: OnboardingStage.starting));
-      final result = await _repository.recoverPendingStatus(
-        phone: phone,
-        password: password,
-      );
-      if (result.pendingStatusToken == null) {
-        throw const ApiException(ApiErrorType.validation, 'invalid_response');
-      }
-      final pending = OnboardingBundle(
-        type: OnboardingBundleType.pendingStatus,
-        safeStage: OnboardingStage.pendingReview,
-        locale: locale,
-        selectedRole: result.role,
-        pendingStatusToken: result.pendingStatusToken,
-        pendingStatusExpiresAt: DateTime.now().toUtc().add(
-          const Duration(days: 30),
-        ),
-      );
-      await _persistBeforePublish(pending);
-      state = AsyncData(
-        current.copyWith(
-          stage: OnboardingStage.pendingReview,
+    if (_inFlight || !current.enabled) return;
+    final generation = _generation;
+    await _guarded(
+      generation: generation,
+      failureStage: OnboardingStage.choosingRole,
+      action: () async {
+        final freshConfig = await _repository.config();
+        _ensureCurrent(generation);
+        if (!freshConfig.enabled) {
+          throw const ApiException(
+            ApiErrorType.forbidden,
+            'onboarding_unavailable',
+          );
+        }
+        state = AsyncData(current.copyWith(stage: OnboardingStage.starting));
+        final result = await _repository.recoverPendingStatus(
+          phone: phone,
+          password: password,
+        );
+        _ensureCurrent(generation);
+        if (result.pendingStatusToken == null ||
+            result.pendingStatusExpiresAt == null ||
+            result.status != 'pending_review' ||
+            result.nextAction != 'await_approval' ||
+            (result.role != OnboardingRole.driver &&
+                result.role != OnboardingRole.merchant)) {
+          throw const ApiException(ApiErrorType.validation, 'invalid_response');
+        }
+        final pending = OnboardingBundle(
+          type: OnboardingBundleType.pendingStatus,
+          safeStage: OnboardingStage.pendingReview,
+          locale: locale,
           selectedRole: result.role,
-          requestId: result.requestId,
-          clearError: true,
-        ),
-      );
-    });
+          pendingStatusToken: result.pendingStatusToken,
+          pendingStatusExpiresAt: result.pendingStatusExpiresAt,
+        );
+        await _persistBeforePublish(pending, generation);
+        state = AsyncData(
+          current.copyWith(
+            stage: OnboardingStage.pendingReview,
+            selectedRole: result.role,
+            requestId: result.requestId,
+            ambiguousFailure: false,
+            clearError: true,
+          ),
+        );
+      },
+    );
   }
 
   Future<void> clear() async {
     _generation += 1;
     _bundle = null;
+    _pendingMutations.clear();
     await _storage.clear();
   }
 
-  Future<OnboardingConfig> _safeConfig() async {
+  Future<OnboardingState> _load(int generation) async {
+    final restored = await _storage.readBundle();
+    _ensureCurrent(generation);
+    _bundle = restored;
+
+    late final OnboardingConfig config;
     try {
-      return await _repository.config();
-    } on ApiException {
-      return const OnboardingConfig(
-        enabled: false,
-        registrationRoles: [],
-        supportedLocales: [],
-        minimumPasswordCharacters: 15,
-        maximumPasswordCharacters: 64,
-        maximumPasswordUtf8Bytes: 72,
-        otpDigits: 6,
-        resendCooldownSeconds: 60,
+      config = await _repository.config();
+      _ensureCurrent(generation);
+    } on ApiException catch (error) {
+      if (restored != null) {
+        return _stateFromBundle(_disabledConfig, restored).copyWith(
+          stage: OnboardingStage.retryableFailure,
+          errorCode: error.message,
+          ambiguousFailure: _isAmbiguous(error),
+        );
+      }
+      return const OnboardingState(
+        stage: OnboardingStage.unavailable,
+        config: _disabledConfig,
+      );
+    }
+
+    if (!config.enabled) {
+      await _storage.clear();
+      _ensureCurrent(generation);
+      _bundle = null;
+      _pendingMutations.clear();
+      return OnboardingState(
+        stage: OnboardingStage.unavailable,
+        config: config,
+      );
+    }
+    if (restored == null) {
+      return OnboardingState(
+        stage: OnboardingStage.choosingRole,
+        config: config,
+      );
+    }
+
+    try {
+      final token = restored.type == OnboardingBundleType.pendingStatus
+          ? restored.pendingStatusToken!
+          : restored.continuationToken!;
+      final server = await _repository.status(token);
+      _ensureCurrent(generation);
+      if (server.role != null && server.role != restored.selectedRole) {
+        throw const ApiException(ApiErrorType.validation, 'invalid_response');
+      }
+      if (restored.type == OnboardingBundleType.pendingStatus) {
+        if (server.status == 'pending_review' &&
+            server.nextAction == 'await_approval') {
+          return _stateFromBundle(config, restored);
+        }
+        if (server.status == 'approved_sign_in' &&
+            server.nextAction == 'login') {
+          await _storage.clear();
+          _ensureCurrent(generation);
+          _bundle = null;
+          return OnboardingState(
+            stage: OnboardingStage.approvedSignIn,
+            config: config,
+            selectedRole: restored.selectedRole,
+            requestId: server.requestId,
+            restored: true,
+          );
+        }
+        throw const ApiException(ApiErrorType.forbidden, 'account_unavailable');
+      }
+
+      if (server.status == 'in_progress' && server.nextAction == 'verify_otp') {
+        final otpBundle = restored.copyWith(
+          safeStage: OnboardingStage.otpSent,
+          clearGrant: true,
+        );
+        await _persistBeforePublish(otpBundle, generation);
+        return _stateFromBundle(config, otpBundle);
+      }
+      if (server.status == 'phone_verified' &&
+          server.nextAction == 'complete_registration' &&
+          restored.registrationGrant != null) {
+        final verified = restored.copyWith(
+          safeStage: OnboardingStage.enteringAccountDetails,
+        );
+        await _persistBeforePublish(verified, generation);
+        return _stateFromBundle(config, verified);
+      }
+      throw const ApiException(ApiErrorType.validation, 'invalid_response');
+    } on ApiException catch (error) {
+      if (_isAmbiguous(error)) {
+        return _stateFromBundle(config, restored).copyWith(
+          stage: OnboardingStage.retryableFailure,
+          errorCode: error.message,
+          ambiguousFailure: true,
+        );
+      }
+      await _storage.clear();
+      _ensureCurrent(generation);
+      _bundle = null;
+      return OnboardingState(
+        stage: OnboardingStage.terminalFailure,
+        config: config,
+        errorCode: error.message,
       );
     }
   }
@@ -478,43 +744,122 @@ class OnboardingController extends AsyncNotifier<OnboardingState> {
     );
   }
 
-  Future<void> _persistBeforePublish(OnboardingBundle bundle) async {
+  Future<void> _persistBeforePublish(
+    OnboardingBundle bundle,
+    int generation,
+  ) async {
+    _ensureCurrent(generation);
     await _storage.saveBundle(bundle);
+    if (generation != _generation) {
+      await _storage.clear();
+      throw const _StaleOnboardingOperation();
+    }
     _bundle = bundle;
-    _generation += 1;
   }
 
-  String _keyFor(String operation, String payload) {
-    final current = _bundle?.idempotency ?? const <String, String>{};
-    final marker = '$operation:$payload';
-    final existing = current[marker];
-    if (existing != null) return existing;
-    return _pendingIdempotencyKeys.putIfAbsent(marker, newIdempotencyKey);
+  String _keyFor(String operation, Map<String, String> payload) {
+    if (operation == 'resend') {
+      final persisted = _bundle?.idempotency?['resend_key'];
+      if (persisted != null) return persisted;
+    }
+    final existing = _pendingMutations[operation];
+    if (existing != null && existing.matches(payload)) return existing.key;
+    final created = _PendingMutation(payload, newIdempotencyKey());
+    _pendingMutations[operation] = created;
+    return created.key;
   }
 
-  Future<void> _guarded(Future<void> Function() action) async {
+  void _completeMutation(String operation) {
+    _pendingMutations.remove(operation);
+  }
+
+  Future<void> _discardKnownMutation(String? operation, int generation) async {
+    if (operation == null) return;
+    _pendingMutations.remove(operation);
+    if (operation == 'resend' && _bundle?.idempotency != null) {
+      final updated = _bundle!.copyWith(clearIdempotency: true);
+      await _persistBeforePublish(updated, generation);
+    }
+  }
+
+  Future<void> _guarded({
+    required int generation,
+    required OnboardingStage failureStage,
+    required Future<void> Function() action,
+    String? operation,
+  }) async {
     if (_inFlight) return;
-    final generation = _generation;
     _inFlight = true;
     try {
       await action();
+    } on _StaleOnboardingOperation {
+      // A clear, restart, or newer workflow owns state and storage now.
     } on ApiException catch (error) {
+      if (generation != _generation) return;
+      final ambiguous = _isAmbiguous(error);
+      if (_bundle?.type == OnboardingBundleType.pendingStatus &&
+          (error.type == ApiErrorType.unauthorized ||
+              error.type == ApiErrorType.forbidden)) {
+        await _storage.clear();
+        _ensureCurrent(generation);
+        _bundle = null;
+      }
+      if (!ambiguous) await _discardKnownMutation(operation, generation);
+      if (operation == 'complete' &&
+          error.message == 'consent_version_changed') {
+        final bundle = _bundle;
+        final current = state.value;
+        if (bundle != null && current != null) {
+          try {
+            final documents = await _repository.consents(bundle.locale);
+            _ensureCurrent(generation);
+            state = AsyncData(
+              current.copyWith(
+                stage: OnboardingStage.enteringAccountDetails,
+                documents: documents,
+                errorCode: error.message,
+                ambiguousFailure: false,
+                consentRevision: current.consentRevision + 1,
+              ),
+            );
+            return;
+          } on ApiException {
+            // Fall through to the controlled retry state below.
+          }
+        }
+      }
       final current = state.value;
-      if (current != null && generation <= _generation) {
+      if (current != null && generation == _generation) {
         state = AsyncData(
           current.copyWith(
             stage: _terminalCodes.contains(error.message)
                 ? OnboardingStage.terminalFailure
-                : OnboardingStage.retryableFailure,
+                : failureStage,
             errorCode: error.message,
+            ambiguousFailure: ambiguous,
           ),
         );
-      } else {
-        state = AsyncError(error, StackTrace.current);
+      }
+    } catch (_) {
+      if (generation == _generation) {
+        final current = state.value;
+        if (current != null) {
+          state = AsyncData(
+            current.copyWith(
+              stage: failureStage,
+              errorCode: 'secure_storage_unavailable',
+              ambiguousFailure: true,
+            ),
+          );
+        }
       }
     } finally {
       _inFlight = false;
     }
+  }
+
+  void _ensureCurrent(int generation) {
+    if (generation != _generation) throw const _StaleOnboardingOperation();
   }
 }
 
@@ -540,12 +885,40 @@ String localeCodeFromObject(Object? locale) {
   return DomainLabels.defaultLocale.languageCode;
 }
 
-String _payloadDigest(Map<String, Object?> payload) {
-  final sorted = Map.fromEntries(
-    payload.entries.toList()..sort((a, b) => a.key.compareTo(b.key)),
-  );
-  return base64Url.encode(utf8.encode(jsonEncode(sorted)));
+class _PendingMutation {
+  _PendingMutation(Map<String, String> payload, this.key)
+    : _payload = Map.unmodifiable(payload);
+
+  final Map<String, String> _payload;
+  final String key;
+
+  bool matches(Map<String, String> candidate) {
+    if (_payload.length != candidate.length) return false;
+    return _payload.entries.every(
+      (entry) => candidate[entry.key] == entry.value,
+    );
+  }
 }
+
+class _StaleOnboardingOperation implements Exception {
+  const _StaleOnboardingOperation();
+}
+
+bool _isAmbiguous(ApiException error) =>
+    error.type == ApiErrorType.network ||
+    error.type == ApiErrorType.timeout ||
+    error.type == ApiErrorType.server;
+
+const _disabledConfig = OnboardingConfig(
+  enabled: false,
+  registrationRoles: [],
+  supportedLocales: [],
+  minimumPasswordCharacters: 15,
+  maximumPasswordCharacters: 64,
+  maximumPasswordUtf8Bytes: 72,
+  otpDigits: 6,
+  resendCooldownSeconds: 60,
+);
 
 const _terminalCodes = {
   'verification_expired',

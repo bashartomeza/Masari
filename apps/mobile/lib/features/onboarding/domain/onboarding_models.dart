@@ -16,6 +16,7 @@ enum OnboardingStage {
   reviewingConsents,
   completingRegistration,
   passengerCreated,
+  approvedSignIn,
   pendingReview,
   retryableFailure,
   terminalFailure,
@@ -48,35 +49,57 @@ class OnboardingConfig {
 
   factory OnboardingConfig.fromJson(Map<String, dynamic> json) {
     final enabled = json['enabled'] == true;
+    if (!enabled) {
+      return OnboardingConfig(
+        enabled: false,
+        registrationRoles: const [],
+        supportedLocales: const [],
+        minimumPasswordCharacters: 15,
+        maximumPasswordCharacters: 64,
+        maximumPasswordUtf8Bytes: 72,
+        otpDigits: 6,
+        resendCooldownSeconds: 60,
+        requestId: _optionalString(json, 'request_id'),
+      );
+    }
+
+    final rawRoles = _requiredStringList(json, 'registration_roles');
+    final roles = rawRoles.map(_roleFromApi).toList(growable: false);
+    final rawLocales = _requiredStringList(json, 'supported_locales');
     final policy = json['password_policy'];
+    if (json['supported_region'] != 'PS' ||
+        roles.isEmpty ||
+        roles.any((role) => role == null) ||
+        roles.toSet().length != roles.length ||
+        rawLocales.toSet().length != rawLocales.length ||
+        rawLocales.any((locale) => locale != 'ar' && locale != 'en') ||
+        !rawLocales.contains('ar') ||
+        !rawLocales.contains('en') ||
+        policy is! Map<String, dynamic>) {
+      throw const FormatException('Invalid onboarding configuration');
+    }
+    final minimum = _requiredInt(policy, 'minimum_characters');
+    final maximum = _requiredInt(policy, 'maximum_characters');
+    final maximumBytes = _requiredInt(policy, 'maximum_utf8_bytes');
+    final otpDigits = _requiredInt(json, 'otp_digits');
+    final cooldown = _requiredInt(json, 'resend_cooldown_seconds');
+    if (minimum < 1 ||
+        maximum < minimum ||
+        maximumBytes < minimum ||
+        otpDigits != 6 ||
+        cooldown < 1) {
+      throw const FormatException('Invalid onboarding policy');
+    }
     return OnboardingConfig(
-      enabled: enabled,
-      registrationRoles: enabled
-          ? _stringList(json['registration_roles'])
-                .map(_roleFromApi)
-                .whereType<OnboardingRole>()
-                .toList(growable: false)
-          : const [],
-      supportedLocales: enabled
-          ? _stringList(json['supported_locales'])
-          : const [],
-      minimumPasswordCharacters: policy is Map<String, dynamic>
-          ? _intValue(policy['minimum_characters'], fallback: 15)
-          : 15,
-      maximumPasswordCharacters: policy is Map<String, dynamic>
-          ? _intValue(policy['maximum_characters'], fallback: 64)
-          : 64,
-      maximumPasswordUtf8Bytes: policy is Map<String, dynamic>
-          ? _intValue(policy['maximum_utf8_bytes'], fallback: 72)
-          : 72,
-      otpDigits: _intValue(json['otp_digits'], fallback: 6),
-      resendCooldownSeconds: _intValue(
-        json['resend_cooldown_seconds'],
-        fallback: 60,
-      ),
-      requestId: json['request_id'] is String
-          ? json['request_id'] as String
-          : null,
+      enabled: true,
+      registrationRoles: roles.cast<OnboardingRole>(),
+      supportedLocales: rawLocales,
+      minimumPasswordCharacters: minimum,
+      maximumPasswordCharacters: maximum,
+      maximumPasswordUtf8Bytes: maximumBytes,
+      otpDigits: otpDigits,
+      resendCooldownSeconds: cooldown,
+      requestId: _optionalString(json, 'request_id'),
     );
   }
 }
@@ -135,6 +158,7 @@ class StartAttemptResult {
     required this.expiresAt,
     required this.resendAvailableAt,
     required this.onboardingToken,
+    required this.onboardingTokenExpiresAt,
     required this.nextAction,
     this.requestId,
   });
@@ -145,6 +169,7 @@ class StartAttemptResult {
   final DateTime expiresAt;
   final DateTime resendAvailableAt;
   final String onboardingToken;
+  final DateTime onboardingTokenExpiresAt;
   final String nextAction;
   final String? requestId;
 
@@ -160,6 +185,10 @@ class StartAttemptResult {
       expiresAt: _requiredDate(attempt, 'expires_at'),
       resendAvailableAt: _requiredDate(attempt, 'resend_available_at'),
       onboardingToken: _requiredString(json, 'onboarding_token'),
+      onboardingTokenExpiresAt: _requiredDate(
+        json,
+        'onboarding_token_expires_at',
+      ),
       nextAction: _requiredString(json, 'next_action'),
       requestId: json['request_id'] is String
           ? json['request_id'] as String
@@ -171,11 +200,13 @@ class StartAttemptResult {
 class VerifyOtpResult {
   const VerifyOtpResult({
     required this.registrationGrant,
+    required this.registrationGrantExpiresAt,
     required this.nextAction,
     this.requestId,
   });
 
   final String registrationGrant;
+  final DateTime registrationGrantExpiresAt;
   final String nextAction;
   final String? requestId;
 
@@ -185,6 +216,10 @@ class VerifyOtpResult {
     }
     return VerifyOtpResult(
       registrationGrant: _requiredString(json, 'registration_grant'),
+      registrationGrantExpiresAt: _requiredDate(
+        json,
+        'registration_grant_expires_at',
+      ),
       nextAction: _requiredString(json, 'next_action'),
       requestId: json['request_id'] is String
           ? json['request_id'] as String
@@ -199,6 +234,7 @@ class CompleteRegistrationResult {
     required this.accountStatus,
     required this.nextAction,
     this.pendingStatusToken,
+    this.pendingStatusExpiresAt,
     this.requestId,
   });
 
@@ -206,6 +242,7 @@ class CompleteRegistrationResult {
   final String accountStatus;
   final String nextAction;
   final String? pendingStatusToken;
+  final DateTime? pendingStatusExpiresAt;
   final String? requestId;
 
   factory CompleteRegistrationResult.fromJson(Map<String, dynamic> json) {
@@ -214,16 +251,24 @@ class CompleteRegistrationResult {
     }
     if (json.containsKey('access_token') ||
         json.containsKey('refresh_token') ||
-        json.containsKey('token')) {
+        json.containsKey('token') ||
+        json.containsKey('session') ||
+        json.containsKey('session_id')) {
       throw const FormatException('Registration returned operational token');
     }
+    final role = _roleFromApi(_requiredString(json, 'role'));
+    if (role == null) throw const FormatException('Unexpected role');
     return CompleteRegistrationResult(
-      role: _roleFromApi(_requiredString(json, 'role'))!,
+      role: role,
       accountStatus: _requiredString(json, 'account_status'),
       nextAction: _requiredString(json, 'next_action'),
       pendingStatusToken: json['onboarding_status_token'] is String
           ? json['onboarding_status_token'] as String
           : null,
+      pendingStatusExpiresAt: _optionalDate(
+        json,
+        'onboarding_status_expires_at',
+      ),
       requestId: json['request_id'] is String
           ? json['request_id'] as String
           : null,
@@ -237,6 +282,7 @@ class PendingStatusResult {
     required this.status,
     required this.nextAction,
     this.pendingStatusToken,
+    this.pendingStatusExpiresAt,
     this.requestId,
   });
 
@@ -244,18 +290,26 @@ class PendingStatusResult {
   final String status;
   final String nextAction;
   final String? pendingStatusToken;
+  final DateTime? pendingStatusExpiresAt;
   final String? requestId;
 
   factory PendingStatusResult.fromJson(Map<String, dynamic> json) {
+    final rawRole = json['role'];
+    final role = rawRole is String ? _roleFromApi(rawRole) : null;
+    if (rawRole != null && role == null) {
+      throw const FormatException('Unexpected role');
+    }
     return PendingStatusResult(
-      role: json['role'] is String
-          ? _roleFromApi(json['role'] as String)
-          : null,
+      role: role,
       status: _requiredString(json, 'onboarding_status'),
       nextAction: _requiredString(json, 'next_action'),
       pendingStatusToken: json['onboarding_status_token'] is String
           ? json['onboarding_status_token'] as String
           : null,
+      pendingStatusExpiresAt: _optionalDate(
+        json,
+        'onboarding_status_expires_at',
+      ),
       requestId: json['request_id'] is String
           ? json['request_id'] as String
           : null,
@@ -300,7 +354,11 @@ class OnboardingBundle {
     final utc = now.toUtc();
     return switch (type) {
       OnboardingBundleType.continuation =>
-        continuationExpiresAt == null || !continuationExpiresAt!.isAfter(utc),
+        continuationExpiresAt == null ||
+            !continuationExpiresAt!.isAfter(utc) ||
+            (registrationGrant != null &&
+                (registrationGrantExpiresAt == null ||
+                    !registrationGrantExpiresAt!.isAfter(utc))),
       OnboardingBundleType.pendingStatus =>
         pendingStatusExpiresAt == null || !pendingStatusExpiresAt!.isAfter(utc),
     };
@@ -313,8 +371,10 @@ class OnboardingBundle {
     String? pendingStatusToken,
     DateTime? pendingStatusExpiresAt,
     DateTime? resendAvailableAt,
+    String? maskedPhone,
     Map<String, String>? idempotency,
     bool clearGrant = false,
+    bool clearIdempotency = false,
   }) {
     return OnboardingBundle(
       type: type,
@@ -333,9 +393,9 @@ class OnboardingBundle {
       pendingStatusToken: pendingStatusToken ?? this.pendingStatusToken,
       pendingStatusExpiresAt:
           pendingStatusExpiresAt ?? this.pendingStatusExpiresAt,
-      maskedPhone: maskedPhone,
+      maskedPhone: maskedPhone ?? this.maskedPhone,
       resendAvailableAt: resendAvailableAt ?? this.resendAvailableAt,
-      idempotency: idempotency ?? this.idempotency,
+      idempotency: clearIdempotency ? null : idempotency ?? this.idempotency,
     );
   }
 
@@ -363,14 +423,19 @@ class OnboardingBundle {
 
   factory OnboardingBundle.fromJson(Map<String, dynamic> json) {
     if (json['version'] != 1) throw const FormatException('Unsupported bundle');
-    final type = OnboardingBundleType.values.byName(
+    final type = _enumByName(
+      OnboardingBundleType.values,
       _requiredString(json, 'type'),
     );
-    final stage = OnboardingStage.values.byName(
+    final stage = _enumByName(
+      OnboardingStage.values,
       _requiredString(json, 'safe_stage'),
     );
     final roleValue = json['selected_role'];
     final role = roleValue is String ? _roleFromApi(roleValue) : null;
+    if (roleValue != null && role == null) {
+      throw const FormatException('Invalid onboarding role');
+    }
     final idempotencyJson = json['idempotency'];
     final idempotency = idempotencyJson is Map
         ? idempotencyJson.map((key, value) {
@@ -399,13 +464,47 @@ class OnboardingBundle {
       resendAvailableAt: _optionalDate(json, 'resend_available_at'),
       idempotency: idempotency,
     );
-    if (type == OnboardingBundleType.continuation &&
-        (bundle.attemptId == null || bundle.continuationToken == null)) {
-      throw const FormatException('Invalid continuation bundle');
+    final allowedIdempotency = bundle.idempotency;
+    if (allowedIdempotency != null &&
+        (allowedIdempotency.keys.any((key) => key != 'resend_key') ||
+            allowedIdempotency.values.any(
+              (value) => !RegExp(r'^[A-Za-z0-9._:-]{8,128}$').hasMatch(value),
+            ))) {
+      throw const FormatException('Invalid idempotency metadata');
     }
-    if (type == OnboardingBundleType.pendingStatus &&
-        bundle.pendingStatusToken == null) {
-      throw const FormatException('Invalid pending bundle');
+    if (type == OnboardingBundleType.continuation) {
+      const allowedStages = {
+        OnboardingStage.otpSent,
+        OnboardingStage.phoneVerified,
+        OnboardingStage.enteringAccountDetails,
+      };
+      if (bundle.attemptId == null ||
+          bundle.continuationToken == null ||
+          bundle.continuationExpiresAt == null ||
+          bundle.selectedRole == null ||
+          !allowedStages.contains(bundle.safeStage) ||
+          bundle.pendingStatusToken != null ||
+          bundle.pendingStatusExpiresAt != null ||
+          ((bundle.registrationGrant == null) !=
+              (bundle.registrationGrantExpiresAt == null)) ||
+          (bundle.registrationGrant != null &&
+              bundle.safeStage == OnboardingStage.otpSent)) {
+        throw const FormatException('Invalid continuation bundle');
+      }
+    } else {
+      if (bundle.pendingStatusToken == null ||
+          bundle.pendingStatusExpiresAt == null ||
+          bundle.safeStage != OnboardingStage.pendingReview ||
+          (bundle.selectedRole != OnboardingRole.driver &&
+              bundle.selectedRole != OnboardingRole.merchant) ||
+          bundle.attemptId != null ||
+          bundle.continuationToken != null ||
+          bundle.continuationExpiresAt != null ||
+          bundle.registrationGrant != null ||
+          bundle.registrationGrantExpiresAt != null ||
+          bundle.idempotency != null) {
+        throw const FormatException('Invalid pending bundle');
+      }
     }
     return bundle;
   }
@@ -428,13 +527,26 @@ OnboardingRole? _roleFromApi(String value) => switch (value) {
   _ => null,
 };
 
-List<String> _stringList(Object? value) {
-  if (value is! List) return const [];
-  return value.whereType<String>().toList(growable: false);
+List<String> _requiredStringList(Map<String, dynamic> json, String key) {
+  final value = json[key];
+  if (value is! List || value.isEmpty || value.any((item) => item is! String)) {
+    throw FormatException('Invalid $key');
+  }
+  return value.cast<String>().toList(growable: false);
 }
 
-int _intValue(Object? value, {required int fallback}) =>
-    value is int ? value : fallback;
+int _requiredInt(Map<String, dynamic> json, String key) {
+  final value = json[key];
+  if (value is int) return value;
+  throw FormatException('Invalid $key');
+}
+
+T _enumByName<T extends Enum>(List<T> values, String name) {
+  for (final value in values) {
+    if (value.name == name) return value;
+  }
+  throw FormatException('Invalid enum value: $name');
+}
 
 String _requiredString(Map<String, dynamic> json, String key) {
   final value = json[key];

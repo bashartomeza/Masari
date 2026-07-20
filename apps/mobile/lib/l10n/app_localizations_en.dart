@@ -821,4 +821,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get continueRegistration => 'Continue registration';
+
+  @override
+  String get leaveRegistrationWarning =>
+      'Leaving will clear the registration state saved on this device. Continue?';
+
+  @override
+  String get secondsShort => 'seconds';
+
+  @override
+  String get consentVersion => 'Version';
+
+  @override
+  String get accountApproved => 'Account approved';
+
+  @override
+  String get signInAfterApproval =>
+      'Your account was approved. Sign in to continue.';
 }

@@ -41,8 +41,7 @@ class OnboardingStorage {
 
   Future<void> saveBundle(OnboardingBundle bundle) async {
     if (bundle.isExpired(_now())) {
-      await clear();
-      return;
+      throw StateError('Refusing to persist expired onboarding bundle');
     }
     await _storage.write(key: bundleKey, value: jsonEncode(bundle.toJson()));
   }

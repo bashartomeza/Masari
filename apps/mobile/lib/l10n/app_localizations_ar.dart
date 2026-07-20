@@ -819,4 +819,21 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get continueRegistration => 'متابعة التسجيل';
+
+  @override
+  String get leaveRegistrationWarning =>
+      'سيؤدي الخروج إلى مسح حالة التسجيل المحفوظة على هذا الجهاز. هل تريد المتابعة؟';
+
+  @override
+  String get secondsShort => 'ثانية';
+
+  @override
+  String get consentVersion => 'الإصدار';
+
+  @override
+  String get accountApproved => 'تمت الموافقة على الحساب';
+
+  @override
+  String get signInAfterApproval =>
+      'تمت الموافقة على حسابك. سجّل الدخول للمتابعة.';
 }

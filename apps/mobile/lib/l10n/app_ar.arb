@@ -268,5 +268,10 @@
   "consentDocumentsChanged": "تغيرت مستندات الموافقة. يرجى مراجعتها مرة أخرى.",
   "requestReference": "مرجع الطلب",
   "leaveRegistration": "مغادرة التسجيل",
-  "continueRegistration": "متابعة التسجيل"
+  "continueRegistration": "متابعة التسجيل",
+  "leaveRegistrationWarning": "سيؤدي الخروج إلى مسح حالة التسجيل المحفوظة على هذا الجهاز. هل تريد المتابعة؟",
+  "secondsShort": "ثانية",
+  "consentVersion": "الإصدار",
+  "accountApproved": "تمت الموافقة على الحساب",
+  "signInAfterApproval": "تمت الموافقة على حسابك. سجّل الدخول للمتابعة."
 }

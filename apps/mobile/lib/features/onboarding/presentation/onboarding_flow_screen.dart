@@ -32,8 +32,20 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
   bool _terms = false;
   bool _privacy = false;
   bool _adult = false;
+  bool _showPassword = false;
+  bool _showConfirmPassword = false;
   Timer? _timer;
   DateTime _now = DateTime.now().toUtc();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(onboardingControllerProvider.notifier).refreshAvailability();
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -51,21 +63,66 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
   Widget build(BuildContext context) {
     final asyncState = ref.watch(onboardingControllerProvider);
     final l10n = AppLocalizations.of(context);
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.createInvitedAccount),
-        actions: const [LanguageSwitch()],
-      ),
-      body: SafeArea(
-        child: asyncState.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (_, _) => _Unavailable(l10n: l10n),
-          data: (state) => ListView(
-            padding: const EdgeInsets.all(AppTokens.spaceLarge),
-            children: [
-              if (state.errorCode != null) _ErrorBox(code: state.errorCode!),
-              _bodyFor(context, state),
+    ref.listen(onboardingControllerProvider, (previous, next) {
+      final before = previous?.value?.consentRevision ?? 0;
+      final after = next.value?.consentRevision ?? 0;
+      if (after != before && mounted) {
+        setState(() {
+          _terms = false;
+          _privacy = false;
+          _adult = false;
+        });
+      }
+    });
+    final current = asyncState.value;
+    final warnBeforeLeaving =
+        current?.attemptId != null &&
+        current?.stage != OnboardingStage.passengerCreated &&
+        current?.stage != OnboardingStage.approvedSignIn &&
+        current?.stage != OnboardingStage.pendingReview;
+    return PopScope(
+      canPop: !warnBeforeLeaving,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop || !warnBeforeLeaving) return;
+        final leave = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text(l10n.leaveRegistration),
+            content: Text(l10n.leaveRegistrationWarning),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: Text(l10n.cancel),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: Text(l10n.leaveRegistration),
+              ),
             ],
+          ),
+        );
+        if (leave == true) {
+          await ref.read(onboardingControllerProvider.notifier).clear();
+          _clearSecrets();
+          if (context.mounted) context.go('/login');
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(l10n.createInvitedAccount),
+          actions: const [LanguageSwitch()],
+        ),
+        body: SafeArea(
+          child: asyncState.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (_, _) => _Unavailable(l10n: l10n),
+            data: (state) => ListView(
+              padding: const EdgeInsets.all(AppTokens.spaceLarge),
+              children: [
+                if (state.errorCode != null) _ErrorBox(code: state.errorCode!),
+                _bodyFor(context, state),
+              ],
+            ),
           ),
         ),
       ),
@@ -74,6 +131,15 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
 
   Widget _bodyFor(BuildContext context, OnboardingState state) {
     final l10n = AppLocalizations.of(context);
+    if (state.stage != OnboardingStage.otpSent &&
+        state.stage != OnboardingStage.resending &&
+        state.stage != OnboardingStage.verifyingOtp) {
+      _timer?.cancel();
+      _timer = null;
+    }
+    if (state.stage == OnboardingStage.retryableFailure) {
+      return _retryStep(context, state);
+    }
     if (!state.enabled || state.stage == OnboardingStage.unavailable) {
       return _Unavailable(l10n: l10n);
     }
@@ -95,6 +161,7 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
       OnboardingStage.reviewingConsents ||
       OnboardingStage.completingRegistration => _accountStep(context, state),
       OnboardingStage.passengerCreated => _passengerResult(context),
+      OnboardingStage.approvedSignIn => _approvedResult(context),
       OnboardingStage.pendingReview => _pendingCard(context, state),
       OnboardingStage.retryableFailure => _retryStep(context, state),
       OnboardingStage.terminalFailure => _terminalStep(context, state),
@@ -161,10 +228,7 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
               controller: _phone,
               keyboardType: TextInputType.phone,
               textInputAction: TextInputAction.done,
-              decoration: InputDecoration(
-                labelText: l10n.phoneNumber,
-                prefixText: '+970 ',
-              ),
+              decoration: InputDecoration(labelText: l10n.phoneNumber),
             ),
           ),
           const SizedBox(height: AppTokens.spaceLarge),
@@ -221,8 +285,14 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
             child: TextField(
               key: const ValueKey('otpField'),
               controller: _otp,
+              obscureText: true,
+              enableSuggestions: false,
+              autocorrect: false,
               keyboardType: TextInputType.number,
-              inputFormatters: [LengthLimitingTextInputFormatter(6)],
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9٠-٩۰-۹]')),
+                LengthLimitingTextInputFormatter(6),
+              ],
               decoration: InputDecoration(
                 labelText: l10n.enterVerificationCode,
               ),
@@ -233,12 +303,17 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
             key: const ValueKey('verifyOtpButton'),
             onPressed: state.busy
                 ? null
-                : () {
+                : () async {
                     final otp = _otp.text;
-                    _otp.clear();
-                    ref
+                    await ref
                         .read(onboardingControllerProvider.notifier)
                         .verifyOtp(otp);
+                    final result = ref.read(onboardingControllerProvider).value;
+                    if (result?.stage ==
+                            OnboardingStage.enteringAccountDetails ||
+                        result?.ambiguousFailure == false) {
+                      _otp.clear();
+                    }
                   },
             child: Text(l10n.verify),
           ),
@@ -250,7 +325,7 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
             child: Text(
               canResend
                   ? l10n.resendCode
-                  : '${l10n.resendAvailableIn} ${remaining.inSeconds.clamp(0, 999)}s',
+                  : '${l10n.resendAvailableIn} ${remaining.inSeconds.clamp(0, 999)} ${l10n.secondsShort}',
             ),
           ),
         ],
@@ -296,24 +371,52 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
           TextField(
             key: const ValueKey('onboardingPasswordField'),
             controller: _password,
-            obscureText: true,
-            decoration: InputDecoration(labelText: l10n.password),
+            obscureText: !_showPassword,
+            decoration: InputDecoration(
+              labelText: l10n.password,
+              suffixIcon: IconButton(
+                tooltip: _showPassword ? l10n.hidePassword : l10n.showPassword,
+                onPressed: () => setState(() => _showPassword = !_showPassword),
+                icon: Icon(
+                  _showPassword ? Icons.visibility_off : Icons.visibility,
+                ),
+              ),
+            ),
           ),
           const SizedBox(height: AppTokens.spaceMedium),
           TextField(
             key: const ValueKey('confirmPasswordField'),
             controller: _confirmPassword,
-            obscureText: true,
-            decoration: InputDecoration(labelText: l10n.confirmPassword),
+            obscureText: !_showConfirmPassword,
+            decoration: InputDecoration(
+              labelText: l10n.confirmPassword,
+              suffixIcon: IconButton(
+                tooltip: _showConfirmPassword
+                    ? l10n.hidePassword
+                    : l10n.showPassword,
+                onPressed: () => setState(
+                  () => _showConfirmPassword = !_showConfirmPassword,
+                ),
+                icon: Icon(
+                  _showConfirmPassword
+                      ? Icons.visibility_off
+                      : Icons.visibility,
+                ),
+              ),
+            ),
           ),
           const SizedBox(height: AppTokens.spaceLarge),
           Text(l10n.terms, style: Theme.of(context).textTheme.titleMedium),
           for (final document in docs)
             Padding(
               padding: const EdgeInsets.only(top: AppTokens.spaceSmall),
-              child: Text(
-                _safeConsentText(document.content),
-                key: ValueKey('consent-${document.type}'),
+              child: Semantics(
+                label:
+                    '${_consentLabel(l10n, document.type)}, ${l10n.consentVersion} ${document.version}',
+                child: Text(
+                  '${_consentLabel(l10n, document.type)} — ${l10n.consentVersion} ${document.version}\n${_safeConsentText(document.content)}',
+                  key: ValueKey('consent-${document.type}'),
+                ),
               ),
             ),
           CheckboxListTile(
@@ -372,6 +475,29 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
           ),
           const SizedBox(height: AppTokens.spaceMedium),
           Text(l10n.signInToContinue),
+          const SizedBox(height: AppTokens.spaceMedium),
+          FilledButton(
+            onPressed: () => context.go('/login'),
+            child: Text(l10n.signIn),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _approvedResult(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    _clearSecrets();
+    return MasariCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            l10n.accountApproved,
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: AppTokens.spaceMedium),
+          Text(l10n.signInAfterApproval),
           const SizedBox(height: AppTokens.spaceMedium),
           FilledButton(
             onPressed: () => context.go('/login'),
@@ -467,8 +593,11 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
           phone: _phone.text,
           locale: locale == 'en' ? 'en' : 'ar',
         );
-    _invitation.clear();
-    _phone.clear();
+    final result = ref.read(onboardingControllerProvider).value;
+    if (result?.stage == OnboardingStage.otpSent) {
+      _invitation.clear();
+      _phone.clear();
+    }
   }
 
   void _ensureTimer() {
@@ -483,6 +612,10 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
     _confirmPassword.clear();
     _invitation.clear();
     _phone.clear();
+    _displayName.clear();
+    _terms = false;
+    _privacy = false;
+    _adult = false;
   }
 }
 
@@ -541,6 +674,13 @@ String _roleHelp(AppLocalizations l10n, OnboardingRole role) => switch (role) {
   OnboardingRole.merchant => l10n.pendingAfterRegistration,
 };
 
+String _consentLabel(AppLocalizations l10n, String type) => switch (type) {
+  'terms' => l10n.terms,
+  'privacy' => l10n.privacyNotice,
+  'adult_self_attestation' => l10n.confirmAdult,
+  _ => l10n.terms,
+};
+
 String _safeError(AppLocalizations l10n, String? code) => switch (code) {
   'onboarding_unavailable' => l10n.unableToStartRegistration,
   'verification_failed' => l10n.incorrectVerificationCode,
@@ -550,6 +690,12 @@ String _safeError(AppLocalizations l10n, String? code) => switch (code) {
   'consent_version_changed' => l10n.consentDocumentsChanged,
   'invalid_credentials' => l10n.invalidCredentials,
   'validation_error' => l10n.validationError,
+  'network_unavailable' => l10n.networkUnavailable,
+  'request_timeout' => l10n.requestTimedOut,
+  'account_unavailable' => l10n.accountUnavailable,
+  'verification_temporarily_unavailable' => l10n.requestFailed,
+  'registration_grant_invalid' => l10n.requestFailed,
+  'registration_conflict' => l10n.requestFailed,
   _ => l10n.requestFailed,
 };
 

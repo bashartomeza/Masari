@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_error.dart';
 import '../../driver/application/driver_controller.dart';
 import '../../merchant/application/merchant_controller.dart';
+import '../../onboarding/application/onboarding_controller.dart';
+import '../../onboarding/data/onboarding_storage.dart';
 import '../../passenger/application/passenger_controller.dart';
 import '../../security/data/session_repository.dart';
 import '../../trips/application/passenger_trip_controller.dart';
@@ -99,6 +101,7 @@ class AuthController extends AsyncNotifier<AuthState> {
     try {
       final result = await _repository.login(phone: phone, password: password);
       await _coordinator.installBundle(result.bundle);
+      await _clearOnboardingState();
       _currentUser = result.user;
       state = AsyncData(AuthState.authenticated(result.user));
     } on ApiException catch (error, stackTrace) {
@@ -140,6 +143,7 @@ class AuthController extends AsyncNotifier<AuthState> {
     try {
       final user = await _repository.me();
       await _coordinator.promoteLegacyBundle();
+      await _clearOnboardingState();
       _currentUser = user;
       return AuthState.authenticated(user);
     } on ApiException catch (error) {
@@ -204,5 +208,10 @@ class AuthController extends AsyncNotifier<AuthState> {
     ref.invalidate(merchantMatchInboxProvider);
     ref.invalidate(merchantMatchDetailProvider);
     ref.invalidate(merchantTripProvider);
+  }
+
+  Future<void> _clearOnboardingState() async {
+    await ref.read(onboardingStorageProvider).clear();
+    ref.invalidate(onboardingControllerProvider);
   }
 }

@@ -11,6 +11,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/language_switch.dart';
 import '../../../core/widgets/masari_card.dart';
 import '../../onboarding/application/onboarding_controller.dart';
+import '../../onboarding/domain/onboarding_models.dart';
 import '../application/auth_controller.dart';
 import '../domain/auth_models.dart';
 import 'demo_accounts.dart';
@@ -27,6 +28,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _showPassword = false;
   bool _submitting = false;
+  bool _openingOnboarding = false;
+  bool _restorationNavigationScheduled = false;
 
   @override
   void dispose() {
@@ -40,13 +43,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final l10n = AppLocalizations.of(context);
     final auth = ref.watch(authControllerProvider);
     final loading =
-        _submitting || auth.value?.status == AuthStatus.authenticating;
+        _submitting ||
+        _openingOnboarding ||
+        auth.value?.status == AuthStatus.authenticating;
     final error = auth.error;
     final sessionEndReason = auth.value?.sessionEndReason;
     final config = ref.watch(appConfigProvider);
     final demoAccounts = demoAccountsFor(config);
     final onboarding = ref.watch(onboardingControllerProvider).value;
     final onboardingEnabled = onboarding?.enabled == true;
+    ref.listen(onboardingControllerProvider, (previous, next) {
+      final restored = next.value;
+      if (_restorationNavigationScheduled ||
+          restored?.restored != true ||
+          !_isRestorableOnboardingStage(restored!.stage)) {
+        return;
+      }
+      _restorationNavigationScheduled = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) context.go('/onboarding');
+      });
+    });
 
     return Scaffold(
       body: SafeArea(
@@ -149,14 +166,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       key: const ValueKey('createInvitedAccountButton'),
                       onPressed: loading
                           ? null
-                          : () => context.go('/onboarding'),
+                          : () => _openOnboarding('/onboarding'),
                       child: Text(l10n.createInvitedAccount),
                     ),
                     TextButton(
                       key: const ValueKey('checkApplicationStatusButton'),
                       onPressed: loading
                           ? null
-                          : () => context.go('/onboarding/recover'),
+                          : () => _openOnboarding('/onboarding/recover'),
                       child: Text(l10n.checkApplicationStatus),
                     ),
                   ],
@@ -212,7 +229,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       setState(() => _submitting = false);
     }
   }
+
+  Future<void> _openOnboarding(String route) async {
+    if (_openingOnboarding) return;
+    setState(() => _openingOnboarding = true);
+    await ref.read(onboardingControllerProvider.notifier).refreshAvailability();
+    final enabled =
+        ref.read(onboardingControllerProvider).value?.enabled == true;
+    if (!mounted) return;
+    setState(() => _openingOnboarding = false);
+    if (enabled) context.go(route);
+  }
 }
+
+bool _isRestorableOnboardingStage(OnboardingStage stage) => switch (stage) {
+  OnboardingStage.otpSent ||
+  OnboardingStage.enteringAccountDetails ||
+  OnboardingStage.pendingReview ||
+  OnboardingStage.approvedSignIn ||
+  OnboardingStage.retryableFailure => true,
+  _ => false,
+};
 
 String _demoLabel(AppLocalizations l10n, DemoAccount account) {
   final role = switch (account.labelKey) {
