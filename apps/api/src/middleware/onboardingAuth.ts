@@ -13,6 +13,7 @@ export type OnboardingAuthContext = {
   attemptStatus: string;
   userRole?: string;
   userStatus?: string;
+  completedReplayOnly?: boolean;
 };
 
 export type OnboardingAuthenticatedRequest = Request & {
@@ -21,7 +22,8 @@ export type OnboardingAuthenticatedRequest = Request & {
 
 export function requireOnboardingToken(
   appConfig: AppConfig,
-  purposes: readonly OnboardingSessionPurpose[]
+  purposes: readonly OnboardingSessionPurpose[],
+  options: { allowCompletedContinuationReplay?: boolean } = {}
 ) {
   return async (req: OnboardingAuthenticatedRequest, _res: Response, next: NextFunction) => {
     try {
@@ -32,7 +34,8 @@ export function requireOnboardingToken(
       const session = await authenticateOnboardingSession(prisma, {
         token: match[1],
         key: onboarding.keys.onboardingSession,
-        purposes
+        purposes,
+        allowCompletedContinuationReplay: options.allowCompletedContinuationReplay
       });
       if (!session) throw new HttpError(401, "onboarding_unavailable");
       req.onboarding = {
@@ -42,7 +45,8 @@ export function requireOnboardingToken(
         purpose: session.purpose,
         attemptStatus: session.onboarding_attempt.status,
         userRole: session.user?.role,
-        userStatus: session.user?.account_status
+        userStatus: session.user?.account_status,
+        completedReplayOnly: Boolean(session.revoked_at)
       };
       next();
     } catch (error) {

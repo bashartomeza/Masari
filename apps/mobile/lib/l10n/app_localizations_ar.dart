@@ -715,4 +715,125 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get sessionActionFailed =>
       'تعذر إكمال إجراء الجلسة. يرجى إعادة المحاولة.';
+
+  @override
+  String get createInvitedAccount => 'إنشاء حساب بدعوة';
+
+  @override
+  String get selectAccountType => 'اختر نوع الحساب';
+
+  @override
+  String get passengerActiveAfterRegistration =>
+      'يصبح الحساب نشطاً بعد التسجيل';
+
+  @override
+  String get pendingAfterRegistration =>
+      'يبقى الحساب قيد المراجعة حتى الموافقة';
+
+  @override
+  String get invitationCode => 'رمز الدعوة';
+
+  @override
+  String get phoneNumber => 'رقم الهاتف';
+
+  @override
+  String get sendVerificationCode => 'إرسال رمز التحقق';
+
+  @override
+  String get enterVerificationCode => 'أدخل رمز التحقق';
+
+  @override
+  String get resendCode => 'إعادة إرسال الرمز';
+
+  @override
+  String get resendAvailableIn => 'تتوفر إعادة الإرسال خلال';
+
+  @override
+  String get verify => 'تحقق';
+
+  @override
+  String get accountInformation => 'معلومات الحساب';
+
+  @override
+  String get displayName => 'الاسم الظاهر';
+
+  @override
+  String get confirmPassword => 'تأكيد كلمة المرور';
+
+  @override
+  String get terms => 'الشروط';
+
+  @override
+  String get privacyNotice => 'إشعار الخصوصية';
+
+  @override
+  String get confirmAdult => 'أؤكد أن عمري 18 عاماً أو أكثر';
+
+  @override
+  String get acceptAndContinue => 'قبول ومتابعة';
+
+  @override
+  String get createAccount => 'إنشاء الحساب';
+
+  @override
+  String get accountCreated => 'تم إنشاء الحساب';
+
+  @override
+  String get signInToContinue => 'تم إنشاء حسابك. سجّل الدخول للمتابعة.';
+
+  @override
+  String get applicationUnderReview => 'الطلب قيد المراجعة';
+
+  @override
+  String get pendingReviewBody =>
+      'تم إنشاء حسابك وهو قيد المراجعة. ستتمكن من تسجيل الدخول بعد الموافقة على الحساب.';
+
+  @override
+  String get checkApplicationStatus => 'متابعة حالة طلب سابق';
+
+  @override
+  String get registrationUnavailable => 'التسجيل غير متاح مؤقتاً.';
+
+  @override
+  String get unableToStartRegistration =>
+      'تعذر بدء التسجيل. تحقق من بيانات الدعوة وحاول مرة أخرى.';
+
+  @override
+  String get incorrectVerificationCode => 'رمز التحقق غير صحيح.';
+
+  @override
+  String get codeExpired => 'انتهت صلاحية الرمز.';
+
+  @override
+  String get tooManyAttempts => 'محاولات كثيرة جداً. يرجى المحاولة لاحقاً.';
+
+  @override
+  String get consentDocumentsChanged =>
+      'تغيرت مستندات الموافقة. يرجى مراجعتها مرة أخرى.';
+
+  @override
+  String get requestReference => 'مرجع الطلب';
+
+  @override
+  String get leaveRegistration => 'مغادرة التسجيل';
+
+  @override
+  String get continueRegistration => 'متابعة التسجيل';
+
+  @override
+  String get leaveRegistrationWarning =>
+      'سيؤدي الخروج إلى مسح حالة التسجيل المحفوظة على هذا الجهاز. هل تريد المتابعة؟';
+
+  @override
+  String get secondsShort => 'ثانية';
+
+  @override
+  String get consentVersion => 'الإصدار';
+
+  @override
+  String get accountApproved => 'تمت الموافقة على الحساب';
+
+  @override
+  String get signInAfterApproval =>
+      'تمت الموافقة على حسابك. سجّل الدخول للمتابعة.';
 }

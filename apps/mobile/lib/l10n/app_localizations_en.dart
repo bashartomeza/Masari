@@ -717,4 +717,125 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get sessionActionFailed =>
       'The session action could not be completed. Please retry.';
+
+  @override
+  String get createInvitedAccount => 'Create an invited account';
+
+  @override
+  String get selectAccountType => 'Select account type';
+
+  @override
+  String get passengerActiveAfterRegistration => 'Active after registration';
+
+  @override
+  String get pendingAfterRegistration => 'Pending until review';
+
+  @override
+  String get invitationCode => 'Invitation code';
+
+  @override
+  String get phoneNumber => 'Phone number';
+
+  @override
+  String get sendVerificationCode => 'Send verification code';
+
+  @override
+  String get enterVerificationCode => 'Enter verification code';
+
+  @override
+  String get resendCode => 'Resend code';
+
+  @override
+  String get resendAvailableIn => 'Resend available in';
+
+  @override
+  String get verify => 'Verify';
+
+  @override
+  String get accountInformation => 'Account information';
+
+  @override
+  String get displayName => 'Display name';
+
+  @override
+  String get confirmPassword => 'Confirm password';
+
+  @override
+  String get terms => 'Terms';
+
+  @override
+  String get privacyNotice => 'Privacy Notice';
+
+  @override
+  String get confirmAdult => 'I confirm I am 18 or older';
+
+  @override
+  String get acceptAndContinue => 'Accept and continue';
+
+  @override
+  String get createAccount => 'Create account';
+
+  @override
+  String get accountCreated => 'Account created';
+
+  @override
+  String get signInToContinue =>
+      'Your account was created. Sign in to continue.';
+
+  @override
+  String get applicationUnderReview => 'Application under review';
+
+  @override
+  String get pendingReviewBody =>
+      'Your account was created and is under review. You can sign in after the account is approved.';
+
+  @override
+  String get checkApplicationStatus => 'Check an existing application';
+
+  @override
+  String get registrationUnavailable =>
+      'Registration is temporarily unavailable.';
+
+  @override
+  String get unableToStartRegistration =>
+      'Unable to start registration. Check your invitation details and try again.';
+
+  @override
+  String get incorrectVerificationCode => 'Incorrect verification code.';
+
+  @override
+  String get codeExpired => 'Code expired.';
+
+  @override
+  String get tooManyAttempts => 'Too many attempts. Please retry later.';
+
+  @override
+  String get consentDocumentsChanged =>
+      'Consent documents changed. Please review them again.';
+
+  @override
+  String get requestReference => 'Request reference';
+
+  @override
+  String get leaveRegistration => 'Leave registration';
+
+  @override
+  String get continueRegistration => 'Continue registration';
+
+  @override
+  String get leaveRegistrationWarning =>
+      'Leaving will clear the registration state saved on this device. Continue?';
+
+  @override
+  String get secondsShort => 'seconds';
+
+  @override
+  String get consentVersion => 'Version';
+
+  @override
+  String get accountApproved => 'Account approved';
+
+  @override
+  String get signInAfterApproval =>
+      'Your account was approved. Sign in to continue.';
 }

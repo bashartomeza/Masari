@@ -8,6 +8,7 @@ import 'package:masari_mobile/core/config/app_config.dart';
 import 'package:masari_mobile/features/auth/application/auth_controller.dart';
 import 'package:masari_mobile/features/auth/data/token_storage.dart';
 import 'package:masari_mobile/features/auth/domain/auth_models.dart';
+import 'package:masari_mobile/features/onboarding/data/onboarding_storage.dart';
 
 import 'test_app_config.dart';
 
@@ -25,6 +26,7 @@ void main() {
   test('valid saved token restores session', () async {
     FlutterSecureStorage.setMockInitialValues({
       TokenStorage.tokenKey: 'saved-token',
+      OnboardingStorage.bundleKey: 'stale-onboarding-bundle',
     });
     final container = _container((request) async {
       return http.Response(
@@ -38,6 +40,10 @@ void main() {
 
     expect(state.status, AuthStatus.authenticated);
     expect(state.user?.role, UserRole.passenger);
+    expect(
+      await const FlutterSecureStorage().read(key: OnboardingStorage.bundleKey),
+      isNull,
+    );
   });
 
   test('terminal 401 removes token and exposes session-ended state', () async {

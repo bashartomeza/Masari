@@ -1471,6 +1471,234 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'تعذر إكمال إجراء الجلسة. يرجى إعادة المحاولة.'**
   String get sessionActionFailed;
+
+  /// No description provided for @createInvitedAccount.
+  ///
+  /// In ar, this message translates to:
+  /// **'إنشاء حساب بدعوة'**
+  String get createInvitedAccount;
+
+  /// No description provided for @selectAccountType.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر نوع الحساب'**
+  String get selectAccountType;
+
+  /// No description provided for @passengerActiveAfterRegistration.
+  ///
+  /// In ar, this message translates to:
+  /// **'يصبح الحساب نشطاً بعد التسجيل'**
+  String get passengerActiveAfterRegistration;
+
+  /// No description provided for @pendingAfterRegistration.
+  ///
+  /// In ar, this message translates to:
+  /// **'يبقى الحساب قيد المراجعة حتى الموافقة'**
+  String get pendingAfterRegistration;
+
+  /// No description provided for @invitationCode.
+  ///
+  /// In ar, this message translates to:
+  /// **'رمز الدعوة'**
+  String get invitationCode;
+
+  /// No description provided for @phoneNumber.
+  ///
+  /// In ar, this message translates to:
+  /// **'رقم الهاتف'**
+  String get phoneNumber;
+
+  /// No description provided for @sendVerificationCode.
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال رمز التحقق'**
+  String get sendVerificationCode;
+
+  /// No description provided for @enterVerificationCode.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل رمز التحقق'**
+  String get enterVerificationCode;
+
+  /// No description provided for @resendCode.
+  ///
+  /// In ar, this message translates to:
+  /// **'إعادة إرسال الرمز'**
+  String get resendCode;
+
+  /// No description provided for @resendAvailableIn.
+  ///
+  /// In ar, this message translates to:
+  /// **'تتوفر إعادة الإرسال خلال'**
+  String get resendAvailableIn;
+
+  /// No description provided for @verify.
+  ///
+  /// In ar, this message translates to:
+  /// **'تحقق'**
+  String get verify;
+
+  /// No description provided for @accountInformation.
+  ///
+  /// In ar, this message translates to:
+  /// **'معلومات الحساب'**
+  String get accountInformation;
+
+  /// No description provided for @displayName.
+  ///
+  /// In ar, this message translates to:
+  /// **'الاسم الظاهر'**
+  String get displayName;
+
+  /// No description provided for @confirmPassword.
+  ///
+  /// In ar, this message translates to:
+  /// **'تأكيد كلمة المرور'**
+  String get confirmPassword;
+
+  /// No description provided for @terms.
+  ///
+  /// In ar, this message translates to:
+  /// **'الشروط'**
+  String get terms;
+
+  /// No description provided for @privacyNotice.
+  ///
+  /// In ar, this message translates to:
+  /// **'إشعار الخصوصية'**
+  String get privacyNotice;
+
+  /// No description provided for @confirmAdult.
+  ///
+  /// In ar, this message translates to:
+  /// **'أؤكد أن عمري 18 عاماً أو أكثر'**
+  String get confirmAdult;
+
+  /// No description provided for @acceptAndContinue.
+  ///
+  /// In ar, this message translates to:
+  /// **'قبول ومتابعة'**
+  String get acceptAndContinue;
+
+  /// No description provided for @createAccount.
+  ///
+  /// In ar, this message translates to:
+  /// **'إنشاء الحساب'**
+  String get createAccount;
+
+  /// No description provided for @accountCreated.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إنشاء الحساب'**
+  String get accountCreated;
+
+  /// No description provided for @signInToContinue.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إنشاء حسابك. سجّل الدخول للمتابعة.'**
+  String get signInToContinue;
+
+  /// No description provided for @applicationUnderReview.
+  ///
+  /// In ar, this message translates to:
+  /// **'الطلب قيد المراجعة'**
+  String get applicationUnderReview;
+
+  /// No description provided for @pendingReviewBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إنشاء حسابك وهو قيد المراجعة. ستتمكن من تسجيل الدخول بعد الموافقة على الحساب.'**
+  String get pendingReviewBody;
+
+  /// No description provided for @checkApplicationStatus.
+  ///
+  /// In ar, this message translates to:
+  /// **'متابعة حالة طلب سابق'**
+  String get checkApplicationStatus;
+
+  /// No description provided for @registrationUnavailable.
+  ///
+  /// In ar, this message translates to:
+  /// **'التسجيل غير متاح مؤقتاً.'**
+  String get registrationUnavailable;
+
+  /// No description provided for @unableToStartRegistration.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذر بدء التسجيل. تحقق من بيانات الدعوة وحاول مرة أخرى.'**
+  String get unableToStartRegistration;
+
+  /// No description provided for @incorrectVerificationCode.
+  ///
+  /// In ar, this message translates to:
+  /// **'رمز التحقق غير صحيح.'**
+  String get incorrectVerificationCode;
+
+  /// No description provided for @codeExpired.
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت صلاحية الرمز.'**
+  String get codeExpired;
+
+  /// No description provided for @tooManyAttempts.
+  ///
+  /// In ar, this message translates to:
+  /// **'محاولات كثيرة جداً. يرجى المحاولة لاحقاً.'**
+  String get tooManyAttempts;
+
+  /// No description provided for @consentDocumentsChanged.
+  ///
+  /// In ar, this message translates to:
+  /// **'تغيرت مستندات الموافقة. يرجى مراجعتها مرة أخرى.'**
+  String get consentDocumentsChanged;
+
+  /// No description provided for @requestReference.
+  ///
+  /// In ar, this message translates to:
+  /// **'مرجع الطلب'**
+  String get requestReference;
+
+  /// No description provided for @leaveRegistration.
+  ///
+  /// In ar, this message translates to:
+  /// **'مغادرة التسجيل'**
+  String get leaveRegistration;
+
+  /// No description provided for @continueRegistration.
+  ///
+  /// In ar, this message translates to:
+  /// **'متابعة التسجيل'**
+  String get continueRegistration;
+
+  /// No description provided for @leaveRegistrationWarning.
+  ///
+  /// In ar, this message translates to:
+  /// **'سيؤدي الخروج إلى مسح حالة التسجيل المحفوظة على هذا الجهاز. هل تريد المتابعة؟'**
+  String get leaveRegistrationWarning;
+
+  /// No description provided for @secondsShort.
+  ///
+  /// In ar, this message translates to:
+  /// **'ثانية'**
+  String get secondsShort;
+
+  /// No description provided for @consentVersion.
+  ///
+  /// In ar, this message translates to:
+  /// **'الإصدار'**
+  String get consentVersion;
+
+  /// No description provided for @accountApproved.
+  ///
+  /// In ar, this message translates to:
+  /// **'تمت الموافقة على الحساب'**
+  String get accountApproved;
+
+  /// No description provided for @signInAfterApproval.
+  ///
+  /// In ar, this message translates to:
+  /// **'تمت الموافقة على حسابك. سجّل الدخول للمتابعة.'**
+  String get signInAfterApproval;
 }
 
 class _AppLocalizationsDelegate

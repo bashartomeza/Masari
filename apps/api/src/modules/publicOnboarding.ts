@@ -306,21 +306,23 @@ async function issueRegistrationGrant(appConfig: AppConfig, attemptId: string) {
   const registration = appConfig.publicRegistration!;
   const grant = randomBytes(32).toString("base64url");
   const now = new Date();
+  const expiresAt = new Date(now.getTime() + registration.registrationGrantTtlSeconds * 1_000);
   const updated = await prisma.onboardingAttempt.updateMany({
     where: { id: attemptId, status: "phone_verified", completed_user_id: null, expires_at: { gt: now } },
     data: {
       registration_grant_digest: registrationGrantDigest(grant, onboarding.keys.onboardingSession),
       registration_grant_key_version: onboarding.keys.onboardingSession.version,
-      registration_grant_expires_at: new Date(now.getTime() + registration.registrationGrantTtlSeconds * 1_000)
+      registration_grant_expires_at: expiresAt
     }
   });
   if (updated.count !== 1) throw new HttpError(409, "registration_grant_invalid");
-  return grant;
+  return { token: grant, expiresAt };
 }
 
 function startResponse(
   attempt: { id: string; status: string; phone_e164: string; expires_at: Date },
   token: string,
+  tokenExpiresAt: Date,
   appConfig: AppConfig,
   requestId: string,
   retryable = false
@@ -334,6 +336,7 @@ function startResponse(
       resend_available_at: new Date(Date.now() + appConfig.onboarding!.otpResendCooldownSeconds * 1_000)
     },
     onboarding_token: token,
+    onboarding_token_expires_at: tokenExpiresAt,
     next_action: retryable ? "resend_otp" : "verify_otp",
     request_id: requestId
   };
@@ -374,14 +377,23 @@ async function findBoundInvitation(appConfig: AppConfig, input: z.infer<typeof s
   return { invitation, phone, normalizedCode };
 }
 
-function safeOutcome(user: { role: string; account_status: string }, requestId: string, token?: string) {
+function safeOutcome(
+  user: { role: string; account_status: string },
+  requestId: string,
+  pendingSession?: { token: string; expiresAt: Date }
+) {
   const pending = user.role === "driver" || user.role === "merchant";
   return {
     result: "account_created",
     role: user.role,
     account_status: user.account_status,
     next_action: pending ? "await_approval" : "login",
-    ...(token ? { onboarding_status_token: token } : {}),
+    ...(pendingSession
+      ? {
+          onboarding_status_token: pendingSession.token,
+          onboarding_status_expires_at: pendingSession.expiresAt
+        }
+      : {}),
     request_id: requestId
   };
 }
@@ -422,6 +434,9 @@ export function createPublicOnboardingRouter(
   const onboarding = appConfig.onboarding;
   if (provider.name !== "fake") throw new Error("public_onboarding_fake_provider_required");
   const continuation = requireOnboardingToken(appConfig, ["continuation"]);
+  const completionContinuation = requireOnboardingToken(appConfig, ["continuation"], {
+    allowCompletedContinuationReplay: true
+  });
   const statusToken = requireOnboardingToken(appConfig, ["continuation", "pending_status"]);
 
   router.get("/onboarding/consents", async (req, res, next) => {
@@ -497,7 +512,7 @@ export function createPublicOnboardingRouter(
           entityId: existing.id,
           metadata: { role: existing.intended_role, request_id: req.requestId }
         });
-        res.json(startResponse(existing, rotated.token, appConfig, req.requestId, existing.status === "created"));
+        res.json(startResponse(existing, rotated.token, rotated.session.expires_at, appConfig, req.requestId, existing.status === "created"));
         return;
       }
 
@@ -568,7 +583,7 @@ export function createPublicOnboardingRouter(
         responseStatus: 201
       });
       const current = await prisma.onboardingAttempt.findUniqueOrThrow({ where: { id: attempt.id } });
-      res.status(201).json(startResponse(current, rotated.token, appConfig, req.requestId, !delivery.accepted));
+      res.status(201).json(startResponse(current, rotated.token, rotated.session.expires_at, appConfig, req.requestId, !delivery.accepted));
     } catch (error) {
       if (recovery && !(error instanceof HttpError) && !(error instanceof z.ZodError)) {
         const resumed = await prisma.onboardingAttempt.findUnique({ where: { invitation_id: recovery.invitationId } });
@@ -595,7 +610,7 @@ export function createPublicOnboardingRouter(
             entityId: resumed.id,
             metadata: { role: resumed.intended_role, request_id: req.requestId }
           });
-          res.json(startResponse(resumed, rotated.token, appConfig, req.requestId, resumed.status !== "otp_sent"));
+          res.json(startResponse(resumed, rotated.token, rotated.session.expires_at, appConfig, req.requestId, resumed.status !== "otp_sent"));
           return;
         }
       }
@@ -619,21 +634,36 @@ export function createPublicOnboardingRouter(
       const attemptId = String(req.params.id);
       if (req.onboarding!.attemptId !== attemptId) throw new HttpError(401, "onboarding_unavailable");
       const attempt = await prisma.onboardingAttempt.findUniqueOrThrow({ where: { id: attemptId } });
-      await consumeBuckets(req, appConfig, [
-        { type: "otp_phone_day", subject: attempt.phone_e164, seconds: 86_400, limit: onboarding.otpMaxSendsPerPhoneDay },
-        { type: "otp_ip_hour", subject: requestIp(req), seconds: 3_600, limit: 20 },
-        { type: "otp_attempt", subject: attempt.id, seconds: 86_400, limit: onboarding.otpMaxResends + 1 },
-        { type: "otp_invitation", subject: attempt.invitation_id, seconds: 86_400, limit: onboarding.otpMaxResends + 1 }
-      ]);
       claim = await claimPublicOperation(req, appConfig, {
         operation: "onboarding_resend",
         scope: attempt.id,
         payload: { attempt_id: attempt.id }
       });
       if (claim.kind === "replay") {
-        res.json({ status: attempt.status, request_id: req.requestId });
+        const challenge = claim.record.resource_id
+          ? await prisma.otpChallenge.findUnique({ where: { id: claim.record.resource_id } })
+          : null;
+        if (!challenge || challenge.onboarding_attempt_id !== attempt.id) {
+          throw new HttpError(409, "registration_conflict");
+        }
+        const accepted =
+          challenge.delivery_status === "accepted" &&
+          challenge.id === attempt.current_challenge_id &&
+          !challenge.superseded_at;
+        const deliveryAt = challenge.last_sent_at ?? challenge.delivery_updated_at;
+        res.json({
+          status: accepted ? "otp_sent" : "verification_temporarily_unavailable",
+          resend_available_at: new Date(deliveryAt.getTime() + onboarding.otpResendCooldownSeconds * 1_000),
+          request_id: req.requestId
+        });
         return;
       }
+      await consumeBuckets(req, appConfig, [
+        { type: "otp_phone_day", subject: attempt.phone_e164, seconds: 86_400, limit: onboarding.otpMaxSendsPerPhoneDay },
+        { type: "otp_ip_hour", subject: requestIp(req), seconds: 3_600, limit: 20 },
+        { type: "otp_attempt", subject: attempt.id, seconds: 86_400, limit: onboarding.otpMaxResends + 1 },
+        { type: "otp_invitation", subject: attempt.invitation_id, seconds: 86_400, limit: onboarding.otpMaxResends + 1 }
+      ]);
       const delivery = await dispatchOtpChallenge(prisma, provider, {
         attemptId,
         key: onboarding.keys.otpCode,
@@ -650,6 +680,11 @@ export function createPublicOnboardingRouter(
         resourceId: delivery.challengeId,
         responseStatus: 200
       });
+      const persistedChallenge = await prisma.otpChallenge.findUniqueOrThrow({
+        where: { id: delivery.challengeId },
+        select: { last_sent_at: true, delivery_updated_at: true }
+      });
+      const persistedDeliveryAt = persistedChallenge.last_sent_at ?? persistedChallenge.delivery_updated_at;
       await auditEvent(prisma, {
         action: AuditAction.otp_resent,
         entityType: "OnboardingAttempt",
@@ -658,7 +693,7 @@ export function createPublicOnboardingRouter(
       });
       res.json({
         status: delivery.accepted ? "otp_sent" : "verification_temporarily_unavailable",
-        resend_available_at: new Date(Date.now() + onboarding.otpResendCooldownSeconds * 1_000),
+        resend_available_at: new Date(persistedDeliveryAt.getTime() + onboarding.otpResendCooldownSeconds * 1_000),
         request_id: req.requestId
       });
     } catch (error) {
@@ -695,7 +730,7 @@ export function createPublicOnboardingRouter(
         const attempt = await prisma.onboardingAttempt.findUnique({ where: { id: attemptId } });
         if (attempt?.status !== "phone_verified") throw new HttpError(409, "verification_expired");
         const grant = await issueRegistrationGrant(appConfig, attemptId);
-        res.json({ status: "phone_verified", registration_grant: grant, next_action: "complete_registration", request_id: req.requestId });
+        res.json({ status: "phone_verified", registration_grant: grant.token, registration_grant_expires_at: grant.expiresAt, next_action: "complete_registration", request_id: req.requestId });
         return;
       }
       const result = await verifyOtpChallenge(prisma, {
@@ -724,7 +759,7 @@ export function createPublicOnboardingRouter(
         resourceId: attemptId,
         responseStatus: 200
       });
-      res.json({ status: "phone_verified", registration_grant: grant, next_action: "complete_registration", request_id: req.requestId });
+      res.json({ status: "phone_verified", registration_grant: grant.token, registration_grant_expires_at: grant.expiresAt, next_action: "complete_registration", request_id: req.requestId });
     } catch (error) {
       if (claim?.kind === "claimed") {
         await failIdempotency(prisma, { recordId: claim.record.id, claimVersion: claim.record.claim_version }).catch(() => undefined);
@@ -733,7 +768,7 @@ export function createPublicOnboardingRouter(
     }
   });
 
-  router.post("/onboarding/attempts/:id/complete", continuation, async (req: OnboardingAuthenticatedRequest, res, next) => {
+  router.post("/onboarding/attempts/:id/complete", completionContinuation, async (req: OnboardingAuthenticatedRequest, res, next) => {
     let claim: Awaited<ReturnType<typeof claimPublicOperation>> | undefined;
     try {
       const attemptId = String(req.params.id);
@@ -755,13 +790,31 @@ export function createPublicOnboardingRouter(
         scope: attemptId,
         payload: { ...input, display_name: displayName }
       });
+      if (req.onboarding!.completedReplayOnly && claim.kind !== "replay") {
+        if (claim.kind === "claimed") {
+          await failIdempotency(prisma, {
+            recordId: claim.record.id,
+            claimVersion: claim.record.claim_version
+          }).catch(() => undefined);
+          claim = undefined;
+        }
+        throw new HttpError(401, "onboarding_unavailable");
+      }
       if (claim.kind === "replay") {
         const attempt = await prisma.onboardingAttempt.findUnique({ where: { id: attemptId }, include: { completed_user: true } });
         if (!attempt?.completed_user) throw new HttpError(409, "registration_conflict");
         const pending = ["driver", "merchant"].includes(attempt.completed_user.role)
           ? await rotatePendingStatusSession(appConfig, attemptId, attempt.completed_user.id)
           : undefined;
-        res.json(safeOutcome(attempt.completed_user, req.requestId, pending?.token));
+        res.json(
+          safeOutcome(
+            attempt.completed_user,
+            req.requestId,
+            pending
+              ? { token: pending.token, expiresAt: pending.session.expires_at }
+              : undefined
+          )
+        );
         return;
       }
       const passwordHash = await bcrypt.hash(input.password, 10);
@@ -845,9 +898,8 @@ export function createPublicOnboardingRouter(
           where: { onboarding_attempt_id: attempt.id, purpose: { in: ["continuation", "onboarding_completion"] }, revoked_at: null },
           data: { revoked_at: now, revoke_reason: "registration_completed" }
         });
-        let statusToken: string | undefined;
+        let statusToken: { token: string; expiresAt: Date } | undefined;
         if (pending) {
-          statusToken = pendingToken;
           const statusSession = await tx.onboardingSession.create({
             data: onboardingSessionTokenData({
               token: pendingToken,
@@ -858,6 +910,10 @@ export function createPublicOnboardingRouter(
               expiresAt: new Date(now.getTime() + appConfig.publicRegistration!.pendingStatusTtlDays * 86_400_000)
             })
           });
+          statusToken = {
+            token: pendingToken,
+            expiresAt: statusSession.expires_at
+          };
           await auditEvent(tx, {
             userId: user.id,
             action: AuditAction.pending_status_session_created,
@@ -963,9 +1019,11 @@ export function createPublicOnboardingRouter(
       ) throw new HttpError(401, "invalid_credentials");
       const rotated = await rotatePendingStatusSession(appConfig, attempt.id, user.id);
       res.json({
+        role: user.role,
         onboarding_status: "pending_review",
         next_action: "await_approval",
         onboarding_status_token: rotated.token,
+        onboarding_status_expires_at: rotated.session.expires_at,
         request_id: req.requestId
       });
     } catch (error) {

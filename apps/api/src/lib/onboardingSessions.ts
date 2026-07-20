@@ -99,6 +99,7 @@ export async function authenticateOnboardingSession(
     token: string;
     key: VersionedKey;
     purposes: readonly OnboardingSessionPurpose[];
+    allowCompletedContinuationReplay?: boolean;
     now?: Date;
   }
 ) {
@@ -113,9 +114,20 @@ export async function authenticateOnboardingSession(
     session.token_key_version !== input.key.version ||
     !input.purposes.includes(session.purpose) ||
     session.consumed_at ||
-    session.revoked_at ||
     session.expires_at <= now
   ) return null;
+
+  const completedContinuationReplayEligible = Boolean(
+    input.allowCompletedContinuationReplay &&
+      session.purpose === "continuation" &&
+      !session.user_id &&
+      session.revoked_at &&
+      session.revoke_reason === "registration_completed" &&
+      session.onboarding_attempt.status === "completed" &&
+      session.onboarding_attempt.completed_user_id &&
+      session.onboarding_attempt.expires_at > now
+  );
+  if (session.revoked_at) return completedContinuationReplayEligible ? session : null;
 
   const continuationEligible =
     session.purpose === "continuation" &&
