@@ -23,6 +23,13 @@ import type { ReadinessCheck } from "./lib/readiness.js";
 import { createAdminInvitationRouter } from "./modules/adminInvitations.js";
 import { createPublicOnboardingRouter } from "./modules/publicOnboarding.js";
 import type { OtpProvider } from "./lib/otp.js";
+import {
+  createAdminRouteManagementRouter,
+  createRouteCatalogRouter
+} from "./modules/routeManagement.js";
+import type { RouteManagementService } from "./services/routeManagement.js";
+import { createDriverAvailabilityRouter } from "./modules/driverAvailability.js";
+import type { DriverAvailabilityService } from "./services/driverAvailability.js";
 
 export const HTTP_JSON_LIMIT = "64kb";
 export const HTTP_FORM_LIMIT = "16kb";
@@ -31,6 +38,8 @@ type AppDependencies = {
   logger?: Logger;
   readinessCheck?: ReadinessCheck;
   otpProvider?: OtpProvider;
+  routeManagementService?: RouteManagementService;
+  driverAvailabilityService?: DriverAvailabilityService;
 };
 
 export function createApp(appConfig: AppConfig = config, dependencies: AppDependencies = {}) {
@@ -59,12 +68,15 @@ export function createApp(appConfig: AppConfig = config, dependencies: AppDepend
   app.use("/api/v1", merchantRouter);
   app.use("/api/v1", matchingRouter);
   app.use("/api/v1", tripsRouter);
+  app.use("/api/v1", createRouteCatalogRouter(appConfig, dependencies.routeManagementService));
+  app.use("/api/v1", createDriverAvailabilityRouter(appConfig, dependencies.driverAvailabilityService));
   if (appConfig.demoFeaturesEnabled) {
     app.use("/api/v1", trackingSimulationRouter);
     app.use("/api/v1", comparisonRouter);
   }
   if (appConfig.invitationsEnabled) app.use("/api/v1", createAdminInvitationRouter(appConfig));
   else app.use("/api/v1/admin/invitations", notFoundHandler);
+  app.use("/api/v1", createAdminRouteManagementRouter(appConfig, dependencies.routeManagementService));
   app.use("/api/v1", adminRouter);
 
   app.use(notFoundHandler);
