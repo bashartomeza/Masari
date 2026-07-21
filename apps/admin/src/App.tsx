@@ -1,10 +1,11 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { createApiClient, createDemoApiClient, type BatchResponse, type Comparison, type DashboardResponse, type DriverRoute, type LocationEvent, type MatchRunResponse, type MerchantOrder, type PassengerRequest, type Trip, type User } from "./api";
-import { demoUiEnabled, getAdminBuildConfig, type AdminBuildConfig } from "./config";
+import { demoUiEnabled, getAdminBuildConfig, routeManagementUiEnabled, type AdminBuildConfig } from "./config";
 import { useLocale } from "./i18n/LocaleContext";
 import type { TranslationKey } from "./i18n/translations";
 import { ADMIN_TOKEN_KEY, clearAdminSession, createAdminSessionExpiryHandler, isAdminSessionEndError, type TokenStorage } from "./session";
+import { RouteManagement } from "./features/routes/RouteManagement";
 
 export { ADMIN_TOKEN_KEY, clearAdminSession } from "./session";
 
@@ -47,6 +48,7 @@ export function App({
 } = {}) {
   const { direction, locale, toggleLocale, t, status, source, number, dateTime } = useLocale();
   const demoEnabled = demoUiEnabled(config, __MASARI_DEMO_BUILD__);
+  const routeManagementEnabled = routeManagementUiEnabled(config);
   const [token, setToken] = useState(() => {
     legacyStore.removeItem(ADMIN_TOKEN_KEY);
     return sessionStore.getItem(ADMIN_TOKEN_KEY) ?? "";
@@ -70,6 +72,7 @@ export function App({
   const [latestLocation, setLatestLocation] = useState<LocationEvent | null>(null);
   const [locationTrail, setLocationTrail] = useState<LocationEvent[]>([]);
   const [demoSteps, setDemoSteps] = useState<DemoStep[]>([]);
+  const [activeModule, setActiveModule] = useState<"overview" | "routes">("overview");
 
   function clearAuthenticatedData() {
     setAdmin(null);
@@ -394,9 +397,20 @@ export function App({
         </div>
       </header>
 
+      <nav className="admin-navigation" aria-label={locale === "ar" ? "التنقل الإداري" : "Admin navigation"}>
+        <button className={activeModule === "overview" ? "is-active" : ""} type="button" onClick={() => setActiveModule("overview")}>
+          {locale === "ar" ? (demoEnabled ? "عرض النظام" : "نظرة عامة") : (demoEnabled ? "Demo console" : "Overview")}
+        </button>
+        {routeManagementEnabled && <button className={activeModule === "routes" ? "is-active" : ""} type="button" onClick={() => setActiveModule("routes")}>
+          {locale === "ar" ? "إدارة المسارات" : "Route management"}
+        </button>}
+      </nav>
+
       {notice && <div className={`notice ${notice.type}`}>{notice.message}</div>}
 
-      <div className="grid">
+      {activeModule === "routes" && routeManagementEnabled
+        ? <RouteManagement api={api} token={token} locale={locale} />
+        : <div className="grid">
         {demoEnabled && <Section title={t("demoControl")} action={<button onClick={runFullDemoSequence} disabled={!canAct}>{t("runFullDemo")}</button>}>
           <div className="control-row">
             <label>{t("resetKey")}<input className="technical" value={resetKey} onChange={(event) => setResetKey(event.target.value)} /></label>
@@ -502,7 +516,7 @@ export function App({
           <div className="trail">{locationTrail.map((location) => <span className="technical" key={location.id}>#{number(location.sequence)} {location.lat},{location.lng}</span>)}</div>
         </Section>
         </>}
-      </div>
+      </div>}
     </main>
   );
 }

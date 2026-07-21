@@ -2,9 +2,10 @@ export type ApiError = Error & { status?: number; details?: unknown };
 export type ApiClientOptions = { onSessionEnded?: (error: ApiError, requestToken: string) => void };
 
 export function createApiClient(apiBaseUrl: string, clientOptions: ApiClientOptions = {}) {
-async function apiRequest<T>(path: string, options: { method?: string; token?: string; body?: unknown } = {}) {
+async function apiRequest<T>(path: string, options: { method?: string; token?: string; body?: unknown; idempotencyKey?: string } = {}) {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (options.token) headers.Authorization = `Bearer ${options.token}`;
+  if (options.idempotencyKey) headers["Idempotency-Key"] = options.idempotencyKey;
 
   const response = await fetch(`${apiBaseUrl}/api/v1${path}`, {
     method: options.method ?? "GET",
@@ -34,7 +35,20 @@ return {
   routes: (token: string) => apiRequest<{ routes: DriverRoute[] }>("/admin/routes", { token }),
   trips: (token: string) => apiRequest<{ trips: Trip[] }>("/trips", { token }),
   trip: (token: string, id: string) => apiRequest<{ trip: Trip }>(`/trips/${id}`, { token }),
-  latestLocation: (token: string, id: string) => apiRequest<{ location: LocationEvent | null }>(`/trips/${id}/location`, { token })
+  latestLocation: (token: string, id: string) => apiRequest<{ location: LocationEvent | null }>(`/trips/${id}/location`, { token }),
+  serviceRoutes: (token: string, query = "") => apiRequest<RoutePage>(`/admin/service-routes${query}`, { token }),
+  serviceRoute: (token: string, id: string) => apiRequest<{ route: ServiceRoute }>(`/admin/service-routes/${id}`, { token }),
+  createServiceRoute: (token: string, body: RouteIdentityDraft, key: string) => apiRequest<{ route: ServiceRoute }>("/admin/service-routes", { method: "POST", token, body, idempotencyKey: key }),
+  createRouteVersion: (token: string, routeId: string, body: RouteVersionDraft | { clone_from_version_id: string }, key: string) => apiRequest<{ version: ServiceRouteVersion }>(`/admin/service-routes/${routeId}/versions`, { method: "POST", token, body, idempotencyKey: key }),
+  updateRouteVersion: (token: string, id: string, body: RouteVersionDraft & { expected_revision: number }) => apiRequest<{ version: ServiceRouteVersion }>(`/admin/route-versions/${id}`, { method: "PATCH", token, body }),
+  replaceRouteStops: (token: string, id: string, body: { expected_revision: number; stops: RouteStopDraft[] }) => apiRequest<{ version: ServiceRouteVersion }>(`/admin/route-versions/${id}/stops`, { method: "PUT", token, body }),
+  publishRouteVersion: (token: string, id: string, body: { expected_revision: number; expected_current_version_id: string | null }, key: string) => apiRequest<{ version: ServiceRouteVersion }>(`/admin/route-versions/${id}/publish`, { method: "POST", token, body, idempotencyKey: key }),
+  routeVersionAction: (token: string, id: string, action: "pause" | "resume" | "retire", reason: string | undefined, key: string) => apiRequest<{ version: ServiceRouteVersion }>(`/admin/route-versions/${id}/${action}`, { method: "POST", token, body: reason ? { reason } : {}, idempotencyKey: key }),
+  retireServiceRoute: (token: string, id: string, reason: string, key: string) => apiRequest<{ route: ServiceRoute }>(`/admin/service-routes/${id}/retire`, { method: "POST", token, body: { reason }, idempotencyKey: key }),
+  canonicalStops: (token: string, query = "") => apiRequest<StopPage>(`/admin/stops${query}`, { token }),
+  createCanonicalStop: (token: string, body: CanonicalStopDraft, key: string) => apiRequest<{ stop: CanonicalStop }>("/admin/stops", { method: "POST", token, body, idempotencyKey: key }),
+  updateCanonicalStop: (token: string, id: string, body: Omit<CanonicalStopDraft, "stop_key">) => apiRequest<{ stop: CanonicalStop }>(`/admin/stops/${id}`, { method: "PATCH", token, body }),
+  retireCanonicalStop: (token: string, id: string, reason: string, key: string) => apiRequest<{ stop: CanonicalStop }>(`/admin/stops/${id}/retire`, { method: "POST", token, body: { reason }, idempotencyKey: key })
 };
 }
 
@@ -149,3 +163,68 @@ export type Comparison = {
 };
 export type Trip = { id: string; status: string; driver_route_id: string; passenger_request_id?: string; merchant_order_id?: string; created_at?: string };
 export type LocationEvent = { id: string; lat: string; lng: string; source: string; sequence: number; recorded_at: string };
+
+export type CanonicalStop = {
+  id: string;
+  stop_key: string;
+  service_region_key: string;
+  name_ar: string;
+  name_en: string;
+  latitude: number;
+  longitude: number;
+  status: "active" | "retired";
+};
+export type CanonicalStopDraft = Omit<CanonicalStop, "id" | "status">;
+export type RouteStopDraft = {
+  stop_id: string;
+  sequence: number;
+  passenger_pickup_allowed: boolean;
+  passenger_dropoff_allowed: boolean;
+  parcel_pickup_allowed: boolean;
+  parcel_dropoff_allowed: boolean;
+  estimated_offset_seconds?: number | null;
+  dwell_seconds?: number | null;
+};
+export type RouteVersionStop = RouteStopDraft & { id: string; stop: CanonicalStop };
+export type ServiceRouteVersion = {
+  id: string;
+  service_route_id: string;
+  version_number: number;
+  status: "draft" | "published" | "paused" | "retired";
+  name_ar: string;
+  name_en: string;
+  description_ar: string | null;
+  description_en: string | null;
+  active_from: string | null;
+  active_until: string | null;
+  draft_revision: number;
+  stop_count: number;
+  stops: RouteVersionStop[];
+  geometry: { status: "pending" | "available" | "unavailable"; ready: boolean };
+};
+export type RouteVersionDraft = {
+  name_ar: string;
+  name_en: string;
+  description_ar?: string | null;
+  description_en?: string | null;
+  active_from?: string | null;
+  active_until?: string | null;
+};
+export type RouteIdentityDraft = {
+  route_key: string;
+  route_group_key: string;
+  service_region_key: string;
+  direction: "outbound" | "inbound" | "loop";
+};
+export type ServiceRoute = RouteIdentityDraft & {
+  id: string;
+  status: "active" | "retired";
+  current_version_id: string | null;
+  current_version: ServiceRouteVersion | null;
+  versions?: ServiceRouteVersion[];
+  version_count: number;
+  created_at: string;
+  updated_at: string;
+};
+export type RoutePage = { routes: ServiceRoute[]; page: number; limit: number; total: number };
+export type StopPage = { stops: CanonicalStop[]; page: number; limit: number; total: number };

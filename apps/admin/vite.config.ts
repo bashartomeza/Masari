@@ -8,7 +8,8 @@ export default defineConfig(({ mode }) => {
       ? {
           VITE_APP_ENV: "test",
           VITE_API_BASE_URL: "http://localhost:3000",
-          VITE_ENABLE_DEMO_FEATURES: "false"
+          VITE_ENABLE_DEMO_FEATURES: "false",
+          VITE_ROUTE_MANAGEMENT_ENABLED: "false"
         }
       : loadEnv(mode, process.cwd(), "");
   const appConfig = createAdminBuildConfig(environment);

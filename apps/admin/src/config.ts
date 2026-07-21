@@ -10,3 +10,7 @@ export function getAdminBuildConfig(): AdminBuildConfig {
 export function demoUiEnabled(config: AdminBuildConfig, demoBuild: boolean) {
   return demoBuild && config.demoFeaturesEnabled;
 }
+
+export function routeManagementUiEnabled(config: AdminBuildConfig) {
+  return config.routeManagementEnabled;
+}
