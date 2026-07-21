@@ -127,17 +127,25 @@ function auditMetadata(actor: Actor, metadata: Record<string, string | number | 
 }
 
 async function lockRoute(tx: Prisma.TransactionClient, routeId: string) {
-  const rows = await tx.$queryRaw<Array<{ id: string }>>`
-    SELECT id FROM service_routes WHERE id = ${routeId} FOR UPDATE
+  const rows = await tx.$queryRaw<Array<{ id: string; status: "active" | "retired"; current_version_id: string | null }>>`
+    SELECT id, status, current_version_id FROM service_routes WHERE id = ${routeId} FOR UPDATE
   `;
   if (rows.length !== 1) throw new HttpError(404, "service_route_not_found");
+  return rows[0];
 }
 
 async function lockVersion(tx: Prisma.TransactionClient, versionId: string) {
-  const rows = await tx.$queryRaw<Array<{ id: string }>>`
-    SELECT id FROM service_route_versions WHERE id = ${versionId} FOR UPDATE
+  const rows = await tx.$queryRaw<Array<{
+    id: string;
+    service_route_id: string;
+    status: "draft" | "published" | "paused" | "retired";
+    draft_revision: number;
+  }>>`
+    SELECT id, service_route_id, status, draft_revision
+    FROM service_route_versions WHERE id = ${versionId} FOR UPDATE
   `;
   if (rows.length !== 1) throw new HttpError(404, "route_version_not_found");
+  return rows[0];
 }
 
 function validateDateRange(activeFrom?: Date | null, activeUntil?: Date | null) {
@@ -374,7 +382,7 @@ export function createRouteManagementService(db: PrismaClient = prisma) {
         await completeWrite(tx, claim, "ServiceRouteVersion", created.id, 201);
         const resource = await tx.serviceRouteVersion.findUniqueOrThrow({ where: { id: created.id }, include: versionRelations });
         return { resource, replayed: false };
-      });
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted });
     },
 
     async getAdminVersion(id: string) {
@@ -466,9 +474,8 @@ export function createRouteManagementService(db: PrismaClient = prisma) {
         if (replay) return { resource: replay, replayed: true };
         const draftLookup = await tx.serviceRouteVersion.findUnique({ where: { id }, select: { service_route_id: true } });
         if (!draftLookup) throw new HttpError(404, "route_version_not_found");
-        await lockRoute(tx, draftLookup.service_route_id);
-        const route = await tx.serviceRoute.findUnique({ where: { id: draftLookup.service_route_id } });
-        if (!route) throw new HttpError(404, "service_route_not_found");
+        const route = await lockRoute(tx, draftLookup.service_route_id);
+        await lockVersion(tx, id);
         if (route.status !== "active") throw new HttpError(409, "service_route_retired");
         if (route.current_version_id !== input.expectedCurrentVersionId) throw new HttpError(409, "current_version_conflict");
         const draft = await tx.serviceRouteVersion.findUnique({ where: { id }, include: versionRelations });
@@ -505,7 +512,7 @@ export function createRouteManagementService(db: PrismaClient = prisma) {
         await completeWrite(tx, claim, "ServiceRouteVersion", id, 200);
         const resource = await tx.serviceRouteVersion.findUniqueOrThrow({ where: { id }, include: versionRelations });
         return { resource, replayed: false };
-      });
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted });
     },
 
     async pauseVersion(id: string, reason: string, actor: Actor) {
@@ -517,9 +524,9 @@ export function createRouteManagementService(db: PrismaClient = prisma) {
         if (replay) return { resource: replay, replayed: true };
         const version = await tx.serviceRouteVersion.findUnique({ where: { id } });
         if (!version) throw new HttpError(404, "route_version_not_found");
-        await lockRoute(tx, version.service_route_id);
-        const route = await tx.serviceRoute.findUniqueOrThrow({ where: { id: version.service_route_id } });
-        if (route.current_version_id !== id || version.status !== "published") throw new HttpError(409, "route_version_not_pausable");
+        const route = await lockRoute(tx, version.service_route_id);
+        const lockedVersion = await lockVersion(tx, id);
+        if (route.current_version_id !== id || lockedVersion.status !== "published") throw new HttpError(409, "route_version_not_pausable");
         const resource = await tx.serviceRouteVersion.update({
           where: { id },
           data: { status: "paused", paused_at: new Date(), paused_by_user_id: actor.id, pause_reason: reason },
@@ -546,9 +553,9 @@ export function createRouteManagementService(db: PrismaClient = prisma) {
         if (replay) return { resource: replay, replayed: true };
         const version = await tx.serviceRouteVersion.findUnique({ where: { id } });
         if (!version) throw new HttpError(404, "route_version_not_found");
-        await lockRoute(tx, version.service_route_id);
-        const route = await tx.serviceRoute.findUniqueOrThrow({ where: { id: version.service_route_id } });
-        if (route.status !== "active" || route.current_version_id !== id || version.status !== "paused") {
+        const route = await lockRoute(tx, version.service_route_id);
+        const lockedVersion = await lockVersion(tx, id);
+        if (route.status !== "active" || route.current_version_id !== id || lockedVersion.status !== "paused") {
           throw new HttpError(409, "route_version_not_resumable");
         }
         validateDateRange(version.active_from, version.active_until);
@@ -579,8 +586,9 @@ export function createRouteManagementService(db: PrismaClient = prisma) {
         if (replay) return { resource: replay, replayed: true };
         const version = await tx.serviceRouteVersion.findUnique({ where: { id } });
         if (!version) throw new HttpError(404, "route_version_not_found");
-        if (version.status === "retired") throw new HttpError(409, "route_version_already_retired");
-        await lockRoute(tx, version.service_route_id);
+        const lockedRoute = await lockRoute(tx, version.service_route_id);
+        const lockedVersion = await lockVersion(tx, id);
+        if (lockedVersion.status === "retired") throw new HttpError(409, "route_version_already_retired");
         const activeUsage = await tx.driverRoute.count({
           where: {
             route_version_id: id,
@@ -591,10 +599,9 @@ export function createRouteManagementService(db: PrismaClient = prisma) {
           }
         });
         if (activeUsage > 0) throw new HttpError(409, "route_version_has_active_usage");
-        const route = await tx.serviceRoute.findUniqueOrThrow({ where: { id: version.service_route_id } });
         const now = new Date();
-        if (route.current_version_id === id) {
-          await tx.serviceRoute.update({ where: { id: route.id }, data: { current_version_id: null } });
+        if (lockedRoute.current_version_id === id) {
+          await tx.serviceRoute.update({ where: { id: lockedRoute.id }, data: { current_version_id: null } });
         }
         const resource = await tx.serviceRouteVersion.update({
           where: { id },
@@ -606,7 +613,7 @@ export function createRouteManagementService(db: PrismaClient = prisma) {
           action: AuditAction.route_version_retired,
           entityType: "ServiceRouteVersion",
           entityId: id,
-          metadata: auditMetadata(actor, { transition: `${version.status}_to_retired`, reason_code: "admin_retire" })
+          metadata: auditMetadata(actor, { transition: `${lockedVersion.status}_to_retired`, reason_code: "admin_retire" })
         });
         await completeWrite(tx, claim, "ServiceRouteVersion", id, 200);
         return { resource, replayed: false };

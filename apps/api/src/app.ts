@@ -63,13 +63,13 @@ export function createApp(appConfig: AppConfig = config, dependencies: AppDepend
   app.use("/api/v1", authRouter);
   if (appConfig.demoFeaturesEnabled) app.use("/api/v1", demoRouter);
   app.use("/api/v1", passengerRouter);
+  app.use("/api/v1", createDriverAvailabilityRouter(appConfig, dependencies.driverAvailabilityService));
   app.use("/api/v1", driverRouter);
   app.use("/api/v1", batchingRouter);
   app.use("/api/v1", merchantRouter);
   app.use("/api/v1", matchingRouter);
   app.use("/api/v1", tripsRouter);
   app.use("/api/v1", createRouteCatalogRouter(appConfig, dependencies.routeManagementService));
-  app.use("/api/v1", createDriverAvailabilityRouter(appConfig, dependencies.driverAvailabilityService));
   if (appConfig.demoFeaturesEnabled) {
     app.use("/api/v1", trackingSimulationRouter);
     app.use("/api/v1", comparisonRouter);

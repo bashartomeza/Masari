@@ -85,18 +85,11 @@ export async function resetDemoData(db: PrismaClient = prisma) {
     await tx.driverRoute.deleteMany();
     await tx.driverProfile.deleteMany();
     await tx.demoScenario.deleteMany();
-    await tx.serviceRoute.updateMany({
-      where: { route_key: DEMO_SERVICE_ROUTE_KEY },
-      data: { current_version_id: null }
-    });
-    await tx.routeVersionStop.deleteMany({
-      where: { service_route_version: { service_route: { route_key: DEMO_SERVICE_ROUTE_KEY } } }
-    });
-    await tx.serviceRouteVersion.deleteMany({
-      where: { service_route: { route_key: DEMO_SERVICE_ROUTE_KEY } }
-    });
-    await tx.serviceRoute.deleteMany({ where: { route_key: DEMO_SERVICE_ROUTE_KEY } });
-    await tx.stop.deleteMany({ where: { stop_key: { in: Object.values(DEMO_STOP_KEYS) } } });
+    await tx.serviceRoute.updateMany({ data: { current_version_id: null } });
+    await tx.routeVersionStop.deleteMany();
+    await tx.serviceRouteVersion.deleteMany();
+    await tx.serviceRoute.deleteMany();
+    await tx.stop.deleteMany();
     await tx.user.deleteMany({
       where: {
         OR: [
