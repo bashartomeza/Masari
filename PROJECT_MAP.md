@@ -3,10 +3,33 @@
 [PROJECT_OVERVIEW]
 Masari is a Palestine-focused smart route-sharing logistics MVP.
 
-Current implementation status: M6C2B2 Controlled Public Onboarding Backend is merged and post-merge verified on `production-readiness`. M6C2C has not started.
+Current implementation status: M6C2C Flutter Controlled Onboarding is merged and post-merge verified on `production-readiness` at merge commit `cf550ec68aaa3062dc12eaf958fde73e6be03b81`. M7A planning is approved. M7B Canonical Route Catalog, Immutable Versions, Ordered Stops, Driver Availability Foundation, and Admin Route Management is the active implementation milestone on feature branch `m7b/admin-route-catalog`.
 
 Locked MVP corridor:
 Hebron / PPU / Bab Al-Zawiya -> Bethlehem.
+
+The locked corridor remains the deterministic demo/test reference. M7B adds a feature-gated canonical route-management foundation without switching passenger, merchant, matching, batching, trip creation, Flutter role flows, or production multi-route entry away from the legacy corridor.
+
+[M7_APPROVED_ROUTE_DECISIONS]
+- Admin owns canonical route and stop creation, version publication, pause/resume, and retirement.
+- Drivers cannot create or edit canonical route geometry or stops; a later milestone lets them select published routes.
+- Controlled beta is limited to no more than five approved routes.
+- Outbound and inbound directions are separate canonical routes. Loops require explicit later approval.
+- Passenger and merchant arbitrary coordinates are deferred; approved stop selection belongs to M7C.
+- One merchant order belongs to one immutable route version. Multi-route orders are deferred.
+- M7B supports only one-off driver availability foundations. Recurring schedules are deferred.
+- Published route versions and their ordered stops are immutable. Corrections clone a new draft version.
+- Used routes, versions, and stops remain readable history and cannot be destructively deleted.
+- Paused versions reject new availability and demand after M7C integration; active historical work is not rewritten.
+- Route pricing, provider selection, maps, GPS, realtime, and dispatching are outside M7B.
+- The original deterministic corridor, `masari_route_score`, simulation points, and approved metrics remain unchanged.
+
+[M7B_FIXED_CORRIDOR_AUDIT]
+- Deterministic demo fixtures: `LOCKED_CORRIDOR_KEY`, corridor labels/coordinates, demo route points, seeded passenger and merchant stops, comparison formulas, smoke expectations, Flutter demo presets, and their regression fixtures.
+- Reusable logic: coordinate range validation, role ownership, trusted sessions, request IDs, safe auditing/logging, trip lifecycle, REST polling, MySQL migration/recovery tooling, localization, and production/demo isolation.
+- Future M7C migration targets: passenger/merchant coordinate DTOs, driver route creation, match/batch corridor filters, role mobile forms, and trip/match route references.
+- M7B production blockers: no stable canonical route identity, immutable version, reusable stop, ordered stop membership, transactional publication, draft concurrency, or canonical availability reference.
+- Migration concerns: `DriverRoute` currently combines corridor and capacity state; existing match/trip relations depend on it; legacy fields and behavior must remain additive and nullable throughout M7B.
 
 Implemented in M1:
 - TypeScript backend API foundation.
