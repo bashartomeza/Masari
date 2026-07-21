@@ -113,6 +113,7 @@ const copy = {
     current: "الحالي",
     chooseRoute: "اختر مساراً لعرض إصداراته.",
     reason: "سبب الإجراء",
+    reasonRequired: "أدخل سبباً قبل الإيقاف أو الإحالة للتقاعد.",
     active: "نشط",
     retired: "متقاعد",
     draft: "مسودة",
@@ -181,6 +182,7 @@ const copy = {
     current: "Current",
     chooseRoute: "Choose a route to inspect its versions.",
     reason: "Action reason",
+    reasonRequired: "Enter a reason before pausing or retiring.",
     active: "Active",
     retired: "Retired",
     draft: "Draft",
@@ -261,6 +263,7 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [busy, setBusy] = useState("");
+  const [actionReason, setActionReason] = useState("");
   const [message, setMessage] = useState<{ kind: "success" | "error"; text: string } | null>(null);
 
   const activeStops = useMemo(() => stops.filter((stop) => stop.status === "active"), [stops]);
@@ -427,6 +430,11 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
   }
 
   async function versionAction(action: "publish" | "pause" | "resume" | "retire") {
+    const reason = actionReason.trim();
+    if ((action === "pause" || action === "retire") && !reason) {
+      setMessage({ kind: "error", text: text.reasonRequired });
+      return;
+    }
     if (!selectedRoute || !selectedVersion || !window.confirm(text.confirm)) return;
     setBusy(action);
     setMessage(null);
@@ -442,11 +450,12 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
             token,
             selectedVersion.id,
             action,
-            action === "resume" ? undefined : `${action}_by_admin`,
+            action === "resume" ? undefined : reason,
             key(action)
           );
       await loadRoute(selectedRoute.id);
       selectVersion(response.version);
+      setActionReason("");
       setMessage({ kind: "success", text: text.saved });
     } catch (error) {
       showError(error);
@@ -456,12 +465,18 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
   }
 
   async function retireRoute() {
+    const reason = actionReason.trim();
+    if (!reason) {
+      setMessage({ kind: "error", text: text.reasonRequired });
+      return;
+    }
     if (!selectedRoute || !window.confirm(text.confirm)) return;
     setBusy("retire-route");
     try {
-      await api.retireServiceRoute(token, selectedRoute.id, "retired_by_admin", key("retire-route"));
+      await api.retireServiceRoute(token, selectedRoute.id, reason, key("retire-route"));
       setSelectedRoute(null);
       selectVersion(null);
+      setActionReason("");
       await loadCatalog(page);
     } catch (error) {
       showError(error);
@@ -471,12 +486,18 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
   }
 
   async function retireStop(stop: CanonicalStop) {
+    const reason = actionReason.trim();
+    if (!reason) {
+      setMessage({ kind: "error", text: text.reasonRequired });
+      return;
+    }
     if (!window.confirm(text.confirm)) return;
     setBusy(`retire-stop-${stop.id}`);
     try {
-      await api.retireCanonicalStop(token, stop.id, "retired_by_admin", key("retire-stop"));
+      await api.retireCanonicalStop(token, stop.id, reason, key("retire-stop"));
       const page = await api.canonicalStops(token, "?limit=50");
       setStops(page.stops);
+      setActionReason("");
       setMessage({ kind: "success", text: text.stopRetired });
     } catch (error) {
       showError(error);
@@ -538,6 +559,7 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
             </form>
           </details>
 
+          <label className="route-card route-action-reason">{text.reason}<input value={actionReason} maxLength={500} onChange={(event) => setActionReason(event.target.value)} /></label>
           {!selectedRoute ? <div className="route-card route-state">{text.chooseRoute}</div> : <>
             <article className="route-card route-identity">
               <div><span className="route-chip">{selectedRoute.route_key}</span><h3>{selectedRoute.current_version ? (locale === "ar" ? selectedRoute.current_version.name_ar : selectedRoute.current_version.name_en) : selectedRoute.route_key}</h3><p>{selectedRoute.service_region_key} · {text[selectedRoute.direction]}</p></div>

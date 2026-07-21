@@ -64,10 +64,12 @@ describe("admin route management", () => {
     expect(arabic).toContain("جارٍ تحميل كتالوج المسارات");
     expect(arabic).toContain("الاسم بالعربية");
     expect(arabic).toContain("إنشاء محطة");
+    expect(arabic).toContain("سبب الإجراء");
     expect(english).toContain("Route management");
     expect(english).toContain("Loading the route catalog");
     expect(english).toContain("Arabic name");
     expect(english).toContain("Create stop");
+    expect(english).toContain("Action reason");
   });
 
   it("reorders stops deterministically and preserves contiguous server-authoritative sequence", () => {
