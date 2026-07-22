@@ -18,7 +18,8 @@ const expected = {
   "20260721170000_enforce_route_catalog_integrity": "9b6896aa311bc597db1cb17a39328017243497f6c90e5aa106062bf8c5c7edc2",
   "20260722130000_multi_route_operational_foundation": "f306c5a5122d9376dc8399703e1bbf834117f1ccda38937352bebcafdc8ae30c",
   "20260722143000_isolate_canonical_availability": "530aaac38e8f7e9533855bf7005832ee8b126bc3072706c9d77b34551e0b350c",
-  "20260722180000_harden_multi_route_operations": "0a2f166377916bf44f2e45f7d70c7775dfc360b573367fa764f6ec5e15938684"
+  "20260722180000_harden_multi_route_operations": "0a2f166377916bf44f2e45f7d70c7775dfc360b573367fa764f6ec5e15938684",
+  "20260722200000_enforce_operational_mode_and_expiry_quarantine": "3d671ad02a5d6e58bc90e9a6779ce042d0653725339d05162d15de294d17930f"
 };
 
 function normalizedChecksum(path) {
