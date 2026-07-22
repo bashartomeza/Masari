@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import { withoutLocalOnlyEnvironment } from "../lib/production-environment.mjs";
 import { run } from "../lib/process.mjs";
 import { scanTracked } from "../security-scan.mjs";
 
@@ -27,4 +28,15 @@ test("validation subprocess failures remain nonzero and visible", () => {
     () => run(process.execPath, ["-e", "process.stderr.write('diagnostic'); process.exit(7)"], { stdio: "pipe" }),
     /exit code 7/
   );
+});
+
+test("production subprocesses drop local-only onboarding fixtures", () => {
+  const sanitized = withoutLocalOnlyEnvironment({
+    APP_ENV: "local",
+    ONBOARDING_TEST_LEGAL_FIXTURES_ENABLED: "true",
+    SAFE_VALUE: "retained"
+  });
+
+  assert.equal(sanitized.ONBOARDING_TEST_LEGAL_FIXTURES_ENABLED, undefined);
+  assert.equal(sanitized.SAFE_VALUE, "retained");
 });

@@ -6,10 +6,14 @@ import {
   RouteManagement,
   ADMIN_ROUTE_RESPONSIVE_BREAKPOINT,
   lifecycleActions,
+  mutationFailureIsAuthoritative,
+  mutationFingerprint,
   moveRouteStop,
   routeCatalogView,
   routeUiText,
+  routeUiError,
   reorderControlLabel,
+  stableMutationKey,
   toggleRouteStopPermission
 } from "./RouteManagement";
 
@@ -100,6 +104,29 @@ describe("admin route management", () => {
     expect(routeUiText("en").revisionConflict).toContain("Another session");
     expect(routeUiText("ar").confirm).toContain("سجل التدقيق");
     expect(routeUiText("en").confirm).toContain("audit log");
+  });
+
+  it("keeps mutation keys stable through uncertain outcomes and rotates after settlement", () => {
+    const registry = new Map<string, string>();
+    let sequence = 0;
+    const factory = () => `key-${++sequence}`;
+    const payload = { routeId: "route_1", clone_from_version_id: "version_1" };
+    const first = stableMutationKey(registry, "route_version_clone", payload, factory);
+    const retry = stableMutationKey(registry, "route_version_clone", payload, factory);
+    expect(retry).toEqual(first);
+    expect(mutationFailureIsAuthoritative(new TypeError("Failed to fetch"))).toBe(false);
+    expect(mutationFailureIsAuthoritative(Object.assign(new Error("internal_server_error"), { status: 500 }))).toBe(false);
+    expect(mutationFailureIsAuthoritative(Object.assign(new Error("idempotency_in_progress"), { status: 409 }))).toBe(false);
+    expect(mutationFailureIsAuthoritative(Object.assign(new Error("resource_conflict"), { status: 409 }))).toBe(true);
+    registry.delete(mutationFingerprint("route_version_clone", payload));
+    expect(stableMutationKey(registry, "route_version_clone", payload, factory).key).toBe("key-2");
+  });
+
+  it("localizes safe errors without rendering raw API or internal error codes", () => {
+    expect(routeUiError("en", new Error("draft_revision_conflict"))).toContain("Another session");
+    expect(routeUiError("ar", new Error("internal_database_detail"))).toBe(routeUiText("ar").genericError);
+    expect(routeUiError("en", new Error("route_version_not_pausable"))).toBe(routeUiText("en").genericError);
+    expect(routeUiError("en", new Error("route_version_not_pausable"))).not.toContain("route_version_not_pausable");
   });
 
   it("has no map dependency or demo-control leakage and retains accessible responsive controls", () => {

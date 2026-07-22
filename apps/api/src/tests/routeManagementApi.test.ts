@@ -52,6 +52,7 @@ const stop = {
   longitude: "35.099800",
   status: "active",
   retired_at: null,
+  retirement_reason: "must-not-leak",
   created_at: new Date("2026-07-01T00:00:00Z"),
   updated_at: new Date("2026-07-01T00:00:00Z")
 };
@@ -76,7 +77,17 @@ const version = {
   encoded_geometry: "must-not-leak",
   geometry_provider: "must-not-leak",
   published_by_user_id: "must-not-leak",
-  stops: [],
+  stops: [{
+    id: "membership_1",
+    sequence: 1,
+    passenger_pickup: true,
+    passenger_dropoff: false,
+    parcel_pickup: true,
+    parcel_dropoff: false,
+    scheduled_offset_seconds: 0,
+    dwell_seconds: 30,
+    stop
+  }],
   published_at: new Date("2026-07-01T00:00:00Z"),
   paused_at: null,
   pause_reason: null,
@@ -124,7 +135,7 @@ function serviceMock() {
     retireStop: vi.fn().mockResolvedValue({ resource: { ...stop, status: "retired" }, replayed: false }),
     listPublishedRoutes: vi.fn().mockResolvedValue({ routes: [route], total: 1, page: 1, limit: 25 }),
     getPublishedRoute: vi.fn().mockResolvedValue(route),
-    getPublishedVersionStops: vi.fn().mockResolvedValue({ ...version, stops: [] })
+    getPublishedVersionStops: vi.fn().mockResolvedValue(version)
   };
 }
 
@@ -327,9 +338,24 @@ describe("M7B route management APIs", () => {
       expect.objectContaining({ status: "pending", ready: false })
     );
     const serialized = JSON.stringify(response.body);
-    for (const forbidden of ["created_by_user_id", "published_by_user_id", "encoded_geometry", "geometry_provider", "must-not-leak"]) {
+    for (const forbidden of ["created_by_user_id", "published_by_user_id", "encoded_geometry", "geometry_provider", "must-not-leak", "created_at", "updated_at", "published_at", "paused_at", "origin_stop_id", "destination_stop_id", "service_route_id"]) {
       expect(serialized).not.toContain(forbidden);
     }
+
+    const stopResponse = await request(target.server)
+      .get("/api/v1/route-versions/version_1/stops")
+      .set(auth("passenger_1"))
+      .expect(200);
+    expect(stopResponse.body.stops[0]).not.toHaveProperty("id");
+    expect(stopResponse.body.stops[0].stop).toEqual({
+      id: "stop_1",
+      stop_key: "hebron-center",
+      service_region_key: "south-west-bank",
+      name_ar: "وسط الخليل",
+      name_en: "Hebron Center",
+      latitude: 31.5326,
+      longitude: 35.0998
+    });
   });
 
   it("passes bounded pagination and excludes draft access through the public service boundary", async () => {

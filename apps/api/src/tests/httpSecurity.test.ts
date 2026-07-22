@@ -331,10 +331,13 @@ describe("production HTTP security baseline", () => {
     const response = await request(createApp(testConfig()))
       .options("/api/v1/auth/login")
       .set("Origin", "http://localhost:5173")
-      .set("Access-Control-Request-Method", "POST")
+      .set("Access-Control-Request-Method", "PUT")
+      .set("Access-Control-Request-Headers", "content-type,idempotency-key")
       .expect(204);
     expect(response.headers["access-control-allow-origin"]).toBe("http://localhost:5173");
+    expect(response.headers["access-control-allow-methods"]).toContain("PUT");
     expect(response.headers["access-control-allow-headers"]).toContain("X-Request-Id");
+    expect(response.headers["access-control-allow-headers"]).toContain("Idempotency-Key");
     expect(response.headers["access-control-expose-headers"]).toContain("Retry-After");
   });
 

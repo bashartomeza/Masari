@@ -74,6 +74,66 @@ async function main() {
     serviceRegionKey: "integration-south-west-bank",
     direction: "outbound" as const
   };
+
+  const capSeedRoutes = [];
+  for (let index = 0; index < 3; index += 1) {
+    capSeedRoutes.push(await service.createRoute(
+      {
+        routeKey: `integration-cap-seed-${index}`,
+        routeGroupKey: "integration-cap-seed",
+        serviceRegionKey: identity.serviceRegionKey,
+        direction: "outbound"
+      },
+      actor(admin.id, `route-cap-seed-${index}`)
+    ));
+  }
+  assert(await prisma.serviceRoute.count({ where: { status: "active" } }) === 4, "Route cap setup was not deterministic");
+  const capRace = await Promise.allSettled(Array.from({ length: 8 }, (_, index) =>
+    service.createRoute(
+      {
+        routeKey: `integration-cap-race-${index}`,
+        routeGroupKey: "integration-cap-race",
+        serviceRegionKey: identity.serviceRegionKey,
+        direction: "outbound"
+      },
+      actor(admin.id, `route-cap-race-${index}`)
+    )
+  ));
+  assert(capRace.filter((result) => result.status === "fulfilled").length === 1, "Concurrent route cap admitted more than one final slot");
+  assert(await prisma.serviceRoute.count({ where: { status: "active" } }) === 5, "Concurrent route cap exceeded five active routes");
+  const capRoutes = await prisma.serviceRoute.findMany({ where: { route_key: { startsWith: "integration-cap-" } } });
+  for (const route of capRoutes) {
+    await service.retireRoute(route.id, "integration_cleanup", actor(admin.id, `retire-${route.route_key}`));
+  }
+
+  const routeKeyRace = await Promise.allSettled([0, 1].map((index) => service.createRoute(
+    {
+      routeKey: "integration-route-key-race",
+      routeGroupKey: "integration-route-key-race",
+      serviceRegionKey: identity.serviceRegionKey,
+      direction: "outbound"
+    },
+    actor(admin.id, `route-key-race-${index}`)
+  )));
+  assert(routeKeyRace.filter((result) => result.status === "fulfilled").length === 1, "Route-key race did not have exactly one winner");
+  const routeKeyWinner = await prisma.serviceRoute.findUniqueOrThrow({ where: { route_key: "integration-route-key-race" } });
+  await service.retireRoute(routeKeyWinner.id, "integration_cleanup", actor(admin.id, "retire-route-key-race"));
+
+  const stopKeyRace = await Promise.allSettled([0, 1].map((index) => service.createStop(
+    {
+      stopKey: "integration-stop-key-race",
+      serviceRegionKey: identity.serviceRegionKey,
+      nameAr: "محطة سباق المفتاح",
+      nameEn: "Stop key race",
+      latitude: "31.500001",
+      longitude: "35.000001"
+    },
+    actor(admin.id, `stop-key-race-${index}`)
+  )));
+  assert(stopKeyRace.filter((result) => result.status === "fulfilled").length === 1, "Stop-key race did not have exactly one winner");
+  const stopKeyWinner = await prisma.stop.findUniqueOrThrow({ where: { stop_key: "integration-stop-key-race" } });
+  await service.retireStop(stopKeyWinner.id, "integration_cleanup", actor(admin.id, "retire-stop-key-race"));
+
   const createdRoute = await service.createRoute(identity, actor(admin.id, "route-create-001"));
   const replayedRoute = await service.createRoute(identity, actor(admin.id, "route-create-001"));
   assert(createdRoute.resource.id === replayedRoute.resource.id && replayedRoute.replayed, "Route create did not replay idempotently");
@@ -103,6 +163,14 @@ async function main() {
       { ...stopInputs[0], serviceRegionKey: identity.serviceRegionKey },
       actor(admin.id, "stop-create-duplicate")
     )
+  );
+  const otherRegionStop = await service.createStop(
+    {
+      ...stopInputs[1],
+      stopKey: "integration-other-region",
+      serviceRegionKey: "integration-other-region"
+    },
+    actor(admin.id, "stop-create-other-region")
   );
 
   const versionDraft = {
@@ -134,6 +202,17 @@ async function main() {
     "draft_revision_conflict"
   );
   const firstAfterEdit = await service.getAdminVersion(firstVersion.id);
+
+  await expectFailure(
+    () => service.replaceStops(
+      firstVersion.id,
+      firstAfterEdit.draft_revision,
+      [membership(createdStops[0].id, 1), membership(otherRegionStop.resource.id, 2)],
+      { id: admin.id, requestId: "cross-region-stops" }
+    ),
+    "stop_region_mismatch"
+  );
+  await service.retireStop(otherRegionStop.resource.id, "integration_cleanup", actor(admin.id, "retire-other-region-stop"));
 
   await expectFailure(
     () => service.replaceStops(
@@ -216,12 +295,85 @@ async function main() {
     service.createVersion(createdRoute.resource.id, { ...versionDraft, cloneFromVersionId: currentVersionId }, actor(admin.id, "clone-concurrent-b"))
   ]);
   assert(new Set(clones.map((result) => result.resource.version_number)).size === 2, "Concurrent clones reused a version number");
+  for (const clone of clones) {
+    assert(
+      clone.resource.geometry_status === "pending" && clone.resource.encoded_geometry === null &&
+        clone.resource.geometry_provider === null && clone.resource.geometry_checksum === null &&
+        clone.resource.geometry_precision === null && clone.resource.estimated_distance_meters === null &&
+        clone.resource.estimated_duration_seconds === null,
+      "Clone retained geometry approval metadata"
+    );
+  }
+
+  const stopReplacementRace = await Promise.allSettled([
+    service.replaceStops(
+      clones[0].resource.id,
+      clones[0].resource.draft_revision,
+      [membership(createdStops[1].id, 1), membership(createdStops[2].id, 2)],
+      { id: admin.id, requestId: "stop-replacement-race-a" }
+    ),
+    service.replaceStops(
+      clones[0].resource.id,
+      clones[0].resource.draft_revision,
+      [membership(createdStops[0].id, 1), membership(createdStops[1].id, 2)],
+      { id: admin.id, requestId: "stop-replacement-race-b" }
+    )
+  ]);
+  assert(stopReplacementRace.filter((result) => result.status === "fulfilled").length === 1, "Concurrent stop replacement did not have one winner");
+  const cloneAfterReplacement = await service.getAdminVersion(clones[0].resource.id);
+  assert(cloneAfterReplacement.draft_revision === clones[0].resource.draft_revision + 1, "Stop replacement did not increment revision exactly once");
+  assert(cloneAfterReplacement.geometry_status === "pending" && cloneAfterReplacement.geometry_checksum === null, "Stop replacement retained stale geometry readiness");
+  await expectFailure(
+    () => service.updateStop(
+      createdStops[1].id,
+      {
+        serviceRegionKey: identity.serviceRegionKey,
+        nameAr: "محطة معدلة",
+        nameEn: "Mutated stop",
+        latitude: "31.610001",
+        longitude: "35.140001"
+      },
+      { id: admin.id, requestId: "used-stop-edit" }
+    ),
+    "used_stop_immutable"
+  );
+
+  const pointerProbeRoute = await service.createRoute(
+    {
+      routeKey: "integration-pointer-probe",
+      routeGroupKey: "integration-pointer-probe",
+      serviceRegionKey: identity.serviceRegionKey,
+      direction: "outbound"
+    },
+    actor(admin.id, "pointer-probe-route")
+  );
+  await expectFailure(() => prisma.serviceRoute.update({
+    where: { id: pointerProbeRoute.resource.id },
+    data: { current_version_id: clones[0].resource.id }
+  }));
+  await service.retireRoute(pointerProbeRoute.resource.id, "integration_cleanup", actor(admin.id, "retire-pointer-probe"));
+
   await expectFailure(
     () => service.updateDraft(currentVersionId, { ...versionDraft, expectedRevision: currentVersion.draft_revision }, { id: admin.id, requestId: "published-edit" }),
     "published_version_immutable"
   );
   await expectFailure(() => prisma.serviceRouteVersion.delete({ where: { id: currentVersionId } }));
   await expectFailure(() => prisma.stop.delete({ where: { id: createdStops[0].id } }));
+
+  const concurrentLifecycle = await Promise.allSettled([
+    service.pauseVersion(currentVersionId, "integration_concurrent_pause", actor(admin.id, "pause-concurrent")),
+    service.resumeVersion(currentVersionId, actor(admin.id, "resume-concurrent"))
+  ]);
+  assert(concurrentLifecycle.some((result) => result.status === "fulfilled"), "Concurrent pause/resume produced no committed transition");
+  const afterConcurrentLifecycle = await service.getAdminVersion(currentVersionId);
+  assert(
+    (afterConcurrentLifecycle.status === "published" && afterConcurrentLifecycle.paused_at === null && afterConcurrentLifecycle.pause_reason === null) ||
+      (afterConcurrentLifecycle.status === "paused" && afterConcurrentLifecycle.paused_at !== null && afterConcurrentLifecycle.pause_reason !== null),
+    "Concurrent pause/resume left contradictory lifecycle metadata"
+  );
+  if (afterConcurrentLifecycle.status === "paused") {
+    await service.resumeVersion(currentVersionId, actor(admin.id, "resume-after-concurrent"));
+  }
 
   await service.pauseVersion(currentVersionId, "integration_pause", actor(admin.id, "pause-current"));
   const pausedCatalog = await service.listPublishedRoutes(1, 50);
@@ -233,6 +385,15 @@ async function main() {
   await expectFailure(
     () => service.retireRoute(createdRoute.resource.id, "too_early", actor(admin.id, "retire-route-early")),
     "service_route_versions_not_retired"
+  );
+  await service.retireStop(createdStops[0].id, "integration_retired_source", actor(admin.id, "retire-clone-source-stop"));
+  await expectFailure(
+    () => service.createVersion(
+      createdRoute.resource.id,
+      { ...versionDraft, cloneFromVersionId: currentVersionId },
+      actor(admin.id, "clone-retired-stop")
+    ),
+    "clone_contains_inactive_stop"
   );
 
   const driverProfile = await prisma.driverProfile.findFirstOrThrow({ where: { user: { demo_account: true } } });
