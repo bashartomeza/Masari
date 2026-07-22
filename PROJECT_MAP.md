@@ -3,7 +3,7 @@
 [PROJECT_OVERVIEW]
 Masari is a Palestine-focused smart route-sharing logistics MVP.
 
-Current implementation status: M6C2C Flutter Controlled Onboarding is merged and post-merge verified on `production-readiness` at merge commit `cf550ec68aaa3062dc12eaf958fde73e6be03b81`. M7A planning is approved. M7B Canonical Route Catalog, Immutable Versions, Ordered Stops, Driver Availability Foundation, and Admin Route Management is the active implementation milestone on feature branch `m7b/admin-route-catalog`.
+Current implementation status: M7B Canonical Route Catalog, Immutable Versions, Ordered Stops, Driver Availability Foundation, and Admin Route Management is merged, corrected, and post-merge verified on `production-readiness`. M7C has not started; multi-route operational entry remains fail-closed, and maps, GPS, and realtime remain deferred to M7D/M7E.
 
 Locked MVP corridor:
 Hebron / PPU / Bab Al-Zawiya -> Bethlehem.
@@ -2487,3 +2487,25 @@ Review validation boundary:
 - The final local gate passed a clean npm install, Prisma validate/generate, repeatable 9-migration deploy/current status, workspace typecheck/build, 160 API tests, 26 admin tests, 8 tooling tests, workflow/secret/security validation, zero-change Flutter formatting, Flutter analysis, and 141 Flutter tests. Real MySQL route concurrency, trusted-session, 76-check public-onboarding, checksum-backed backup/isolated restore, 22/22 live preflight, deterministic smoke, production-like session isolation, production admin/release-APK artifact scans, and temporary-log scans all passed. Disposable review/restore databases and browser-review artifacts were removed afterward.
 - During final validation, the registry began reporting a high-severity advisory against transitive `fast-uri@3.1.3` through Prisma CLI's AJV dependency. A lockfile-only non-breaking update to `3.1.4` removed the high finding without changing Prisma or adding a direct dependency. Raw `npm audit --omit=dev` now reports only the three documented moderate Prisma CLI transitives whose proposed repair remains the prohibited breaking force update; the repository audit policy passes.
 - Exact-head GitHub CI remains required before PR #6 can leave draft. PR #6 remains unmerged. M7C and M7D remain out of scope.
+
+[M7B_MERGE_AND_POST_MERGE_CLOSURE]
+Merge history and migration integrity (2026-07-22):
+- PR #6 was merged with approved feature head `90c2b5cfb8cad078b720a1af33d361a5197bd0a6`; merge commit `771bdb455b84f36e2ca443b8435e0659cea3aa32` preserves the full reviewed history. Corrective PR #7 was then merged with approved head `3280194c08828c8291a9cb893f900c2662fe97e4`; merge commit `4e9c711a3824a7caf0eb23be6d2742dc4d6d244a` preserves the focused production-admin packaging correction.
+- All nine MySQL migrations are current. M7B added `20260721110000_canonical_route_catalog` and forward-only integrity migration `20260721170000_enforce_route_catalog_integrity`; no applied migration was edited and no `db push` or migration resolution was used.
+- The historical checksum investigation is Outcome A: an isolated local database had applied an uncommitted pre-merge onboarding draft, while canonical Git history remained byte-stable. Clean CI/disposable databases applied the canonical history, so no tracked migration or `_prisma_migrations` row was rewritten.
+
+Closed route-management guarantees:
+- Publication enforces a same-route current-version pointer, serialized active-route cap, ordered active stops, optimistic draft revisions, and one intended lifecycle transition. Referenced-stop historical immutability, clone geometry/provider/checksum invalidation, and retired-stop clone rejection remain enforced.
+- Admin mutations retain idempotency-key ownership and same-render duplicate-submit fencing. The reviewed CORS correction permits `Idempotency-Key` and `PUT`; the lockfile-only `fast-uri@3.1.4` correction removed the transient high advisory without changing Prisma or adding a direct dependency.
+- The 30/30 pre-merge browser matrix passed. Selected merged-head browser verification then passed publication and pointer persistence, published history and shared-stop immutability, clone/invalidation, pause/resume, retirement, public catalog authorization/privacy, desktop/tablet/narrow RTL/LTR behavior, feature-disabled behavior, and multi-route startup refusal.
+
+Artifact, regression, and CI closure:
+- Corrective PR #7 removed dormant tracking-simulation control labels from production-configured admin bundles by using the existing compile-time demo boundary; demo behavior remains available only in approved local/test/demo builds. The production admin artifact scan passes with all five affected translation properties empty and no simulation-control labels or demo endpoints bundled.
+- The frozen hackathon APK is intentionally a demo artifact and may contain demo-gated tracking simulation strings/endpoints. It was not rebuilt, replaced, retagged, or treated as production-clean. Production-like APKs are the production gate; PR-head and merge-commit Flutter CI both built and scanned a demo-disabled production-like APK successfully.
+- Post-merge validation passed 160 API tests, 27 admin tests, 141 Flutter tests, 8 tooling tests, Prisma validation/generation, workspace typecheck/build, standard/security policy, production artifact scans, and secret/log scans. Raw audit retains only the three documented moderate Prisma CLI transitives; no force fix was run.
+- Live preflight passed 22/22. Deterministic smoke retained score `0.9317`, tracking sequence `2`, trips `1` versus `6`, distance `21.53` versus `129.19`, cost `43.06` versus `258.38`, and winner `masari`.
+- All four workflows passed on PR #7 merge commit `4e9c711a3824a7caf0eb23be6d2742dc4d6d244a`: Admin CI, Backend and MySQL CI, Flutter Android CI (including production-like APK scan), and Security and Configuration CI.
+
+Milestone boundary:
+- M7B is closed. M7C has not started and remains responsible for explicitly enabled multi-route operational entry and migration of driver/passenger/merchant route selection and matching behavior.
+- No map SDK/provider, map UI, GPS permission/ingestion, or realtime transport was introduced. Maps/GPS/realtime remain deferred to M7D/M7E.
