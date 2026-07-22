@@ -602,6 +602,7 @@ model DriverRoute {
   total_parcel_capacity     Int?
   remaining_parcel_capacity Int?
   availability_status       DriverAvailabilityStatus?
+  canonical_availability_version String?              @db.VarChar(50)
   availability_revision     Int                       @default(1)
   activated_at              DateTime?
   paused_at                 DateTime?
@@ -620,6 +621,7 @@ model DriverRoute {
 
   @@index([corridor_key])
   @@index([route_version_id, availability_status, departure_at])
+  @@index([canonical_availability_version, availability_status, departure_at])
   @@unique([id, route_version_id], map: "driver_routes_route_ownership_key")
   @@unique([driver_id, route_version_id, departure_at], map: "driver_routes_one_off_departure_key")
   @@map("driver_routes")
