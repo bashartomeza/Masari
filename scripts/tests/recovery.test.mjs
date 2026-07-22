@@ -67,7 +67,8 @@ test("release metadata is reproducible with SOURCE_DATE_EPOCH and excludes secre
       "20260721110000_canonical_route_catalog",
       "20260721170000_enforce_route_catalog_integrity",
       "20260722130000_multi_route_operational_foundation",
-      "20260722143000_isolate_canonical_availability"
+      "20260722143000_isolate_canonical_availability",
+      "20260722180000_harden_multi_route_operations"
     ]
   );
   rmSync(directory, { recursive: true, force: true });

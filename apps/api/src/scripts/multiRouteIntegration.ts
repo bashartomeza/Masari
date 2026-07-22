@@ -57,8 +57,9 @@ async function main() {
   const migrations = await prisma.$queryRaw<Array<{ migration_name: string }>>`
     SELECT migration_name FROM _prisma_migrations WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL
   `;
-  check(migrations.length === 11, "all eleven migrations applied from empty");
+  check(migrations.length === 12, "all twelve migrations applied from empty");
   check(migrations.some((migration) => migration.migration_name === "20260722130000_multi_route_operational_foundation"), "M7C1 migration current");
+  check(migrations.some((migration) => migration.migration_name === "20260722180000_harden_multi_route_operations"), "M7C1 review hardening migration current");
 
   await resetDemoData(prisma);
   const [admin, passenger, driver1, driver2, merchant] = await Promise.all([
@@ -132,6 +133,19 @@ async function main() {
     requestedDepartureFrom: from, requestedDepartureUntil: until,
     parcels: [{ destinationStopId: second.destination.id, size: "S", priority: "normal" }]
   }, { id: merchant.id, idempotencyKey: "m7c1-merchant-cross-route" }), /invalid_route_stop/, "merchant cross-route parcel rejected");
+  await rejects(() => prisma.passengerRequest.create({ data: {
+    passenger_id: passenger.id, pickup_label: "derived", pickup_lat: "31.600000", pickup_lng: "35.120000",
+    destination_label: "derived", destination_lat: destination.stop.latitude, destination_lng: destination.stop.longitude,
+    preferred_time: from, passenger_count: 1, source: "canonical_route_v1", route_version_id: version.id,
+    pickup_stop_id: second.origin.id, dropoff_stop_id: destination.stop_id, canonical_entry_version: "canonical_route_v1",
+    requested_departure_from: from, requested_departure_until: until, canonical_created_at: new Date()
+  } }), /foreign key|P2003/i, "database rejects direct passenger cross-route membership");
+  await rejects(() => prisma.parcel.create({ data: {
+    order_id: merchantCreate.resource.id, destination_label: "derived", destination_lat: second.destination.latitude,
+    destination_lng: second.destination.longitude, size: "S", priority: "normal", status: "pending",
+    route_version_id: second.current.id, destination_stop_id: second.destination.id,
+    canonical_entry_version: "canonical_route_v1"
+  } }), /foreign key|P2003/i, "database rejects direct parcel/order route disagreement");
 
   const duplicateDeparture = new Date(Date.now() + 120 * 60_000);
   const duplicateInput = {
@@ -146,6 +160,84 @@ async function main() {
   const duplicateWinner = duplicateRace.find((result): result is PromiseFulfilledResult<Awaited<ReturnType<typeof driverService.createOneOff>>> => result.status === "fulfilled")!.value.resource;
   const active = await driverService.activate(duplicateWinner.id, duplicateWinner.availability_revision, { id: driver1.id });
   await rejects(() => driverService.getOwner(active.id, driver2.id), /availability_not_found/, "driver owner isolation");
+
+  const exactReplayAvailability = await createAvailability({
+    driverId: driver1.id, routeVersionId: version.id, departureOffsetMinutes: 125,
+    seats: 2, parcels: 0, key: "m7c1-exact-replay-availability"
+  });
+  const exactExpiry = new Date(Date.now() + 10 * 60_000);
+  const exactRetries = await Promise.allSettled(Array.from({ length: 10 }, () => capacityService.hold({
+    driverRouteId: exactReplayAvailability.id, routeVersionId: version.id, reservationType: "passenger",
+    seatsReserved: 1, parcelUnitsReserved: 0, expiresAt: exactExpiry
+  }, { id: passenger.id, idempotencyKey: "m7c1-exact-concurrent-hold" })));
+  check(exactRetries.every((result) => result.status === "fulfilled"), "concurrent exact hold retries all resolve");
+  check(await prisma.capacityReservation.count({ where: { driver_route_id: exactReplayAvailability.id } }) === 1, "concurrent exact hold creates one reservation");
+  check((await prisma.driverRoute.findUniqueOrThrow({ where: { id: exactReplayAvailability.id } })).remaining_seats === 1, "concurrent exact hold decrements once");
+  check(await prisma.auditEvent.count({ where: { action: "capacity_reserved", entity_id: exactRetries[0].status === "fulfilled" ? exactRetries[0].value.resource.id : "" } }) === 1, "concurrent exact hold audits once");
+
+  const approvalAvailability = await createAvailability({
+    driverId: driver2.id, routeVersionId: version.id, departureOffsetMinutes: 126,
+    seats: 1, parcels: 0, key: "m7c1-approval-availability"
+  });
+  await prisma.driverProfile.update({ where: { user_id: driver2.id }, data: { verified: false } });
+  await rejects(() => capacityService.hold({
+    driverRouteId: approvalAvailability.id, routeVersionId: version.id, reservationType: "passenger",
+    seatsReserved: 1, parcelUnitsReserved: 0, expiresAt: new Date(Date.now() + 10 * 60_000)
+  }, { id: passenger.id, idempotencyKey: "m7c1-unapproved-hold" }), /availability_not_reservable/, "approval revocation blocks new hold");
+  await prisma.driverProfile.update({ where: { user_id: driver2.id }, data: { verified: true } });
+
+  const pauseRaceAvailability = await createAvailability({
+    driverId: driver2.id, routeVersionId: version.id, departureOffsetMinutes: 127,
+    seats: 1, parcels: 0, key: "m7c1-route-pause-race-availability"
+  });
+  let releasePause!: () => void;
+  let announcePause!: () => void;
+  const pauseRelease = new Promise<void>((resolve) => { releasePause = resolve; });
+  const pauseLocked = new Promise<void>((resolve) => { announcePause = resolve; });
+  const pauseTransaction = prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM service_routes WHERE id = ${route.id} FOR UPDATE`;
+    await tx.$queryRaw`SELECT id FROM service_route_versions WHERE id = ${version.id} FOR UPDATE`;
+    await tx.serviceRouteVersion.update({ where: { id: version.id }, data: { status: "paused" } });
+    announcePause();
+    await pauseRelease;
+  });
+  await pauseLocked;
+  const pausedAttempts = Promise.allSettled([
+    capacityService.hold({
+      driverRouteId: pauseRaceAvailability.id, routeVersionId: version.id, reservationType: "passenger",
+      seatsReserved: 1, parcelUnitsReserved: 0, expiresAt: new Date(Date.now() + 10 * 60_000)
+    }, { id: passenger.id, idempotencyKey: "m7c1-route-pause-race-hold" }),
+    demandService.createPassengerRequest({
+      routeVersionId: version.id, pickupStopId: pickup.stop_id, dropoffStopId: destination.stop_id,
+      requestedDepartureFrom: from, requestedDepartureUntil: until, passengerCount: 1
+    }, { id: passenger.id, idempotencyKey: "m7c1-route-pause-race-demand" })
+  ]);
+  await new Promise((resolve) => setTimeout(resolve, 25));
+  releasePause();
+  await pauseTransaction;
+  const [pausedHold, pausedDemand] = await pausedAttempts;
+  check(pausedHold.status === "rejected" && /route_version_not_available/.test(String(pausedHold.reason)), "route pause wins against concurrent hold");
+  check(pausedDemand.status === "rejected" && /route_version_not_available/.test(String(pausedDemand.reason)), "route pause wins against concurrent demand creation");
+  check(await prisma.capacityReservation.count({ where: { driver_route_id: pauseRaceAvailability.id } }) === 0, "route pause race leaves no reservation");
+  await prisma.serviceRouteVersion.update({ where: { id: version.id }, data: { status: "published" } });
+
+  const cancelRaceAvailability = await createAvailability({
+    driverId: driver2.id, routeVersionId: version.id, departureOffsetMinutes: 128,
+    seats: 1, parcels: 0, key: "m7c1-cancel-race-availability"
+  });
+  const cancelRace = await Promise.allSettled([
+    capacityService.hold({
+      driverRouteId: cancelRaceAvailability.id, routeVersionId: version.id, reservationType: "passenger",
+      seatsReserved: 1, parcelUnitsReserved: 0, expiresAt: new Date(Date.now() + 10 * 60_000)
+    }, { id: passenger.id, idempotencyKey: "m7c1-cancel-race-hold" }),
+    driverService.cancel(cancelRaceAvailability.id, cancelRaceAvailability.availability_revision, { id: driver2.id })
+  ]);
+  check(cancelRace.some((result) => result.status === "fulfilled"), "cancel versus hold has a winner");
+  const cancelRaceFinal = await prisma.driverRoute.findUniqueOrThrow({ where: { id: cancelRaceAvailability.id } });
+  const cancelRaceReservations = await prisma.capacityReservation.count({
+    where: { driver_route_id: cancelRaceAvailability.id, status: { in: ["held", "confirmed"] } }
+  });
+  check(!(cancelRaceFinal.availability_status === "cancelled" && cancelRaceReservations > 0), "cancel versus hold never strands a reservation");
 
   await prisma.serviceRouteVersion.update({ where: { id: version.id }, data: { status: "paused" } });
   await rejects(() => requireEligibleOperationalRoute(prisma, version.id), /route_version_not_available/, "paused version rejected");
@@ -210,6 +302,63 @@ async function main() {
   const afterRelease = await prisma.driverRoute.findUniqueOrThrow({ where: { id: releaseAvailability.id } });
   check(afterRelease.remaining_seats === 2 && afterRelease.remaining_parcel_capacity === 2, "released capacity restored exactly once");
 
+  const updateReleaseAvailability = await createAvailability({
+    driverId: driver2.id, routeVersionId: version.id, departureOffsetMinutes: 155,
+    seats: 2, parcels: 0, key: "m7c1-update-release-availability"
+  });
+  const updateReleaseHold = await capacityService.hold({
+    driverRouteId: updateReleaseAvailability.id, routeVersionId: version.id, reservationType: "passenger",
+    seatsReserved: 1, parcelUnitsReserved: 0, expiresAt: new Date(Date.now() + 10 * 60_000)
+  }, { id: passenger.id, idempotencyKey: "m7c1-update-release-hold" });
+  const updateReleasePaused = await driverService.pause(
+    updateReleaseAvailability.id, updateReleaseAvailability.availability_revision, { id: driver2.id }
+  );
+  const updateReleaseRace = await Promise.allSettled([
+    capacityService.release(updateReleaseHold.resource.id, "offer_cancelled", {
+      id: passenger.id, idempotencyKey: "m7c1-update-release-release"
+    }),
+    driverService.updateOneOff(updateReleaseAvailability.id, {
+      expectedRevision: updateReleasePaused.availability_revision, totalParcelCapacity: 1
+    }, { id: driver2.id })
+  ]);
+  check(
+    updateReleaseRace.every((result) => result.status === "fulfilled"),
+    `capacity update versus release completes without lost accounting (${updateReleaseRace.map((result) =>
+      result.status === "fulfilled" ? "fulfilled" : String(result.reason)
+    ).join(",")})`
+  );
+  const updateReleaseFinal = await prisma.driverRoute.findUniqueOrThrow({ where: { id: updateReleaseAvailability.id } });
+  check(
+    updateReleaseFinal.total_seats === 2 && updateReleaseFinal.remaining_seats === 2 &&
+    updateReleaseFinal.total_parcel_capacity === 1 && updateReleaseFinal.remaining_parcel_capacity === 1,
+    "capacity update versus release restores exact total"
+  );
+
+  const routeBAvailability = await createAvailability({
+    driverId: driver2.id, routeVersionId: second.current.id, departureOffsetMinutes: 156,
+    seats: 1, parcels: 0, key: "m7c1-route-b-availability"
+  });
+  const canonicalMatch = await prisma.match.create({ data: {
+    driver_route_id: updateReleaseAvailability.id, route_version_id: version.id,
+    canonical_match_version: "canonical_route_v1", score: "0.5000", method: "review_foundation",
+    explanation: "canonical foundation review", scoring_breakdown: { review: true }
+  } });
+  await rejects(() => capacityService.hold({
+    driverRouteId: routeBAvailability.id, routeVersionId: second.current.id, matchId: canonicalMatch.id,
+    reservationType: "passenger", seatsReserved: 1, parcelUnitsReserved: 0,
+    expiresAt: new Date(Date.now() + 10 * 60_000)
+  }, { id: passenger.id, idempotencyKey: "m7c1-cross-route-match-hold" }), /canonical_route_mismatch/, "service rejects cross-route match reservation");
+  await rejects(() => prisma.capacityReservation.create({ data: {
+    driver_route_id: routeBAvailability.id, route_version_id: second.current.id, match_id: canonicalMatch.id,
+    reservation_type: "passenger", seats_reserved: 1, parcel_units_reserved: 0,
+    expires_at: new Date(Date.now() + 10 * 60_000), idempotency_fingerprint: "a".repeat(64)
+  } }), /foreign key|P2003/i, "database rejects cross-route match reservation");
+  await rejects(() => prisma.match.create({ data: {
+    driver_route_id: routeBAvailability.id, route_version_id: version.id,
+    canonical_match_version: "canonical_route_v1", score: "0.5000", method: "invalid_review_foundation",
+    explanation: "must fail", scoring_breakdown: { review: true }
+  } }), /foreign key|P2003/i, "database rejects canonical match/availability route disagreement");
+
   const decisionAvailability = await createAvailability({ driverId: driver1.id, routeVersionId: version.id, departureOffsetMinutes: 160, seats: 1, parcels: 1, key: "m7c1-decision-availability" });
   const decisionHold = await capacityService.hold({ driverRouteId: decisionAvailability.id, routeVersionId: version.id, reservationType: "combined", seatsReserved: 1, parcelUnitsReserved: 1, expiresAt: new Date(Date.now() + 10 * 60_000) }, { id: passenger.id, idempotencyKey: "m7c1-decision-hold" });
   const decisionRace = await Promise.allSettled([
@@ -232,6 +381,43 @@ async function main() {
   const expiryCapacity = await prisma.driverRoute.findUniqueOrThrow({ where: { id: expiryAvailability.id } });
   check(expiryCapacity.remaining_seats! >= 0 && expiryCapacity.remaining_seats! <= expiryCapacity.total_seats!, "capacity remains within seat total");
   check(expiryCapacity.remaining_parcel_capacity! >= 0 && expiryCapacity.remaining_parcel_capacity! <= expiryCapacity.total_parcel_capacity!, "capacity remains within parcel total");
+
+  const poisonAvailability = await createAvailability({
+    driverId: driver2.id, routeVersionId: version.id, departureOffsetMinutes: 175,
+    seats: 2, parcels: 0, key: "m7c1-expiry-poison-availability"
+  });
+  const validPoisonExpiry = new Date(Date.now() + 60_000);
+  const validPoisonHold = await capacityService.hold({
+    driverRouteId: poisonAvailability.id, routeVersionId: version.id, reservationType: "passenger",
+    seatsReserved: 1, parcelUnitsReserved: 0, expiresAt: validPoisonExpiry
+  }, { id: passenger.id, idempotencyKey: "m7c1-expiry-valid-hold" });
+  await prisma.capacityReservation.create({ data: {
+    driver_route_id: poisonAvailability.id, route_version_id: version.id,
+    reservation_type: "passenger", seats_reserved: 2, parcel_units_reserved: 0,
+    expires_at: new Date(validPoisonExpiry.getTime() - 1), idempotency_fingerprint: "b".repeat(64)
+  } });
+  const poisonResult = await capacityService.expireBatch({ now: new Date(validPoisonExpiry.getTime() + 1), limit: 10 });
+  check(poisonResult.failed >= 1 && poisonResult.expired >= 1, "invalid expiry candidate does not poison bounded batch");
+  check((await prisma.capacityReservation.findUniqueOrThrow({ where: { id: validPoisonHold.resource.id } })).status === "expired", "valid expiry candidate reaches terminal state after poison");
+  check((await prisma.driverRoute.findUniqueOrThrow({ where: { id: poisonAvailability.id } })).remaining_seats === 2, "valid expiry restores capacity despite poison candidate");
+
+  const operationalAudits = await prisma.auditEvent.findMany({
+    where: { action: { in: [
+      "driver_availability_created", "driver_availability_activated", "driver_availability_paused",
+      "driver_availability_cancelled", "canonical_passenger_request_created", "canonical_merchant_order_created",
+      "capacity_reserved", "capacity_confirmed", "capacity_released", "capacity_expired"
+    ] } },
+    select: { metadata: true }
+  });
+  const allowedAuditKeys = new Set([
+    "route_version_id", "seats", "parcel_units", "passenger_count", "parcel_count",
+    "transition", "reason_code", "request_id", "schema_version"
+  ]);
+  check(operationalAudits.length > 0 && operationalAudits.every((event) =>
+    event.metadata !== null && typeof event.metadata === "object" && !Array.isArray(event.metadata) &&
+    Object.keys(event.metadata).every((key) => allowedAuditKeys.has(key))
+  ), "persisted operational audit metadata uses the approved allowlist");
+  check(!/(latitude|longitude|pickup_lat|destination_lat|phone|password|token|idempotency)/i.test(JSON.stringify(operationalAudits)), "persisted operational audit metadata excludes private payload values");
 
   const legacyRequest = await prisma.passengerRequest.findFirstOrThrow({ where: { source: "seed" } });
   check(legacyRequest.route_version_id === null && legacyRequest.canonical_entry_version === null, "legacy passenger remains valid");
@@ -257,8 +443,8 @@ async function main() {
   check(await prisma.capacityReservation.count() === 0 && await prisma.driverRoute.count() === 2, "demo reset is idempotent");
   check(await prisma.auditEvent.count({ where: { action: "demo_reset" } }) === 1, "reset leaves only bounded deterministic audit state");
 
-  check(checks === 36, `expected 36 checks, received ${checks}`);
-  console.log("M7C1 real-MySQL operational and concurrency integration passed: 36 checks");
+  check(checks === 53, `expected 53 persistent-state assertions, received ${checks}`);
+  console.log("M7C1 real-MySQL operational and concurrency integration passed: 53 persistent-state assertions");
 }
 
 main()
