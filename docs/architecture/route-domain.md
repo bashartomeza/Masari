@@ -38,4 +38,4 @@ No map SDK, geocoder, provider key, GPS permission, realtime transport, location
 
 `DriverRoute.route_version_id` and one-off availability fields are nullable. Existing rows are backfilled from their legacy capacities/status without removing legacy fields. The demo forward driver row links safely to the deterministic published version; the reverse legacy row remains unlinked because direction is different.
 
-`MULTI_ROUTE_ENTRY_ENABLED` is rejected at startup throughout M7B. The production matcher continues to use the existing `corridor_key`, labels, coordinates, and capacities. M7C must explicitly migrate operational entry paths before this boundary changes.
+M7C1 allows `MULTI_ROUTE_ENTRY_ENABLED` only in local, test, and demo. New one-off availability carries `canonical_availability_version=canonical_route_v1`; the legacy matcher and batcher explicitly require that marker to be null, so the production/deterministic corridor remains isolated. `MULTI_ROUTE_MATCHING_ENABLED` is rejected at startup everywhere until M7C3. Staging and production reject canonical entry.

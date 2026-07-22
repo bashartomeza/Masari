@@ -3,7 +3,7 @@
 [PROJECT_OVERVIEW]
 Masari is a Palestine-focused smart route-sharing logistics MVP.
 
-Current implementation status: M7B Canonical Route Catalog, Immutable Versions, Ordered Stops, Driver Availability Foundation, and Admin Route Management is merged, corrected, and post-merge verified on `production-readiness`. M7C has not started; multi-route operational entry remains fail-closed, and maps, GPS, and realtime remain deferred to M7D/M7E.
+Current implementation status: M7B Canonical Route Management is closed on `production-readiness`. M7C1 Backend Multi-Route Operational Foundation is active on the unmerged feature branch: backend-only canonical entry, immutable operational references, one-off driver availability, and transactional capacity services are implemented behind local/test/demo-only gates. Production multi-route matching, mobile selection, maps, GPS, and realtime remain disabled and deferred.
 
 Locked MVP corridor:
 Hebron / PPU / Bab Al-Zawiya -> Bethlehem.
@@ -2509,3 +2509,34 @@ Artifact, regression, and CI closure:
 Milestone boundary:
 - M7B is closed. M7C has not started and remains responsible for explicitly enabled multi-route operational entry and migration of driver/passenger/merchant route selection and matching behavior.
 - No map SDK/provider, map UI, GPS permission/ingestion, or realtime transport was introduced. Maps/GPS/realtime remain deferred to M7D/M7E.
+
+[M7C1_BACKEND_MULTI_ROUTE_OPERATIONAL_FOUNDATION]
+Scope and gates (2026-07-22):
+- M7C1 is backend-only and review-gated. `MULTI_ROUTE_ENTRY_ENABLED` defaults false, is accepted only in local/test/demo, and remains startup-forbidden in staging/production. New `MULTI_ROUTE_MATCHING_ENABLED` defaults false and startup rejects enablement in every environment. Route management remains independent.
+- No Flutter/admin operational UI, production matching/batching/scoring, canonical trip creation, maps, GPS, location ingestion, realtime transport, pricing, dispatching, recurrence, arbitrary customer coordinates, provider integration, or production enablement was added.
+
+Canonical operational references and compatibility:
+- Forward-only migrations `20260722130000_multi_route_operational_foundation` and `20260722143000_isolate_canonical_availability` extend the nine-migration baseline without editing prior migrations. PassengerRequest, MerchantOrder/Parcel, Match, and Trip gain nullable immutable route references/version markers; Trip also gains nullable snapshot JSON/checksum fields for future M7C3 integration.
+- Passenger pickup/drop-off and merchant pickup/parcel destinations have database composite foreign keys to the submitted route version's `RouteVersionStop`. Parcel `(order_id, route_version_id)` references its owning order's same route. Canonical all-or-required shapes, departure windows, positive passenger count, reservation amounts/types/states, restrictive history, and operational indexes are database-enforced on MySQL 8.0.46.
+- `canonical_availability_version=canonical_route_v1` distinguishes M7C1 one-off supply from M7B-linked legacy/demo DriverRoute rows. Legacy matching and batching explicitly require this marker to be null. Canonical request/order markers are rejected by legacy match/batch entry. Existing legacy coordinates/labels remain only compatibility data; canonical clients submit IDs and server-derived values.
+
+Operational APIs and authorization:
+- Driver owner APIs are `GET/POST /api/v1/driver/availabilities`, `GET/PATCH /api/v1/driver/availabilities/:id`, and activate/pause/resume/cancel POST transitions. Only active authenticated drivers with verified profiles may use them; unrelated records are concealed. Creation is idempotent; updates/transitions use optimistic revision. Beta limits are 1–8 seats, 0–20 parcels, 10-minute–30-day lead, and at most a two-hour availability window.
+- `POST /api/v1/passenger/route-requests` requires active passenger auth and idempotency. It validates current published active route/version, active membership, passenger permissions, downstream order, 1–8 passengers, and a bounded window. It returns `canonical_route_v1` plus an explicit matching-disabled state.
+- `POST /api/v1/merchant/route-orders` requires active merchant auth and idempotency. One route version owns the pickup and 1–50 parcel destinations; every destination is permission-checked and downstream. It returns explicit batching/matching-disabled states. Strict contracts reject coordinates, labels, actor IDs, sequence values, mixed legacy/canonical fields, and unknown properties.
+
+Route eligibility, capacity, match/trip foundation:
+- One shared operational validator requires an active ServiceRoute, its current published non-paused/non-retired version, active dates, contiguous active ordered memberships, and unchanged origin/destination boundaries. Geometry is intentionally not required.
+- Internal `CapacityReservation` supports passenger/parcel/combined held capacity and confirmed/released/expired terminal states. Holds lock DriverRoute, conditionally decrement both counters, create history, and audit in one real MySQL transaction. Confirm never decrements again. Release/expiry lock reservation then availability and restore exactly once without exceeding totals. Expiry is an explicit bounded service only; no scheduled production worker or public capacity endpoint exists.
+- Actor/operation/scope/payload-bound idempotency uses digests only. Exact replay returns the original resource; payload conflict fails. Safe audit allowlists contain IDs, categorical transition/reason, route version, counts, schema marker, and request ID only.
+- A pure future compatibility helper enforces offer/availability/demand/reservation route equality and downstream order. A separately tested route snapshot builder emits only route/version/direction/bilingual stop identity plus checksum. Existing match acceptance and trip creation do not call either helper.
+
+Migration, recovery, and evidence:
+- A checksum-backed ignored backup preceded the populated upgrade; pre-upgrade aggregates were DriverRoute 2, PassengerRequest 1, MerchantOrder 1, Parcel 5, Match 0, Trip 0. The first local attempt found MySQL error 3823 for checked FK columns with cascading updates; no application row changed. The uncommitted new migration was corrected to restrictive updates, the failed attempt was safely marked rolled back after removing only its two partial indexes, and the corrected migration first passed from empty before populated deployment.
+- Main MySQL now reports eleven migrations current. The disposable integration path applies all eleven from empty, repeats deploy as a no-op, and runs the legacy deterministic, trusted-session, onboarding, public-onboarding, route-lifecycle, and new M7C1 suites.
+- The M7C1 real-MySQL suite passes 36 persistent-state scenarios covering route/stop eligibility, passenger/merchant references, duplicate availability, owner isolation, seat/parcel/combined holds, insufficient rollback, replay/conflict, confirm/release/expiry races, capacity bounds/restoration, legacy records, Arabic round-trip, and idempotent reset cleanup.
+- Focused API/config/helper tests pass, and the full API suite currently passes 171 tests. Final workspace/admin/Flutter, backup/restore, live preflight/smoke, production-like gate, artifact/log scan, and exact-head CI evidence are recorded at task closure before the draft PR leaves local development.
+
+Remaining boundaries:
+- M7C1 must remain a draft, unmerged PR pending independent schema, migration, route/stop ownership, capacity concurrency, idempotency, authorization, privacy/logging, feature-gate, and legacy/demo compatibility review.
+- M7C2 remains responsible for mobile route/stop selection. M7C3 remains responsible for canonical batching/matching/offers/acceptance/trips. M7D/M7E remain responsible for maps, providers, GPS, location ingestion, and realtime behavior.
