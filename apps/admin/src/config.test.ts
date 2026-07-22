@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AdminConfigurationError, createAdminBuildConfig, demoUiEnabled } from "./config";
+import { AdminConfigurationError, createAdminBuildConfig, demoUiEnabled, routeManagementUiEnabled } from "./config";
 
 describe("admin build isolation", () => {
   it("enables demo UI only for an explicit demo build", () => {
@@ -49,5 +49,25 @@ describe("admin build isolation", () => {
         VITE_ENABLE_DEMO_FEATURES: "true"
       })
     ).toThrow(/cannot be enabled/);
+  });
+
+  it("keeps route management navigation explicitly feature-gated", () => {
+    const disabled = createAdminBuildConfig({
+      VITE_APP_ENV: "production",
+      VITE_API_BASE_URL: "https://api.masari.example",
+      VITE_ROUTE_MANAGEMENT_ENABLED: "false"
+    });
+    const enabled = createAdminBuildConfig({
+      VITE_APP_ENV: "production",
+      VITE_API_BASE_URL: "https://api.masari.example",
+      VITE_ROUTE_MANAGEMENT_ENABLED: "true"
+    });
+    expect(routeManagementUiEnabled(disabled)).toBe(false);
+    expect(routeManagementUiEnabled(enabled)).toBe(true);
+    expect(() => createAdminBuildConfig({
+      VITE_APP_ENV: "local",
+      VITE_API_BASE_URL: "http://localhost:3000",
+      VITE_ROUTE_MANAGEMENT_ENABLED: "yes"
+    })).toThrow(/true or false/);
   });
 });

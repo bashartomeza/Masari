@@ -3,10 +3,33 @@
 [PROJECT_OVERVIEW]
 Masari is a Palestine-focused smart route-sharing logistics MVP.
 
-Current implementation status: M6C2B2 Controlled Public Onboarding Backend is merged and post-merge verified on `production-readiness`. M6C2C has not started.
+Current implementation status: M6C2C Flutter Controlled Onboarding is merged and post-merge verified on `production-readiness` at merge commit `cf550ec68aaa3062dc12eaf958fde73e6be03b81`. M7A planning is approved. M7B Canonical Route Catalog, Immutable Versions, Ordered Stops, Driver Availability Foundation, and Admin Route Management is the active implementation milestone on feature branch `m7b/admin-route-catalog`.
 
 Locked MVP corridor:
 Hebron / PPU / Bab Al-Zawiya -> Bethlehem.
+
+The locked corridor remains the deterministic demo/test reference. M7B adds a feature-gated canonical route-management foundation without switching passenger, merchant, matching, batching, trip creation, Flutter role flows, or production multi-route entry away from the legacy corridor.
+
+[M7_APPROVED_ROUTE_DECISIONS]
+- Admin owns canonical route and stop creation, version publication, pause/resume, and retirement.
+- Drivers cannot create or edit canonical route geometry or stops; a later milestone lets them select published routes.
+- Controlled beta is limited to no more than five approved routes.
+- Outbound and inbound directions are separate canonical routes. Loops require explicit later approval.
+- Passenger and merchant arbitrary coordinates are deferred; approved stop selection belongs to M7C.
+- One merchant order belongs to one immutable route version. Multi-route orders are deferred.
+- M7B supports only one-off driver availability foundations. Recurring schedules are deferred.
+- Published route versions and their ordered stops are immutable. Corrections clone a new draft version.
+- Used routes, versions, and stops remain readable history and cannot be destructively deleted.
+- Paused versions reject new availability and demand after M7C integration; active historical work is not rewritten.
+- Route pricing, provider selection, maps, GPS, realtime, and dispatching are outside M7B.
+- The original deterministic corridor, `masari_route_score`, simulation points, and approved metrics remain unchanged.
+
+[M7B_FIXED_CORRIDOR_AUDIT]
+- Deterministic demo fixtures: `LOCKED_CORRIDOR_KEY`, corridor labels/coordinates, demo route points, seeded passenger and merchant stops, comparison formulas, smoke expectations, Flutter demo presets, and their regression fixtures.
+- Reusable logic: coordinate range validation, role ownership, trusted sessions, request IDs, safe auditing/logging, trip lifecycle, REST polling, MySQL migration/recovery tooling, localization, and production/demo isolation.
+- Future M7C migration targets: passenger/merchant coordinate DTOs, driver route creation, match/batch corridor filters, role mobile forms, and trip/match route references.
+- M7B production blockers: no stable canonical route identity, immutable version, reusable stop, ordered stop membership, transactional publication, draft concurrency, or canonical availability reference.
+- Migration concerns: `DriverRoute` currently combines corridor and capacity state; existing match/trip relations depend on it; legacy fields and behavior must remain additive and nullable throughout M7B.
 
 Implemented in M1:
 - TypeScript backend API foundation.
@@ -2408,3 +2431,59 @@ Independent validation and emulator evidence:
 
 Independent-review readiness:
 - PR #5 must remain draft and unmerged until the remaining response-loss/accessibility gates above are completed and the corrective head passes all four required CI contexts. No schema, migration, dependency, real provider, production enablement, admin onboarding UI, or approval workflow was added.
+
+[M7B_CANONICAL_ROUTE_CATALOG_AND_ADMIN_MANAGEMENT]
+Scope and compatibility boundary (2026-07-21):
+- M7B adds an admin-owned canonical route catalog without switching passenger requests, merchant orders, batching, matching, trips, or Flutter flows away from the deterministic legacy corridor. The original Hebron / PPU / Bab Al-Zawiya to Bethlehem fixture, labels, coordinates, simulated points, scoring, and operational contracts remain unchanged.
+- `ROUTE_MANAGEMENT_ENABLED` and the admin `VITE_ROUTE_MANAGEMENT_ENABLED` both default false. Disabled admin route endpoints return 404, the authenticated read catalog returns a safe empty contract, and the production admin navigation hides the module. `MULTI_ROUTE_ENTRY_ENABLED` defaults false and any attempt to enable it fails startup until M7C exists.
+- No map provider or SDK, map UI, GPS permission, realtime dependency, live-location ingestion, route pricing, recurring schedule, capacity reservation, driver mobile selector, or passenger/merchant route selector was added.
+
+Canonical route domain:
+- `ServiceRoute` is the stable, normalized route identity with group, region, enum direction, active/retired lifecycle, nullable current-version pointer, creator, and retirement metadata. The controlled beta service layer caps creation at five route identities and exposes no destructive route/version delete API.
+- `ServiceRouteVersion` owns bilingual names/descriptions, active dates, origin/destination, explicit optional geometry readiness and safe geometry metadata, estimates, lifecycle timestamps/actors/reasons, and an optimistic `draft_revision`. Published versions are immutable; corrections clone to a new transactionally numbered draft.
+- `Stop` is a stable normalized bilingual identity using range-checked `DECIMAL(9,6)` coordinates and active/retired lifecycle. `RouteVersionStop` gives each version a unique, one-based, gap-free stop order, unique membership, four pickup/drop-off permission flags, and bounded optional offset/dwell values.
+- Publication uses a real MySQL transaction and row locks: it locks the stable route, reloads and validates the expected draft revision and ordered active stops, verifies bilingual/origin/destination/date/permission invariants, publishes exactly one version, atomically changes the current pointer, safely pauses a replaced current publication, and records an allowlisted audit event. Concurrent draft writes and publication return conflicts rather than silently overwriting.
+- Pause/resume/version-retire/route-retire enforce the current pointer, terminal states, required reasons where applicable, active-date checks, and known DriverRoute/MatchOffer/Trip usage. Published/paused/retired versions and used stops remain historically readable and non-destructive.
+
+Driver compatibility and deterministic demo route:
+- `DriverRoute` remains the compatibility/availability entity. Nullable `route_version_id` plus one-off departure/window, total/remaining seat and parcel capacity, availability status/revision, and lifecycle timestamps were added with restrictive foreign keys and database checks. Existing corridor and capacity columns remain; the matcher does not read the new fields in M7B.
+- The future authenticated driver-availability creation service validates the current published version, one-off future timing, driver profile capacity, and remaining totals, but its HTTP entry point is unreachable while `MULTI_ROUTE_ENTRY_ENABLED=false`.
+- Local/test/demo reset idempotently creates one stable deterministic route, published version 1, and three canonical stops from the existing fixture. It preserves the exact fixture geometry and links only the safely compatible outbound demo DriverRoute. No operational beta route is seeded by migration or production runtime.
+
+API, admin, authorization, and privacy:
+- Admin-only feature-gated APIs cover route list/create/detail/retire, version create/detail/draft-edit/stop-replace/clone/publish/pause/resume/retire, and stop list/create/edit/retire. Writes use existing trusted admin authentication/live-session enforcement, strict Zod allowlists, bounded request bodies, request IDs, idempotency keys for creation/lifecycle operations, and optimistic revisions for draft mutations.
+- Authenticated read-only catalog APIs expose only current published/paused route summaries and ordered stops with bounded pagination. They exclude drafts, retired routes by default, audit actors, provider internals, encoded geometry, phone data, and other administrative metadata.
+- Audit events contain only safe IDs, transition/revision/request ID, bounded categorical reason/code, and optional checksum/diff references. Full bodies, coordinates, descriptions, provider payloads, tokens, and credentials are excluded.
+- The production React module is separate from `/demo` and provides a bilingual RTL/LTR catalog, loading/empty/error states, search/filter/pagination, identity/version and numeric stop forms, keyboard-accessible stop reordering, permission controls, revision-conflict handling, lifecycle confirmations, explicit geometry readiness, shared responsive design tokens, and no map surface.
+
+Migration, recovery, and validation evidence:
+- Forward-only migration `20260721110000_canonical_route_catalog` adds the four canonical tables, enums, compatibility columns, indexes, restrictive foreign keys, utf8mb4 tables, and MySQL CHECK constraints. The seven existing migrations were not edited and no `db push` was used. Main `masari` upgraded from seven to eight migrations, repeated deploy was a no-op, and final status is current.
+- Aggregate preflight found two legacy DriverRoute rows, no trips/matches using them, one distinct corridor, and no invalid legacy capacities. A fresh isolated database applied all eight migrations. The populated upgrade passed, and the disposable real-MySQL route harness passed repeatedly before final validation and once again from an empty database at final head.
+- Real-MySQL coverage includes route/stop uniqueness, idempotent replay/conflict, version-number and clone concurrency, optimistic draft conflict, stop constraints, invalid publication, one deterministic current publication under concurrency, published immutability, pause/resume/retire rules, usage deletion protection, capacity checks, Arabic round-trip, demo seed/reset idempotency, and final cleanup.
+- Ignored checksum-backed backups were made before and after migration. The pre-migration dump restored into an isolated database and upgraded through all eight migrations; the post-migration dump restored at current status. Both isolated restore databases were removed after verification.
+- Final local validation passed dependency installation, Prisma validate/generate, eight-migration deploy/status, workspace typecheck/build, 160 API tests, 24 admin tests, standard/security/workflow/tooling gates, production admin and release-APK artifact scans, 141 Flutter tests with zero format/analyzer findings, 22/22 live preflight, fresh emulator APK install, and Arabic-first launch. The release APK was not rebuilt by M7B.
+- Deterministic live smoke remains score `0.9317`, tracking sequence `2`, trips `1` versus `6`, distance `21.53` versus `129.19`, cost `43.06` versus `258.38`, and winner `masari`.
+
+M7B review and remaining work:
+- M7B is intentionally delivered as an unmerged draft PR and requires independent schema, lifecycle, authorization, privacy, and real-MySQL concurrency review before merge.
+- M7C remains responsible for explicitly enabled multi-route operational entry and migration of driver/passenger/merchant selection and matching behavior. M7D remains responsible for any separately approved map-provider geometry, map UI, GPS, location ingestion, or realtime design. Neither milestone is implemented here.
+
+[M7B_INDEPENDENT_REVIEW_REMEDIATION]
+Review scope (2026-07-22):
+- Independent review of draft PR #6 preserved remote head `3e13d173b8507f45659b256ea1a1f7a08abe82db`, both frozen release tags, and the original M7B migration. The review used the production admin at exactly `http://localhost:5173`, a real local MySQL 8.0 disposable review database using `utf8mb4`, and the existing feature gates with route management enabled, multi-route operational entry disabled, and demo UI independently disabled.
+- The complete 30-scenario browser matrix passed: disabled navigation/API behavior; admin login and production shell; loading/empty/safe errors; three bilingual stops; invalid coordinates and duplicate keys; stable and duplicate route handling; rapid-submit protection; draft editing; keyboard stop ordering; stop permissions; stale two-view revision conflict; invalid and valid publication; current-pointer update; published/shared-stop immutability; clone and geometry invalidation; retired-stop clone rejection; cross-route pointer ownership; concurrent active-route cap; pause/resume; version/route retirement; public field allowlist; non-admin isolation; passenger/driver/merchant and account/session authorization; Arabic RTL/English LTR; desktop/tablet/narrow layouts; visible focus; long Arabic content at 200% scaling; and demo-console separation.
+- Responsive evidence passed at desktop, `768 x 1024`, and `390 x 844`. Tablet and narrow layouts used a single stacked column with a static route sidebar and no horizontal overflow. Arabic remained RTL, English switched to LTR, keyboard reordering remained operable, visible focus was present, and long Arabic content remained usable at 200% browser scaling without horizontal overflow.
+
+Independent-review corrections:
+- Route creation now serializes the five-active-route envelope and retries MySQL serialization conflicts. The database now constrains a route's current pointer to one of its own versions through forward-only migration `20260721170000_enforce_route_catalog_integrity`.
+- Referenced stops are immutable from their first draft membership. Stop replacement, cloning, and publication lock and validate member stops; cross-region or retired members fail closed. Stop replacement and cloning clear geometry/provider/checksum/estimate approval metadata rather than inheriting stale geometry.
+- Public catalog serialization is an explicit safe allowlist that omits internal membership and foreign-key IDs, administrative timestamps, retirement metadata, and provider internals while retaining the stable IDs and ordered permissions clients require.
+- The admin retains one idempotency key only for the same unresolved logical mutation, rotates it when payload changes or the outcome becomes authoritative, closes the same-render rapid-submit window with a ref-backed guard, keeps busy controls disabled, and localizes safe generic failures without exposing raw backend messages.
+- Real-browser review found two HTTP integration blockers: CORS did not allow `Idempotency-Key`, so idempotent admin POSTs failed preflight, and CORS did not allow `PUT`, so ordered-stop saves failed preflight. The allowlist now includes both and focused HTTP-security tests pin the contract.
+- The production-like trusted-session harness was inheriting the local-only legal-fixture flag from its parent process. A small environment-sanitization helper now removes local/test-only flags before production subprocess startup, with delivery-tooling regression coverage. Production configuration continues to fail closed if those flags are supplied directly.
+
+Review validation boundary:
+- Focused API CORS/security tests, admin route tests, delivery-tooling tests, the disposable real-MySQL route concurrency harness, and the complete trusted-session integration harness passed after correction. The latter retained the approved deterministic metrics: score `0.9317`, tracking sequence `2`, trips `1` versus `6`, distance `21.53` versus `129.19`, cost `43.06` versus `258.38`, and winner `masari`.
+- The final local gate passed a clean npm install, Prisma validate/generate, repeatable 9-migration deploy/current status, workspace typecheck/build, 160 API tests, 26 admin tests, 8 tooling tests, workflow/secret/security validation, zero-change Flutter formatting, Flutter analysis, and 141 Flutter tests. Real MySQL route concurrency, trusted-session, 76-check public-onboarding, checksum-backed backup/isolated restore, 22/22 live preflight, deterministic smoke, production-like session isolation, production admin/release-APK artifact scans, and temporary-log scans all passed. Disposable review/restore databases and browser-review artifacts were removed afterward.
+- During final validation, the registry began reporting a high-severity advisory against transitive `fast-uri@3.1.3` through Prisma CLI's AJV dependency. A lockfile-only non-breaking update to `3.1.4` removed the high finding without changing Prisma or adding a direct dependency. Raw `npm audit --omit=dev` now reports only the three documented moderate Prisma CLI transitives whose proposed repair remains the prohibited breaking force update; the repository audit policy passes.
+- Exact-head GitHub CI remains required before PR #6 can leave draft. PR #6 remains unmerged. M7C and M7D remain out of scope.

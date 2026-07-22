@@ -5,6 +5,7 @@ export type AdminBuildConfig = {
   appEnv: AdminAppEnvironment;
   apiBaseUrl: string;
   demoFeaturesEnabled: boolean;
+  routeManagementEnabled: boolean;
   demo?: {
     adminPhone: string;
     adminPassword: string;
@@ -33,6 +34,10 @@ export function createAdminBuildConfig(environment: Record<string, string | unde
   }
 
   const demoFeaturesEnabled = booleanValue("VITE_ENABLE_DEMO_FEATURES", environment.VITE_ENABLE_DEMO_FEATURES);
+  const routeManagementEnabled = booleanValue(
+    "VITE_ROUTE_MANAGEMENT_ENABLED",
+    environment.VITE_ROUTE_MANAGEMENT_ENABLED
+  );
   const productionLike = appEnv === "staging" || appEnv === "production";
   if (productionLike && demoFeaturesEnabled) {
     problems.push("VITE_ENABLE_DEMO_FEATURES cannot be enabled in staging or production");
@@ -60,6 +65,7 @@ export function createAdminBuildConfig(environment: Record<string, string | unde
     appEnv: appEnv as AdminAppEnvironment,
     apiBaseUrl,
     demoFeaturesEnabled,
+    routeManagementEnabled,
     demo: demoFeaturesEnabled ? demo : undefined
   };
 }

@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { spawn } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
+import { withoutLocalOnlyEnvironment } from "./lib/production-environment.mjs";
 
 const database = new URL(process.env.DATABASE_URL).pathname.slice(1);
 if (!database.endsWith("_ci")) throw new Error("Production-session integration refuses a database not ending in _ci");
@@ -8,7 +9,7 @@ if (!database.endsWith("_ci")) throw new Error("Production-session integration r
 const apiOrigin = "http://127.0.0.1:3102";
 const apiBaseUrl = `${apiOrigin}/api/v1`;
 const productionEnvironment = {
-  ...process.env,
+  ...withoutLocalOnlyEnvironment(process.env),
   APP_ENV: "production",
   ENABLE_DEMO_FEATURES: "false",
   APP_RELEASE: "m6c1a-production-integration",

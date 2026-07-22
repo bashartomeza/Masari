@@ -75,6 +75,25 @@ describe("demo reset", () => {
         create: vi.fn().mockResolvedValueOnce({ id: "profile_1" }).mockResolvedValueOnce({ id: "profile_2" })
       },
       demoScenario: { deleteMany: vi.fn(), createMany: vi.fn() },
+      serviceRoute: {
+        updateMany: vi.fn(),
+        deleteMany: vi.fn(),
+        create: vi.fn().mockResolvedValue({ id: "service_route_1" }),
+        update: vi.fn()
+      },
+      serviceRouteVersion: {
+        deleteMany: vi.fn(),
+        create: vi.fn().mockResolvedValue({ id: "route_version_1" })
+      },
+      routeVersionStop: { deleteMany: vi.fn(), createMany: vi.fn() },
+      stop: {
+        deleteMany: vi.fn(),
+        create: vi
+          .fn()
+          .mockResolvedValueOnce({ id: "origin_stop" })
+          .mockResolvedValueOnce({ id: "pickup_stop" })
+          .mockResolvedValueOnce({ id: "destination_stop" })
+      },
       user: { deleteMany: vi.fn(), create: userCreate }
     };
     const db = { $transaction: vi.fn((callback: (transaction: typeof tx) => unknown) => callback(tx)) };
@@ -92,6 +111,20 @@ describe("demo reset", () => {
       tx.user.deleteMany.mock.invocationCallOrder[0]
     );
     expect(userCreate).toHaveBeenCalledTimes(5);
+    expect(tx.serviceRouteVersion.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        description_ar: expect.stringContaining("مساري"),
+        geometry_status: "available",
+        estimated_distance_meters: 21_530
+      })
+    });
+    expect(tx.routeVersionStop.createMany).toHaveBeenCalledWith({
+      data: expect.arrayContaining([
+        expect.objectContaining({ sequence: 1 }),
+        expect.objectContaining({ sequence: 2 }),
+        expect.objectContaining({ sequence: 3 })
+      ])
+    });
     for (const call of userCreate.mock.calls) {
       expect(call[0].data).toEqual(expect.objectContaining({ account_status: "active", security_version: 1 }));
     }

@@ -34,6 +34,46 @@ enum DriverRouteStatus {
   completed
 }
 
+enum RouteDirection {
+  outbound
+  inbound
+  loop
+}
+
+enum ServiceRouteStatus {
+  active
+  retired
+}
+
+enum ServiceRouteVersionStatus {
+  draft
+  published
+  paused
+  retired
+}
+
+enum RouteGeometryStatus {
+  pending
+  available
+  unavailable
+}
+
+enum StopStatus {
+  active
+  retired
+}
+
+enum DriverAvailabilityStatus {
+  draft
+  active
+  paused
+  filled
+  departed
+  completed
+  cancelled
+  expired
+}
+
 enum RequestStatus {
   draft
   pending
@@ -141,6 +181,21 @@ enum AuditAction {
   onboarding_status_accessed
   onboarding_rate_limited
   onboarding_idempotency_conflict
+  route_created
+  route_version_created
+  route_draft_updated
+  route_stops_updated
+  route_version_published
+  route_version_paused
+  route_version_resumed
+  route_version_retired
+  route_retired
+  stop_created
+  stop_updated
+  stop_retired
+  driver_availability_created
+  driver_availability_updated
+  driver_availability_status_changed
 }
 
 enum OnboardingRole {
@@ -208,17 +263,25 @@ model User {
   demo_account      Boolean       @default(false)
   created_at        DateTime      @default(now())
 
-  driver_profile DriverProfile?
-  passenger_requests PassengerRequest[]
-  merchant_orders MerchantOrder[]
-  audit_events    AuditEvent[]
-  auth_sessions   AuthSession[]
-  invitations_created Invitation[] @relation("InvitationCreator")
-  invitations_revoked Invitation[] @relation("InvitationRevoker")
-  invitation_redemptions InvitationRedemption[]
-  onboarding_attempts OnboardingAttempt[] @relation("CompletedOnboardingUser")
-  onboarding_sessions OnboardingSession[]
-  consents UserConsent[]
+  driver_profile                   DriverProfile?
+  passenger_requests               PassengerRequest[]
+  merchant_orders                  MerchantOrder[]
+  audit_events                     AuditEvent[]
+  auth_sessions                    AuthSession[]
+  invitations_created              Invitation[]           @relation("InvitationCreator")
+  invitations_revoked              Invitation[]           @relation("InvitationRevoker")
+  invitation_redemptions           InvitationRedemption[]
+  onboarding_attempts              OnboardingAttempt[]    @relation("CompletedOnboardingUser")
+  onboarding_sessions              OnboardingSession[]
+  consents                         UserConsent[]
+  service_routes_created           ServiceRoute[]         @relation("ServiceRouteCreator")
+  service_routes_retired           ServiceRoute[]         @relation("ServiceRouteRetirer")
+  service_route_versions_created   ServiceRouteVersion[]  @relation("ServiceRouteVersionCreator")
+  service_route_versions_published ServiceRouteVersion[]  @relation("ServiceRouteVersionPublisher")
+  service_route_versions_paused    ServiceRouteVersion[]  @relation("ServiceRouteVersionPauser")
+  service_route_versions_retired   ServiceRouteVersion[]  @relation("ServiceRouteVersionRetirer")
+  stops_created                    Stop[]                 @relation("StopCreator")
+  stops_retired                    Stop[]                 @relation("StopRetirer")
 
   @@map("users")
 }
@@ -263,45 +326,45 @@ model InvitationRedemption {
   user_id               String?
   redeemed_at           DateTime @default(now())
 
-  invitation        Invitation       @relation(fields: [invitation_id], references: [id], onDelete: Cascade)
+  invitation         Invitation        @relation(fields: [invitation_id], references: [id], onDelete: Cascade)
   onboarding_attempt OnboardingAttempt @relation(fields: [onboarding_attempt_id], references: [id], onDelete: Cascade)
-  user              User?            @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  user               User?             @relation(fields: [user_id], references: [id], onDelete: SetNull)
 
   @@index([invitation_id, redeemed_at])
   @@map("invitation_redemptions")
 }
 
 model OnboardingAttempt {
-  id                       String                  @id @default(cuid())
-  invitation_id            String                  @unique
-  intended_role            OnboardingRole
-  phone_e164               String                  @db.VarChar(32)
-  phone_digest             String                  @db.Char(64)
-  phone_digest_version     Int
-  phone_last4              String                  @db.Char(4)
-  status                   OnboardingAttemptStatus @default(created)
-  current_challenge_id     String?                 @unique
-  completed_user_id        String?
-  request_ip_digest        String?                 @db.Char(64)
-  request_ip_digest_version Int?
-  created_request_id       String?                 @db.VarChar(64)
-  expires_at               DateTime
-  verified_at              DateTime?
-  registration_grant_digest String?     @db.Char(64)
+  id                             String                  @id @default(cuid())
+  invitation_id                  String                  @unique
+  intended_role                  OnboardingRole
+  phone_e164                     String                  @db.VarChar(32)
+  phone_digest                   String                  @db.Char(64)
+  phone_digest_version           Int
+  phone_last4                    String                  @db.Char(4)
+  status                         OnboardingAttemptStatus @default(created)
+  current_challenge_id           String?                 @unique
+  completed_user_id              String?
+  request_ip_digest              String?                 @db.Char(64)
+  request_ip_digest_version      Int?
+  created_request_id             String?                 @db.VarChar(64)
+  expires_at                     DateTime
+  verified_at                    DateTime?
+  registration_grant_digest      String?                 @db.Char(64)
   registration_grant_key_version Int?
-  registration_grant_expires_at DateTime?
-  otp_dispatch_claim_id    String?                 @db.VarChar(36)
-  otp_dispatch_started_at  DateTime?
-  completed_at             DateTime?
-  created_at               DateTime                @default(now())
-  updated_at               DateTime                @updatedAt
+  registration_grant_expires_at  DateTime?
+  otp_dispatch_claim_id          String?                 @db.VarChar(36)
+  otp_dispatch_started_at        DateTime?
+  completed_at                   DateTime?
+  created_at                     DateTime                @default(now())
+  updated_at                     DateTime                @updatedAt
 
-  invitation       Invitation             @relation(fields: [invitation_id], references: [id], onDelete: Cascade)
-  current_challenge OtpChallenge?          @relation("CurrentOtpChallenge", fields: [current_challenge_id], references: [id], onDelete: SetNull)
-  otp_challenges   OtpChallenge[]          @relation("AttemptOtpChallenges")
-  completed_user   User?                   @relation("CompletedOnboardingUser", fields: [completed_user_id], references: [id], onDelete: SetNull)
-  redemption       InvitationRedemption?
-  sessions         OnboardingSession[]
+  invitation        Invitation            @relation(fields: [invitation_id], references: [id], onDelete: Cascade)
+  current_challenge OtpChallenge?         @relation("CurrentOtpChallenge", fields: [current_challenge_id], references: [id], onDelete: SetNull)
+  otp_challenges    OtpChallenge[]        @relation("AttemptOtpChallenges")
+  completed_user    User?                 @relation("CompletedOnboardingUser", fields: [completed_user_id], references: [id], onDelete: SetNull)
+  redemption        InvitationRedemption?
+  sessions          OnboardingSession[]
 
   @@index([phone_digest, status])
   @@index([invitation_id, created_at])
@@ -330,7 +393,7 @@ model OtpChallenge {
   request_id            String?           @db.VarChar(64)
   created_at            DateTime          @default(now())
 
-  onboarding_attempt OnboardingAttempt  @relation("AttemptOtpChallenges", fields: [onboarding_attempt_id], references: [id], onDelete: Cascade)
+  onboarding_attempt  OnboardingAttempt  @relation("AttemptOtpChallenges", fields: [onboarding_attempt_id], references: [id], onDelete: Cascade)
   current_for_attempt OnboardingAttempt? @relation("CurrentOtpChallenge")
 
   @@unique([onboarding_attempt_id, generation])
@@ -361,17 +424,17 @@ model OnboardingSession {
 }
 
 model ConsentDocument {
-  id              String              @id @default(cuid())
-  document_type   ConsentDocumentType
-  version         String              @db.VarChar(50)
-  locale          ConsentLocale
-  content_digest  String              @db.Char(64)
-  content_reference String?           @db.VarChar(500)
-  effective_at    DateTime
-  retired_at      DateTime?
+  id                String              @id @default(cuid())
+  document_type     ConsentDocumentType
+  version           String              @db.VarChar(50)
+  locale            ConsentLocale
+  content_digest    String              @db.Char(64)
+  content_reference String?             @db.VarChar(500)
+  effective_at      DateTime
+  retired_at        DateTime?
   legal_approved_at DateTime?
-  legal_approved_by String?            @db.VarChar(191)
-  created_at      DateTime            @default(now())
+  legal_approved_by String?             @db.VarChar(191)
+  created_at        DateTime            @default(now())
 
   consents UserConsent[]
 
@@ -381,18 +444,18 @@ model ConsentDocument {
 }
 
 model UserConsent {
-  id                    String   @id @default(cuid())
-  user_id               String
-  consent_document_id   String
-  accepted_at           DateTime @default(now())
-  request_id            String?  @db.VarChar(64)
-  ip_digest             String?  @db.Char(64)
-  ip_digest_version     Int?
-  source                String   @db.VarChar(50)
-  app_release           String?  @db.VarChar(100)
+  id                  String   @id @default(cuid())
+  user_id             String
+  consent_document_id String
+  accepted_at         DateTime @default(now())
+  request_id          String?  @db.VarChar(64)
+  ip_digest           String?  @db.Char(64)
+  ip_digest_version   Int?
+  source              String   @db.VarChar(50)
+  app_release         String?  @db.VarChar(100)
 
-  user               User             @relation(fields: [user_id], references: [id], onDelete: Restrict, map: "user_consents_user_id_restrict_fkey")
-  consent_document   ConsentDocument  @relation(fields: [consent_document_id], references: [id], onDelete: Restrict)
+  user             User            @relation(fields: [user_id], references: [id], onDelete: Restrict, map: "user_consents_user_id_restrict_fkey")
+  consent_document ConsentDocument @relation(fields: [consent_document_id], references: [id], onDelete: Restrict)
 
   @@unique([user_id, consent_document_id])
   @@index([consent_document_id, accepted_at])
@@ -460,14 +523,14 @@ model AuthSession {
 }
 
 model RefreshToken {
-  id             String   @id
+  id             String    @id
   session_id     String
-  token_hash     String   @unique @db.Char(64)
-  created_at     DateTime @default(now())
+  token_hash     String    @unique @db.Char(64)
+  created_at     DateTime  @default(now())
   expires_at     DateTime
   used_at        DateTime?
   revoked_at     DateTime?
-  replaced_by_id String?  @unique
+  replaced_by_id String?   @unique
 
   session     AuthSession    @relation(fields: [session_id], references: [id], onDelete: Cascade)
   replaced_by RefreshToken?  @relation("RefreshTokenRotation", fields: [replaced_by_id], references: [id], onDelete: SetNull)
@@ -496,28 +559,171 @@ model DriverProfile {
 }
 
 model DriverRoute {
-  id                        String            @id @default(cuid())
+  id                        String                    @id @default(cuid())
   driver_id                 String
   origin_label              String
-  origin_lat                Decimal           @db.Decimal(9, 6)
-  origin_lng                Decimal           @db.Decimal(9, 6)
+  origin_lat                Decimal                   @db.Decimal(9, 6)
+  origin_lng                Decimal                   @db.Decimal(9, 6)
   destination_label         String
-  destination_lat           Decimal           @db.Decimal(9, 6)
-  destination_lng           Decimal           @db.Decimal(9, 6)
+  destination_lat           Decimal                   @db.Decimal(9, 6)
+  destination_lng           Decimal                   @db.Decimal(9, 6)
   corridor_key              String
   seats_available           Int
   parcel_capacity_available Int
-  status                    DriverRouteStatus @default(inactive)
+  status                    DriverRouteStatus         @default(inactive)
+  route_version_id          String?
+  departure_at              DateTime?
+  availability_window_end   DateTime?
+  total_seats               Int?
+  remaining_seats           Int?
+  total_parcel_capacity     Int?
+  remaining_parcel_capacity Int?
+  availability_status       DriverAvailabilityStatus?
+  availability_revision     Int                       @default(1)
   activated_at              DateTime?
+  paused_at                 DateTime?
+  filled_at                 DateTime?
+  departed_at               DateTime?
   completed_at              DateTime?
+  cancelled_at              DateTime?
+  expired_at                DateTime?
 
-  driver DriverProfile @relation(fields: [driver_id], references: [id], onDelete: Cascade)
+  driver         DriverProfile        @relation(fields: [driver_id], references: [id], onDelete: Cascade)
+  route_version  ServiceRouteVersion? @relation(fields: [route_version_id], references: [id], onDelete: Restrict)
   parcel_batches ParcelBatch[]
-  matches Match[]
-  trips Trip[]
+  matches        Match[]
+  trips          Trip[]
 
   @@index([corridor_key])
+  @@index([route_version_id, availability_status, departure_at])
   @@map("driver_routes")
+}
+
+model Stop {
+  id                 String     @id @default(cuid())
+  stop_key           String     @unique @db.VarChar(80)
+  service_region_key String     @db.VarChar(80)
+  name_ar            String     @db.VarChar(160)
+  name_en            String     @db.VarChar(160)
+  latitude           Decimal    @db.Decimal(9, 6)
+  longitude          Decimal    @db.Decimal(9, 6)
+  status             StopStatus @default(active)
+  created_by_user_id String
+  retired_by_user_id String?
+  retired_at         DateTime?
+  retirement_reason  String?    @db.VarChar(500)
+  created_at         DateTime   @default(now())
+  updated_at         DateTime   @updatedAt
+
+  created_by               User                  @relation("StopCreator", fields: [created_by_user_id], references: [id], onDelete: Restrict)
+  retired_by               User?                 @relation("StopRetirer", fields: [retired_by_user_id], references: [id], onDelete: SetNull)
+  origin_for_versions      ServiceRouteVersion[] @relation("OriginStop")
+  destination_for_versions ServiceRouteVersion[] @relation("DestinationStop")
+  version_memberships      RouteVersionStop[]
+
+  @@index([service_region_key, status])
+  @@map("stops")
+}
+
+model ServiceRoute {
+  id                 String             @id @default(cuid())
+  route_key          String             @unique @db.VarChar(80)
+  route_group_key    String             @db.VarChar(80)
+  service_region_key String             @db.VarChar(80)
+  direction          RouteDirection
+  status             ServiceRouteStatus @default(active)
+  current_version_id String?            @unique
+  created_by_user_id String
+  retired_by_user_id String?
+  retired_at         DateTime?
+  retirement_reason  String?            @db.VarChar(500)
+  created_at         DateTime           @default(now())
+  updated_at         DateTime           @updatedAt
+
+  created_by      User                  @relation("ServiceRouteCreator", fields: [created_by_user_id], references: [id], onDelete: Restrict)
+  retired_by      User?                 @relation("ServiceRouteRetirer", fields: [retired_by_user_id], references: [id], onDelete: SetNull)
+  versions        ServiceRouteVersion[] @relation("ServiceRouteVersions")
+  current_version ServiceRouteVersion?  @relation("CurrentServiceRouteVersion", fields: [id, current_version_id], references: [service_route_id, id], onDelete: Restrict)
+
+  @@unique([id, current_version_id], map: "service_routes_owned_current_key")
+  @@index([route_group_key, direction])
+  @@index([service_region_key, status])
+  @@map("service_routes")
+}
+
+model ServiceRouteVersion {
+  id                         String                    @id @default(cuid())
+  service_route_id           String
+  version_number             Int
+  status                     ServiceRouteVersionStatus @default(draft)
+  name_ar                    String                    @db.VarChar(160)
+  name_en                    String                    @db.VarChar(160)
+  description_ar             String?                   @db.Text
+  description_en             String?                   @db.Text
+  origin_stop_id             String?
+  destination_stop_id        String?
+  active_from                DateTime?
+  active_until               DateTime?
+  encoded_geometry           String?                   @db.LongText
+  geometry_encoding          String?                   @db.VarChar(50)
+  geometry_provider          String?                   @db.VarChar(80)
+  geometry_checksum          String?                   @db.Char(64)
+  geometry_precision         Int?
+  estimated_distance_meters  Int?
+  estimated_duration_seconds Int?
+  geometry_status            RouteGeometryStatus       @default(pending)
+  draft_revision             Int                       @default(1)
+  created_by_user_id         String
+  published_by_user_id       String?
+  paused_by_user_id          String?
+  retired_by_user_id         String?
+  published_at               DateTime?
+  paused_at                  DateTime?
+  pause_reason               String?                   @db.VarChar(500)
+  retired_at                 DateTime?
+  retirement_reason          String?                   @db.VarChar(500)
+  created_at                 DateTime                  @default(now())
+  updated_at                 DateTime                  @updatedAt
+
+  service_route     ServiceRoute       @relation("ServiceRouteVersions", fields: [service_route_id], references: [id], onDelete: Restrict)
+  current_for_route ServiceRoute?      @relation("CurrentServiceRouteVersion")
+  origin_stop       Stop?              @relation("OriginStop", fields: [origin_stop_id], references: [id], onDelete: Restrict)
+  destination_stop  Stop?              @relation("DestinationStop", fields: [destination_stop_id], references: [id], onDelete: Restrict)
+  created_by        User               @relation("ServiceRouteVersionCreator", fields: [created_by_user_id], references: [id], onDelete: Restrict)
+  published_by      User?              @relation("ServiceRouteVersionPublisher", fields: [published_by_user_id], references: [id], onDelete: SetNull)
+  paused_by         User?              @relation("ServiceRouteVersionPauser", fields: [paused_by_user_id], references: [id], onDelete: SetNull)
+  retired_by        User?              @relation("ServiceRouteVersionRetirer", fields: [retired_by_user_id], references: [id], onDelete: SetNull)
+  stops             RouteVersionStop[]
+  driver_routes     DriverRoute[]
+
+  @@unique([service_route_id, version_number])
+  @@unique([service_route_id, id], map: "service_route_versions_route_ownership_key")
+  @@index([service_route_id, status])
+  @@index([status, active_from, active_until])
+  @@map("service_route_versions")
+}
+
+model RouteVersionStop {
+  id                          String   @id @default(cuid())
+  service_route_version_id    String
+  stop_id                     String
+  sequence                    Int
+  passenger_pickup            Boolean  @default(true)
+  passenger_dropoff           Boolean  @default(true)
+  parcel_pickup               Boolean  @default(true)
+  parcel_dropoff              Boolean  @default(true)
+  distance_from_origin_meters Int?
+  scheduled_offset_seconds    Int?
+  dwell_seconds               Int?
+  created_at                  DateTime @default(now())
+
+  service_route_version ServiceRouteVersion @relation(fields: [service_route_version_id], references: [id], onDelete: Restrict)
+  stop                  Stop                @relation(fields: [stop_id], references: [id], onDelete: Restrict)
+
+  @@unique([service_route_version_id, sequence])
+  @@unique([service_route_version_id, stop_id])
+  @@index([stop_id])
+  @@map("route_version_stops")
 }
 
 model PassengerRequest {
@@ -535,9 +741,9 @@ model PassengerRequest {
   source            String        @default("seed")
   created_at        DateTime      @default(now())
 
-  passenger User @relation(fields: [passenger_id], references: [id], onDelete: Cascade)
-  matches Match[]
-  trips Trip[]
+  passenger User    @relation(fields: [passenger_id], references: [id], onDelete: Cascade)
+  matches   Match[]
+  trips     Trip[]
 
   @@map("passenger_requests")
 }
@@ -551,11 +757,11 @@ model MerchantOrder {
   status       MerchantOrderStatus @default(submitted)
   created_at   DateTime            @default(now())
 
-  merchant User     @relation(fields: [merchant_id], references: [id], onDelete: Cascade)
-  parcels  Parcel[]
+  merchant       User          @relation(fields: [merchant_id], references: [id], onDelete: Cascade)
+  parcels        Parcel[]
   parcel_batches ParcelBatch[]
-  matches Match[]
-  trips Trip[]
+  matches        Match[]
+  trips          Trip[]
 
   @@map("merchant_orders")
 }
@@ -586,7 +792,7 @@ model ParcelBatch {
   created_at               DateTime          @default(now())
 
   merchant_order MerchantOrder @relation(fields: [merchant_order_id], references: [id], onDelete: Cascade)
-  driver_route   DriverRoute?   @relation(fields: [driver_route_id], references: [id], onDelete: SetNull)
+  driver_route   DriverRoute?  @relation(fields: [driver_route_id], references: [id], onDelete: SetNull)
   matches        Match[]
   trips          Trip[]
 

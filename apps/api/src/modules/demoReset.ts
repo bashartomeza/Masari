@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { createHash } from "node:crypto";
 import bcrypt from "bcryptjs";
 import type { Prisma, PrismaClient, UserRole } from "../generated/prisma/client.js";
 import { config } from "../config.js";
@@ -7,9 +8,16 @@ import { auditEvent } from "../lib/audit.js";
 import { authenticateAuthToken } from "../middleware/auth.js";
 import { HttpError } from "../middleware/error.js";
 import { AuditAction } from "../generated/prisma/enums.js";
+import { DEMO_ROUTE_POINTS } from "../lib/geo.js";
 
 export const LOCKED_CORRIDOR_KEY = "hebron-ppu-bab-al-zawiya-to-bethlehem";
 export const LOCKED_CORRIDOR_LABEL = "Hebron / PPU / Bab Al-Zawiya -> Bethlehem";
+export const DEMO_SERVICE_ROUTE_KEY = LOCKED_CORRIDOR_KEY;
+export const DEMO_STOP_KEYS = {
+  origin: "demo-bab-al-zawiya",
+  passengerPickup: "demo-ppu-main-gate",
+  destination: "demo-bethlehem-center"
+} as const;
 
 export const DEMO_ACCOUNTS = {
   passenger: { name: "Demo Passenger", phone: "+970590000001" },
@@ -77,6 +85,11 @@ export async function resetDemoData(db: PrismaClient = prisma) {
     await tx.driverRoute.deleteMany();
     await tx.driverProfile.deleteMany();
     await tx.demoScenario.deleteMany();
+    await tx.serviceRoute.updateMany({ data: { current_version_id: null } });
+    await tx.routeVersionStop.deleteMany();
+    await tx.serviceRouteVersion.deleteMany();
+    await tx.serviceRoute.deleteMany();
+    await tx.stop.deleteMany();
     await tx.user.deleteMany({
       where: {
         OR: [
@@ -134,6 +147,112 @@ export async function resetDemoData(db: PrismaClient = prisma) {
       }
     });
 
+    const [originStop, passengerPickupStop, destinationStop] = await Promise.all([
+      tx.stop.create({
+        data: {
+          stop_key: DEMO_STOP_KEYS.origin,
+          service_region_key: "south-west-bank",
+          name_ar: "باب الزاوية",
+          name_en: "Bab Al-Zawiya",
+          latitude: "31.532600",
+          longitude: "35.099800",
+          created_by_user_id: admin.id
+        }
+      }),
+      tx.stop.create({
+        data: {
+          stop_key: DEMO_STOP_KEYS.passengerPickup,
+          service_region_key: "south-west-bank",
+          name_ar: "بوابة جامعة بوليتكنك فلسطين",
+          name_en: "PPU Main Gate",
+          latitude: "31.550000",
+          longitude: "35.100000",
+          created_by_user_id: admin.id
+        }
+      }),
+      tx.stop.create({
+        data: {
+          stop_key: DEMO_STOP_KEYS.destination,
+          service_region_key: "south-west-bank",
+          name_ar: "وسط بيت لحم",
+          name_en: "Bethlehem Center",
+          latitude: "31.705400",
+          longitude: "35.202400",
+          created_by_user_id: admin.id
+        }
+      })
+    ]);
+
+    const serviceRoute = await tx.serviceRoute.create({
+      data: {
+        route_key: DEMO_SERVICE_ROUTE_KEY,
+        route_group_key: "hebron-bethlehem",
+        service_region_key: "south-west-bank",
+        direction: "outbound",
+        created_by_user_id: admin.id
+      }
+    });
+    const encodedGeometry = JSON.stringify(DEMO_ROUTE_POINTS);
+    const routeVersion = await tx.serviceRouteVersion.create({
+      data: {
+        service_route_id: serviceRoute.id,
+        version_number: 1,
+        status: "published",
+        name_ar: "الخليل / جامعة بوليتكنك فلسطين / باب الزاوية ← بيت لحم",
+        name_en: LOCKED_CORRIDOR_LABEL,
+        description_ar: "مسار العرض التجريبي الثابت لمساري.",
+        description_en: "Masari's deterministic demo corridor.",
+        origin_stop_id: originStop.id,
+        destination_stop_id: destinationStop.id,
+        encoded_geometry: encodedGeometry,
+        geometry_encoding: "demo-json-v1",
+        geometry_provider: "masari-demo",
+        geometry_checksum: createHash("sha256").update(encodedGeometry).digest("hex"),
+        geometry_precision: 6,
+        estimated_distance_meters: 21_530,
+        geometry_status: "available",
+        created_by_user_id: admin.id,
+        published_by_user_id: admin.id,
+        published_at: new Date("2026-07-02T00:00:00.000Z")
+      }
+    });
+    await tx.routeVersionStop.createMany({
+      data: [
+        {
+          service_route_version_id: routeVersion.id,
+          stop_id: originStop.id,
+          sequence: 1,
+          passenger_pickup: true,
+          passenger_dropoff: false,
+          parcel_pickup: true,
+          parcel_dropoff: false,
+          distance_from_origin_meters: 0
+        },
+        {
+          service_route_version_id: routeVersion.id,
+          stop_id: passengerPickupStop.id,
+          sequence: 2,
+          passenger_pickup: true,
+          passenger_dropoff: false,
+          parcel_pickup: false,
+          parcel_dropoff: false
+        },
+        {
+          service_route_version_id: routeVersion.id,
+          stop_id: destinationStop.id,
+          sequence: 3,
+          passenger_pickup: false,
+          passenger_dropoff: true,
+          parcel_pickup: false,
+          parcel_dropoff: true
+        }
+      ]
+    });
+    await tx.serviceRoute.update({
+      where: { id: serviceRoute.id },
+      data: { current_version_id: routeVersion.id }
+    });
+
     await tx.driverRoute.create({
       data: {
         driver_id: driver1.id,
@@ -146,6 +265,14 @@ export async function resetDemoData(db: PrismaClient = prisma) {
         corridor_key: LOCKED_CORRIDOR_KEY,
         seats_available: 2,
         parcel_capacity_available: 5,
+        route_version_id: routeVersion.id,
+        departure_at: new Date("2026-07-02T09:00:00.000Z"),
+        availability_window_end: new Date("2026-07-02T09:30:00.000Z"),
+        total_seats: 3,
+        remaining_seats: 2,
+        total_parcel_capacity: 5,
+        remaining_parcel_capacity: 5,
+        availability_status: "active",
         status: "active",
         activated_at: new Date()
       }

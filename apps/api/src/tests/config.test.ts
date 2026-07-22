@@ -47,6 +47,15 @@ describe("fail-closed application configuration", () => {
     );
   });
 
+  it("keeps route management explicit and multi-route entry fail-closed until M7C", () => {
+    expect(createConfig(environment())).toEqual(
+      expect.objectContaining({ routeManagementEnabled: false, multiRouteEntryEnabled: false })
+    );
+    expect(createConfig(environment({ ROUTE_MANAGEMENT_ENABLED: "true" })).routeManagementEnabled).toBe(true);
+    expect(() => createConfig(environment({ MULTI_ROUTE_ENTRY_ENABLED: "true" }))).toThrow(/before M7C/);
+    expect(() => createConfig(environment({ ROUTE_MANAGEMENT_ENABLED: "yes" }))).toThrow(/true or false/);
+  });
+
   it("requires an explicit safe trust-proxy topology in production-like environments", () => {
     expect(() => createConfig(environment({ TRUST_PROXY: undefined }))).toThrow(/TRUST_PROXY must be explicit/);
     expect(() => createConfig(environment({ TRUST_PROXY: "true" }))).toThrow(/trusted proxy hop count/);
