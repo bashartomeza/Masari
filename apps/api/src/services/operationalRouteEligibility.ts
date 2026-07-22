@@ -33,9 +33,23 @@ export type EligibleOperationalRoute = {
 export async function requireEligibleOperationalRoute(
   db: Database,
   routeVersionId: string,
-  options: { now?: Date; requiredStopIds?: string[] } = {}
+  options: { now?: Date; requiredStopIds?: string[]; lockForUpdate?: boolean } = {}
 ): Promise<EligibleOperationalRoute> {
   const now = options.now ?? new Date();
+  if (options.lockForUpdate) {
+    const lookup = await db.serviceRouteVersion.findUnique({
+      where: { id: routeVersionId },
+      select: { service_route_id: true }
+    });
+    if (!lookup) throw new HttpError(409, "route_version_not_available");
+    const routes = await db.$queryRaw<Array<{ id: string }>>`
+      SELECT id FROM service_routes WHERE id = ${lookup.service_route_id} FOR UPDATE
+    `;
+    const versions = await db.$queryRaw<Array<{ id: string }>>`
+      SELECT id FROM service_route_versions WHERE id = ${routeVersionId} FOR UPDATE
+    `;
+    if (routes.length !== 1 || versions.length !== 1) throw new HttpError(409, "route_version_not_available");
+  }
   const version = await db.serviceRouteVersion.findUnique({
     where: { id: routeVersionId },
     include: {

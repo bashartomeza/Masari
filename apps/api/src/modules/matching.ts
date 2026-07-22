@@ -171,10 +171,6 @@ async function loadAuthorizedInput(req: AuthenticatedRequest, input: MatchInput)
 
   if (input.passengerRequestId && !passengerRequest) throw new HttpError(404, "passenger_request_not_found");
   if (input.merchantOrderId && !merchantOrder) throw new HttpError(404, "merchant_order_not_found");
-  if (passengerRequest?.canonical_entry_version || merchantOrder?.canonical_entry_version) {
-    throw new HttpError(409, "canonical_matching_not_enabled");
-  }
-
   if (req.user!.role !== "admin") {
     if (passengerRequest && (req.user!.role !== "passenger" || passengerRequest.passenger_id !== req.user!.id)) {
       throw new HttpError(403, "forbidden");
@@ -182,6 +178,9 @@ async function loadAuthorizedInput(req: AuthenticatedRequest, input: MatchInput)
     if (merchantOrder && (req.user!.role !== "merchant" || merchantOrder.merchant_id !== req.user!.id)) {
       throw new HttpError(403, "forbidden");
     }
+  }
+  if (passengerRequest?.canonical_entry_version || merchantOrder?.canonical_entry_version) {
+    throw new HttpError(409, "canonical_matching_not_enabled");
   }
 
   return { passengerRequest, merchantOrder };

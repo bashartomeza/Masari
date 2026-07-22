@@ -64,7 +64,7 @@ passengerRouter.post("/passenger/requests", async (req: AuthenticatedRequest, re
 passengerRouter.get("/passenger/requests", async (req: AuthenticatedRequest, res, next) => {
   try {
     const requests = await prisma.passengerRequest.findMany({
-      where: { passenger_id: req.user!.id },
+      where: { passenger_id: req.user!.id, canonical_entry_version: null },
       orderBy: { created_at: "desc" }
     });
     res.json({ requests });
@@ -78,6 +78,7 @@ passengerRouter.get("/passenger/requests/active", async (req: AuthenticatedReque
     const requests = await prisma.passengerRequest.findMany({
       where: {
         passenger_id: req.user!.id,
+        canonical_entry_version: null,
         status: { in: ["pending", "matched", "accepted", "picked_up", "in_transit"] }
       },
       orderBy: { created_at: "desc" }
@@ -92,7 +93,7 @@ passengerRouter.get("/passenger/requests/:id", async (req: AuthenticatedRequest,
   try {
     const requestId = routeParam(req.params.id);
     const request = await prisma.passengerRequest.findFirst({
-      where: { id: requestId, passenger_id: req.user!.id }
+      where: { id: requestId, passenger_id: req.user!.id, canonical_entry_version: null }
     });
     if (!request) {
       throw new HttpError(404, "request_not_found");
@@ -107,7 +108,7 @@ passengerRouter.patch("/passenger/requests/:id/cancel", async (req: Authenticate
   try {
     const requestId = routeParam(req.params.id);
     const existing = await prisma.passengerRequest.findFirst({
-      where: { id: requestId, passenger_id: req.user!.id }
+      where: { id: requestId, passenger_id: req.user!.id, canonical_entry_version: null }
     });
     if (!existing) {
       throw new HttpError(404, "request_not_found");

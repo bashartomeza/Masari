@@ -5,6 +5,7 @@ import { auditEvent } from "../lib/audit.js";
 import { claimIdempotency, completeIdempotency } from "../lib/idempotency.js";
 import { prisma } from "../lib/prisma.js";
 import { HttpError } from "../middleware/error.js";
+import { requireEligibleOperationalRoute } from "./operationalRouteEligibility.js";
 
 export const CAPACITY_HOLD_LIMITS = { maximumMinutes: 30, expiryBatchSize: 100 } as const;
 const RELEASE_REASONS = ["offer_rejected", "offer_cancelled", "operator_cancelled", "test_cleanup"] as const;
@@ -23,6 +24,7 @@ type HoldInput = {
 
 type LockedAvailability = {
   id: string;
+  status: string;
   route_version_id: string | null;
   availability_status: string | null;
   canonical_availability_version: string | null;
@@ -31,6 +33,8 @@ type LockedAvailability = {
   remaining_seats: number | null;
   total_parcel_capacity: number | null;
   remaining_parcel_capacity: number | null;
+  driver_verified: boolean | number;
+  driver_account_status: string;
 };
 
 type LockedReservation = {
@@ -105,9 +109,15 @@ async function lockReservation(tx: Prisma.TransactionClient, id: string) {
 
 async function lockAvailability(tx: Prisma.TransactionClient, id: string) {
   const rows = await tx.$queryRaw<LockedAvailability[]>`
-    SELECT id, route_version_id, availability_status, canonical_availability_version, departure_at, total_seats,
-           remaining_seats, total_parcel_capacity, remaining_parcel_capacity
-    FROM driver_routes WHERE id = ${id} FOR UPDATE
+    SELECT dr.id, dr.status, dr.route_version_id, dr.availability_status,
+           dr.canonical_availability_version, dr.departure_at, dr.total_seats,
+           dr.remaining_seats, dr.total_parcel_capacity, dr.remaining_parcel_capacity,
+           dp.verified AS driver_verified, u.account_status AS driver_account_status
+    FROM driver_routes dr
+    INNER JOIN driver_profiles dp ON dp.id = dr.driver_id
+    INNER JOIN users u ON u.id = dp.user_id
+    WHERE dr.id = ${id}
+    FOR UPDATE
   `;
   if (rows.length !== 1) throw new HttpError(404, "availability_not_found");
   return rows[0];
@@ -189,9 +199,23 @@ export function createCapacityReservationService(db: PrismaClient = prisma) {
         if (
           availability.route_version_id !== input.routeVersionId ||
           availability.canonical_availability_version !== "canonical_route_v1" ||
+          availability.status !== "active" ||
           availability.availability_status !== "active" ||
+          !availability.driver_verified ||
+          availability.driver_account_status !== "active" ||
           !availability.departure_at || availability.departure_at <= now
         ) throw new HttpError(409, "availability_not_reservable");
+        await requireEligibleOperationalRoute(tx, input.routeVersionId, { now, lockForUpdate: true });
+        if (input.matchId) {
+          const match = await tx.match.findUnique({
+            where: { id: input.matchId },
+            select: { route_version_id: true, canonical_match_version: true, driver_route_id: true }
+          });
+          if (
+            !match || match.canonical_match_version !== "canonical_route_v1" ||
+            match.route_version_id !== input.routeVersionId || match.driver_route_id !== input.driverRouteId
+          ) throw new HttpError(409, "canonical_route_mismatch");
+        }
         const decremented = await tx.driverRoute.updateMany({
           where: {
             id: availability.id,
@@ -241,7 +265,7 @@ export function createCapacityReservationService(db: PrismaClient = prisma) {
           responseStatus: 201
         });
         return { resource, replayed: false };
-      });
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted });
     },
 
     async confirm(id: string, actor: Actor) {
@@ -279,7 +303,7 @@ export function createCapacityReservationService(db: PrismaClient = prisma) {
           resourceType: "CapacityReservation", resourceId: id, responseStatus: 200
         });
         return { resource, replayed: false };
-      });
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted });
     },
 
     async release(id: string, reason: CapacityReleaseReason, actor: Actor) {
@@ -305,7 +329,7 @@ export function createCapacityReservationService(db: PrismaClient = prisma) {
           resourceType: "CapacityReservation", resourceId: id, responseStatus: 200
         });
         return { resource, replayed: false };
-      });
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted });
     },
 
     async expireBatch(options: { now?: Date; limit?: number } = {}) {
@@ -318,16 +342,22 @@ export function createCapacityReservationService(db: PrismaClient = prisma) {
         take: limit
       });
       let expired = 0;
+      let failed = 0;
       for (const candidate of candidates) {
-        const changed = await db.$transaction(async (tx) => {
-          const reservation = await lockReservation(tx, candidate.id);
-          if (reservation.status !== "held" || reservation.expires_at > now) return false;
-          await restoreCapacity(tx, reservation, "expired", "hold_expired");
-          return true;
-        });
-        if (changed) expired += 1;
+        try {
+          const changed = await db.$transaction(async (tx) => {
+            const reservation = await lockReservation(tx, candidate.id);
+            if (reservation.status !== "held" || reservation.expires_at > now) return false;
+            await restoreCapacity(tx, reservation, "expired", "hold_expired");
+            return true;
+          }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted });
+          if (changed) expired += 1;
+        } catch (error) {
+          if (!(error instanceof HttpError)) throw error;
+          failed += 1;
+        }
       }
-      return { examined: candidates.length, expired };
+      return { examined: candidates.length, expired, failed };
     }
   };
 }

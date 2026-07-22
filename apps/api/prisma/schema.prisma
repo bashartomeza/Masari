@@ -613,7 +613,7 @@ model DriverRoute {
   expired_at                DateTime?
 
   driver         DriverProfile        @relation(fields: [driver_id], references: [id], onDelete: Cascade)
-  route_version  ServiceRouteVersion? @relation(fields: [route_version_id], references: [id], onDelete: Restrict)
+  route_version  ServiceRouteVersion? @relation(fields: [route_version_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
   parcel_batches ParcelBatch[]
   matches        Match[]
   trips          Trip[]
@@ -783,11 +783,12 @@ model PassengerRequest {
   canonical_created_at          DateTime?
 
   passenger    User                 @relation(fields: [passenger_id], references: [id], onDelete: Cascade)
-  route_version ServiceRouteVersion? @relation(fields: [route_version_id], references: [id], onDelete: Restrict)
+  route_version ServiceRouteVersion? @relation(fields: [route_version_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
   matches      Match[]
   trips        Trip[]
 
   @@index([route_version_id, requested_departure_from])
+  @@unique([id, route_version_id], map: "passenger_requests_route_ownership_key")
   @@map("passenger_requests")
 }
 
@@ -807,7 +808,7 @@ model MerchantOrder {
   canonical_created_at      DateTime?
 
   merchant       User          @relation(fields: [merchant_id], references: [id], onDelete: Cascade)
-  route_version  ServiceRouteVersion? @relation(fields: [route_version_id], references: [id], onDelete: Restrict)
+  route_version  ServiceRouteVersion? @relation(fields: [route_version_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
   parcels        Parcel[]
   parcel_batches ParcelBatch[]
   matches        Match[]
@@ -833,7 +834,7 @@ model Parcel {
   canonical_entry_version String? @db.VarChar(50)
 
   order         MerchantOrder        @relation(fields: [order_id], references: [id], onDelete: Cascade)
-  route_version ServiceRouteVersion? @relation(fields: [route_version_id], references: [id], onDelete: Restrict)
+  route_version ServiceRouteVersion? @relation(fields: [route_version_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
 
   @@index([route_version_id, destination_stop_id])
   @@map("parcels")
@@ -875,10 +876,11 @@ model Match {
   passenger_request PassengerRequest? @relation(fields: [passenger_request_id], references: [id], onDelete: Cascade)
   merchant_order    MerchantOrder?    @relation(fields: [merchant_order_id], references: [id], onDelete: Cascade)
   parcel_batch      ParcelBatch?      @relation(fields: [parcel_batch_id], references: [id], onDelete: SetNull)
-  route_version     ServiceRouteVersion? @relation(fields: [route_version_id], references: [id], onDelete: Restrict)
+  route_version     ServiceRouteVersion? @relation(fields: [route_version_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
   capacity_reservation CapacityReservation?
 
   @@index([route_version_id, status])
+  @@unique([id, route_version_id], map: "matches_route_ownership_key")
   @@map("matches")
 }
 
@@ -920,7 +922,7 @@ model Trip {
   merchant_order    MerchantOrder?    @relation(fields: [merchant_order_id], references: [id], onDelete: SetNull)
   parcel_batch      ParcelBatch?      @relation(fields: [parcel_batch_id], references: [id], onDelete: SetNull)
   location_events   LocationEvent[]
-  route_version     ServiceRouteVersion? @relation(fields: [route_version_id], references: [id], onDelete: Restrict)
+  route_version     ServiceRouteVersion? @relation(fields: [route_version_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
 
   @@index([driver_id])
   @@index([route_version_id, status])
@@ -946,7 +948,7 @@ model CapacityReservation {
   idempotency_fingerprint String                    @db.Char(64)
 
   driver_route DriverRoute         @relation(fields: [driver_route_id], references: [id], onDelete: Restrict)
-  route_version ServiceRouteVersion @relation(fields: [route_version_id], references: [id], onDelete: Restrict)
+  route_version ServiceRouteVersion @relation(fields: [route_version_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
   match        Match?              @relation(fields: [match_id], references: [id], onDelete: Restrict)
 
   @@index([status, expires_at])

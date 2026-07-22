@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { Prisma, PrismaClient } from "../generated/prisma/client.js";
+import { Prisma, type PrismaClient } from "../generated/prisma/client.js";
 import { AuditAction } from "../generated/prisma/enums.js";
 import { auditEvent } from "../lib/audit.js";
 import { claimIdempotency, completeIdempotency } from "../lib/idempotency.js";
@@ -75,6 +75,9 @@ export type CanonicalMerchantInput = {
 export function createCanonicalDemandService(db: PrismaClient = prisma) {
   return {
     async createPassengerRequest(input: CanonicalPassengerInput, actor: Actor) {
+      if (!Number.isInteger(input.passengerCount) || input.passengerCount < 1 || input.passengerCount > CANONICAL_ENTRY_LIMITS.maximumPassengerCount) {
+        throw new HttpError(400, "invalid_passenger_count");
+      }
       validateDepartureWindow(input.requestedDepartureFrom, input.requestedDepartureUntil);
       return db.$transaction(async (tx) => {
         const payload = {
@@ -97,7 +100,8 @@ export function createCanonicalDemandService(db: PrismaClient = prisma) {
           return { resource, replayed: true };
         }
         const route = await requireEligibleOperationalRoute(tx, input.routeVersionId, {
-          requiredStopIds: [input.pickupStopId, input.dropoffStopId]
+          requiredStopIds: [input.pickupStopId, input.dropoffStopId],
+          lockForUpdate: true
         });
         const { pickup, dropoff } = requirePassengerStopPair(route, input.pickupStopId, input.dropoffStopId);
         const now = new Date();
@@ -143,10 +147,13 @@ export function createCanonicalDemandService(db: PrismaClient = prisma) {
           responseStatus: 201
         });
         return { resource, replayed: false };
-      });
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted });
     },
 
     async createMerchantOrder(input: CanonicalMerchantInput, actor: Actor) {
+      if (input.parcels.length < 1 || input.parcels.length > CANONICAL_ENTRY_LIMITS.maximumParcels) {
+        throw new HttpError(400, "invalid_parcel_count");
+      }
       validateDepartureWindow(input.requestedDepartureFrom, input.requestedDepartureUntil);
       return db.$transaction(async (tx) => {
         const payload = {
@@ -174,7 +181,8 @@ export function createCanonicalDemandService(db: PrismaClient = prisma) {
         }
         const destinationIds = input.parcels.map((parcel) => parcel.destinationStopId);
         const route = await requireEligibleOperationalRoute(tx, input.routeVersionId, {
-          requiredStopIds: [input.pickupStopId, ...destinationIds]
+          requiredStopIds: [input.pickupStopId, ...destinationIds],
+          lockForUpdate: true
         });
         const { pickup, destinations } = requireMerchantStops(route, input.pickupStopId, destinationIds);
         const now = new Date();
@@ -227,7 +235,7 @@ export function createCanonicalDemandService(db: PrismaClient = prisma) {
           responseStatus: 201
         });
         return { resource, replayed: false };
-      });
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted });
     }
   };
 }

@@ -65,8 +65,8 @@ export function createApp(appConfig: AppConfig = config, dependencies: AppDepend
 
   app.use("/api/v1", authRouter);
   if (appConfig.demoFeaturesEnabled) app.use("/api/v1", demoRouter);
-  app.use("/api/v1", passengerRouter);
   app.use("/api/v1", createCanonicalDemandRouter(appConfig, dependencies.canonicalDemandService));
+  app.use("/api/v1", passengerRouter);
   app.use("/api/v1", createDriverAvailabilityRouter(appConfig, dependencies.driverAvailabilityService));
   app.use("/api/v1", driverRouter);
   app.use("/api/v1", batchingRouter);

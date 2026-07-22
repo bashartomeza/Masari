@@ -52,6 +52,15 @@ function validateTiming(departureAt: Date, windowEnd: Date | null | undefined, n
   }
 }
 
+function validateCapacity(totalSeats: number, totalParcelCapacity: number) {
+  if (
+    !Number.isInteger(totalSeats) || totalSeats < DRIVER_AVAILABILITY_LIMITS.minimumSeats ||
+    totalSeats > DRIVER_AVAILABILITY_LIMITS.maximumSeats ||
+    !Number.isInteger(totalParcelCapacity) || totalParcelCapacity < DRIVER_AVAILABILITY_LIMITS.minimumParcelCapacity ||
+    totalParcelCapacity > DRIVER_AVAILABILITY_LIMITS.maximumParcelCapacity
+  ) throw new HttpError(400, "invalid_availability_capacity");
+}
+
 async function requireApprovedProfile(db: PrismaClient | Prisma.TransactionClient, userId: string) {
   const profile = await db.driverProfile.findUnique({ where: { user_id: userId } });
   if (!profile || !profile.verified) throw new HttpError(403, "driver_not_approved");
@@ -72,6 +81,20 @@ async function ownerAvailability(db: PrismaClient | Prisma.TransactionClient, id
   return availability;
 }
 
+async function lockOwnerAvailability(tx: Prisma.TransactionClient, id: string, userId: string) {
+  const rows = await tx.$queryRaw<Array<{ id: string }>>`
+    SELECT dr.id
+    FROM driver_routes dr
+    INNER JOIN driver_profiles dp ON dp.id = dr.driver_id
+    WHERE dr.id = ${id} AND dp.user_id = ${userId}
+      AND dr.route_version_id IS NOT NULL
+      AND dr.canonical_availability_version = 'canonical_route_v1'
+    FOR UPDATE
+  `;
+  if (rows.length !== 1) throw new HttpError(404, "availability_not_found");
+  return ownerAvailability(tx, id, userId);
+}
+
 export function createDriverAvailabilityService(db: PrismaClient = prisma) {
   async function transition(
     id: string,
@@ -81,7 +104,7 @@ export function createDriverAvailabilityService(db: PrismaClient = prisma) {
   ) {
     return db.$transaction(async (tx) => {
       await requireApprovedProfile(tx, actor.id);
-      const current = await ownerAvailability(tx, id, actor.id);
+      const current = await lockOwnerAvailability(tx, id, actor.id);
       const now = new Date();
       const allowedFrom: Record<typeof transitionName, string[]> = {
         activate: ["draft"],
@@ -97,7 +120,7 @@ export function createDriverAvailabilityService(db: PrismaClient = prisma) {
         throw new HttpError(409, "availability_departed");
       }
       if (transitionName === "activate" || transitionName === "resume") {
-        await requireEligibleOperationalRoute(tx, current.route_version_id!, { now });
+        await requireEligibleOperationalRoute(tx, current.route_version_id!, { now, lockForUpdate: true });
       }
       if (transitionName === "cancel") {
         const activeReservations = await tx.capacityReservation.count({
@@ -146,7 +169,7 @@ export function createDriverAvailabilityService(db: PrismaClient = prisma) {
         }
       });
       return resource;
-    });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted });
   }
 
   return {
@@ -169,6 +192,7 @@ export function createDriverAvailabilityService(db: PrismaClient = prisma) {
     },
 
     async createOneOff(input: DriverAvailabilityInput, actor: Actor & { idempotencyKey: string }) {
+      validateCapacity(input.totalSeats, input.totalParcelCapacity);
       validateTiming(input.departureAt, input.availabilityWindowEnd);
       try {
         return await db.$transaction(async (tx) => {
@@ -202,7 +226,7 @@ export function createDriverAvailabilityService(db: PrismaClient = prisma) {
           if (input.totalSeats > profile.seats_total || input.totalParcelCapacity > profile.parcel_capacity) {
             throw new HttpError(400, "availability_exceeds_vehicle_capacity");
           }
-          const route = await requireEligibleOperationalRoute(tx, input.routeVersionId);
+          const route = await requireEligibleOperationalRoute(tx, input.routeVersionId, { lockForUpdate: true });
           const origin = route.stops[0];
           const destination = route.stops.at(-1)!;
           const resource = await tx.driverRoute.create({
@@ -251,7 +275,7 @@ export function createDriverAvailabilityService(db: PrismaClient = prisma) {
             responseStatus: 201
           });
           return { resource, replayed: false };
-        });
+        }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted });
       } catch (error) {
         if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
           throw new HttpError(409, "duplicate_driver_availability");
@@ -263,7 +287,7 @@ export function createDriverAvailabilityService(db: PrismaClient = prisma) {
     async updateOneOff(id: string, input: DriverAvailabilityUpdate, actor: Actor) {
       return db.$transaction(async (tx) => {
         await requireApprovedProfile(tx, actor.id);
-        const current = await ownerAvailability(tx, id, actor.id);
+        const current = await lockOwnerAvailability(tx, id, actor.id);
         if (current.availability_status !== "draft" && current.availability_status !== "paused") {
           throw new HttpError(409, "availability_not_editable");
         }
@@ -271,10 +295,20 @@ export function createDriverAvailabilityService(db: PrismaClient = prisma) {
         const departureAt = input.departureAt ?? current.departure_at;
         if (!departureAt) throw new HttpError(409, "availability_missing_departure");
         const windowEnd = input.availabilityWindowEnd === undefined ? current.availability_window_end : input.availabilityWindowEnd;
+        const timingChanged =
+          departureAt.getTime() !== current.departure_at?.getTime() ||
+          (windowEnd?.getTime() ?? null) !== (current.availability_window_end?.getTime() ?? null);
+        if (timingChanged) {
+          const activeReservations = await tx.capacityReservation.count({
+            where: { driver_route_id: current.id, status: { in: ["held", "confirmed"] } }
+          });
+          if (activeReservations > 0) throw new HttpError(409, "availability_has_reservations");
+        }
         validateTiming(departureAt, windowEnd);
-        await requireEligibleOperationalRoute(tx, current.route_version_id!);
+        await requireEligibleOperationalRoute(tx, current.route_version_id!, { lockForUpdate: true });
         const totalSeats = input.totalSeats ?? current.total_seats!;
         const totalParcels = input.totalParcelCapacity ?? current.total_parcel_capacity!;
+        validateCapacity(totalSeats, totalParcels);
         const usedSeats = current.total_seats! - current.remaining_seats!;
         const usedParcels = current.total_parcel_capacity! - current.remaining_parcel_capacity!;
         if (totalSeats < usedSeats || totalParcels < usedParcels) throw new HttpError(409, "capacity_below_reserved_usage");
@@ -310,7 +344,7 @@ export function createDriverAvailabilityService(db: PrismaClient = prisma) {
           }
         });
         return resource;
-      });
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted });
     },
 
     activate: (id: string, expectedRevision: number, actor: Actor) => transition(id, expectedRevision, actor, "activate"),

@@ -137,6 +137,19 @@ describe("trip acceptance, status, and tracking", () => {
     expect(prismaMock.trip.create).not.toHaveBeenCalled();
   });
 
+  it("legacy accept and reject never process a canonical match", async () => {
+    prismaMock.match.findUnique.mockResolvedValue({
+      ...baseMatch,
+      route_version_id: "version_1",
+      canonical_match_version: "canonical_route_v1"
+    });
+
+    await request(createApp()).post("/api/v1/matches/match_1/accept").set(auth("driver_1")).expect(409);
+    await request(createApp()).post("/api/v1/matches/match_1/reject").set(auth("driver_1")).expect(409);
+    expect(prismaMock.trip.create).not.toHaveBeenCalled();
+    expect(prismaMock.match.update).not.toHaveBeenCalled();
+  });
+
   it("already accepted or rejected match cannot be accepted", async () => {
     prismaMock.match.findUnique.mockResolvedValue({ ...baseMatch, status: "accepted" });
     await request(createApp()).post("/api/v1/matches/match_1/accept").set(auth("driver_1")).expect(409);

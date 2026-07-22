@@ -92,7 +92,7 @@ driverRouter.post("/driver/routes", async (req: AuthenticatedRequest, res, next)
 driverRouter.get("/driver/routes", async (req: AuthenticatedRequest, res, next) => {
   try {
     const routes = await prisma.driverRoute.findMany({
-      where: { driver: { user_id: req.user!.id } },
+      where: { driver: { user_id: req.user!.id }, canonical_availability_version: null },
       orderBy: { activated_at: "desc" }
     });
     res.json({ routes });
@@ -104,7 +104,7 @@ driverRouter.get("/driver/routes", async (req: AuthenticatedRequest, res, next) 
 driverRouter.get("/driver/routes/active", async (req: AuthenticatedRequest, res, next) => {
   try {
     const routes = await prisma.driverRoute.findMany({
-      where: { driver: { user_id: req.user!.id }, status: "active" },
+      where: { driver: { user_id: req.user!.id }, status: "active", canonical_availability_version: null },
       orderBy: { activated_at: "desc" }
     });
     res.json({ routes });
@@ -117,7 +117,7 @@ driverRouter.patch("/driver/routes/:id/deactivate", async (req: AuthenticatedReq
   try {
     const routeId = routeParam(req.params.id);
     const existing = await prisma.driverRoute.findFirst({
-      where: { id: routeId, driver: { user_id: req.user!.id } }
+      where: { id: routeId, driver: { user_id: req.user!.id }, canonical_availability_version: null }
     });
     if (!existing) {
       throw new HttpError(404, "route_not_found");

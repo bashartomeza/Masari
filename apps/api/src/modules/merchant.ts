@@ -98,7 +98,7 @@ merchantRouter.post("/merchant/orders", async (req: AuthenticatedRequest, res, n
 merchantRouter.get("/merchant/orders", async (req: AuthenticatedRequest, res, next) => {
   try {
     const orders = await prisma.merchantOrder.findMany({
-      where: { merchant_id: req.user!.id },
+      where: { merchant_id: req.user!.id, canonical_entry_version: null },
       include: merchantOrderInclude,
       orderBy: { created_at: "desc" }
     });
@@ -112,7 +112,7 @@ merchantRouter.get("/merchant/orders/:id", async (req: AuthenticatedRequest, res
   try {
     const orderId = routeParam(req.params.id);
     const order = await prisma.merchantOrder.findFirst({
-      where: { id: orderId, merchant_id: req.user!.id },
+      where: { id: orderId, merchant_id: req.user!.id, canonical_entry_version: null },
       include: merchantOrderInclude
     });
     if (!order) {

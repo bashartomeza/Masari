@@ -155,6 +155,7 @@ describe("M7C1 operational APIs", () => {
 
   it("hides every canonical entry endpoint when the gate is disabled", async () => {
     const target = app(disabledConfig);
+    await request(target.server).post("/api/v1/passenger/route-requests").send({}).expect(404);
     await request(target.server).get("/api/v1/driver/availabilities").set(auth("driver_1")).expect(404);
     await request(target.server).post("/api/v1/passenger/route-requests").set(auth("passenger_1")).send({}).expect(404);
     await request(target.server).post("/api/v1/merchant/route-orders").set(auth("merchant_1")).send({}).expect(404);
@@ -264,6 +265,36 @@ describe("M7C1 operational APIs", () => {
     expect(response.body.order.parcels[0]).toEqual(expect.objectContaining({ destination_stop_id: "stop_3" }));
     expect(response.body.batching.enabled).toBe(false);
     expect(JSON.stringify(response.body)).not.toContain("must-not-leak");
+  });
+
+  it("accepts the 50-parcel boundary and rejects one parcel over the limit", async () => {
+    const target = app();
+    const base = {
+      route_version_id: "version_1",
+      pickup_stop_id: "stop_1",
+      requested_departure_from: departure().toISOString(),
+      requested_departure_until: until().toISOString()
+    };
+    const parcel = { destination_stop_id: "stop_3", size: "S", priority: "normal" };
+
+    await request(target.server)
+      .post("/api/v1/merchant/route-orders")
+      .set(auth("merchant_1"))
+      .set("Idempotency-Key", "merchant-route-order-boundary")
+      .send({ ...base, parcels: Array.from({ length: 50 }, () => parcel) })
+      .expect(201);
+    await request(target.server)
+      .post("/api/v1/merchant/route-orders")
+      .set(auth("merchant_1"))
+      .set("Idempotency-Key", "merchant-route-order-over-limit")
+      .send({ ...base, parcels: Array.from({ length: 51 }, () => parcel) })
+      .expect(400);
+
+    expect(target.demand.createMerchantOrder).toHaveBeenCalledTimes(1);
+    expect(target.demand.createMerchantOrder).toHaveBeenCalledWith(
+      expect.objectContaining({ parcels: expect.arrayContaining([expect.objectContaining({ destinationStopId: "stop_3" })]) }),
+      expect.objectContaining({ id: "merchant_1", idempotencyKey: "merchant-route-order-boundary" })
+    );
   });
 
   it("conceals an unrelated driver availability through the service boundary", async () => {

@@ -208,6 +208,36 @@ describe("manual role APIs", () => {
     await request(createApp()).patch("/api/v1/driver/routes/route_other/deactivate").set(auth("driver_1")).expect(404);
   });
 
+  it("legacy role queries and mutations exclude canonical operational records", async () => {
+    prismaMock.passengerRequest.findMany.mockResolvedValue([]);
+    prismaMock.driverRoute.findMany.mockResolvedValue([]);
+    prismaMock.driverRoute.findFirst.mockResolvedValue(null);
+    prismaMock.merchantOrder.findMany.mockResolvedValue([]);
+    prismaMock.merchantOrder.findFirst.mockResolvedValue(null);
+
+    await request(createApp()).get("/api/v1/passenger/requests").set(auth("passenger_1")).expect(200);
+    await request(createApp()).get("/api/v1/driver/routes").set(auth("driver_1")).expect(200);
+    await request(createApp()).patch("/api/v1/driver/routes/canonical/deactivate").set(auth("driver_1")).expect(404);
+    await request(createApp()).get("/api/v1/merchant/orders").set(auth("merchant_1")).expect(200);
+    await request(createApp()).get("/api/v1/merchant/orders/canonical").set(auth("merchant_1")).expect(404);
+
+    expect(prismaMock.passengerRequest.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ canonical_entry_version: null }) })
+    );
+    expect(prismaMock.driverRoute.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ canonical_availability_version: null }) })
+    );
+    expect(prismaMock.driverRoute.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ canonical_availability_version: null }) })
+    );
+    expect(prismaMock.merchantOrder.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ canonical_entry_version: null }) })
+    );
+    expect(prismaMock.merchantOrder.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ canonical_entry_version: null }) })
+    );
+  });
+
   it("merchant can create order with parcels", async () => {
     prismaMock.merchantOrder.create.mockResolvedValue({ id: "order_1", status: "submitted", parcels: [{ id: "parcel_1", status: "pending" }] });
 
