@@ -247,23 +247,24 @@ async function main() {
   await prisma.serviceRoute.update({ where: { id: second.stable.id }, data: { status: "active" } });
   await rejects(() => requireEligibleOperationalRoute(prisma, second.stale.id), /route_version_not_available/, "non-current version rejected");
 
+  const seatExpiry = new Date(Date.now() + 10 * 60_000);
   const seatHolds = await Promise.allSettled([0, 1, 2].map((index) => capacityService.hold({
     driverRouteId: active.id, routeVersionId: version.id, reservationType: "passenger",
-    seatsReserved: 1, parcelUnitsReserved: 0, expiresAt: new Date(Date.now() + 10 * 60_000)
+    seatsReserved: 1, parcelUnitsReserved: 0, expiresAt: seatExpiry
   }, { id: passenger.id, requestId: randomUUID(), idempotencyKey: `m7c1-seat-hold-${index}` })));
   check(seatHolds.filter((result) => result.status === "fulfilled").length === 2, "concurrent seat holds exact winners");
   const activeAfterSeats = await prisma.driverRoute.findUniqueOrThrow({ where: { id: active.id } });
   check(activeAfterSeats.remaining_seats === 0, "seat capacity never negative");
-  const firstSeat = seatHolds.find((result): result is PromiseFulfilledResult<Awaited<ReturnType<typeof capacityService.hold>>> => result.status === "fulfilled")!.value;
+  const firstSeatIndex = seatHolds.findIndex((result) => result.status === "fulfilled");
   const holdReplay = await capacityService.hold({
     driverRouteId: active.id, routeVersionId: version.id, reservationType: "passenger",
-    seatsReserved: 1, parcelUnitsReserved: 0, expiresAt: firstSeat.resource.expires_at
-  }, { id: passenger.id, idempotencyKey: "m7c1-seat-hold-0" });
+    seatsReserved: 1, parcelUnitsReserved: 0, expiresAt: seatExpiry
+  }, { id: passenger.id, idempotencyKey: `m7c1-seat-hold-${firstSeatIndex}` });
   check(holdReplay.replayed, "capacity exact hold replay");
   await rejects(() => capacityService.hold({
     driverRouteId: active.id, routeVersionId: version.id, reservationType: "passenger",
-    seatsReserved: 2, parcelUnitsReserved: 0, expiresAt: firstSeat.resource.expires_at
-  }, { id: passenger.id, idempotencyKey: "m7c1-seat-hold-0" }), /idempotency_conflict/, "same key different hold payload conflict");
+    seatsReserved: 2, parcelUnitsReserved: 0, expiresAt: seatExpiry
+  }, { id: passenger.id, idempotencyKey: `m7c1-seat-hold-${firstSeatIndex}` }), /idempotency_conflict/, "same key different hold payload conflict");
   const reservationCountBefore = await prisma.capacityReservation.count({ where: { driver_route_id: active.id } });
   await rejects(() => capacityService.hold({
     driverRouteId: active.id, routeVersionId: version.id, reservationType: "combined",
