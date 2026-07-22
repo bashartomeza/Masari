@@ -29,7 +29,11 @@ try {
       ONBOARDING_TEST_LEGAL_FIXTURES_ENABLED: "true",
       IDEMPOTENCY_PAYLOAD_PEPPER: "ci-only-payload-pepper-at-least-thirty-two-characters"
     }],
-    ["test:integration:routes", "route lifecycle and concurrency smoke"]
+    ["test:integration:routes", "route lifecycle and concurrency smoke"],
+    ["test:integration:multi-route", "multi-route operational concurrency smoke", {
+      MULTI_ROUTE_ENTRY_ENABLED: "true",
+      MULTI_ROUTE_MATCHING_ENABLED: "false"
+    }]
   ]) {
     const npmArgs = process.platform === "win32" && process.env.npm_execpath
       ? [process.env.npm_execpath, "run", script]

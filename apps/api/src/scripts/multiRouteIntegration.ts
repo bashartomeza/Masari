@@ -1,0 +1,271 @@
+import { randomUUID } from "node:crypto";
+import { prisma } from "../lib/prisma.js";
+import { DEMO_ACCOUNTS, DEMO_SERVICE_ROUTE_KEY, DEMO_STOP_KEYS, resetDemoData } from "../modules/demoReset.js";
+import { createCanonicalDemandService } from "../services/canonicalDemand.js";
+import { createCapacityReservationService } from "../services/capacityReservations.js";
+import { createDriverAvailabilityService } from "../services/driverAvailability.js";
+import { requireEligibleOperationalRoute } from "../services/operationalRouteEligibility.js";
+
+let checks = 0;
+function check(condition: unknown, message: string) {
+  if (!condition) throw new Error(`M7C1 integration check failed: ${message}`);
+  checks += 1;
+}
+async function rejects(work: () => Promise<unknown>, pattern: RegExp, message: string) {
+  try {
+    await work();
+  } catch (error) {
+    if (!pattern.test(String(error))) throw new Error(`M7C1 integration check failed: ${message}`);
+    return;
+  }
+  throw new Error(`M7C1 integration check failed: ${message}`);
+}
+
+const driverService = createDriverAvailabilityService(prisma);
+const demandService = createCanonicalDemandService(prisma);
+const capacityService = createCapacityReservationService(prisma);
+
+async function createAvailability(input: {
+  driverId: string;
+  routeVersionId: string;
+  departureOffsetMinutes: number;
+  seats: number;
+  parcels: number;
+  key: string;
+}) {
+  const departureAt = new Date(Date.now() + input.departureOffsetMinutes * 60_000);
+  const created = await driverService.createOneOff(
+    {
+      routeVersionId: input.routeVersionId,
+      departureAt,
+      availabilityWindowEnd: new Date(departureAt.getTime() + 30 * 60_000),
+      totalSeats: input.seats,
+      totalParcelCapacity: input.parcels
+    },
+    { id: input.driverId, requestId: randomUUID(), idempotencyKey: input.key }
+  );
+  const active = await driverService.activate(created.resource.id, created.resource.availability_revision, {
+    id: input.driverId,
+    requestId: randomUUID()
+  });
+  return active;
+}
+
+async function main() {
+  const database = new URL(process.env.DATABASE_URL!).pathname.slice(1);
+  check(database.endsWith("_ci"), "disposable database suffix");
+  const migrations = await prisma.$queryRaw<Array<{ migration_name: string }>>`
+    SELECT migration_name FROM _prisma_migrations WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL
+  `;
+  check(migrations.length === 11, "all eleven migrations applied from empty");
+  check(migrations.some((migration) => migration.migration_name === "20260722130000_multi_route_operational_foundation"), "M7C1 migration current");
+
+  await resetDemoData(prisma);
+  const [admin, passenger, driver1, driver2, merchant] = await Promise.all([
+    prisma.user.findUniqueOrThrow({ where: { phone: DEMO_ACCOUNTS.admin.phone } }),
+    prisma.user.findUniqueOrThrow({ where: { phone: DEMO_ACCOUNTS.passenger.phone } }),
+    prisma.user.findUniqueOrThrow({ where: { phone: DEMO_ACCOUNTS.driver1.phone } }),
+    prisma.user.findUniqueOrThrow({ where: { phone: DEMO_ACCOUNTS.driver2.phone } }),
+    prisma.user.findUniqueOrThrow({ where: { phone: DEMO_ACCOUNTS.merchant.phone } })
+  ]);
+  const route = await prisma.serviceRoute.findUniqueOrThrow({
+    where: { route_key: DEMO_SERVICE_ROUTE_KEY },
+    include: { current_version: { include: { stops: { include: { stop: true }, orderBy: { sequence: "asc" } } } } }
+  });
+  const version = route.current_version!;
+  const origin = version.stops.find((membership) => membership.stop.stop_key === DEMO_STOP_KEYS.origin)!;
+  const pickup = version.stops.find((membership) => membership.stop.stop_key === DEMO_STOP_KEYS.passengerPickup)!;
+  const destination = version.stops.find((membership) => membership.stop.stop_key === DEMO_STOP_KEYS.destination)!;
+  check((await requireEligibleOperationalRoute(prisma, version.id)).stops.length === 3, "published current route eligible");
+  check(version.name_ar.includes("الخليل") && destination.stop.name_ar === "وسط بيت لحم", "canonical Arabic text round-trips");
+
+  const second = await prisma.$transaction(async (tx) => {
+    const [a, b] = await Promise.all([
+      tx.stop.create({ data: { stop_key: "m7c1-second-origin", service_region_key: "south-west-bank", name_ar: "بداية ثانية", name_en: "Second origin", latitude: "31.600000", longitude: "35.120000", created_by_user_id: admin.id } }),
+      tx.stop.create({ data: { stop_key: "m7c1-second-destination", service_region_key: "south-west-bank", name_ar: "نهاية ثانية", name_en: "Second destination", latitude: "31.650000", longitude: "35.160000", created_by_user_id: admin.id } })
+    ]);
+    const stable = await tx.serviceRoute.create({ data: { route_key: "m7c1-second-route", route_group_key: "m7c1-second", service_region_key: "south-west-bank", direction: "outbound", created_by_user_id: admin.id } });
+    const current = await tx.serviceRouteVersion.create({ data: { service_route_id: stable.id, version_number: 1, status: "published", name_ar: "مسار ثان", name_en: "Second route", origin_stop_id: a.id, destination_stop_id: b.id, published_by_user_id: admin.id, published_at: new Date(), created_by_user_id: admin.id, stops: { create: [
+      { stop_id: a.id, sequence: 1, passenger_pickup: true, passenger_dropoff: false, parcel_pickup: true, parcel_dropoff: false },
+      { stop_id: b.id, sequence: 2, passenger_pickup: false, passenger_dropoff: true, parcel_pickup: false, parcel_dropoff: true }
+    ] } } });
+    await tx.serviceRoute.update({ where: { id: stable.id }, data: { current_version_id: current.id } });
+    const stale = await tx.serviceRouteVersion.create({ data: { service_route_id: stable.id, version_number: 2, status: "published", name_ar: "نسخة غير حالية", name_en: "Non-current", origin_stop_id: a.id, destination_stop_id: b.id, published_by_user_id: admin.id, published_at: new Date(), created_by_user_id: admin.id, stops: { create: [
+      { stop_id: a.id, sequence: 1, passenger_pickup: true, passenger_dropoff: false, parcel_pickup: true, parcel_dropoff: false },
+      { stop_id: b.id, sequence: 2, passenger_pickup: false, passenger_dropoff: true, parcel_pickup: false, parcel_dropoff: true }
+    ] } } });
+    return { stable, current, stale, origin: a, destination: b };
+  });
+
+  const from = new Date(Date.now() + 90 * 60_000);
+  const until = new Date(from.getTime() + 60 * 60_000);
+  const passengerCreate = await demandService.createPassengerRequest({
+    routeVersionId: version.id, pickupStopId: pickup.stop_id, dropoffStopId: destination.stop_id,
+    requestedDepartureFrom: from, requestedDepartureUntil: until, passengerCount: 2
+  }, { id: passenger.id, requestId: randomUUID(), idempotencyKey: "m7c1-passenger-create-1" });
+  check(passengerCreate.resource.route_version_id === version.id, "passenger canonical references persisted");
+  const passengerReplay = await demandService.createPassengerRequest({
+    routeVersionId: version.id, pickupStopId: pickup.stop_id, dropoffStopId: destination.stop_id,
+    requestedDepartureFrom: from, requestedDepartureUntil: until, passengerCount: 2
+  }, { id: passenger.id, requestId: randomUUID(), idempotencyKey: "m7c1-passenger-create-1" });
+  check(passengerReplay.replayed && passengerReplay.resource.id === passengerCreate.resource.id, "passenger exact replay");
+  await rejects(() => demandService.createPassengerRequest({
+    routeVersionId: version.id, pickupStopId: second.origin.id, dropoffStopId: destination.stop_id,
+    requestedDepartureFrom: from, requestedDepartureUntil: until, passengerCount: 1
+  }, { id: passenger.id, idempotencyKey: "m7c1-passenger-cross-route" }), /invalid_route_stop/, "passenger cross-route stop rejected");
+  await rejects(() => demandService.createPassengerRequest({
+    routeVersionId: version.id, pickupStopId: destination.stop_id, dropoffStopId: pickup.stop_id,
+    requestedDepartureFrom: from, requestedDepartureUntil: until, passengerCount: 1
+  }, { id: passenger.id, idempotencyKey: "m7c1-passenger-reverse" }), /stop_permission_denied|invalid_stop_order/, "passenger reverse order rejected");
+
+  const merchantCreate = await demandService.createMerchantOrder({
+    routeVersionId: version.id, pickupStopId: origin.stop_id,
+    requestedDepartureFrom: from, requestedDepartureUntil: until,
+    parcels: [
+      { destinationStopId: destination.stop_id, size: "S", priority: "normal" },
+      { destinationStopId: destination.stop_id, size: "M", priority: "high" }
+    ]
+  }, { id: merchant.id, requestId: randomUUID(), idempotencyKey: "m7c1-merchant-create-1" });
+  check(merchantCreate.resource.parcels.every((parcel) => parcel.route_version_id === version.id), "merchant one-route parcels persisted");
+  await rejects(() => demandService.createMerchantOrder({
+    routeVersionId: version.id, pickupStopId: origin.stop_id,
+    requestedDepartureFrom: from, requestedDepartureUntil: until,
+    parcels: [{ destinationStopId: second.destination.id, size: "S", priority: "normal" }]
+  }, { id: merchant.id, idempotencyKey: "m7c1-merchant-cross-route" }), /invalid_route_stop/, "merchant cross-route parcel rejected");
+
+  const duplicateDeparture = new Date(Date.now() + 120 * 60_000);
+  const duplicateInput = {
+    routeVersionId: version.id, departureAt: duplicateDeparture,
+    availabilityWindowEnd: new Date(duplicateDeparture.getTime() + 30 * 60_000), totalSeats: 2, totalParcelCapacity: 4
+  };
+  const duplicateRace = await Promise.allSettled([
+    driverService.createOneOff(duplicateInput, { id: driver1.id, idempotencyKey: "m7c1-duplicate-a" }),
+    driverService.createOneOff(duplicateInput, { id: driver1.id, idempotencyKey: "m7c1-duplicate-b" })
+  ]);
+  check(duplicateRace.filter((result) => result.status === "fulfilled").length === 1, "duplicate availability race has one winner");
+  const duplicateWinner = duplicateRace.find((result): result is PromiseFulfilledResult<Awaited<ReturnType<typeof driverService.createOneOff>>> => result.status === "fulfilled")!.value.resource;
+  const active = await driverService.activate(duplicateWinner.id, duplicateWinner.availability_revision, { id: driver1.id });
+  await rejects(() => driverService.getOwner(active.id, driver2.id), /availability_not_found/, "driver owner isolation");
+
+  await prisma.serviceRouteVersion.update({ where: { id: version.id }, data: { status: "paused" } });
+  await rejects(() => requireEligibleOperationalRoute(prisma, version.id), /route_version_not_available/, "paused version rejected");
+  await prisma.serviceRouteVersion.update({ where: { id: version.id }, data: { status: "published" } });
+  await prisma.serviceRoute.update({ where: { id: second.stable.id }, data: { status: "retired" } });
+  await rejects(() => requireEligibleOperationalRoute(prisma, second.current.id), /route_version_not_available/, "retired route rejected");
+  await prisma.serviceRoute.update({ where: { id: second.stable.id }, data: { status: "active" } });
+  await rejects(() => requireEligibleOperationalRoute(prisma, second.stale.id), /route_version_not_available/, "non-current version rejected");
+
+  const seatHolds = await Promise.allSettled([0, 1, 2].map((index) => capacityService.hold({
+    driverRouteId: active.id, routeVersionId: version.id, reservationType: "passenger",
+    seatsReserved: 1, parcelUnitsReserved: 0, expiresAt: new Date(Date.now() + 10 * 60_000)
+  }, { id: passenger.id, requestId: randomUUID(), idempotencyKey: `m7c1-seat-hold-${index}` })));
+  check(seatHolds.filter((result) => result.status === "fulfilled").length === 2, "concurrent seat holds exact winners");
+  const activeAfterSeats = await prisma.driverRoute.findUniqueOrThrow({ where: { id: active.id } });
+  check(activeAfterSeats.remaining_seats === 0, "seat capacity never negative");
+  const firstSeat = seatHolds.find((result): result is PromiseFulfilledResult<Awaited<ReturnType<typeof capacityService.hold>>> => result.status === "fulfilled")!.value;
+  const holdReplay = await capacityService.hold({
+    driverRouteId: active.id, routeVersionId: version.id, reservationType: "passenger",
+    seatsReserved: 1, parcelUnitsReserved: 0, expiresAt: firstSeat.resource.expires_at
+  }, { id: passenger.id, idempotencyKey: "m7c1-seat-hold-0" });
+  check(holdReplay.replayed, "capacity exact hold replay");
+  await rejects(() => capacityService.hold({
+    driverRouteId: active.id, routeVersionId: version.id, reservationType: "passenger",
+    seatsReserved: 2, parcelUnitsReserved: 0, expiresAt: firstSeat.resource.expires_at
+  }, { id: passenger.id, idempotencyKey: "m7c1-seat-hold-0" }), /idempotency_conflict/, "same key different hold payload conflict");
+  const reservationCountBefore = await prisma.capacityReservation.count({ where: { driver_route_id: active.id } });
+  await rejects(() => capacityService.hold({
+    driverRouteId: active.id, routeVersionId: version.id, reservationType: "combined",
+    seatsReserved: 1, parcelUnitsReserved: 1, expiresAt: new Date(Date.now() + 10 * 60_000)
+  }, { id: passenger.id, idempotencyKey: "m7c1-insufficient" }), /insufficient_capacity/, "insufficient capacity rollback");
+  check(await prisma.capacityReservation.count({ where: { driver_route_id: active.id } }) === reservationCountBefore, "insufficient hold creates no row");
+
+  const parcelAvailability = await createAvailability({ driverId: driver1.id, routeVersionId: version.id, departureOffsetMinutes: 130, seats: 1, parcels: 2, key: "m7c1-parcel-availability" });
+  const parcelHolds = await Promise.allSettled([0, 1, 2].map((index) => capacityService.hold({
+    driverRouteId: parcelAvailability.id, routeVersionId: version.id, reservationType: "parcel",
+    seatsReserved: 0, parcelUnitsReserved: 1, expiresAt: new Date(Date.now() + 10 * 60_000)
+  }, { id: merchant.id, idempotencyKey: `m7c1-parcel-hold-${index}` })));
+  check(parcelHolds.filter((result) => result.status === "fulfilled").length === 2, "concurrent parcel holds exact winners");
+  check((await prisma.driverRoute.findUniqueOrThrow({ where: { id: parcelAvailability.id } })).remaining_parcel_capacity === 0, "parcel capacity never negative");
+
+  const combinedAvailability = await createAvailability({ driverId: driver1.id, routeVersionId: version.id, departureOffsetMinutes: 140, seats: 2, parcels: 2, key: "m7c1-combined-availability" });
+  const combined = await capacityService.hold({
+    driverRouteId: combinedAvailability.id, routeVersionId: version.id, reservationType: "combined",
+    seatsReserved: 1, parcelUnitsReserved: 1, expiresAt: new Date(Date.now() + 10 * 60_000)
+  }, { id: passenger.id, idempotencyKey: "m7c1-combined-hold" });
+  check(combined.resource.seats_reserved === 1 && combined.resource.parcel_units_reserved === 1, "combined hold reserves both dimensions");
+  const confirmRace = await Promise.allSettled([
+    capacityService.confirm(combined.resource.id, { id: passenger.id, idempotencyKey: "m7c1-confirm-a" }),
+    capacityService.confirm(combined.resource.id, { id: passenger.id, idempotencyKey: "m7c1-confirm-b" })
+  ]);
+  check(confirmRace.every((result) => result.status === "fulfilled"), "concurrent confirm is idempotent");
+  check((await prisma.capacityReservation.findUniqueOrThrow({ where: { id: combined.resource.id } })).status === "confirmed", "confirm terminal state persisted");
+
+  const releaseAvailability = await createAvailability({ driverId: driver1.id, routeVersionId: version.id, departureOffsetMinutes: 150, seats: 2, parcels: 2, key: "m7c1-release-availability" });
+  const releaseHold = await capacityService.hold({ driverRouteId: releaseAvailability.id, routeVersionId: version.id, reservationType: "combined", seatsReserved: 1, parcelUnitsReserved: 1, expiresAt: new Date(Date.now() + 10 * 60_000) }, { id: passenger.id, idempotencyKey: "m7c1-release-hold" });
+  const releaseRace = await Promise.allSettled([
+    capacityService.release(releaseHold.resource.id, "offer_rejected", { id: passenger.id, idempotencyKey: "m7c1-release-a" }),
+    capacityService.release(releaseHold.resource.id, "offer_rejected", { id: passenger.id, idempotencyKey: "m7c1-release-b" })
+  ]);
+  check(releaseRace.every((result) => result.status === "fulfilled"), "concurrent release is idempotent");
+  const afterRelease = await prisma.driverRoute.findUniqueOrThrow({ where: { id: releaseAvailability.id } });
+  check(afterRelease.remaining_seats === 2 && afterRelease.remaining_parcel_capacity === 2, "released capacity restored exactly once");
+
+  const decisionAvailability = await createAvailability({ driverId: driver1.id, routeVersionId: version.id, departureOffsetMinutes: 160, seats: 1, parcels: 1, key: "m7c1-decision-availability" });
+  const decisionHold = await capacityService.hold({ driverRouteId: decisionAvailability.id, routeVersionId: version.id, reservationType: "combined", seatsReserved: 1, parcelUnitsReserved: 1, expiresAt: new Date(Date.now() + 10 * 60_000) }, { id: passenger.id, idempotencyKey: "m7c1-decision-hold" });
+  const decisionRace = await Promise.allSettled([
+    capacityService.confirm(decisionHold.resource.id, { id: passenger.id, idempotencyKey: "m7c1-decision-confirm" }),
+    capacityService.release(decisionHold.resource.id, "offer_cancelled", { id: passenger.id, idempotencyKey: "m7c1-decision-release" })
+  ]);
+  check(decisionRace.filter((result) => result.status === "fulfilled").length >= 1, "confirm versus release has a winner");
+  check(["confirmed", "released"].includes((await prisma.capacityReservation.findUniqueOrThrow({ where: { id: decisionHold.resource.id } })).status), "confirm versus release terminal state valid");
+
+  const expiryAvailability = await createAvailability({ driverId: driver1.id, routeVersionId: version.id, departureOffsetMinutes: 170, seats: 1, parcels: 1, key: "m7c1-expiry-availability" });
+  const expiryAt = new Date(Date.now() + 60_000);
+  const expiryHold = await capacityService.hold({ driverRouteId: expiryAvailability.id, routeVersionId: version.id, reservationType: "combined", seatsReserved: 1, parcelUnitsReserved: 1, expiresAt: expiryAt }, { id: passenger.id, idempotencyKey: "m7c1-expiry-hold" });
+  const expiryRace = await Promise.allSettled([
+    capacityService.confirm(expiryHold.resource.id, { id: passenger.id, idempotencyKey: "m7c1-expiry-confirm" }),
+    capacityService.expireBatch({ now: new Date(expiryAt.getTime() + 1), limit: 10 })
+  ]);
+  check(expiryRace.some((result) => result.status === "fulfilled"), "expiry versus confirm completes safely");
+  const expiryFinal = await prisma.capacityReservation.findUniqueOrThrow({ where: { id: expiryHold.resource.id } });
+  check(["confirmed", "expired"].includes(expiryFinal.status), "expiry versus confirm terminal state valid");
+  const expiryCapacity = await prisma.driverRoute.findUniqueOrThrow({ where: { id: expiryAvailability.id } });
+  check(expiryCapacity.remaining_seats! >= 0 && expiryCapacity.remaining_seats! <= expiryCapacity.total_seats!, "capacity remains within seat total");
+  check(expiryCapacity.remaining_parcel_capacity! >= 0 && expiryCapacity.remaining_parcel_capacity! <= expiryCapacity.total_parcel_capacity!, "capacity remains within parcel total");
+
+  const legacyRequest = await prisma.passengerRequest.findFirstOrThrow({ where: { source: "seed" } });
+  check(legacyRequest.route_version_id === null && legacyRequest.canonical_entry_version === null, "legacy passenger remains valid");
+  const legacyOrder = await prisma.merchantOrder.findFirstOrThrow({ where: { canonical_entry_version: null } });
+  check(legacyOrder.route_version_id === null, "legacy merchant order remains valid");
+  check(await prisma.parcel.count({ where: { order_id: legacyOrder.id, route_version_id: null } }) === 5, "legacy parcels remain valid");
+  const legacyRoute = await prisma.driverRoute.findFirstOrThrow({ where: { route_version_id: null } });
+  check(legacyRoute.corridor_key === DEMO_SERVICE_ROUTE_KEY, "legacy DriverRoute remains valid");
+
+  const legacyMatch = await prisma.match.create({ data: { driver_route_id: legacyRoute.id, score: "0.5000", method: "m7c1_legacy_check", explanation: "legacy compatibility", scoring_breakdown: { check: true } } });
+  check(legacyMatch.route_version_id === null && legacyMatch.canonical_match_version === null, "legacy match remains valid");
+  const legacyTrip = await prisma.trip.create({ data: { driver_id: legacyRoute.driver_id, driver_route_id: legacyRoute.id } });
+  check(legacyTrip.route_version_id === null && legacyTrip.route_snapshot_json === null, "legacy trip remains valid");
+
+  await resetDemoData(prisma);
+  const counts = await Promise.all([
+    prisma.capacityReservation.count(), prisma.serviceRoute.count(), prisma.serviceRouteVersion.count(),
+    prisma.stop.count(), prisma.passengerRequest.count(), prisma.merchantOrder.count(), prisma.parcel.count()
+  ]);
+  check(counts[0] === 0, "demo reset removes reservation history before availability");
+  check(counts.slice(1).join(",") === "1,1,3,1,1,5", "demo reset restores deterministic aggregate counts");
+  await resetDemoData(prisma);
+  check(await prisma.capacityReservation.count() === 0 && await prisma.driverRoute.count() === 2, "demo reset is idempotent");
+  check(await prisma.auditEvent.count({ where: { action: "demo_reset" } }) === 1, "reset leaves only bounded deterministic audit state");
+
+  check(checks === 36, `expected 36 checks, received ${checks}`);
+  console.log("M7C1 real-MySQL operational and concurrency integration passed: 36 checks");
+}
+
+main()
+  .catch((error) => {
+    console.error(error instanceof Error ? error.message : "M7C1 integration failed");
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

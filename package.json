@@ -34,6 +34,7 @@
     "test:integration:onboarding": "node apps/api/dist/scripts/onboardingIntegration.js",
     "test:integration:public-onboarding": "node --env-file-if-exists=apps/api/.env apps/api/dist/scripts/publicOnboardingIntegration.js",
     "test:integration:routes": "node --env-file-if-exists=apps/api/.env apps/api/dist/scripts/routeCatalogIntegration.js",
+    "test:integration:multi-route": "npm run test:integration:multi-route -w @masari/api",
     "test:tooling": "node --test scripts/tests/*.test.mjs",
     "mysql:backup": "node scripts/mysql-backup.mjs",
     "mysql:restore:verify": "node scripts/mysql-restore-verify.mjs",
