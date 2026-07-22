@@ -47,13 +47,32 @@ describe("fail-closed application configuration", () => {
     );
   });
 
-  it("keeps route management explicit and multi-route entry fail-closed until M7C", () => {
+  it("keeps route management independent and M7C1 operational gates fail-closed", () => {
     expect(createConfig(environment())).toEqual(
-      expect.objectContaining({ routeManagementEnabled: false, multiRouteEntryEnabled: false })
+      expect.objectContaining({
+        routeManagementEnabled: false,
+        multiRouteEntryEnabled: false,
+        multiRouteMatchingEnabled: false
+      })
     );
     expect(createConfig(environment({ ROUTE_MANAGEMENT_ENABLED: "true" })).routeManagementEnabled).toBe(true);
-    expect(() => createConfig(environment({ MULTI_ROUTE_ENTRY_ENABLED: "true" }))).toThrow(/before M7C/);
+    expect(createConfig(environment({ APP_ENV: "local", MULTI_ROUTE_ENTRY_ENABLED: "true" })).multiRouteEntryEnabled).toBe(true);
+    expect(() => createConfig(environment({ MULTI_ROUTE_ENTRY_ENABLED: "true" }))).toThrow(/forbidden in staging and production/);
+    expect(() => createConfig(environment({ APP_ENV: "staging", MULTI_ROUTE_ENTRY_ENABLED: "true" }))).toThrow(/forbidden/);
+    expect(() => createConfig(environment({ APP_ENV: "local", MULTI_ROUTE_MATCHING_ENABLED: "true" }))).toThrow(/during M7C1/);
+    expect(() => createConfig(environment({ MULTI_ROUTE_MATCHING_ENABLED: "true" }))).toThrow(/during M7C1/);
     expect(() => createConfig(environment({ ROUTE_MANAGEMENT_ENABLED: "yes" }))).toThrow(/true or false/);
+  });
+
+  it("accepts only exact lowercase M7C1 gate booleans", () => {
+    for (const value of ["TRUE", "1", " true", "true ", "malformed"]) {
+      expect(() => createConfig(environment({ APP_ENV: "local", MULTI_ROUTE_ENTRY_ENABLED: value }))).toThrow(
+        /MULTI_ROUTE_ENTRY_ENABLED must be true or false/
+      );
+      expect(() => createConfig(environment({ APP_ENV: "local", MULTI_ROUTE_MATCHING_ENABLED: value }))).toThrow(
+        /MULTI_ROUTE_MATCHING_ENABLED must be true or false/
+      );
+    }
   });
 
   it("requires an explicit safe trust-proxy topology in production-like environments", () => {

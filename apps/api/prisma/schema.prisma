@@ -74,6 +74,19 @@ enum DriverAvailabilityStatus {
   expired
 }
 
+enum CapacityReservationType {
+  passenger
+  parcel
+  combined
+}
+
+enum CapacityReservationStatus {
+  held
+  confirmed
+  released
+  expired
+}
+
 enum RequestStatus {
   draft
   pending
@@ -196,6 +209,16 @@ enum AuditAction {
   driver_availability_created
   driver_availability_updated
   driver_availability_status_changed
+  driver_availability_activated
+  driver_availability_paused
+  driver_availability_resumed
+  driver_availability_cancelled
+  canonical_passenger_request_created
+  canonical_merchant_order_created
+  capacity_reserved
+  capacity_confirmed
+  capacity_released
+  capacity_expired
 }
 
 enum OnboardingRole {
@@ -579,6 +602,8 @@ model DriverRoute {
   total_parcel_capacity     Int?
   remaining_parcel_capacity Int?
   availability_status       DriverAvailabilityStatus?
+  canonical_availability_version String?              @db.VarChar(50)
+  operational_mode          String                    @default("legacy") @db.VarChar(50)
   availability_revision     Int                       @default(1)
   activated_at              DateTime?
   paused_at                 DateTime?
@@ -589,13 +614,18 @@ model DriverRoute {
   expired_at                DateTime?
 
   driver         DriverProfile        @relation(fields: [driver_id], references: [id], onDelete: Cascade)
-  route_version  ServiceRouteVersion? @relation(fields: [route_version_id], references: [id], onDelete: Restrict)
+  route_version  ServiceRouteVersion? @relation(fields: [route_version_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
   parcel_batches ParcelBatch[]
   matches        Match[]
   trips          Trip[]
+  capacity_reservations CapacityReservation[]
 
   @@index([corridor_key])
   @@index([route_version_id, availability_status, departure_at])
+  @@index([canonical_availability_version, availability_status, departure_at])
+  @@unique([id, route_version_id], map: "driver_routes_route_ownership_key")
+  @@unique([id, operational_mode], map: "driver_routes_mode_ownership_key")
+  @@unique([driver_id, route_version_id, departure_at], map: "driver_routes_one_off_departure_key")
   @@map("driver_routes")
 }
 
@@ -695,6 +725,12 @@ model ServiceRouteVersion {
   retired_by        User?              @relation("ServiceRouteVersionRetirer", fields: [retired_by_user_id], references: [id], onDelete: SetNull)
   stops             RouteVersionStop[]
   driver_routes     DriverRoute[]
+  passenger_requests PassengerRequest[]
+  merchant_orders    MerchantOrder[]
+  parcels            Parcel[]
+  matches            Match[]
+  trips              Trip[]
+  capacity_reservations CapacityReservation[]
 
   @@unique([service_route_id, version_number])
   @@unique([service_route_id, id], map: "service_route_versions_route_ownership_key")
@@ -740,11 +776,21 @@ model PassengerRequest {
   status            RequestStatus @default(pending)
   source            String        @default("seed")
   created_at        DateTime      @default(now())
+  route_version_id              String?
+  pickup_stop_id                String?
+  dropoff_stop_id               String?
+  canonical_entry_version       String?   @db.VarChar(50)
+  requested_departure_from      DateTime?
+  requested_departure_until     DateTime?
+  canonical_created_at          DateTime?
 
-  passenger User    @relation(fields: [passenger_id], references: [id], onDelete: Cascade)
-  matches   Match[]
-  trips     Trip[]
+  passenger    User                 @relation(fields: [passenger_id], references: [id], onDelete: Cascade)
+  route_version ServiceRouteVersion? @relation(fields: [route_version_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  matches      Match[]
+  trips        Trip[]
 
+  @@index([route_version_id, requested_departure_from])
+  @@unique([id, route_version_id], map: "passenger_requests_route_ownership_key")
   @@map("passenger_requests")
 }
 
@@ -756,13 +802,22 @@ model MerchantOrder {
   pickup_lng   Decimal             @db.Decimal(9, 6)
   status       MerchantOrderStatus @default(submitted)
   created_at   DateTime            @default(now())
+  route_version_id          String?
+  pickup_stop_id            String?
+  canonical_entry_version   String?   @db.VarChar(50)
+  requested_departure_from  DateTime?
+  requested_departure_until DateTime?
+  canonical_created_at      DateTime?
 
   merchant       User          @relation(fields: [merchant_id], references: [id], onDelete: Cascade)
+  route_version  ServiceRouteVersion? @relation(fields: [route_version_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
   parcels        Parcel[]
   parcel_batches ParcelBatch[]
   matches        Match[]
   trips          Trip[]
 
+  @@unique([id, route_version_id], map: "merchant_orders_route_ownership_key")
+  @@index([route_version_id, requested_departure_from])
   @@map("merchant_orders")
 }
 
@@ -776,9 +831,14 @@ model Parcel {
   priority          String
   status            ParcelStatus @default(pending)
   batch_id          String?
+  route_version_id  String?
+  destination_stop_id String?
+  canonical_entry_version String? @db.VarChar(50)
 
-  order MerchantOrder @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  order         MerchantOrder        @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  route_version ServiceRouteVersion? @relation(fields: [route_version_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
 
+  @@index([route_version_id, destination_stop_id])
   @@map("parcels")
 }
 
@@ -811,12 +871,20 @@ model Match {
   scoring_breakdown    Json
   status               MatchStatus @default(proposed)
   created_at           DateTime    @default(now())
+  route_version_id     String?
+  canonical_match_version String?  @db.VarChar(50)
+  operational_mode     String      @default("legacy") @db.VarChar(50)
 
   driver_route      DriverRoute       @relation(fields: [driver_route_id], references: [id], onDelete: Cascade)
   passenger_request PassengerRequest? @relation(fields: [passenger_request_id], references: [id], onDelete: Cascade)
   merchant_order    MerchantOrder?    @relation(fields: [merchant_order_id], references: [id], onDelete: Cascade)
   parcel_batch      ParcelBatch?      @relation(fields: [parcel_batch_id], references: [id], onDelete: SetNull)
+  route_version     ServiceRouteVersion? @relation(fields: [route_version_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  capacity_reservation CapacityReservation?
 
+  @@index([route_version_id, status])
+  @@unique([id, route_version_id], map: "matches_route_ownership_key")
+  @@unique([id, operational_mode], map: "matches_mode_ownership_key")
   @@map("matches")
 }
 
@@ -848,15 +916,52 @@ model Trip {
   started_at           DateTime?
   completed_at         DateTime?
   created_at           DateTime   @default(now())
+  route_version_id     String?
+  canonical_trip_version String?  @db.VarChar(50)
+  route_snapshot_json  Json?
+  route_snapshot_checksum String? @db.Char(64)
 
   driver_route      DriverRoute       @relation(fields: [driver_route_id], references: [id], onDelete: Cascade)
   passenger_request PassengerRequest? @relation(fields: [passenger_request_id], references: [id], onDelete: SetNull)
   merchant_order    MerchantOrder?    @relation(fields: [merchant_order_id], references: [id], onDelete: SetNull)
   parcel_batch      ParcelBatch?      @relation(fields: [parcel_batch_id], references: [id], onDelete: SetNull)
   location_events   LocationEvent[]
+  route_version     ServiceRouteVersion? @relation(fields: [route_version_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
 
   @@index([driver_id])
+  @@index([route_version_id, status])
   @@map("trips")
+}
+
+model CapacityReservation {
+  id                      String                    @id @default(cuid())
+  driver_route_id         String
+  route_version_id        String
+  match_id                String?                   @unique
+  reservation_type        CapacityReservationType
+  status                  CapacityReservationStatus @default(held)
+  seats_reserved          Int                       @default(0)
+  parcel_units_reserved   Int                       @default(0)
+  expires_at              DateTime
+  created_at              DateTime                  @default(now())
+  confirmed_at            DateTime?
+  released_at             DateTime?
+  release_reason          String?                   @db.VarChar(80)
+  revision                Int                       @default(1)
+  created_request_id      String?                   @db.VarChar(64)
+  idempotency_fingerprint String                    @db.Char(64)
+  operational_mode        String                    @default("canonical_route_v1") @db.VarChar(50)
+  expiry_failure_count    Int                       @default(0)
+  expiry_last_failed_at   DateTime?
+
+  driver_route DriverRoute         @relation(fields: [driver_route_id], references: [id], onDelete: Restrict)
+  route_version ServiceRouteVersion @relation(fields: [route_version_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  match        Match?              @relation(fields: [match_id], references: [id], onDelete: Restrict)
+
+  @@index([status, expires_at])
+  @@index([status, expiry_failure_count, expires_at], map: "capacity_reservations_expiry_retry_idx")
+  @@index([driver_route_id, status])
+  @@map("capacity_reservations")
 }
 
 model LocationEvent {

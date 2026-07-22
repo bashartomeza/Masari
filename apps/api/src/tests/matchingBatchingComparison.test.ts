@@ -156,6 +156,37 @@ describe("matching, batching, comparison", () => {
       .expect(403);
   });
 
+  it("checks ownership before disclosing canonical matcher isolation", async () => {
+    prismaMock.passengerRequest.findUnique.mockResolvedValue({
+      ...passengerRequest,
+      passenger_id: "passenger_2",
+      canonical_entry_version: "canonical_route_v1",
+      route_version_id: "version_1"
+    });
+
+    await request(createApp())
+      .post("/api/v1/matches/run")
+      .set(auth("passenger_1"))
+      .send({ passengerRequestId: "req_1" })
+      .expect(403);
+  });
+
+  it("never sends canonical demand to the legacy matcher", async () => {
+    prismaMock.passengerRequest.findUnique.mockResolvedValue({
+      ...passengerRequest,
+      canonical_entry_version: "canonical_route_v1",
+      route_version_id: "version_1"
+    });
+
+    await request(createApp())
+      .post("/api/v1/matches/run")
+      .set(auth("passenger_1"))
+      .send({ passengerRequestId: "req_1" })
+      .expect(409);
+
+    expect(prismaMock.driverRoute.findMany).not.toHaveBeenCalled();
+  });
+
   it("matching persists and returns scoring breakdown", async () => {
     prismaMock.passengerRequest.findUnique.mockResolvedValue(passengerRequest);
     prismaMock.merchantOrder.findUnique.mockResolvedValue(null);
@@ -244,6 +275,21 @@ describe("matching, batching, comparison", () => {
     await request(createApp()).post("/api/v1/merchant/orders/order_1/batch").set(auth("merchant_1")).expect(409);
   });
 
+  it("never sends a canonical order to legacy batching", async () => {
+    prismaMock.merchantOrder.findUnique.mockResolvedValue({
+      ...merchantOrder,
+      canonical_entry_version: "canonical_route_v1",
+      route_version_id: "version_1"
+    });
+
+    await request(createApp())
+      .post("/api/v1/merchant/orders/order_1/batch")
+      .set(auth("merchant_1"))
+      .expect(409);
+
+    expect(prismaMock.driverRoute.findFirst).not.toHaveBeenCalled();
+  });
+
   it("an already batched order cannot create a duplicate batch", async () => {
     prismaMock.merchantOrder.findUnique.mockResolvedValue({
       ...merchantOrder,
@@ -274,6 +320,28 @@ describe("matching, batching, comparison", () => {
     expect(response.body.comparison.winner).toBe("masari");
     expect(response.body.comparison.masari_trips).toBe(1);
     expect(response.body.comparison.nearest_driver_trips).toBeGreaterThan(1);
+    expect(prismaMock.merchantOrder.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { canonical_entry_version: null } })
+    );
+    expect(prismaMock.passengerRequest.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { canonical_entry_version: null } })
+    );
+  });
+
+  it("does not accept explicit canonical demand in the legacy comparison", async () => {
+    prismaMock.merchantOrder.findFirst.mockResolvedValue(null);
+    prismaMock.passengerRequest.findFirst.mockResolvedValue(null);
+
+    await request(createApp())
+      .post("/api/v1/compare/run")
+      .set(auth("admin_1"))
+      .send({ passengerRequestId: "canonical_request" })
+      .expect(404);
+
+    expect(prismaMock.passengerRequest.findFirst).toHaveBeenCalledWith({
+      where: { id: "canonical_request", canonical_entry_version: null }
+    });
+    expect(prismaMock.comparisonRun.create).not.toHaveBeenCalled();
   });
 
   it("non-admin cannot run comparison", async () => {

@@ -24,11 +24,19 @@ comparisonRouter.post("/compare/run", requireAuth, requireRole("admin"), async (
   try {
     const input = compareRunSchema.parse(req.body);
     const order = input.merchantOrderId
-      ? await prisma.merchantOrder.findUnique({ where: { id: input.merchantOrderId }, include: { parcels: true } })
-      : await prisma.merchantOrder.findFirst({ include: { parcels: true }, orderBy: { created_at: "desc" } });
+      ? await prisma.merchantOrder.findFirst({
+          where: { id: input.merchantOrderId, canonical_entry_version: null }, include: { parcels: true }
+        })
+      : await prisma.merchantOrder.findFirst({
+          where: { canonical_entry_version: null }, include: { parcels: true }, orderBy: { created_at: "desc" }
+        });
     const passengerRequest = input.passengerRequestId
-      ? await prisma.passengerRequest.findUnique({ where: { id: input.passengerRequestId } })
-      : await prisma.passengerRequest.findFirst({ orderBy: { created_at: "desc" } });
+      ? await prisma.passengerRequest.findFirst({
+          where: { id: input.passengerRequestId, canonical_entry_version: null }
+        })
+      : await prisma.passengerRequest.findFirst({
+          where: { canonical_entry_version: null }, orderBy: { created_at: "desc" }
+        });
 
     if (!order && !passengerRequest) throw new HttpError(404, "comparison_inputs_not_found");
 

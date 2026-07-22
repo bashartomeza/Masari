@@ -30,6 +30,8 @@ import {
 import type { RouteManagementService } from "./services/routeManagement.js";
 import { createDriverAvailabilityRouter } from "./modules/driverAvailability.js";
 import type { DriverAvailabilityService } from "./services/driverAvailability.js";
+import { createCanonicalDemandRouter } from "./modules/canonicalDemand.js";
+import type { CanonicalDemandService } from "./services/canonicalDemand.js";
 
 export const HTTP_JSON_LIMIT = "64kb";
 export const HTTP_FORM_LIMIT = "16kb";
@@ -40,6 +42,7 @@ type AppDependencies = {
   otpProvider?: OtpProvider;
   routeManagementService?: RouteManagementService;
   driverAvailabilityService?: DriverAvailabilityService;
+  canonicalDemandService?: CanonicalDemandService;
 };
 
 export function createApp(appConfig: AppConfig = config, dependencies: AppDependencies = {}) {
@@ -62,6 +65,7 @@ export function createApp(appConfig: AppConfig = config, dependencies: AppDepend
 
   app.use("/api/v1", authRouter);
   if (appConfig.demoFeaturesEnabled) app.use("/api/v1", demoRouter);
+  app.use("/api/v1", createCanonicalDemandRouter(appConfig, dependencies.canonicalDemandService));
   app.use("/api/v1", passengerRouter);
   app.use("/api/v1", createDriverAvailabilityRouter(appConfig, dependencies.driverAvailabilityService));
   app.use("/api/v1", driverRouter);

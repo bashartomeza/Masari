@@ -62,6 +62,7 @@ describe("demo reset", () => {
       refreshToken: { deleteMany: vi.fn() },
       authSession: { deleteMany: vi.fn() },
       locationEvent: { deleteMany: vi.fn() },
+      capacityReservation: { deleteMany: vi.fn() },
       trip: { deleteMany: vi.fn() },
       match: { deleteMany: vi.fn() },
       comparisonRun: { deleteMany: vi.fn() },

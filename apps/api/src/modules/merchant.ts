@@ -24,6 +24,36 @@ const createOrderSchema = z.object({
 
 export const merchantRouter = Router();
 
+function serializeLegacyParcel(value: Record<string, unknown>) {
+  return {
+    id: value.id,
+    order_id: value.order_id,
+    destination_label: value.destination_label,
+    destination_lat: value.destination_lat,
+    destination_lng: value.destination_lng,
+    size: value.size,
+    priority: value.priority,
+    status: value.status,
+    batch_id: value.batch_id
+  };
+}
+
+function serializeLegacyMerchantOrder(value: Record<string, unknown>) {
+  return {
+    id: value.id,
+    merchant_id: value.merchant_id,
+    pickup_label: value.pickup_label,
+    pickup_lat: value.pickup_lat,
+    pickup_lng: value.pickup_lng,
+    status: value.status,
+    created_at: value.created_at,
+    parcels: Array.isArray(value.parcels)
+      ? value.parcels.map((parcel) => serializeLegacyParcel(parcel as Record<string, unknown>))
+      : undefined,
+    ...(Array.isArray(value.parcel_batches) ? { parcel_batches: value.parcel_batches } : {})
+  };
+}
+
 const merchantOrderInclude = {
   parcels: true,
   parcel_batches: {
@@ -89,7 +119,7 @@ merchantRouter.post("/merchant/orders", async (req: AuthenticatedRequest, res, n
       metadata: { parcel_count: order.parcels.length }
     });
 
-    res.status(201).json({ order });
+    res.status(201).json({ order: serializeLegacyMerchantOrder(order as unknown as Record<string, unknown>) });
   } catch (error) {
     next(error);
   }
@@ -98,11 +128,11 @@ merchantRouter.post("/merchant/orders", async (req: AuthenticatedRequest, res, n
 merchantRouter.get("/merchant/orders", async (req: AuthenticatedRequest, res, next) => {
   try {
     const orders = await prisma.merchantOrder.findMany({
-      where: { merchant_id: req.user!.id },
+      where: { merchant_id: req.user!.id, canonical_entry_version: null },
       include: merchantOrderInclude,
       orderBy: { created_at: "desc" }
     });
-    res.json({ orders });
+    res.json({ orders: orders.map((order) => serializeLegacyMerchantOrder(order as unknown as Record<string, unknown>)) });
   } catch (error) {
     next(error);
   }
@@ -112,13 +142,13 @@ merchantRouter.get("/merchant/orders/:id", async (req: AuthenticatedRequest, res
   try {
     const orderId = routeParam(req.params.id);
     const order = await prisma.merchantOrder.findFirst({
-      where: { id: orderId, merchant_id: req.user!.id },
+      where: { id: orderId, merchant_id: req.user!.id, canonical_entry_version: null },
       include: merchantOrderInclude
     });
     if (!order) {
       throw new HttpError(404, "order_not_found");
     }
-    res.json({ order });
+    res.json({ order: serializeLegacyMerchantOrder(order as unknown as Record<string, unknown>) });
   } catch (error) {
     next(error);
   }

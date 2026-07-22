@@ -39,6 +39,39 @@ function assertLockedRoute(input: z.infer<typeof routeSchema>) {
 
 export const driverRouter = Router();
 
+function serializeLegacyDriverRoute(value: Record<string, unknown>) {
+  return {
+    id: value.id,
+    driver_id: value.driver_id,
+    origin_label: value.origin_label,
+    origin_lat: value.origin_lat,
+    origin_lng: value.origin_lng,
+    destination_label: value.destination_label,
+    destination_lat: value.destination_lat,
+    destination_lng: value.destination_lng,
+    corridor_key: value.corridor_key,
+    seats_available: value.seats_available,
+    parcel_capacity_available: value.parcel_capacity_available,
+    status: value.status,
+    route_version_id: value.route_version_id,
+    departure_at: value.departure_at,
+    availability_window_end: value.availability_window_end,
+    total_seats: value.total_seats,
+    remaining_seats: value.remaining_seats,
+    total_parcel_capacity: value.total_parcel_capacity,
+    remaining_parcel_capacity: value.remaining_parcel_capacity,
+    availability_status: value.availability_status,
+    availability_revision: value.availability_revision,
+    activated_at: value.activated_at,
+    paused_at: value.paused_at,
+    filled_at: value.filled_at,
+    departed_at: value.departed_at,
+    completed_at: value.completed_at,
+    cancelled_at: value.cancelled_at,
+    expired_at: value.expired_at
+  };
+}
+
 function routeParam(value: string | string[] | undefined) {
   if (typeof value !== "string") {
     throw new HttpError(400, "invalid_route_param");
@@ -83,7 +116,7 @@ driverRouter.post("/driver/routes", async (req: AuthenticatedRequest, res, next)
       metadata: { corridor_key: LOCKED_ROUTE.corridor_key }
     });
 
-    res.status(201).json({ route });
+    res.status(201).json({ route: serializeLegacyDriverRoute(route as unknown as Record<string, unknown>) });
   } catch (error) {
     next(error);
   }
@@ -92,10 +125,10 @@ driverRouter.post("/driver/routes", async (req: AuthenticatedRequest, res, next)
 driverRouter.get("/driver/routes", async (req: AuthenticatedRequest, res, next) => {
   try {
     const routes = await prisma.driverRoute.findMany({
-      where: { driver: { user_id: req.user!.id } },
+      where: { driver: { user_id: req.user!.id }, canonical_availability_version: null, operational_mode: "legacy" },
       orderBy: { activated_at: "desc" }
     });
-    res.json({ routes });
+    res.json({ routes: routes.map((route) => serializeLegacyDriverRoute(route as unknown as Record<string, unknown>)) });
   } catch (error) {
     next(error);
   }
@@ -104,10 +137,10 @@ driverRouter.get("/driver/routes", async (req: AuthenticatedRequest, res, next) 
 driverRouter.get("/driver/routes/active", async (req: AuthenticatedRequest, res, next) => {
   try {
     const routes = await prisma.driverRoute.findMany({
-      where: { driver: { user_id: req.user!.id }, status: "active" },
+      where: { driver: { user_id: req.user!.id }, status: "active", canonical_availability_version: null, operational_mode: "legacy" },
       orderBy: { activated_at: "desc" }
     });
-    res.json({ routes });
+    res.json({ routes: routes.map((route) => serializeLegacyDriverRoute(route as unknown as Record<string, unknown>)) });
   } catch (error) {
     next(error);
   }
@@ -117,7 +150,7 @@ driverRouter.patch("/driver/routes/:id/deactivate", async (req: AuthenticatedReq
   try {
     const routeId = routeParam(req.params.id);
     const existing = await prisma.driverRoute.findFirst({
-      where: { id: routeId, driver: { user_id: req.user!.id } }
+      where: { id: routeId, driver: { user_id: req.user!.id }, canonical_availability_version: null, operational_mode: "legacy" }
     });
     if (!existing) {
       throw new HttpError(404, "route_not_found");
@@ -138,7 +171,7 @@ driverRouter.patch("/driver/routes/:id/deactivate", async (req: AuthenticatedReq
       entityId: route.id
     });
 
-    res.json({ route });
+    res.json({ route: serializeLegacyDriverRoute(route as unknown as Record<string, unknown>) });
   } catch (error) {
     next(error);
   }

@@ -15,7 +15,11 @@ const expected = {
   "20260719123000_enforce_single_invitation_attempt": "87ca5c72bb496c1a7a68e96f01ff8047e33f2489a129c7db97377a8cc872086e",
   "20260719203000_public_onboarding_scopes": "33200cf1528fa8b68135373f0a6a195cae06955a16d3f0b7faf739104b9818d8",
   "20260721110000_canonical_route_catalog": "bba0b3807998394b35a20d68b0f5cbf637eb10f4bbf4a5e34cce253e8749adbc",
-  "20260721170000_enforce_route_catalog_integrity": "9b6896aa311bc597db1cb17a39328017243497f6c90e5aa106062bf8c5c7edc2"
+  "20260721170000_enforce_route_catalog_integrity": "9b6896aa311bc597db1cb17a39328017243497f6c90e5aa106062bf8c5c7edc2",
+  "20260722130000_multi_route_operational_foundation": "f306c5a5122d9376dc8399703e1bbf834117f1ccda38937352bebcafdc8ae30c",
+  "20260722143000_isolate_canonical_availability": "530aaac38e8f7e9533855bf7005832ee8b126bc3072706c9d77b34551e0b350c",
+  "20260722180000_harden_multi_route_operations": "0a2f166377916bf44f2e45f7d70c7775dfc360b573367fa764f6ec5e15938684",
+  "20260722200000_enforce_operational_mode_and_expiry_quarantine": "3d671ad02a5d6e58bc90e9a6779ce042d0653725339d05162d15de294d17930f"
 };
 
 function normalizedChecksum(path) {

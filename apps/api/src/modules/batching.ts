@@ -23,6 +23,7 @@ export async function createParcelBatch(req: AuthenticatedRequest, orderId: stri
   if (req.user!.role !== "admin" && (req.user!.role !== "merchant" || order.merchant_id !== req.user!.id)) {
     throw new HttpError(403, "forbidden");
   }
+  if (order.canonical_entry_version) throw new HttpError(409, "canonical_batching_not_enabled");
   if (order.parcels.length < 1 || order.parcels.length > 10) throw new HttpError(400, "invalid_parcel_count");
   if (order.parcel_batches.length > 0) throw new HttpError(409, "order_already_batched");
   if (order.status !== "submitted") throw new HttpError(409, "order_not_batchable");
@@ -31,6 +32,8 @@ export async function createParcelBatch(req: AuthenticatedRequest, orderId: stri
     where: {
       status: "active",
       corridor_key: LOCKED_CORRIDOR_KEY,
+      canonical_availability_version: null,
+      operational_mode: "legacy",
       parcel_capacity_available: { gte: order.parcels.length },
       driver: { verified: true }
     },

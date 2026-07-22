@@ -20,6 +20,24 @@ const createPassengerRequestSchema = z.object({
 
 export const passengerRouter = Router();
 
+function serializeLegacyPassengerRequest(value: Record<string, unknown>) {
+  return {
+    id: value.id,
+    passenger_id: value.passenger_id,
+    pickup_label: value.pickup_label,
+    pickup_lat: value.pickup_lat,
+    pickup_lng: value.pickup_lng,
+    destination_label: value.destination_label,
+    destination_lat: value.destination_lat,
+    destination_lng: value.destination_lng,
+    preferred_time: value.preferred_time,
+    passenger_count: value.passenger_count,
+    status: value.status,
+    source: value.source,
+    created_at: value.created_at
+  };
+}
+
 function routeParam(value: string | string[] | undefined) {
   if (typeof value !== "string") {
     throw new HttpError(400, "invalid_route_param");
@@ -55,7 +73,7 @@ passengerRouter.post("/passenger/requests", async (req: AuthenticatedRequest, re
       entityId: created.id
     });
 
-    res.status(201).json({ request: created });
+    res.status(201).json({ request: serializeLegacyPassengerRequest(created as unknown as Record<string, unknown>) });
   } catch (error) {
     next(error);
   }
@@ -64,10 +82,10 @@ passengerRouter.post("/passenger/requests", async (req: AuthenticatedRequest, re
 passengerRouter.get("/passenger/requests", async (req: AuthenticatedRequest, res, next) => {
   try {
     const requests = await prisma.passengerRequest.findMany({
-      where: { passenger_id: req.user!.id },
+      where: { passenger_id: req.user!.id, canonical_entry_version: null },
       orderBy: { created_at: "desc" }
     });
-    res.json({ requests });
+    res.json({ requests: requests.map((request) => serializeLegacyPassengerRequest(request as unknown as Record<string, unknown>)) });
   } catch (error) {
     next(error);
   }
@@ -78,11 +96,12 @@ passengerRouter.get("/passenger/requests/active", async (req: AuthenticatedReque
     const requests = await prisma.passengerRequest.findMany({
       where: {
         passenger_id: req.user!.id,
+        canonical_entry_version: null,
         status: { in: ["pending", "matched", "accepted", "picked_up", "in_transit"] }
       },
       orderBy: { created_at: "desc" }
     });
-    res.json({ requests });
+    res.json({ requests: requests.map((request) => serializeLegacyPassengerRequest(request as unknown as Record<string, unknown>)) });
   } catch (error) {
     next(error);
   }
@@ -92,12 +111,12 @@ passengerRouter.get("/passenger/requests/:id", async (req: AuthenticatedRequest,
   try {
     const requestId = routeParam(req.params.id);
     const request = await prisma.passengerRequest.findFirst({
-      where: { id: requestId, passenger_id: req.user!.id }
+      where: { id: requestId, passenger_id: req.user!.id, canonical_entry_version: null }
     });
     if (!request) {
       throw new HttpError(404, "request_not_found");
     }
-    res.json({ request });
+    res.json({ request: serializeLegacyPassengerRequest(request as unknown as Record<string, unknown>) });
   } catch (error) {
     next(error);
   }
@@ -107,7 +126,7 @@ passengerRouter.patch("/passenger/requests/:id/cancel", async (req: Authenticate
   try {
     const requestId = routeParam(req.params.id);
     const existing = await prisma.passengerRequest.findFirst({
-      where: { id: requestId, passenger_id: req.user!.id }
+      where: { id: requestId, passenger_id: req.user!.id, canonical_entry_version: null }
     });
     if (!existing) {
       throw new HttpError(404, "request_not_found");
@@ -129,7 +148,7 @@ passengerRouter.patch("/passenger/requests/:id/cancel", async (req: Authenticate
       metadata: { previous_status: existing.status }
     });
 
-    res.json({ request });
+    res.json({ request: serializeLegacyPassengerRequest(request as unknown as Record<string, unknown>) });
   } catch (error) {
     next(error);
   }
