@@ -119,7 +119,7 @@ function coordinate(value: unknown) {
   return numeric;
 }
 
-function serializeStop(stop: Record<string, unknown>) {
+function serializeStop(stop: Record<string, unknown>, admin = true) {
   return {
     id: stop.id,
     stop_key: stop.stop_key,
@@ -128,16 +128,16 @@ function serializeStop(stop: Record<string, unknown>) {
     name_en: stop.name_en,
     latitude: coordinate(stop.latitude),
     longitude: coordinate(stop.longitude),
-    status: stop.status,
-    retired_at: stop.retired_at,
-    created_at: stop.created_at,
-    updated_at: stop.updated_at
+    status: admin ? stop.status : undefined,
+    retired_at: admin ? stop.retired_at : undefined,
+    created_at: admin ? stop.created_at : undefined,
+    updated_at: admin ? stop.updated_at : undefined
   };
 }
 
-function serializeMembership(membership: Record<string, unknown>) {
+function serializeMembership(membership: Record<string, unknown>, admin = true) {
   return {
-    id: membership.id,
+    id: admin ? membership.id : undefined,
     sequence: membership.sequence,
     passenger_pickup_allowed: membership.passenger_pickup,
     passenger_dropoff_allowed: membership.passenger_dropoff,
@@ -145,18 +145,18 @@ function serializeMembership(membership: Record<string, unknown>) {
     parcel_dropoff_allowed: membership.parcel_dropoff,
     estimated_offset_seconds: membership.scheduled_offset_seconds,
     dwell_seconds: membership.dwell_seconds,
-    stop: serializeStop(membership.stop as Record<string, unknown>)
+    stop: serializeStop(membership.stop as Record<string, unknown>, admin)
   };
 }
 
 function serializeVersion(version: Record<string, unknown>, admin = true) {
   const stops = Array.isArray(version.stops)
-    ? (version.stops as Array<Record<string, unknown>>).map(serializeMembership)
+    ? (version.stops as Array<Record<string, unknown>>).map((membership) => serializeMembership(membership, admin))
     : [];
   const count = version._count as { driver_routes?: number } | undefined;
   return {
     id: version.id,
-    service_route_id: version.service_route_id,
+    service_route_id: admin ? version.service_route_id : undefined,
     version_number: version.version_number,
     status: version.status,
     name_ar: version.name_ar,
@@ -165,8 +165,8 @@ function serializeVersion(version: Record<string, unknown>, admin = true) {
     description_en: version.description_en,
     active_from: version.active_from,
     active_until: version.active_until,
-    origin_stop_id: version.origin_stop_id,
-    destination_stop_id: version.destination_stop_id,
+    origin_stop_id: admin ? version.origin_stop_id : undefined,
+    destination_stop_id: admin ? version.destination_stop_id : undefined,
     geometry: {
       status: version.geometry_status,
       ready: version.geometry_status === "available",
@@ -178,8 +178,8 @@ function serializeVersion(version: Record<string, unknown>, admin = true) {
     stop_count: stops.length,
     stops,
     driver_availability_count: admin ? (count?.driver_routes ?? 0) : undefined,
-    published_at: version.published_at,
-    paused_at: version.paused_at,
+    published_at: admin ? version.published_at : undefined,
+    paused_at: admin ? version.paused_at : undefined,
     pause_reason: admin ? version.pause_reason : undefined,
     retired_at: admin ? version.retired_at : undefined,
     retirement_reason: admin ? version.retirement_reason : undefined,
@@ -207,8 +207,8 @@ function serializeRoute(route: Record<string, unknown>, admin = true) {
     versions: admin ? versions : undefined,
     retired_at: admin ? route.retired_at : undefined,
     retirement_reason: admin ? route.retirement_reason : undefined,
-    created_at: route.created_at,
-    updated_at: route.updated_at
+    created_at: admin ? route.created_at : undefined,
+    updated_at: admin ? route.updated_at : undefined
   };
 }
 
@@ -512,7 +512,7 @@ export function createRouteCatalogRouter(appConfig: AppConfig, service: RouteMan
       const version = await service.getPublishedVersionStops(pathId(req));
       res.json({
         route_version_id: version.id,
-        stops: version.stops.map((membership) => serializeMembership(membership as unknown as Record<string, unknown>))
+        stops: version.stops.map((membership) => serializeMembership(membership as unknown as Record<string, unknown>, false))
       });
     } catch (error) {
       next(error);

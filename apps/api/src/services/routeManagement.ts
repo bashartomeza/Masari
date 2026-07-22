@@ -148,6 +148,40 @@ async function lockVersion(tx: Prisma.TransactionClient, versionId: string) {
   return rows[0];
 }
 
+async function lockStops(tx: Prisma.TransactionClient, stopIds: string[]) {
+  const ids = [...new Set(stopIds)].sort();
+  if (ids.length === 0) return [];
+  return tx.$queryRaw<Array<{ id: string; status: "active" | "retired"; service_region_key: string }>>(
+    Prisma.sql`
+      SELECT id, status, service_region_key
+      FROM stops
+      WHERE id IN (${Prisma.join(ids)})
+      ORDER BY id
+      FOR UPDATE
+    `
+  );
+}
+
+function isTransactionWriteConflict(error: unknown) {
+  return Boolean(error && typeof error === "object" && "code" in error && error.code === "P2034");
+}
+
+async function serializableRouteEnvelope<T>(
+  database: PrismaClient,
+  operation: (tx: Prisma.TransactionClient) => Promise<T>
+) {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    try {
+      return await database.$transaction(operation, {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable
+      });
+    } catch (error) {
+      if (!isTransactionWriteConflict(error) || attempt === 4) throw error;
+    }
+  }
+  throw new HttpError(409, "route_envelope_conflict");
+}
+
 function validateDateRange(activeFrom?: Date | null, activeUntil?: Date | null) {
   if (activeFrom && activeUntil && activeUntil <= activeFrom) throw new HttpError(400, "invalid_active_date_range");
 }
@@ -272,7 +306,7 @@ export function createRouteManagementService(db: PrismaClient = prisma) {
     },
 
     async createRoute(input: RouteIdentityInput, actor: Actor) {
-      return db.$transaction(async (tx) => {
+      return serializableRouteEnvelope(db, async (tx) => {
         const claim = await claimWrite(tx, "route_create", actor, input);
         const replay = await replayResource(claim, "ServiceRoute", (id) =>
           tx.serviceRoute.findUnique({ where: { id }, include: routeRelations })
@@ -324,6 +358,15 @@ export function createRouteManagementService(db: PrismaClient = prisma) {
             })
           : null;
         if (input.cloneFromVersionId && !clone) throw new HttpError(404, "clone_source_not_found");
+        if (clone) {
+          const cloneStops = await lockStops(tx, clone.stops.map((membership) => membership.stop_id));
+          if (cloneStops.length !== clone.stops.length || cloneStops.some((stop) => stop.status !== "active")) {
+            throw new HttpError(409, "clone_contains_inactive_stop");
+          }
+          if (cloneStops.some((stop) => stop.service_region_key !== route.service_region_key)) {
+            throw new HttpError(409, "clone_contains_foreign_region_stop");
+          }
+        }
         const data = clone
           ? {
               name_ar: clone.name_ar,
@@ -333,15 +376,7 @@ export function createRouteManagementService(db: PrismaClient = prisma) {
               origin_stop_id: clone.origin_stop_id,
               destination_stop_id: clone.destination_stop_id,
               active_from: clone.active_from,
-              active_until: clone.active_until,
-              encoded_geometry: clone.encoded_geometry,
-              geometry_encoding: clone.geometry_encoding,
-              geometry_provider: clone.geometry_provider,
-              geometry_checksum: clone.geometry_checksum,
-              geometry_precision: clone.geometry_precision,
-              estimated_distance_meters: clone.estimated_distance_meters,
-              estimated_duration_seconds: clone.estimated_duration_seconds,
-              geometry_status: clone.geometry_status
+              active_until: clone.active_until
             }
           : versionData(input);
         const created = await tx.serviceRouteVersion.create({
@@ -424,8 +459,18 @@ export function createRouteManagementService(db: PrismaClient = prisma) {
         if (!version) throw new HttpError(404, "route_version_not_found");
         if (version.status !== "draft") throw new HttpError(409, "published_version_immutable");
         if (version.draft_revision !== expectedRevision) throw new HttpError(409, "draft_revision_conflict");
-        const activeStops = await tx.stop.findMany({ where: { id: { in: stops.map((stop) => stop.stopId) }, status: "active" } });
-        if (activeStops.length !== stops.length) throw new HttpError(400, "invalid_or_inactive_stop");
+        const lockedStops = await lockStops(tx, stops.map((stop) => stop.stopId));
+        if (lockedStops.length !== stops.length || lockedStops.some((stop) => stop.status !== "active")) {
+          throw new HttpError(400, "invalid_or_inactive_stop");
+        }
+        const route = await tx.serviceRoute.findUnique({
+          where: { id: version.service_route_id },
+          select: { service_region_key: true }
+        });
+        if (!route) throw new HttpError(404, "service_route_not_found");
+        if (lockedStops.some((stop) => stop.service_region_key !== route.service_region_key)) {
+          throw new HttpError(400, "stop_region_mismatch");
+        }
         await tx.routeVersionStop.deleteMany({ where: { service_route_version_id: id } });
         await tx.routeVersionStop.createMany({
           data: stops.map((stop) => ({
@@ -445,6 +490,14 @@ export function createRouteManagementService(db: PrismaClient = prisma) {
           data: {
             origin_stop_id: stops[0].stopId,
             destination_stop_id: stops[stops.length - 1].stopId,
+            encoded_geometry: null,
+            geometry_encoding: null,
+            geometry_provider: null,
+            geometry_checksum: null,
+            geometry_precision: null,
+            estimated_distance_meters: null,
+            estimated_duration_seconds: null,
+            geometry_status: "pending",
             draft_revision: { increment: 1 }
           }
         });
@@ -476,6 +529,11 @@ export function createRouteManagementService(db: PrismaClient = prisma) {
         if (!draftLookup) throw new HttpError(404, "route_version_not_found");
         const route = await lockRoute(tx, draftLookup.service_route_id);
         await lockVersion(tx, id);
+        const memberships = await tx.routeVersionStop.findMany({
+          where: { service_route_version_id: id },
+          select: { stop_id: true }
+        });
+        await lockStops(tx, memberships.map((membership) => membership.stop_id));
         if (route.status !== "active") throw new HttpError(409, "service_route_retired");
         if (route.current_version_id !== input.expectedCurrentVersionId) throw new HttpError(409, "current_version_conflict");
         const draft = await tx.serviceRouteVersion.findUnique({ where: { id }, include: versionRelations });
@@ -711,15 +769,11 @@ export function createRouteManagementService(db: PrismaClient = prisma) {
 
     async updateStop(id: string, input: Omit<StopInput, "stopKey">, actor: Actor) {
       return db.$transaction(async (tx) => {
-        const stop = await tx.stop.findUnique({
-          where: { id },
-          include: { version_memberships: { include: { service_route_version: { select: { status: true } } } } }
-        });
+        const [stop] = await lockStops(tx, [id]);
         if (!stop) throw new HttpError(404, "stop_not_found");
         if (stop.status !== "active") throw new HttpError(409, "stop_retired");
-        if (stop.version_memberships.some((membership) => membership.service_route_version.status !== "draft")) {
-          throw new HttpError(409, "published_stop_immutable");
-        }
+        const membership = await tx.routeVersionStop.findFirst({ where: { stop_id: id }, select: { id: true } });
+        if (membership) throw new HttpError(409, "used_stop_immutable");
         const resource = await tx.stop.update({
           where: { id },
           data: {
@@ -746,7 +800,7 @@ export function createRouteManagementService(db: PrismaClient = prisma) {
         const claim = await claimWrite(tx, "stop_retire", actor, { id, reason });
         const replay = await replayResource(claim, "Stop", (resourceId) => tx.stop.findUnique({ where: { id: resourceId } }));
         if (replay) return { resource: replay, replayed: true };
-        const current = await tx.stop.findUnique({ where: { id } });
+        const [current] = await lockStops(tx, [id]);
         if (!current) throw new HttpError(404, "stop_not_found");
         if (current.status === "retired") throw new HttpError(409, "stop_already_retired");
         const resource = await tx.stop.update({

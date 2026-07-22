@@ -643,8 +643,9 @@ model ServiceRoute {
   created_by      User                  @relation("ServiceRouteCreator", fields: [created_by_user_id], references: [id], onDelete: Restrict)
   retired_by      User?                 @relation("ServiceRouteRetirer", fields: [retired_by_user_id], references: [id], onDelete: SetNull)
   versions        ServiceRouteVersion[] @relation("ServiceRouteVersions")
-  current_version ServiceRouteVersion?  @relation("CurrentServiceRouteVersion", fields: [current_version_id], references: [id], onDelete: Restrict)
+  current_version ServiceRouteVersion?  @relation("CurrentServiceRouteVersion", fields: [id, current_version_id], references: [service_route_id, id], onDelete: Restrict)
 
+  @@unique([id, current_version_id], map: "service_routes_owned_current_key")
   @@index([route_group_key, direction])
   @@index([service_region_key, status])
   @@map("service_routes")
@@ -696,6 +697,7 @@ model ServiceRouteVersion {
   driver_routes     DriverRoute[]
 
   @@unique([service_route_id, version_number])
+  @@unique([service_route_id, id], map: "service_route_versions_route_ownership_key")
   @@index([service_route_id, status])
   @@index([status, active_from, active_until])
   @@map("service_route_versions")
