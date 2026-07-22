@@ -75,7 +75,7 @@ tripsRouter.post("/matches/:id/accept", requireAuth, async (req: AuthenticatedRe
       if (req.user!.role !== "admin" && (req.user!.role !== "driver" || match.driver_route.driver.user_id !== req.user!.id)) {
         throw new HttpError(403, "forbidden");
       }
-      if (match.canonical_match_version || match.route_version_id) {
+      if (match.operational_mode !== "legacy" || match.canonical_match_version || match.route_version_id) {
         throw new HttpError(409, "canonical_matching_not_enabled");
       }
       if (match.status !== MatchStatus.proposed && match.status !== MatchStatus.sent_to_driver) {
@@ -135,7 +135,7 @@ tripsRouter.post("/matches/:id/reject", requireAuth, async (req: AuthenticatedRe
     if (req.user!.role !== "admin" && (req.user!.role !== "driver" || match.driver_route.driver.user_id !== req.user!.id)) {
       throw new HttpError(403, "forbidden");
     }
-    if (match.canonical_match_version || match.route_version_id) throw new HttpError(409, "canonical_matching_not_enabled");
+    if (match.operational_mode !== "legacy" || match.canonical_match_version || match.route_version_id) throw new HttpError(409, "canonical_matching_not_enabled");
     if (match.status !== MatchStatus.proposed && match.status !== MatchStatus.sent_to_driver) throw new HttpError(409, "match_cannot_be_rejected");
 
     const updated = await prisma.match.update({ where: { id: match.id }, data: { status: MatchStatus.rejected } });

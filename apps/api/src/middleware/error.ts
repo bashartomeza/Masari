@@ -73,6 +73,10 @@ export const errorHandler: ErrorRequestHandler = (error, req, res, _next) => {
     res.status(404).json(errorShape("resource_not_found", req));
     return;
   }
+  if (code === "P2034") {
+    res.status(409).json(errorShape("transaction_retry_required", req));
+    return;
+  }
 
   req.operationalLog?.error(
     {

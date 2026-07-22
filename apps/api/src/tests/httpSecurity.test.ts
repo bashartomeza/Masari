@@ -257,20 +257,26 @@ describe("production HTTP security baseline", () => {
     app.get("/database", () => {
       throw Object.assign(new Error("mysql://user:password@database.internal/masari"), { code: "P1001" });
     });
+    app.get("/deadlock", () => {
+      throw Object.assign(new Error("private transaction details"), { code: "P2034" });
+    });
     app.use(errorHandler);
 
     const domain = await request(app).get("/domain").expect(409);
     const conflict = await request(app).get("/conflict").expect(409);
     const database = await request(app).get("/database").expect(500);
+    const deadlock = await request(app).get("/deadlock").expect(409);
     await settleLogs();
 
     expect(domain.body.error).toBe("duplicate_active_trip");
     expect(conflict.body.error).toBe("resource_conflict");
     expect(database.body.error).toBe("internal_server_error");
-    const serialized = `${JSON.stringify([domain.body, conflict.body, database.body])}\n${lines.join("")}`;
+    expect(deadlock.body.error).toBe("transaction_retry_required");
+    const serialized = `${JSON.stringify([domain.body, conflict.body, database.body, deadlock.body])}\n${lines.join("")}`;
     expect(serialized).not.toContain("database-password-secret");
     expect(serialized).not.toContain("database.internal");
     expect(serialized).not.toContain("mysql://");
+    expect(serialized).not.toContain("private transaction details");
   });
 
   it("enforces a global limiter while excluding health endpoints", async () => {

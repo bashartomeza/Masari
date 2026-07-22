@@ -73,7 +73,8 @@ async function ownerAvailability(db: PrismaClient | Prisma.TransactionClient, id
       id,
       driver: { user_id: userId },
       route_version_id: { not: null },
-      canonical_availability_version: "canonical_route_v1"
+      canonical_availability_version: "canonical_route_v1",
+      operational_mode: "canonical_route_v1"
     },
     include: { route_version: { include: { service_route: true } } }
   });
@@ -89,6 +90,7 @@ async function lockOwnerAvailability(tx: Prisma.TransactionClient, id: string, u
     WHERE dr.id = ${id} AND dp.user_id = ${userId}
       AND dr.route_version_id IS NOT NULL
       AND dr.canonical_availability_version = 'canonical_route_v1'
+      AND dr.operational_mode = 'canonical_route_v1'
     FOR UPDATE
   `;
   if (rows.length !== 1) throw new HttpError(404, "availability_not_found");
@@ -234,6 +236,7 @@ export function createDriverAvailabilityService(db: PrismaClient = prisma) {
               driver_id: profile.id,
               route_version_id: route.id,
               canonical_availability_version: "canonical_route_v1",
+              operational_mode: "canonical_route_v1",
               origin_label: origin.stop.nameEn,
               origin_lat: origin.stop.latitude,
               origin_lng: origin.stop.longitude,

@@ -48,6 +48,7 @@ function auth(id: keyof typeof users) {
 const baseMatch = {
   id: "match_1",
   status: "proposed",
+  operational_mode: "legacy",
   driver_route_id: "route_1",
   passenger_request_id: "request_1",
   merchant_order_id: "order_1",
@@ -141,7 +142,8 @@ describe("trip acceptance, status, and tracking", () => {
     prismaMock.match.findUnique.mockResolvedValue({
       ...baseMatch,
       route_version_id: "version_1",
-      canonical_match_version: "canonical_route_v1"
+      canonical_match_version: "canonical_route_v1",
+      operational_mode: "canonical_route_v1"
     });
 
     await request(createApp()).post("/api/v1/matches/match_1/accept").set(auth("driver_1")).expect(409);

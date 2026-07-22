@@ -1,4 +1,4 @@
-import type { Prisma, PrismaClient } from "../generated/prisma/client.js";
+import { Prisma, type PrismaClient } from "../generated/prisma/client.js";
 import { HttpError } from "../middleware/error.js";
 
 type Database = PrismaClient | Prisma.TransactionClient;
@@ -49,6 +49,18 @@ export async function requireEligibleOperationalRoute(
       SELECT id FROM service_route_versions WHERE id = ${routeVersionId} FOR UPDATE
     `;
     if (routes.length !== 1 || versions.length !== 1) throw new HttpError(409, "route_version_not_available");
+    const memberships = await db.$queryRaw<Array<{ id: string; stop_id: string }>>`
+      SELECT id, stop_id FROM route_version_stops
+      WHERE service_route_version_id = ${routeVersionId}
+      ORDER BY sequence, id FOR UPDATE
+    `;
+    const stopIds = [...new Set(memberships.map((membership) => membership.stop_id))].sort();
+    if (stopIds.length > 0) {
+      const stops = await db.$queryRaw<Array<{ id: string }>>(
+        Prisma.sql`SELECT id FROM stops WHERE id IN (${Prisma.join(stopIds)}) ORDER BY id FOR UPDATE`
+      );
+      if (stops.length !== stopIds.length) throw new HttpError(409, "route_version_not_available");
+    }
   }
   const version = await db.serviceRouteVersion.findUnique({
     where: { id: routeVersionId },

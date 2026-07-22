@@ -33,6 +33,7 @@ export async function createParcelBatch(req: AuthenticatedRequest, orderId: stri
       status: "active",
       corridor_key: LOCKED_CORRIDOR_KEY,
       canonical_availability_version: null,
+      operational_mode: "legacy",
       parcel_capacity_available: { gte: order.parcels.length },
       driver: { verified: true }
     },

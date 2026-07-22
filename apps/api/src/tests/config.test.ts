@@ -64,6 +64,17 @@ describe("fail-closed application configuration", () => {
     expect(() => createConfig(environment({ ROUTE_MANAGEMENT_ENABLED: "yes" }))).toThrow(/true or false/);
   });
 
+  it("accepts only exact lowercase M7C1 gate booleans", () => {
+    for (const value of ["TRUE", "1", " true", "true ", "malformed"]) {
+      expect(() => createConfig(environment({ APP_ENV: "local", MULTI_ROUTE_ENTRY_ENABLED: value }))).toThrow(
+        /MULTI_ROUTE_ENTRY_ENABLED must be true or false/
+      );
+      expect(() => createConfig(environment({ APP_ENV: "local", MULTI_ROUTE_MATCHING_ENABLED: value }))).toThrow(
+        /MULTI_ROUTE_MATCHING_ENABLED must be true or false/
+      );
+    }
+  });
+
   it("requires an explicit safe trust-proxy topology in production-like environments", () => {
     expect(() => createConfig(environment({ TRUST_PROXY: undefined }))).toThrow(/TRUST_PROXY must be explicit/);
     expect(() => createConfig(environment({ TRUST_PROXY: "true" }))).toThrow(/trusted proxy hop count/);

@@ -603,6 +603,7 @@ model DriverRoute {
   remaining_parcel_capacity Int?
   availability_status       DriverAvailabilityStatus?
   canonical_availability_version String?              @db.VarChar(50)
+  operational_mode          String                    @default("legacy") @db.VarChar(50)
   availability_revision     Int                       @default(1)
   activated_at              DateTime?
   paused_at                 DateTime?
@@ -623,6 +624,7 @@ model DriverRoute {
   @@index([route_version_id, availability_status, departure_at])
   @@index([canonical_availability_version, availability_status, departure_at])
   @@unique([id, route_version_id], map: "driver_routes_route_ownership_key")
+  @@unique([id, operational_mode], map: "driver_routes_mode_ownership_key")
   @@unique([driver_id, route_version_id, departure_at], map: "driver_routes_one_off_departure_key")
   @@map("driver_routes")
 }
@@ -871,6 +873,7 @@ model Match {
   created_at           DateTime    @default(now())
   route_version_id     String?
   canonical_match_version String?  @db.VarChar(50)
+  operational_mode     String      @default("legacy") @db.VarChar(50)
 
   driver_route      DriverRoute       @relation(fields: [driver_route_id], references: [id], onDelete: Cascade)
   passenger_request PassengerRequest? @relation(fields: [passenger_request_id], references: [id], onDelete: Cascade)
@@ -881,6 +884,7 @@ model Match {
 
   @@index([route_version_id, status])
   @@unique([id, route_version_id], map: "matches_route_ownership_key")
+  @@unique([id, operational_mode], map: "matches_mode_ownership_key")
   @@map("matches")
 }
 
@@ -946,12 +950,16 @@ model CapacityReservation {
   revision                Int                       @default(1)
   created_request_id      String?                   @db.VarChar(64)
   idempotency_fingerprint String                    @db.Char(64)
+  operational_mode        String                    @default("canonical_route_v1") @db.VarChar(50)
+  expiry_failure_count    Int                       @default(0)
+  expiry_last_failed_at   DateTime?
 
   driver_route DriverRoute         @relation(fields: [driver_route_id], references: [id], onDelete: Restrict)
   route_version ServiceRouteVersion @relation(fields: [route_version_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
   match        Match?              @relation(fields: [match_id], references: [id], onDelete: Restrict)
 
   @@index([status, expires_at])
+  @@index([status, expiry_failure_count, expires_at], map: "capacity_reservations_expiry_retry_idx")
   @@index([driver_route_id, status])
   @@map("capacity_reservations")
 }
