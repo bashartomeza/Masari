@@ -187,6 +187,10 @@ async function main() {
     seatsReserved: 1, parcelUnitsReserved: 0, expiresAt: exactExpiry
   }, { id: passenger.id, idempotencyKey: "m7c1-exact-concurrent-hold" })));
   check(exactRetries.every((result) => result.status === "fulfilled"), "concurrent exact hold retries all resolve");
+  const exactResults = exactRetries.filter(
+    (result): result is PromiseFulfilledResult<Awaited<ReturnType<typeof capacityService.hold>>> => result.status === "fulfilled"
+  );
+  check(new Set(exactResults.map((result) => result.value.resource.id)).size === 1 && exactResults.every((result) => result.value.resource.status === "held"), "concurrent exact hold callers receive one reservation identity and state");
   check(await prisma.capacityReservation.count({ where: { driver_route_id: exactReplayAvailability.id } }) === 1, "concurrent exact hold creates one reservation");
   check((await prisma.driverRoute.findUniqueOrThrow({ where: { id: exactReplayAvailability.id } })).remaining_seats === 1, "concurrent exact hold decrements once");
   check(await prisma.auditEvent.count({ where: { action: "capacity_reserved", entity_id: exactRetries[0].status === "fulfilled" ? exactRetries[0].value.resource.id : "" } }) === 1, "concurrent exact hold audits once");
@@ -195,6 +199,11 @@ async function main() {
     where: { operation: "capacity_hold", idempotency_key: exactKeyDigest }
   });
   check(exactClaims.length === 1 && exactClaims[0]?.state === "completed", "concurrent exact hold leaves one completed idempotency claim");
+  const responseLossRetry = await capacityService.hold({
+    driverRouteId: exactReplayAvailability.id, routeVersionId: version.id, reservationType: "passenger",
+    seatsReserved: 1, parcelUnitsReserved: 0, expiresAt: exactExpiry
+  }, { id: passenger.id, idempotencyKey: "m7c1-exact-concurrent-hold" });
+  check(responseLossRetry.replayed && responseLossRetry.resource.id === exactResults[0]!.value.resource.id && responseLossRetry.resource.status === "held", "post-commit response-loss retry returns the original logical result");
 
   const approvalAvailability = await createAvailability({
     driverId: driver2.id, routeVersionId: version.id, departureOffsetMinutes: 126,
@@ -677,8 +686,8 @@ async function main() {
   check(await prisma.capacityReservation.count() === 0 && await prisma.driverRoute.count() === 2, "demo reset is idempotent");
   check(await prisma.auditEvent.count({ where: { action: "demo_reset" } }) === 1, "reset leaves only bounded deterministic audit state");
 
-  check(checks === 76, `expected 76 persistent-state assertions, received ${checks}`);
-  console.log("M7C1 real-MySQL operational and concurrency integration passed: 76 persistent-state assertions");
+  check(checks === 78, `expected 78 persistent-state assertions, received ${checks}`);
+  console.log("M7C1 real-MySQL operational and concurrency integration passed: 78 persistent-state assertions");
 }
 
 main()
