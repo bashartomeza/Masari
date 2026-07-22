@@ -75,6 +75,7 @@ export async function resetDemoData(db: PrismaClient = prisma) {
     await tx.refreshToken.deleteMany();
     await tx.authSession.deleteMany();
     await tx.locationEvent.deleteMany();
+    await tx.capacityReservation.deleteMany();
     await tx.trip.deleteMany();
     await tx.match.deleteMany();
     await tx.comparisonRun.deleteMany();
