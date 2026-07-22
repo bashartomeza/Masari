@@ -171,6 +171,9 @@ async function loadAuthorizedInput(req: AuthenticatedRequest, input: MatchInput)
 
   if (input.passengerRequestId && !passengerRequest) throw new HttpError(404, "passenger_request_not_found");
   if (input.merchantOrderId && !merchantOrder) throw new HttpError(404, "merchant_order_not_found");
+  if (passengerRequest?.canonical_entry_version || merchantOrder?.canonical_entry_version) {
+    throw new HttpError(409, "canonical_matching_not_enabled");
+  }
 
   if (req.user!.role !== "admin") {
     if (passengerRequest && (req.user!.role !== "passenger" || passengerRequest.passenger_id !== req.user!.id)) {
@@ -233,6 +236,7 @@ async function createBestMatch(req: AuthenticatedRequest, input: MatchInput) {
     where: {
       status: "active",
       corridor_key: LOCKED_CORRIDOR_KEY,
+      canonical_availability_version: null,
       driver: { verified: true }
     },
     include: { driver: true },

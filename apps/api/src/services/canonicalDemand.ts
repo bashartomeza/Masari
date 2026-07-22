@@ -1,0 +1,236 @@
+import { createHash } from "node:crypto";
+import type { Prisma, PrismaClient } from "../generated/prisma/client.js";
+import { AuditAction } from "../generated/prisma/enums.js";
+import { auditEvent } from "../lib/audit.js";
+import { claimIdempotency, completeIdempotency } from "../lib/idempotency.js";
+import { prisma } from "../lib/prisma.js";
+import { HttpError } from "../middleware/error.js";
+import {
+  requireEligibleOperationalRoute,
+  requireMerchantStops,
+  requirePassengerStopPair
+} from "./operationalRouteEligibility.js";
+
+export const CANONICAL_ENTRY_VERSION = "canonical_route_v1";
+export const CANONICAL_ENTRY_LIMITS = {
+  earliestDepartureMinutes: 10,
+  latestDepartureDays: 30,
+  maximumWindowHours: 4,
+  maximumPassengerCount: 8,
+  maximumParcels: 50
+} as const;
+
+type Actor = { id: string; requestId?: string; idempotencyKey: string };
+
+function digest(value: string) {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+function validateDepartureWindow(from: Date, until: Date, now = new Date()) {
+  const earliest = now.getTime() + CANONICAL_ENTRY_LIMITS.earliestDepartureMinutes * 60_000;
+  const latest = now.getTime() + CANONICAL_ENTRY_LIMITS.latestDepartureDays * 86_400_000;
+  if (from.getTime() < earliest || from.getTime() > latest) throw new HttpError(400, "departure_window_out_of_range");
+  if (until <= from || until.getTime() - from.getTime() > CANONICAL_ENTRY_LIMITS.maximumWindowHours * 3_600_000) {
+    throw new HttpError(400, "invalid_departure_window");
+  }
+}
+
+async function claimCreate(
+  tx: Prisma.TransactionClient,
+  operation: string,
+  actor: Actor,
+  payload: unknown
+) {
+  const claim = await claimIdempotency(tx, {
+    operation,
+    scopeDigest: digest(`${operation}:${actor.id}`),
+    keyDigest: digest(actor.idempotencyKey),
+    keyVersion: 1,
+    requestDigest: digest(JSON.stringify({ actor_id: actor.id, payload })),
+    expiresAt: new Date(Date.now() + 86_400_000)
+  });
+  if (claim.kind === "conflict") throw new HttpError(409, "idempotency_conflict");
+  if (claim.kind === "in_progress") throw new HttpError(409, "idempotency_in_progress");
+  if (claim.kind === "failed") throw new HttpError(409, "idempotency_failed");
+  return claim;
+}
+
+export type CanonicalPassengerInput = {
+  routeVersionId: string;
+  pickupStopId: string;
+  dropoffStopId: string;
+  requestedDepartureFrom: Date;
+  requestedDepartureUntil: Date;
+  passengerCount: number;
+};
+
+export type CanonicalMerchantInput = {
+  routeVersionId: string;
+  pickupStopId: string;
+  requestedDepartureFrom: Date;
+  requestedDepartureUntil: Date;
+  parcels: Array<{ destinationStopId: string; size: "S" | "M" | "L"; priority: "low" | "normal" | "high" }>;
+};
+
+export function createCanonicalDemandService(db: PrismaClient = prisma) {
+  return {
+    async createPassengerRequest(input: CanonicalPassengerInput, actor: Actor) {
+      validateDepartureWindow(input.requestedDepartureFrom, input.requestedDepartureUntil);
+      return db.$transaction(async (tx) => {
+        const payload = {
+          route_version_id: input.routeVersionId,
+          pickup_stop_id: input.pickupStopId,
+          dropoff_stop_id: input.dropoffStopId,
+          requested_departure_from: input.requestedDepartureFrom.toISOString(),
+          requested_departure_until: input.requestedDepartureUntil.toISOString(),
+          passenger_count: input.passengerCount
+        };
+        const claim = await claimCreate(tx, "canonical_passenger_request_create", actor, payload);
+        if (claim.kind === "replay") {
+          if (claim.record.resource_type !== "PassengerRequest" || !claim.record.resource_id) {
+            throw new HttpError(409, "idempotency_replay_unavailable");
+          }
+          const resource = await tx.passengerRequest.findFirst({
+            where: { id: claim.record.resource_id, passenger_id: actor.id, canonical_entry_version: CANONICAL_ENTRY_VERSION }
+          });
+          if (!resource) throw new HttpError(409, "idempotency_replay_unavailable");
+          return { resource, replayed: true };
+        }
+        const route = await requireEligibleOperationalRoute(tx, input.routeVersionId, {
+          requiredStopIds: [input.pickupStopId, input.dropoffStopId]
+        });
+        const { pickup, dropoff } = requirePassengerStopPair(route, input.pickupStopId, input.dropoffStopId);
+        const now = new Date();
+        const resource = await tx.passengerRequest.create({
+          data: {
+            passenger_id: actor.id,
+            pickup_label: pickup.stop.nameEn,
+            pickup_lat: pickup.stop.latitude,
+            pickup_lng: pickup.stop.longitude,
+            destination_label: dropoff.stop.nameEn,
+            destination_lat: dropoff.stop.latitude,
+            destination_lng: dropoff.stop.longitude,
+            preferred_time: input.requestedDepartureFrom,
+            passenger_count: input.passengerCount,
+            status: "pending",
+            source: CANONICAL_ENTRY_VERSION,
+            route_version_id: route.id,
+            pickup_stop_id: pickup.stopId,
+            dropoff_stop_id: dropoff.stopId,
+            canonical_entry_version: CANONICAL_ENTRY_VERSION,
+            requested_departure_from: input.requestedDepartureFrom,
+            requested_departure_until: input.requestedDepartureUntil,
+            canonical_created_at: now
+          }
+        });
+        await auditEvent(tx, {
+          userId: actor.id,
+          action: AuditAction.canonical_passenger_request_created,
+          entityType: "PassengerRequest",
+          entityId: resource.id,
+          metadata: {
+            route_version_id: route.id,
+            passenger_count: input.passengerCount,
+            schema_version: CANONICAL_ENTRY_VERSION,
+            request_id: actor.requestId
+          }
+        });
+        await completeIdempotency(tx, {
+          recordId: claim.record.id,
+          claimVersion: claim.record.claim_version,
+          resourceType: "PassengerRequest",
+          resourceId: resource.id,
+          responseStatus: 201
+        });
+        return { resource, replayed: false };
+      });
+    },
+
+    async createMerchantOrder(input: CanonicalMerchantInput, actor: Actor) {
+      validateDepartureWindow(input.requestedDepartureFrom, input.requestedDepartureUntil);
+      return db.$transaction(async (tx) => {
+        const payload = {
+          route_version_id: input.routeVersionId,
+          pickup_stop_id: input.pickupStopId,
+          requested_departure_from: input.requestedDepartureFrom.toISOString(),
+          requested_departure_until: input.requestedDepartureUntil.toISOString(),
+          parcels: input.parcels.map((parcel) => ({
+            destination_stop_id: parcel.destinationStopId,
+            size: parcel.size,
+            priority: parcel.priority
+          }))
+        };
+        const claim = await claimCreate(tx, "canonical_merchant_order_create", actor, payload);
+        if (claim.kind === "replay") {
+          if (claim.record.resource_type !== "MerchantOrder" || !claim.record.resource_id) {
+            throw new HttpError(409, "idempotency_replay_unavailable");
+          }
+          const resource = await tx.merchantOrder.findFirst({
+            where: { id: claim.record.resource_id, merchant_id: actor.id, canonical_entry_version: CANONICAL_ENTRY_VERSION },
+            include: { parcels: true }
+          });
+          if (!resource) throw new HttpError(409, "idempotency_replay_unavailable");
+          return { resource, replayed: true };
+        }
+        const destinationIds = input.parcels.map((parcel) => parcel.destinationStopId);
+        const route = await requireEligibleOperationalRoute(tx, input.routeVersionId, {
+          requiredStopIds: [input.pickupStopId, ...destinationIds]
+        });
+        const { pickup, destinations } = requireMerchantStops(route, input.pickupStopId, destinationIds);
+        const now = new Date();
+        const resource = await tx.merchantOrder.create({
+          data: {
+            merchant_id: actor.id,
+            pickup_label: pickup.stop.nameEn,
+            pickup_lat: pickup.stop.latitude,
+            pickup_lng: pickup.stop.longitude,
+            status: "submitted",
+            route_version_id: route.id,
+            pickup_stop_id: pickup.stopId,
+            canonical_entry_version: CANONICAL_ENTRY_VERSION,
+            requested_departure_from: input.requestedDepartureFrom,
+            requested_departure_until: input.requestedDepartureUntil,
+            canonical_created_at: now,
+            parcels: {
+              create: input.parcels.map((parcel, index) => ({
+                destination_label: destinations[index].stop.nameEn,
+                destination_lat: destinations[index].stop.latitude,
+                destination_lng: destinations[index].stop.longitude,
+                size: parcel.size,
+                priority: parcel.priority,
+                status: "pending" as const,
+                route_version_id: route.id,
+                destination_stop_id: destinations[index].stopId,
+                canonical_entry_version: CANONICAL_ENTRY_VERSION
+              }))
+            }
+          },
+          include: { parcels: true }
+        });
+        await auditEvent(tx, {
+          userId: actor.id,
+          action: AuditAction.canonical_merchant_order_created,
+          entityType: "MerchantOrder",
+          entityId: resource.id,
+          metadata: {
+            route_version_id: route.id,
+            parcel_count: resource.parcels.length,
+            schema_version: CANONICAL_ENTRY_VERSION,
+            request_id: actor.requestId
+          }
+        });
+        await completeIdempotency(tx, {
+          recordId: claim.record.id,
+          claimVersion: claim.record.claim_version,
+          resourceType: "MerchantOrder",
+          resourceId: resource.id,
+          responseStatus: 201
+        });
+        return { resource, replayed: false };
+      });
+    }
+  };
+}
+
+export type CanonicalDemandService = ReturnType<typeof createCanonicalDemandService>;
+export const canonicalDemandService = createCanonicalDemandService();
