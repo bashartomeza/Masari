@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { AdminConfigurationError, createAdminBuildConfig, demoUiEnabled, routeManagementUiEnabled } from "./config";
+import { translations } from "./i18n/translations";
 
 describe("admin build isolation", () => {
   it("enables demo UI only for an explicit demo build", () => {
@@ -25,6 +26,16 @@ describe("admin build isolation", () => {
       expect(config.demoFeaturesEnabled).toBe(false);
       expect(config.demo).toBeUndefined();
       expect(demoUiEnabled(config, true)).toBe(false);
+    }
+  });
+
+  it("strips tracking simulation controls from non-demo bundles", () => {
+    for (const locale of [translations.ar, translations.en]) {
+      expect(locale.trackingSimulation).toBe("");
+      expect(locale.simulateStep).toBe("");
+      expect(locale.readLatest).toBe("");
+      expect(locale.resetSimulation).toBe("");
+      expect(locale.simulateEmpty).toBe("");
     }
   });
 
