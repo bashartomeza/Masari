@@ -1,5 +1,6 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import type {
+  ApiError,
   CanonicalStop,
   CanonicalStopDraft,
   RouteIdentityDraft,
@@ -121,7 +122,8 @@ const copy = {
     paused: "متوقف مؤقتاً",
     noStops: "أضف محطتين على الأقل قبل النشر.",
     stopRetired: "تمت إحالة المحطة للتقاعد.",
-    pagination: "صفحة"
+    pagination: "صفحة",
+    genericError: "تعذّر إكمال الإجراء. أعد المحاولة أو استخدم معرّف الطلب للدعم."
   },
   en: {
     title: "Route management",
@@ -190,7 +192,8 @@ const copy = {
     paused: "Paused",
     noStops: "Add at least two stops before publication.",
     stopRetired: "Stop retired.",
-    pagination: "Page"
+    pagination: "Page",
+    genericError: "The action could not be completed. Retry or use the request ID for support."
   }
 } as const;
 
@@ -200,6 +203,40 @@ export function routeUiText(locale: Locale) {
 
 function key(prefix: string) {
   return `${prefix}-${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`}`;
+}
+
+export function mutationFingerprint(operation: string, payload: unknown) {
+  return `${operation}:${JSON.stringify(payload)}`;
+}
+
+export function stableMutationKey(
+  registry: Map<string, string>,
+  operation: string,
+  payload: unknown,
+  factory: (prefix: string) => string = key
+) {
+  const fingerprint = mutationFingerprint(operation, payload);
+  const existing = registry.get(fingerprint);
+  if (existing) return { fingerprint, key: existing };
+  const created = factory(operation);
+  registry.set(fingerprint, created);
+  return { fingerprint, key: created };
+}
+
+export function mutationFailureIsAuthoritative(error: unknown) {
+  const apiError = error as ApiError | undefined;
+  return Boolean(
+    apiError &&
+    typeof apiError.status === "number" &&
+    apiError.status >= 400 &&
+    apiError.status < 500 &&
+    apiError.message !== "idempotency_in_progress"
+  );
+}
+
+export function routeUiError(locale: Locale, error: unknown) {
+  const value = error instanceof Error ? error.message : "unexpected_error";
+  return value === "draft_revision_conflict" ? routeUiText(locale).revisionConflict : routeUiText(locale).genericError;
 }
 
 function emptyRoute(): RouteIdentityDraft {
@@ -265,13 +302,35 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
   const [busy, setBusy] = useState("");
   const [actionReason, setActionReason] = useState("");
   const [message, setMessage] = useState<{ kind: "success" | "error"; text: string } | null>(null);
+  const busyRef = useRef("");
+  const mutationKeys = useRef(new Map<string, string>());
 
   const activeStops = useMemo(() => stops.filter((stop) => stop.status === "active"), [stops]);
   const actions = lifecycleActions(selectedVersion);
 
   function showError(error: unknown) {
-    const value = error instanceof Error ? error.message : "unexpected_error";
-    setMessage({ kind: "error", text: value === "draft_revision_conflict" ? text.revisionConflict : value });
+    setMessage({ kind: "error", text: routeUiError(locale, error) });
+  }
+
+  function beginBusy(label: string) {
+    if (busyRef.current) return false;
+    busyRef.current = label;
+    setBusy(label);
+    setMessage(null);
+    return true;
+  }
+
+  function endBusy() {
+    busyRef.current = "";
+    setBusy("");
+  }
+
+  function pendingMutation(operation: string, payload: unknown) {
+    return stableMutationKey(mutationKeys.current, operation, payload);
+  }
+
+  function settleMutation(fingerprint: string, error?: unknown) {
+    if (error === undefined || mutationFailureIsAuthoritative(error)) mutationKeys.current.delete(fingerprint);
   }
 
   async function loadCatalog(nextPage = page) {
@@ -300,9 +359,8 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
     void loadCatalog(1);
   }, []);
 
-  async function loadRoute(routeId: string) {
-    setBusy("route-detail");
-    setMessage(null);
+  async function loadRoute(routeId: string, nested = false) {
+    if (!nested && !beginBusy("route-detail")) return;
     try {
       const response = await api.serviceRoute(token, routeId);
       setSelectedRoute(response.route);
@@ -311,7 +369,7 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
     } catch (error) {
       showError(error);
     } finally {
-      setBusy("");
+      if (!nested) endBusy();
     }
   }
 
@@ -323,55 +381,62 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
 
   async function submitRoute(event: FormEvent) {
     event.preventDefault();
-    setBusy("create-route");
-    setMessage(null);
+    if (!beginBusy("create-route")) return;
+    const mutation = pendingMutation("route_create", routeDraft);
     try {
-      const response = await api.createServiceRoute(token, routeDraft, key("route"));
+      const response = await api.createServiceRoute(token, routeDraft, mutation.key);
+      settleMutation(mutation.fingerprint);
       setRouteDraft(emptyRoute());
       await loadCatalog(1);
-      await loadRoute(response.route.id);
+      await loadRoute(response.route.id, true);
       setMessage({ kind: "success", text: text.saved });
     } catch (error) {
+      settleMutation(mutation.fingerprint, error);
       showError(error);
     } finally {
-      setBusy("");
+      endBusy();
     }
   }
 
   async function submitStop(event: FormEvent) {
     event.preventDefault();
-    setBusy("create-stop");
-    setMessage(null);
+    if (!beginBusy("create-stop")) return;
+    const mutation = pendingMutation("stop_create", stopDraft);
     try {
-      await api.createCanonicalStop(token, stopDraft, key("stop"));
+      await api.createCanonicalStop(token, stopDraft, mutation.key);
+      settleMutation(mutation.fingerprint);
       const page = await api.canonicalStops(token, "?limit=50");
       setStops(page.stops);
       setStopDraft(emptyStop());
       setMessage({ kind: "success", text: text.saved });
     } catch (error) {
+      settleMutation(mutation.fingerprint, error);
       showError(error);
     } finally {
-      setBusy("");
+      endBusy();
     }
   }
 
   async function submitVersion(event: FormEvent) {
     event.preventDefault();
     if (!selectedRoute) return;
-    setBusy("save-version");
-    setMessage(null);
+    if (!beginBusy("save-version")) return;
+    let mutation: ReturnType<typeof pendingMutation> | undefined;
     try {
       const payload = { ...versionDraft, active_from: toApiDate(versionDraft.active_from), active_until: toApiDate(versionDraft.active_until) };
+      if (selectedVersion?.status !== "draft") mutation = pendingMutation("route_version_create", { routeId: selectedRoute.id, ...payload });
       const response = selectedVersion?.status === "draft"
         ? await api.updateRouteVersion(token, selectedVersion.id, { ...payload, expected_revision: selectedVersion.draft_revision })
-        : await api.createRouteVersion(token, selectedRoute.id, payload, key("version"));
-      await loadRoute(selectedRoute.id);
+        : await api.createRouteVersion(token, selectedRoute.id, payload, mutation!.key);
+      if (mutation) settleMutation(mutation.fingerprint);
+      await loadRoute(selectedRoute.id, true);
       selectVersion(response.version);
       setMessage({ kind: "success", text: text.saved });
     } catch (error) {
+      if (mutation) settleMutation(mutation.fingerprint, error);
       showError(error);
     } finally {
-      setBusy("");
+      endBusy();
     }
   }
 
@@ -393,8 +458,7 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
 
   async function saveStops() {
     if (!selectedVersion || selectedVersion.status !== "draft") return;
-    setBusy("save-stops");
-    setMessage(null);
+    if (!beginBusy("save-stops")) return;
     try {
       const response = await api.replaceRouteStops(token, selectedVersion.id, {
         expected_revision: selectedVersion.draft_revision,
@@ -405,27 +469,31 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
     } catch (error) {
       showError(error);
     } finally {
-      setBusy("");
+      endBusy();
     }
   }
 
   async function cloneVersion() {
     if (!selectedRoute || !selectedVersion) return;
-    setBusy("clone");
+    if (!beginBusy("clone")) return;
+    const payload = { routeId: selectedRoute.id, clone_from_version_id: selectedVersion.id };
+    const mutation = pendingMutation("route_version_clone", payload);
     try {
       const response = await api.createRouteVersion(
         token,
         selectedRoute.id,
         { clone_from_version_id: selectedVersion.id },
-        key("clone")
+        mutation.key
       );
-      await loadRoute(selectedRoute.id);
+      settleMutation(mutation.fingerprint);
+      await loadRoute(selectedRoute.id, true);
       selectVersion(response.version);
       setMessage({ kind: "success", text: text.saved });
     } catch (error) {
+      settleMutation(mutation.fingerprint, error);
       showError(error);
     } finally {
-      setBusy("");
+      endBusy();
     }
   }
 
@@ -436,31 +504,36 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
       return;
     }
     if (!selectedRoute || !selectedVersion || !window.confirm(text.confirm)) return;
-    setBusy(action);
-    setMessage(null);
+    if (!beginBusy(action)) return;
+    const payload = action === "publish"
+      ? { id: selectedVersion.id, expected_revision: selectedVersion.draft_revision, expected_current_version_id: selectedRoute.current_version_id }
+      : { id: selectedVersion.id, action, reason: action === "resume" ? undefined : reason };
+    const mutation = pendingMutation(`route_version_${action}`, payload);
     try {
       const response = action === "publish"
         ? await api.publishRouteVersion(
             token,
             selectedVersion.id,
             { expected_revision: selectedVersion.draft_revision, expected_current_version_id: selectedRoute.current_version_id },
-            key("publish")
+            mutation.key
           )
         : await api.routeVersionAction(
             token,
             selectedVersion.id,
             action,
             action === "resume" ? undefined : reason,
-            key(action)
+            mutation.key
           );
-      await loadRoute(selectedRoute.id);
+      settleMutation(mutation.fingerprint);
+      await loadRoute(selectedRoute.id, true);
       selectVersion(response.version);
       setActionReason("");
       setMessage({ kind: "success", text: text.saved });
     } catch (error) {
+      settleMutation(mutation.fingerprint, error);
       showError(error);
     } finally {
-      setBusy("");
+      endBusy();
     }
   }
 
@@ -471,17 +544,21 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
       return;
     }
     if (!selectedRoute || !window.confirm(text.confirm)) return;
-    setBusy("retire-route");
+    if (!beginBusy("retire-route")) return;
+    const payload = { id: selectedRoute.id, reason };
+    const mutation = pendingMutation("service_route_retire", payload);
     try {
-      await api.retireServiceRoute(token, selectedRoute.id, reason, key("retire-route"));
+      await api.retireServiceRoute(token, selectedRoute.id, reason, mutation.key);
+      settleMutation(mutation.fingerprint);
       setSelectedRoute(null);
       selectVersion(null);
       setActionReason("");
       await loadCatalog(page);
     } catch (error) {
+      settleMutation(mutation.fingerprint, error);
       showError(error);
     } finally {
-      setBusy("");
+      endBusy();
     }
   }
 
@@ -492,17 +569,21 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
       return;
     }
     if (!window.confirm(text.confirm)) return;
-    setBusy(`retire-stop-${stop.id}`);
+    if (!beginBusy(`retire-stop-${stop.id}`)) return;
+    const payload = { id: stop.id, reason };
+    const mutation = pendingMutation("stop_retire", payload);
     try {
-      await api.retireCanonicalStop(token, stop.id, reason, key("retire-stop"));
+      await api.retireCanonicalStop(token, stop.id, reason, mutation.key);
+      settleMutation(mutation.fingerprint);
       const page = await api.canonicalStops(token, "?limit=50");
       setStops(page.stops);
       setActionReason("");
       setMessage({ kind: "success", text: text.stopRetired });
     } catch (error) {
+      settleMutation(mutation.fingerprint, error);
       showError(error);
     } finally {
-      setBusy("");
+      endBusy();
     }
   }
 
@@ -526,11 +607,11 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
           <form className="route-filter" onSubmit={(event) => { event.preventDefault(); void loadCatalog(1); }}>
             <label>{text.search}<input value={search} onChange={(event) => setSearch(event.target.value)} /></label>
             <label>{text.status}<select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="">—</option><option value="active">{text.active}</option><option value="retired">{text.retired}</option></select></label>
-            <button type="submit">{text.search}</button>
+            <button type="submit" disabled={Boolean(busy)}>{text.search}</button>
           </form>
 
           {view === "loading" && <p className="route-state" aria-live="polite">{text.loading}</p>}
-          {view === "error" && <div className="route-state"><p>{text.error}</p><button onClick={() => void loadCatalog(page)}>{text.retry}</button></div>}
+          {view === "error" && <div className="route-state"><p>{text.error}</p><button onClick={() => void loadCatalog(page)} disabled={Boolean(busy)}>{text.retry}</button></div>}
           {view === "empty" && <p className="route-state">{text.empty}</p>}
           {view === "ready" && <div className="route-catalog">{routes.map((route) => (
             <button
@@ -538,6 +619,7 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
               className={selectedRoute?.id === route.id ? "route-catalog__item is-selected" : "route-catalog__item"}
               key={route.id}
               onClick={() => void loadRoute(route.id)}
+              disabled={Boolean(busy)}
             >
               <strong>{locale === "ar" ? route.current_version?.name_ar ?? route.route_key : route.current_version?.name_en ?? route.route_key}</strong>
               <span>{route.route_key}</span>
@@ -559,7 +641,7 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
             </form>
           </details>
 
-          <label className="route-card route-action-reason">{text.reason}<input value={actionReason} maxLength={500} onChange={(event) => setActionReason(event.target.value)} /></label>
+          <label className="route-card route-action-reason">{text.reason}<input value={actionReason} maxLength={500} onChange={(event) => setActionReason(event.target.value)} disabled={Boolean(busy)} /></label>
           {!selectedRoute ? <div className="route-card route-state">{text.chooseRoute}</div> : <>
             <article className="route-card route-identity">
               <div><span className="route-chip">{selectedRoute.route_key}</span><h3>{selectedRoute.current_version ? (locale === "ar" ? selectedRoute.current_version.name_ar : selectedRoute.current_version.name_en) : selectedRoute.route_key}</h3><p>{selectedRoute.service_region_key} · {text[selectedRoute.direction]}</p></div>
@@ -567,8 +649,8 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
             </article>
 
             <article className="route-card">
-              <div className="route-card__heading"><h3>{text.versions}</h3><button type="button" onClick={() => selectVersion(null)}>{text.newVersion}</button></div>
-              <div className="version-tabs">{selectedRoute.versions?.map((version) => <button type="button" key={version.id} className={selectedVersion?.id === version.id ? "is-selected" : ""} onClick={() => selectVersion(version)}>v{version.version_number} · {statusText(version.status)}</button>)}</div>
+              <div className="route-card__heading"><h3>{text.versions}</h3><button type="button" onClick={() => selectVersion(null)} disabled={Boolean(busy)}>{text.newVersion}</button></div>
+              <div className="version-tabs">{selectedRoute.versions?.map((version) => <button type="button" key={version.id} className={selectedVersion?.id === version.id ? "is-selected" : ""} onClick={() => selectVersion(version)} disabled={Boolean(busy)}>v{version.version_number} · {statusText(version.status)}</button>)}</div>
               <form className="route-form route-form--grid" onSubmit={submitVersion}>
                 <label>{text.nameAr}<input dir="rtl" required value={versionDraft.name_ar} onChange={(event) => setVersionDraft({ ...versionDraft, name_ar: event.target.value })} disabled={selectedVersion ? selectedVersion.status !== "draft" : false} /></label>
                 <label>{text.nameEn}<input dir="ltr" required value={versionDraft.name_en} onChange={(event) => setVersionDraft({ ...versionDraft, name_en: event.target.value })} disabled={selectedVersion ? selectedVersion.status !== "draft" : false} /></label>
@@ -578,18 +660,18 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
                 <label>{text.activeUntil}<input type="datetime-local" value={versionDraft.active_until ?? ""} onChange={(event) => setVersionDraft({ ...versionDraft, active_until: event.target.value })} disabled={selectedVersion ? selectedVersion.status !== "draft" : false} /></label>
                 {(!selectedVersion || selectedVersion.status === "draft") && <button disabled={Boolean(busy)}>{selectedVersion ? text.saveDraft : text.createDraft}</button>}
               </form>
-              {selectedVersion && <div className="route-lifecycle"><span className={`route-chip route-status--${selectedVersion.status}`}>{statusText(selectedVersion.status)}</span><span className={`route-chip ${selectedVersion.geometry.ready ? "route-chip--safe" : "route-chip--pending"}`}>{selectedVersion.geometry.ready ? text.geometryReady : text.geometryPending}</span>{actions.includes("clone") && <button type="button" onClick={() => void cloneVersion()}>{text.clone}</button>}{actions.includes("publish") && <button type="button" onClick={() => void versionAction("publish")}>{text.publish}</button>}{actions.includes("pause") && <button type="button" onClick={() => void versionAction("pause")}>{text.pause}</button>}{actions.includes("resume") && <button type="button" onClick={() => void versionAction("resume")}>{text.resume}</button>}{actions.includes("retire") && <button className="button-danger" type="button" onClick={() => void versionAction("retire")}>{text.retire}</button>}</div>}
+              {selectedVersion && <div className="route-lifecycle"><span className={`route-chip route-status--${selectedVersion.status}`}>{statusText(selectedVersion.status)}</span><span className={`route-chip ${selectedVersion.geometry.ready ? "route-chip--safe" : "route-chip--pending"}`}>{selectedVersion.geometry.ready ? text.geometryReady : text.geometryPending}</span>{actions.includes("clone") && <button type="button" onClick={() => void cloneVersion()} disabled={Boolean(busy)}>{text.clone}</button>}{actions.includes("publish") && <button type="button" onClick={() => void versionAction("publish")} disabled={Boolean(busy)}>{text.publish}</button>}{actions.includes("pause") && <button type="button" onClick={() => void versionAction("pause")} disabled={Boolean(busy)}>{text.pause}</button>}{actions.includes("resume") && <button type="button" onClick={() => void versionAction("resume")} disabled={Boolean(busy)}>{text.resume}</button>}{actions.includes("retire") && <button className="button-danger" type="button" onClick={() => void versionAction("retire")} disabled={Boolean(busy)}>{text.retire}</button>}</div>}
             </article>
 
             {selectedVersion?.status === "draft" && <article className="route-card">
               <h3>{text.orderedStops}</h3>
-              <div className="route-add-stop"><select aria-label={text.addStop} value={stopToAdd} onChange={(event) => setStopToAdd(event.target.value)}><option value="">{text.addStop}</option>{activeStops.filter((stop) => !memberships.some((membership) => membership.stop_id === stop.id)).map((stop) => <option value={stop.id} key={stop.id}>{locale === "ar" ? stop.name_ar : stop.name_en}</option>)}</select><button type="button" onClick={addExistingStop} disabled={!stopToAdd}>{text.addStop}</button></div>
+              <div className="route-add-stop"><select aria-label={text.addStop} value={stopToAdd} onChange={(event) => setStopToAdd(event.target.value)} disabled={Boolean(busy)}><option value="">{text.addStop}</option>{activeStops.filter((stop) => !memberships.some((membership) => membership.stop_id === stop.id)).map((stop) => <option value={stop.id} key={stop.id}>{locale === "ar" ? stop.name_ar : stop.name_en}</option>)}</select><button type="button" onClick={addExistingStop} disabled={!stopToAdd || Boolean(busy)}>{text.addStop}</button></div>
               {memberships.length === 0 && <p className="route-state">{text.noStops}</p>}
               <ol className="stop-editor">{memberships.map((membership, index) => {
                 const stop = stops.find((item) => item.id === membership.stop_id);
                 return <li key={membership.stop_id}>
-                  <div className="stop-editor__title"><span className="route-chip">{index + 1}</span><strong>{stop ? (locale === "ar" ? stop.name_ar : stop.name_en) : membership.stop_id}</strong><div><button aria-label={reorderControlLabel(text.moveUp, index)} type="button" disabled={index === 0} onClick={() => setMemberships(moveRouteStop(memberships, index, -1))}>↑</button><button aria-label={reorderControlLabel(text.moveDown, index)} type="button" disabled={index === memberships.length - 1} onClick={() => setMemberships(moveRouteStop(memberships, index, 1))}>↓</button><button aria-label={reorderControlLabel(text.remove, index)} className="button-danger" type="button" onClick={() => setMemberships(memberships.filter((_, current) => current !== index).map((item, current) => ({ ...item, sequence: current + 1 })))}>×</button></div></div>
-                  <div className="permission-grid">{(["passenger_pickup_allowed", "passenger_dropoff_allowed", "parcel_pickup_allowed", "parcel_dropoff_allowed"] as Permission[]).map((permission) => <label key={permission}><input type="checkbox" checked={membership[permission]} onChange={() => setMemberships(toggleRouteStopPermission(memberships, index, permission))} />{permission === "passenger_pickup_allowed" ? text.passengerPickup : permission === "passenger_dropoff_allowed" ? text.passengerDropoff : permission === "parcel_pickup_allowed" ? text.parcelPickup : text.parcelDropoff}</label>)}</div>
+                  <div className="stop-editor__title"><span className="route-chip">{index + 1}</span><strong>{stop ? (locale === "ar" ? stop.name_ar : stop.name_en) : membership.stop_id}</strong><div><button aria-label={reorderControlLabel(text.moveUp, index)} type="button" disabled={index === 0 || Boolean(busy)} onClick={() => setMemberships(moveRouteStop(memberships, index, -1))}>↑</button><button aria-label={reorderControlLabel(text.moveDown, index)} type="button" disabled={index === memberships.length - 1 || Boolean(busy)} onClick={() => setMemberships(moveRouteStop(memberships, index, 1))}>↓</button><button aria-label={reorderControlLabel(text.remove, index)} className="button-danger" type="button" disabled={Boolean(busy)} onClick={() => setMemberships(memberships.filter((_, current) => current !== index).map((item, current) => ({ ...item, sequence: current + 1 })))}>×</button></div></div>
+                  <div className="permission-grid">{(["passenger_pickup_allowed", "passenger_dropoff_allowed", "parcel_pickup_allowed", "parcel_dropoff_allowed"] as Permission[]).map((permission) => <label key={permission}><input type="checkbox" checked={membership[permission]} disabled={Boolean(busy)} onChange={() => setMemberships(toggleRouteStopPermission(memberships, index, permission))} />{permission === "passenger_pickup_allowed" ? text.passengerPickup : permission === "passenger_dropoff_allowed" ? text.passengerDropoff : permission === "parcel_pickup_allowed" ? text.parcelPickup : text.parcelDropoff}</label>)}</div>
                 </li>;
               })}</ol>
               <button type="button" onClick={() => void saveStops()} disabled={memberships.length < 2 || Boolean(busy)}>{text.saveOrder}</button>
