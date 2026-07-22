@@ -10,6 +10,8 @@ M7B exposes public-ready contracts but requires the existing live authentication
 
 Pagination is bounded to 50 rows. When route management is disabled, list returns `{ enabled: false, routes: [], total: 0 }`; detail and stops return `404`. Unauthenticated calls return `401`.
 
-The catalog never exposes drafts, retired stable routes, non-current versions, audit/actor metadata, idempotency records, encoded geometry, geometry provider identifiers, or credentials. It includes bilingual names/descriptions, explicit lifecycle and geometry readiness, active dates, ordered permission flags, and six-decimal numeric coordinates.
+The catalog never exposes drafts, retired stable routes, non-current versions, audit/actor metadata, idempotency records, encoded geometry, geometry provider identifiers, or credentials. It includes bilingual names/descriptions, the approved current lifecycle and geometry-readiness summary, active dates, ordered permission flags, and six-decimal numeric coordinates.
+
+Public responses also omit route/stop creation and update timestamps, version publication/pause timestamps, internal membership IDs, origin/destination foreign-key IDs, the parent service-route foreign-key ID, and stop lifecycle/retirement metadata. Stable route, version, and stop IDs remain because clients need them for approved catalog navigation; sequence and permission flags remain because they are operational catalog content.
 
 These contracts are not consumed by Flutter in M7B. Passenger, merchant, driver, matching, batching, and trip entry remain on the legacy deterministic path until M7C.
