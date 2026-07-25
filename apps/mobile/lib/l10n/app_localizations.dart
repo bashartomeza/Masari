@@ -1976,6 +1976,12 @@ abstract class AppLocalizations {
   /// **'نتيجة العملية غير مؤكدة. أعد محاولة العملية نفسها عند توفر الاتصال.'**
   String get operationTemporaryFailure;
 
+  /// No description provided for @canonicalRecoveryRequired.
+  ///
+  /// In ar, this message translates to:
+  /// **'توجد عملية سابقة غير محسومة. سجّل الدخول بالحساب الأصلي وأعد العملية نفسها، أو تواصل مع الدعم إذا انتهت مهلة الاسترداد.'**
+  String get canonicalRecoveryRequired;
+
   /// No description provided for @transactionRetryRequired.
   ///
   /// In ar, this message translates to:

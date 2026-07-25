@@ -991,6 +991,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'The result is uncertain. Retry the same operation when connected.';
 
   @override
+  String get canonicalRecoveryRequired =>
+      'A previous operation is unresolved. Sign in with the original account and retry the exact operation, or contact support if its recovery window expired.';
+
+  @override
   String get transactionRetryRequired =>
       'A temporary transaction conflict occurred. Retry this operation.';
 

@@ -16,6 +16,7 @@ class CanonicalOperationBundle {
   const CanonicalOperationBundle({
     required this.operation,
     required this.scope,
+    required this.actorId,
     required this.idempotencyKey,
     required this.payload,
     required this.fingerprint,
@@ -23,9 +24,12 @@ class CanonicalOperationBundle {
     required this.routeVersionId,
   });
 
-  static const version = 1;
+  static const version = 2;
+  static const recoveryWindow = Duration(hours: 24);
+  static const maximumClockSkew = Duration(minutes: 5);
   final String operation;
   final String scope;
+  final String actorId;
   final String idempotencyKey;
   final Map<String, dynamic> payload;
   final String fingerprint;
@@ -35,27 +39,43 @@ class CanonicalOperationBundle {
   factory CanonicalOperationBundle.create({
     required String operation,
     required String scope,
+    required String actorId,
     required Map<String, dynamic> payload,
+    DateTime? now,
   }) {
     final normalized = _normalize(payload);
+    final routeVersionId = normalized['route_version_id'];
+    if (operation.isEmpty ||
+        scope.isEmpty ||
+        actorId.isEmpty ||
+        routeVersionId is! String ||
+        routeVersionId.isEmpty) {
+      throw const FormatException('Invalid canonical operation bundle');
+    }
+    final createdAt = (now ?? DateTime.now()).toUtc();
     return CanonicalOperationBundle(
       operation: operation,
       scope: scope,
+      actorId: actorId,
       idempotencyKey: newCanonicalIdempotencyKey(),
       payload: normalized,
       fingerprint: _fingerprint(jsonEncode(normalized)),
-      createdAt: DateTime.now().toUtc(),
-      routeVersionId: normalized['route_version_id'] as String,
+      createdAt: createdAt,
+      routeVersionId: routeVersionId,
     );
   }
 
-  bool get expired =>
-      DateTime.now().toUtc().difference(createdAt) > const Duration(hours: 24);
+  bool recoveryWindowExpired(DateTime now) {
+    final current = now.toUtc();
+    if (createdAt.isAfter(current.add(maximumClockSkew))) return true;
+    return !current.isBefore(createdAt.add(recoveryWindow));
+  }
 
   Map<String, dynamic> toJson() => {
     'version': version,
     'operation': operation,
     'scope': scope,
+    'actor_id': actorId,
     'idempotency_key': idempotencyKey,
     'payload': payload,
     'fingerprint': fingerprint,
@@ -64,9 +84,23 @@ class CanonicalOperationBundle {
   };
 
   factory CanonicalOperationBundle.fromJson(Map<String, dynamic> json) {
-    if (json['version'] != version ||
+    const keys = {
+      'version',
+      'operation',
+      'scope',
+      'actor_id',
+      'idempotency_key',
+      'payload',
+      'fingerprint',
+      'created_at',
+      'route_version_id',
+    };
+    if (json.keys.toSet().difference(keys).isNotEmpty ||
+        keys.difference(json.keys.toSet()).isNotEmpty ||
+        json['version'] != version ||
         json['operation'] is! String ||
         json['scope'] is! String ||
+        json['actor_id'] is! String ||
         json['idempotency_key'] is! String ||
         json['payload'] is! Map<String, dynamic> ||
         json['fingerprint'] is! String ||
@@ -76,13 +110,20 @@ class CanonicalOperationBundle {
     }
     final createdAt = DateTime.tryParse(json['created_at'] as String);
     final payload = _normalize(json['payload'] as Map<String, dynamic>);
-    if (createdAt == null ||
+    if ((json['operation'] as String).isEmpty ||
+        (json['scope'] as String).isEmpty ||
+        (json['actor_id'] as String).isEmpty ||
+        (json['idempotency_key'] as String).isEmpty ||
+        (json['route_version_id'] as String).isEmpty ||
+        payload['route_version_id'] != json['route_version_id'] ||
+        createdAt == null ||
         _fingerprint(jsonEncode(payload)) != json['fingerprint']) {
       throw const FormatException('Invalid canonical operation bundle');
     }
     return CanonicalOperationBundle(
       operation: json['operation'] as String,
       scope: json['scope'] as String,
+      actorId: json['actor_id'] as String,
       idempotencyKey: json['idempotency_key'] as String,
       payload: payload,
       fingerprint: json['fingerprint'] as String,
@@ -96,6 +137,7 @@ class CanonicalOperationStorage {
   const CanonicalOperationStorage(this._storage);
 
   static const bundleKey = 'masari_canonical_operation_v1';
+  static const maximumEncodedBytes = 60 * 1024;
   final FlutterSecureStorage _storage;
 
   Future<CanonicalOperationBundle?> read() async {
@@ -107,23 +149,36 @@ class CanonicalOperationStorage {
         throw const FormatException('Invalid canonical operation bundle');
       }
       final bundle = CanonicalOperationBundle.fromJson(decoded);
-      if (bundle.expired) {
-        await clear();
-        return null;
-      }
       return bundle;
-    } on FormatException {
-      await clear();
-      return null;
+    } on FormatException catch (error) {
+      throw CanonicalOperationStorageException(
+        'canonical_recovery_unreadable',
+        error,
+      );
     }
   }
 
   Future<void> save(CanonicalOperationBundle bundle) {
-    if (bundle.expired) throw StateError('Refusing expired operation bundle');
-    return _storage.write(key: bundleKey, value: jsonEncode(bundle.toJson()));
+    final encoded = jsonEncode(bundle.toJson());
+    if (utf8.encode(encoded).length > maximumEncodedBytes) {
+      throw const CanonicalOperationStorageException(
+        'canonical_recovery_too_large',
+      );
+    }
+    return _storage.write(key: bundleKey, value: encoded);
   }
 
   Future<void> clear() => _storage.delete(key: bundleKey);
+}
+
+class CanonicalOperationStorageException implements Exception {
+  const CanonicalOperationStorageException(this.code, [this.cause]);
+
+  final String code;
+  final Object? cause;
+
+  @override
+  String toString() => code;
 }
 
 String newCanonicalIdempotencyKey() {

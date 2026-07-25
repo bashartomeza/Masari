@@ -987,6 +987,10 @@ class AppLocalizationsAr extends AppLocalizations {
       'نتيجة العملية غير مؤكدة. أعد محاولة العملية نفسها عند توفر الاتصال.';
 
   @override
+  String get canonicalRecoveryRequired =>
+      'توجد عملية سابقة غير محسومة. سجّل الدخول بالحساب الأصلي وأعد العملية نفسها، أو تواصل مع الدعم إذا انتهت مهلة الاسترداد.';
+
+  @override
   String get transactionRetryRequired =>
       'حدث تعارض مؤقت في المعاملة. أعد محاولة هذه العملية.';
 

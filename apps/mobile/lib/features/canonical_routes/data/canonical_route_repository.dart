@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/api/api_error.dart';
 import '../../auth/data/authenticated_api_client.dart';
 import '../domain/canonical_route_models.dart';
 
@@ -42,6 +43,26 @@ class CanonicalRouteRepository {
       routes.add(route.withStops(stops));
     }
     return List.unmodifiable(routes.where((route) => route.currentlyEligible));
+  }
+
+  Future<void> requireFreshRoute(String routeVersionId) async {
+    final currentCapabilities = await capabilities();
+    if (!currentCapabilities.routeCatalogAvailable ||
+        !currentCapabilities.multiRouteEntryAvailable) {
+      throw const ApiException(
+        ApiErrorType.forbidden,
+        'canonical_entry_disabled',
+        statusCode: 404,
+      );
+    }
+    final currentRoutes = await routes();
+    if (!currentRoutes.any((route) => route.versionId == routeVersionId)) {
+      throw const ApiException(
+        ApiErrorType.validation,
+        'route_unavailable',
+        statusCode: 409,
+      );
+    }
   }
 
   Future<List<DriverAvailability>> availabilities() async {

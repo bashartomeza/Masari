@@ -6,6 +6,7 @@ import 'package:masari_mobile/l10n/app_localizations.dart';
 import '../../../core/api/api_error.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/masari_card.dart';
+import '../../auth/application/auth_controller.dart';
 import '../application/canonical_route_controller.dart';
 import '../data/canonical_operation_storage.dart';
 import '../domain/canonical_route_models.dart';
@@ -97,13 +98,30 @@ class _DriverAvailabilityFormScreenState
   void initState() {
     super.initState();
     Future<void>(() async {
-      final bundle = await ref.read(canonicalOperationStorageProvider).read();
-      if (!mounted ||
-          bundle?.operation != 'driver_availability_create' ||
-          bundle?.scope != 'driver') {
+      final actorId = ref.read(authControllerProvider).value?.user?.id;
+      if (actorId == null) return;
+      CanonicalOperationBundle? bundle;
+      try {
+        bundle = await ref.read(canonicalOperationStorageProvider).read();
+      } catch (error) {
+        if (mounted) setState(() => _error = error);
         return;
       }
-      final payload = bundle!.payload;
+      if (!mounted ||
+          bundle?.operation != 'driver_availability_create' ||
+          bundle?.scope != 'driver' ||
+          bundle?.actorId != actorId) {
+        return;
+      }
+      if (bundle!.recoveryWindowExpired(DateTime.now())) {
+        setState(
+          () => _error = const CanonicalOperationBlocked(
+            'canonical_recovery_expired',
+          ),
+        );
+        return;
+      }
+      final payload = bundle.payload;
       setState(() {
         _restoredRouteVersionId = payload['route_version_id'] as String?;
         _departure =
@@ -268,6 +286,14 @@ class _DriverAvailabilityFormScreenState
       _error = null;
     });
     try {
+      final actorId = ref.read(authControllerProvider).value?.user?.id;
+      if (actorId == null) {
+        throw const ApiException(
+          ApiErrorType.unauthorized,
+          'account_unavailable',
+          statusCode: 401,
+        );
+      }
       final value = await ref
           .read(driverAvailabilitiesProvider.notifier)
           .create({
@@ -276,7 +302,7 @@ class _DriverAvailabilityFormScreenState
             'availability_window_end': _windowEnd?.toUtc().toIso8601String(),
             'total_seats': _seats,
             'total_parcel_capacity': _parcels,
-          });
+          }, actorId: actorId);
       if (mounted) context.go('/driver/availability/${value.id}');
     } catch (error) {
       if (error is ApiException && error.statusCode == 404) {
@@ -305,6 +331,7 @@ class DriverAvailabilityDetailScreen extends ConsumerStatefulWidget {
 class _DriverAvailabilityDetailScreenState
     extends ConsumerState<DriverAvailabilityDetailScreen> {
   bool _busy = false;
+  bool _acknowledgementScheduled = false;
   Object? _error;
 
   @override
@@ -329,6 +356,12 @@ class _DriverAvailabilityDetailScreenState
                       .firstOrNull;
                   if (value == null) {
                     return Center(child: Text(l10n.routeCatalogUnavailable));
+                  }
+                  if (!_acknowledgementScheduled) {
+                    _acknowledgementScheduled = true;
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      _acknowledgeCreate(value);
+                    });
                   }
                   return ListView(
                     padding: const EdgeInsets.all(AppTokens.spaceLarge),
@@ -414,6 +447,27 @@ class _DriverAvailabilityDetailScreenState
       if (mounted) setState(() => _error = error);
     } finally {
       if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _acknowledgeCreate(DriverAvailability availability) async {
+    final actorId = ref.read(authControllerProvider).value?.user?.id;
+    if (actorId == null) return;
+    try {
+      final pending = await ref.read(canonicalOperationStorageProvider).read();
+      if (pending == null ||
+          pending.actorId != actorId ||
+          !canonicalAvailabilityResultMatches(pending, availability)) {
+        return;
+      }
+      await ref
+          .read(canonicalMutationRunnerProvider)
+          .acknowledge(
+            actorId: actorId,
+            operation: 'driver_availability_create',
+          );
+    } catch (error) {
+      if (mounted) setState(() => _error = error);
     }
   }
 }
@@ -531,6 +585,10 @@ String availabilityStatusLabel(
 
 String _safeError(AppLocalizations l10n, Object error) {
   if (error is String) return error;
+  if (error is CanonicalOperationBlocked ||
+      error is CanonicalOperationStorageException) {
+    return l10n.canonicalRecoveryRequired;
+  }
   if (error is ApiException && error.message == 'transaction_retry_required') {
     return l10n.transactionRetryRequired;
   }

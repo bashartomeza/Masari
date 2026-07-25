@@ -1,5 +1,9 @@
 enum CanonicalRouteDirection { outbound, inbound, loop }
 
+enum CanonicalRouteStatus { active, retired }
+
+enum CanonicalRouteVersionStatus { draft, published, paused, retired }
+
 enum DriverAvailabilityStatus {
   draft,
   active,
@@ -50,7 +54,6 @@ class MobileCapabilities {
 class CanonicalStop {
   const CanonicalStop({
     required this.id,
-    required this.key,
     required this.nameAr,
     required this.nameEn,
     required this.sequence,
@@ -61,7 +64,6 @@ class CanonicalStop {
   });
 
   final String id;
-  final String key;
   final String nameAr;
   final String nameEn;
   final int sequence;
@@ -77,21 +79,12 @@ class CanonicalStop {
       'passenger_dropoff_allowed',
       'parcel_pickup_allowed',
       'parcel_dropoff_allowed',
-      'estimated_offset_seconds',
-      'dwell_seconds',
       'stop',
     });
     final stop = _object(json, 'stop');
-    _requireKeys(stop, const {
-      'id',
-      'stop_key',
-      'service_region_key',
-      'name_ar',
-      'name_en',
-    });
+    _requireKeys(stop, const {'id', 'name_ar', 'name_en'});
     return CanonicalStop(
       id: _string(stop, 'id'),
-      key: _string(stop, 'stop_key'),
       nameAr: _string(stop, 'name_ar'),
       nameEn: _string(stop, 'name_en'),
       sequence: _integer(json, 'sequence'),
@@ -106,60 +99,78 @@ class CanonicalStop {
 class CanonicalRoute {
   const CanonicalRoute({
     required this.id,
-    required this.routeKey,
-    required this.serviceRegionKey,
+    required this.routeStatus,
     required this.direction,
     required this.versionId,
     required this.versionNumber,
     required this.nameAr,
     required this.nameEn,
-    required this.status,
+    required this.versionStatus,
     required this.activeFrom,
     required this.activeUntil,
     required this.stops,
   });
 
   final String id;
-  final String routeKey;
-  final String serviceRegionKey;
+  final CanonicalRouteStatus routeStatus;
   final CanonicalRouteDirection direction;
   final String versionId;
   final int versionNumber;
   final String nameAr;
   final String nameEn;
-  final String status;
+  final CanonicalRouteVersionStatus versionStatus;
   final DateTime? activeFrom;
   final DateTime? activeUntil;
   final List<CanonicalStop> stops;
 
   bool get currentlyEligible {
     final now = DateTime.now().toUtc();
-    return status == 'published' &&
+    return routeStatus == CanonicalRouteStatus.active &&
+        versionStatus == CanonicalRouteVersionStatus.published &&
         (activeFrom == null || !activeFrom!.isAfter(now)) &&
         (activeUntil == null || activeUntil!.isAfter(now));
   }
 
   CanonicalRoute withStops(List<CanonicalStop> value) => CanonicalRoute(
     id: id,
-    routeKey: routeKey,
-    serviceRegionKey: serviceRegionKey,
+    routeStatus: routeStatus,
     direction: direction,
     versionId: versionId,
     versionNumber: versionNumber,
     nameAr: nameAr,
     nameEn: nameEn,
-    status: status,
+    versionStatus: versionStatus,
     activeFrom: activeFrom,
     activeUntil: activeUntil,
-    stops: value,
+    stops: _validatedStops(value),
   );
 
   factory CanonicalRoute.fromJson(Map<String, dynamic> json) {
+    _requireKeys(json, const {'id', 'direction', 'status', 'current_version'});
     final version = _object(json, 'current_version');
+    _requireKeys(version, const {
+      'id',
+      'version_number',
+      'status',
+      'name_ar',
+      'name_en',
+      'active_from',
+      'active_until',
+      'stops',
+    });
     final direction = CanonicalRouteDirection.values
         .where((value) => value.name == _string(json, 'direction'))
         .firstOrNull;
     if (direction == null) throw const FormatException('Invalid direction');
+    final routeStatus = CanonicalRouteStatus.values
+        .where((value) => value.name == _string(json, 'status'))
+        .firstOrNull;
+    final versionStatus = CanonicalRouteVersionStatus.values
+        .where((value) => value.name == _string(version, 'status'))
+        .firstOrNull;
+    if (routeStatus == null || versionStatus == null) {
+      throw const FormatException('Invalid route status');
+    }
     final rawStops = version['stops'];
     final stops = rawStops is List
         ? rawStops
@@ -168,19 +179,31 @@ class CanonicalRoute {
         : const <CanonicalStop>[];
     return CanonicalRoute(
       id: _string(json, 'id'),
-      routeKey: _string(json, 'route_key'),
-      serviceRegionKey: _string(json, 'service_region_key'),
+      routeStatus: routeStatus,
       direction: direction,
       versionId: _string(version, 'id'),
       versionNumber: _integer(version, 'version_number'),
       nameAr: _string(version, 'name_ar'),
       nameEn: _string(version, 'name_en'),
-      status: _string(version, 'status'),
+      versionStatus: versionStatus,
       activeFrom: _optionalDate(version, 'active_from'),
       activeUntil: _optionalDate(version, 'active_until'),
-      stops: stops,
+      stops: _validatedStops(stops),
     );
   }
+}
+
+List<CanonicalStop> _validatedStops(List<CanonicalStop> stops) {
+  final ids = <String>{};
+  final sequences = <int>{};
+  for (final stop in stops) {
+    if (stop.sequence < 1 ||
+        !ids.add(stop.id) ||
+        !sequences.add(stop.sequence)) {
+      throw const FormatException('Invalid ordered stops');
+    }
+  }
+  return List.unmodifiable(stops);
 }
 
 class DriverAvailability {

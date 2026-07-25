@@ -5,6 +5,7 @@ import 'package:masari_mobile/l10n/app_localizations.dart';
 
 import '../../../core/api/api_error.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../auth/application/auth_controller.dart';
 import '../application/canonical_route_controller.dart';
 import '../data/canonical_operation_storage.dart';
 import '../data/canonical_route_repository.dart';
@@ -35,13 +36,30 @@ class _PassengerRouteRequestScreenState
   void initState() {
     super.initState();
     Future<void>(() async {
-      final bundle = await ref.read(canonicalOperationStorageProvider).read();
-      if (!mounted ||
-          bundle?.operation != 'passenger_route_request_create' ||
-          bundle?.scope != 'passenger') {
+      final actorId = ref.read(authControllerProvider).value?.user?.id;
+      if (actorId == null) return;
+      CanonicalOperationBundle? bundle;
+      try {
+        bundle = await ref.read(canonicalOperationStorageProvider).read();
+      } catch (error) {
+        if (mounted) setState(() => _error = error);
         return;
       }
-      final payload = bundle!.payload;
+      if (!mounted ||
+          bundle?.operation != 'passenger_route_request_create' ||
+          bundle?.scope != 'passenger' ||
+          bundle?.actorId != actorId) {
+        return;
+      }
+      if (bundle!.recoveryWindowExpired(DateTime.now())) {
+        setState(
+          () => _error = const CanonicalOperationBlocked(
+            'canonical_recovery_expired',
+          ),
+        );
+        return;
+      }
+      final payload = bundle.payload;
       setState(() {
         _routeVersionId = payload['route_version_id'] as String?;
         _pickupId = payload['pickup_stop_id'] as String?;
@@ -75,8 +93,9 @@ class _PassengerRouteRequestScreenState
                 title: l10n.requestRecorded,
                 body: l10n.matchingDisabledNotice,
               ),
+              if (_error != null) Text(_errorLabel(l10n, _error!)),
               FilledButton(
-                onPressed: () => context.go('/passenger'),
+                onPressed: _acknowledgeResult,
                 child: Text(l10n.returnToDashboard),
               ),
             ],
@@ -254,13 +273,25 @@ class _PassengerRouteRequestScreenState
       'passenger_count': _passengers,
     };
     try {
+      final actorId = ref.read(authControllerProvider).value?.user?.id;
+      if (actorId == null) {
+        throw const ApiException(
+          ApiErrorType.unauthorized,
+          'account_unavailable',
+          statusCode: 401,
+        );
+      }
       // A fresh catalog result above is required before this operation can run.
       final result = await ref
           .read(canonicalMutationRunnerProvider)
           .run<CanonicalPassengerRequest>(
             operation: 'passenger_route_request_create',
             scope: 'passenger',
+            actorId: actorId,
             payload: payload,
+            preflight: () => ref
+                .read(canonicalRouteRepositoryProvider)
+                .requireFreshRoute(_routeVersionId!),
             send: (bundle) => ref
                 .read(canonicalRouteRepositoryProvider)
                 .createPassengerRequest(
@@ -277,6 +308,22 @@ class _PassengerRouteRequestScreenState
       if (mounted) setState(() => _error = error);
     } finally {
       if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _acknowledgeResult() async {
+    final actorId = ref.read(authControllerProvider).value?.user?.id;
+    if (actorId == null) return;
+    try {
+      await ref
+          .read(canonicalMutationRunnerProvider)
+          .acknowledge(
+            actorId: actorId,
+            operation: 'passenger_route_request_create',
+          );
+      if (mounted) context.go('/passenger');
+    } catch (error) {
+      if (mounted) setState(() => _error = error);
     }
   }
 }
@@ -353,6 +400,10 @@ class _CatalogError extends StatelessWidget {
 
 String _errorLabel(AppLocalizations l10n, Object error) {
   if (error is String) return error;
+  if (error is CanonicalOperationBlocked ||
+      error is CanonicalOperationStorageException) {
+    return l10n.canonicalRecoveryRequired;
+  }
   if (error is ApiException && error.message == 'transaction_retry_required') {
     return l10n.transactionRetryRequired;
   }

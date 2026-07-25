@@ -366,11 +366,9 @@ describe("M7B route management APIs", () => {
     const response = await request(target.server).get("/api/v1/routes").set(auth("passenger_1")).expect(200);
     expect(response.body.enabled).toBe(true);
     expect(response.body.routes[0].current_version.name_ar).toBe("الخليل إلى بيت لحم");
-    expect(response.body.routes[0].current_version.geometry).toEqual(
-      expect.objectContaining({ status: "pending", ready: false })
-    );
+    expect(response.body.routes[0].current_version).not.toHaveProperty("geometry");
     const serialized = JSON.stringify(response.body);
-    for (const forbidden of ["created_by_user_id", "published_by_user_id", "encoded_geometry", "geometry_provider", "must-not-leak", "created_at", "updated_at", "published_at", "paused_at", "origin_stop_id", "destination_stop_id", "service_route_id"]) {
+    for (const forbidden of ["created_by_user_id", "published_by_user_id", "encoded_geometry", "geometry_provider", "must-not-leak", "created_at", "updated_at", "published_at", "paused_at", "origin_stop_id", "destination_stop_id", "service_route_id", "service_region_key", "route_key", "route_group_key", "stop_key", "estimated_offset_seconds", "dwell_seconds"]) {
       expect(serialized).not.toContain(forbidden);
     }
 
@@ -381,8 +379,6 @@ describe("M7B route management APIs", () => {
     expect(stopResponse.body.stops[0]).not.toHaveProperty("id");
     expect(stopResponse.body.stops[0].stop).toEqual({
       id: "stop_1",
-      stop_key: "hebron-center",
-      service_region_key: "south-west-bank",
       name_ar: "وسط الخليل",
       name_en: "Hebron Center"
     });

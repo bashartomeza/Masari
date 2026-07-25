@@ -1,10 +1,7 @@
-import 'dart:async';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_error.dart';
 import '../../canonical_routes/application/canonical_route_controller.dart';
-import '../../canonical_routes/data/canonical_operation_storage.dart';
 import '../../driver/application/driver_controller.dart';
 import '../../merchant/application/merchant_controller.dart';
 import '../../onboarding/application/onboarding_controller.dart';
@@ -138,7 +135,6 @@ class AuthController extends AsyncNotifier<AuthState> {
 
   Future<void> completeCurrentSessionRevocation() async {
     await _coordinator.clearCredentials();
-    await ref.read(canonicalOperationStorageProvider).clear();
     _currentUser = null;
     _invalidateAuthenticatedWork();
     state = const AsyncData(AuthState.sessionEnded(SessionEndReason.ended));
@@ -166,7 +162,6 @@ class AuthController extends AsyncNotifier<AuthState> {
 
   Future<void> _clearLocalSession() async {
     await _coordinator.clearCredentials();
-    await ref.read(canonicalOperationStorageProvider).clear();
     _currentUser = null;
     _invalidateAuthenticatedWork();
     state = const AsyncData(AuthState.unauthenticated());
@@ -190,7 +185,6 @@ class AuthController extends AsyncNotifier<AuthState> {
         }
         break;
       case SessionTransitionType.terminated:
-        unawaited(ref.read(canonicalOperationStorageProvider).clear());
         _currentUser = null;
         _invalidateAuthenticatedWork();
         state = AsyncData(

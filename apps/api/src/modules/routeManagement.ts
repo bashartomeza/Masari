@@ -122,8 +122,8 @@ function coordinate(value: unknown) {
 function serializeStop(stop: Record<string, unknown>, admin = true) {
   return {
     id: stop.id,
-    stop_key: stop.stop_key,
-    service_region_key: stop.service_region_key,
+    stop_key: admin ? stop.stop_key : undefined,
+    service_region_key: admin ? stop.service_region_key : undefined,
     name_ar: stop.name_ar,
     name_en: stop.name_en,
     latitude: admin ? coordinate(stop.latitude) : undefined,
@@ -143,8 +143,10 @@ function serializeMembership(membership: Record<string, unknown>, admin = true) 
     passenger_dropoff_allowed: membership.passenger_dropoff,
     parcel_pickup_allowed: membership.parcel_pickup,
     parcel_dropoff_allowed: membership.parcel_dropoff,
-    estimated_offset_seconds: membership.scheduled_offset_seconds,
-    dwell_seconds: membership.dwell_seconds,
+    estimated_offset_seconds: admin
+      ? membership.scheduled_offset_seconds
+      : undefined,
+    dwell_seconds: admin ? membership.dwell_seconds : undefined,
     stop: serializeStop(membership.stop as Record<string, unknown>, admin)
   };
 }
@@ -161,21 +163,23 @@ function serializeVersion(version: Record<string, unknown>, admin = true) {
     status: version.status,
     name_ar: version.name_ar,
     name_en: version.name_en,
-    description_ar: version.description_ar,
-    description_en: version.description_en,
+    description_ar: admin ? version.description_ar : undefined,
+    description_en: admin ? version.description_en : undefined,
     active_from: version.active_from,
     active_until: version.active_until,
     origin_stop_id: admin ? version.origin_stop_id : undefined,
     destination_stop_id: admin ? version.destination_stop_id : undefined,
-    geometry: {
-      status: version.geometry_status,
-      ready: version.geometry_status === "available",
-      precision: version.geometry_precision,
-      estimated_distance_m: version.estimated_distance_meters,
-      estimated_duration_s: version.estimated_duration_seconds
-    },
+    geometry: admin
+      ? {
+          status: version.geometry_status,
+          ready: version.geometry_status === "available",
+          precision: version.geometry_precision,
+          estimated_distance_m: version.estimated_distance_meters,
+          estimated_duration_s: version.estimated_duration_seconds
+        }
+      : undefined,
     draft_revision: admin ? version.draft_revision : undefined,
-    stop_count: stops.length,
+    stop_count: admin ? stops.length : undefined,
     stops,
     driver_availability_count: admin ? (count?.driver_routes ?? 0) : undefined,
     published_at: admin ? version.published_at : undefined,
@@ -196,12 +200,12 @@ function serializeRoute(route: Record<string, unknown>, admin = true) {
   const count = route._count as { versions?: number } | undefined;
   return {
     id: route.id,
-    route_key: route.route_key,
-    route_group_key: route.route_group_key,
-    service_region_key: route.service_region_key,
+    route_key: admin ? route.route_key : undefined,
+    route_group_key: admin ? route.route_group_key : undefined,
+    service_region_key: admin ? route.service_region_key : undefined,
     direction: route.direction,
     status: route.status,
-    current_version_id: route.current_version_id,
+    current_version_id: admin ? route.current_version_id : undefined,
     current_version: current ? serializeVersion(current, admin) : null,
     version_count: admin ? (count?.versions ?? versions?.length ?? 0) : undefined,
     versions: admin ? versions : undefined,
