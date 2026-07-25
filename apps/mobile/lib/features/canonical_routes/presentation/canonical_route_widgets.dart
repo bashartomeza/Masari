@@ -109,7 +109,6 @@ class RouteCard extends StatelessWidget {
                 Text(name, style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: AppTokens.spaceSmall),
                 DirectionBadge(direction: route.direction),
-                Text(route.serviceRegionKey),
               ],
             ),
           ),
