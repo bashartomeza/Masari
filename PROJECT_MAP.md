@@ -2612,3 +2612,11 @@ Approved implementation boundary (2026-07-25):
 - No Prisma schema or migration change is planned. Existing driver owner list/detail contracts and idempotent create replay are sufficient; passenger/merchant history reads remain optional and out of scope.
 - M7C3 must enforce normalized MerchantOrder/Parcel operational mode before any standalone Parcel writer, import, admin creation, ETL, or direct application writer. M7C3 also owns matching, batching, offers, capacity holds, acceptance, assignment, and canonical trips.
 - No map SDK/provider, route-line placeholder, GPS/location permission, location ingestion, realtime transport, dispatching, or pricing is part of M7C2. Maps remain an M7D boundary.
+
+Implemented branch state (2026-07-25):
+- The API now exposes authenticated safe capability booleans and the public route catalog omits coordinates. No schema, migration, write contract, capacity service, matching, batching, or trip behavior changed.
+- Flutter has strict typed capability/catalog/route/version/stop/availability/request/order models. Canonical navigation is role scoped and server gated; the original deterministic role flows remain present and unchanged.
+- Drivers can list, create, inspect, activate, pause, resume, and cancel one-off availability using server state and revisions. Passengers select permitted pickup and downstream drop-off stops. Merchants submit one atomic 1–50 parcel route order with same-route downstream destinations.
+- Atomic creates persist an expiring exact-replay bundle only in secure storage. Temporary ambiguity retains the same key; terminal outcomes and logout/session termination clear it. Restored selection remains tentative until capability/catalog revalidation.
+- Arabic/English strings, RTL/LTR direction, textual ordered-stop timeline, minimum Material targets, semantics, scrollable responsive layouts, and truthful matching-disabled confirmations are included.
+- Focused API capability/privacy tests and Flutter contract, ordered-permission, replay, temporary/terminal error, changed-payload, tamper, and rapid-tap tests are present. Complete MySQL/emulator/artifact/deterministic validation remains the delivery gate before the draft PR can be considered review-ready.
