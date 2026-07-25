@@ -31,6 +31,10 @@ const baseEnvironment = {
 };
 const enabledConfig = createConfig(baseEnvironment);
 const disabledConfig = createConfig({ ...baseEnvironment, ROUTE_MANAGEMENT_ENABLED: "false" });
+const entryEnabledConfig = createConfig({
+  ...baseEnvironment,
+  MULTI_ROUTE_ENTRY_ENABLED: "true"
+});
 
 function auth(userId: keyof typeof users) {
   const user = users[userId];
@@ -183,6 +187,34 @@ describe("M7B route management APIs", () => {
       .send({})
       .expect(403);
     expect(target.service.createRoute).not.toHaveBeenCalled();
+  });
+
+  it("returns only authenticated server-authoritative mobile capabilities", async () => {
+    const enabled = app(serviceMock(), entryEnabledConfig);
+    await request(enabled.server).get("/api/v1/capabilities").expect(401);
+    const response = await request(enabled.server)
+      .get("/api/v1/capabilities")
+      .set(auth("passenger_1"))
+      .expect(200);
+    expect(response.body).toEqual({
+      canonical_route_catalog_available: true,
+      canonical_multi_route_entry_available: true,
+      canonical_matching_available: false,
+      maps_available: false,
+      live_tracking_available: false
+    });
+
+    const disabled = app(serviceMock(), disabledConfig);
+    const disabledResponse = await request(disabled.server)
+      .get("/api/v1/capabilities")
+      .set(auth("driver_1"))
+      .expect(200);
+    expect(disabledResponse.body).toEqual(
+      expect.objectContaining({
+        canonical_route_catalog_available: false,
+        canonical_multi_route_entry_available: false
+      })
+    );
   });
 
   it("normalizes route keys and requires idempotency", async () => {
@@ -352,9 +384,7 @@ describe("M7B route management APIs", () => {
       stop_key: "hebron-center",
       service_region_key: "south-west-bank",
       name_ar: "وسط الخليل",
-      name_en: "Hebron Center",
-      latitude: 31.5326,
-      longitude: 35.0998
+      name_en: "Hebron Center"
     });
   });
 

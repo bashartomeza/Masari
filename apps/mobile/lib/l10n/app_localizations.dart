@@ -1067,7 +1067,7 @@ abstract class AppLocalizations {
   /// No description provided for @statusActive.
   ///
   /// In ar, this message translates to:
-  /// **'نشط'**
+  /// **'نشطة'**
   String get statusActive;
 
   /// No description provided for @statusInactive.
@@ -1699,6 +1699,318 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'تمت الموافقة على حسابك. سجّل الدخول للمتابعة.'**
   String get signInAfterApproval;
+
+  /// No description provided for @canonicalRoutes.
+  ///
+  /// In ar, this message translates to:
+  /// **'خدمات المسارات المتعددة'**
+  String get canonicalRoutes;
+
+  /// No description provided for @canonicalRoutesBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر من المسارات الحالية والمحطات المعتمدة.'**
+  String get canonicalRoutesBody;
+
+  /// No description provided for @featureUnavailable.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذه الخدمة غير متاحة في هذه البيئة.'**
+  String get featureUnavailable;
+
+  /// No description provided for @routeCatalogUnavailable.
+  ///
+  /// In ar, this message translates to:
+  /// **'المسارات غير متاحة مؤقتاً. حدّثها قبل الإرسال.'**
+  String get routeCatalogUnavailable;
+
+  /// No description provided for @noPublishedRoutes.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد مسارات منشورة ومؤهلة حالياً.'**
+  String get noPublishedRoutes;
+
+  /// No description provided for @selectRoute.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر المسار'**
+  String get selectRoute;
+
+  /// No description provided for @routeDirection.
+  ///
+  /// In ar, this message translates to:
+  /// **'الاتجاه'**
+  String get routeDirection;
+
+  /// No description provided for @directionOutbound.
+  ///
+  /// In ar, this message translates to:
+  /// **'ذهاب'**
+  String get directionOutbound;
+
+  /// No description provided for @directionInbound.
+  ///
+  /// In ar, this message translates to:
+  /// **'عودة'**
+  String get directionInbound;
+
+  /// No description provided for @directionLoop.
+  ///
+  /// In ar, this message translates to:
+  /// **'دائري'**
+  String get directionLoop;
+
+  /// No description provided for @orderedStops.
+  ///
+  /// In ar, this message translates to:
+  /// **'المحطات بالترتيب'**
+  String get orderedStops;
+
+  /// No description provided for @stopSequence.
+  ///
+  /// In ar, this message translates to:
+  /// **'المحطة {sequence}'**
+  String stopSequence(int sequence);
+
+  /// No description provided for @driverAvailabilities.
+  ///
+  /// In ar, this message translates to:
+  /// **'إتاحة المسار'**
+  String get driverAvailabilities;
+
+  /// No description provided for @newAvailability.
+  ///
+  /// In ar, this message translates to:
+  /// **'إنشاء إتاحة لمسار'**
+  String get newAvailability;
+
+  /// No description provided for @noAvailabilities.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم تُنشأ إتاحة لمسار بعد.'**
+  String get noAvailabilities;
+
+  /// No description provided for @departureTime.
+  ///
+  /// In ar, this message translates to:
+  /// **'وقت الانطلاق'**
+  String get departureTime;
+
+  /// No description provided for @availabilityWindowEnd.
+  ///
+  /// In ar, this message translates to:
+  /// **'نهاية نافذة الإتاحة (اختياري)'**
+  String get availabilityWindowEnd;
+
+  /// No description provided for @seatCapacity.
+  ///
+  /// In ar, this message translates to:
+  /// **'سعة المقاعد'**
+  String get seatCapacity;
+
+  /// No description provided for @reviewAndConfirm.
+  ///
+  /// In ar, this message translates to:
+  /// **'مراجعة وتأكيد'**
+  String get reviewAndConfirm;
+
+  /// No description provided for @availabilityRecorded.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم تسجيل الإتاحة'**
+  String get availabilityRecorded;
+
+  /// No description provided for @remainingCapacity.
+  ///
+  /// In ar, this message translates to:
+  /// **'المتبقي: {seats} مقاعد، {parcels} طرود'**
+  String remainingCapacity(int seats, int parcels);
+
+  /// No description provided for @activateAvailability.
+  ///
+  /// In ar, this message translates to:
+  /// **'تفعيل الإتاحة'**
+  String get activateAvailability;
+
+  /// No description provided for @pauseAvailability.
+  ///
+  /// In ar, this message translates to:
+  /// **'إيقاف الإتاحة مؤقتاً'**
+  String get pauseAvailability;
+
+  /// No description provided for @resumeAvailability.
+  ///
+  /// In ar, this message translates to:
+  /// **'استئناف الإتاحة'**
+  String get resumeAvailability;
+
+  /// No description provided for @cancelAvailability.
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء الإتاحة'**
+  String get cancelAvailability;
+
+  /// No description provided for @editAvailability.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعديل الإتاحة'**
+  String get editAvailability;
+
+  /// No description provided for @canonicalPassengerRequest.
+  ///
+  /// In ar, this message translates to:
+  /// **'طلب مسار'**
+  String get canonicalPassengerRequest;
+
+  /// No description provided for @canonicalPassengerRequestBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'اطلب التنقل عبر مسار ومحطات معتمدة.'**
+  String get canonicalPassengerRequestBody;
+
+  /// No description provided for @pickupStop.
+  ///
+  /// In ar, this message translates to:
+  /// **'محطة الصعود'**
+  String get pickupStop;
+
+  /// No description provided for @dropoffStop.
+  ///
+  /// In ar, this message translates to:
+  /// **'محطة النزول'**
+  String get dropoffStop;
+
+  /// No description provided for @departureFrom.
+  ///
+  /// In ar, this message translates to:
+  /// **'بداية وقت الانطلاق'**
+  String get departureFrom;
+
+  /// No description provided for @departureUntil.
+  ///
+  /// In ar, this message translates to:
+  /// **'نهاية وقت الانطلاق'**
+  String get departureUntil;
+
+  /// No description provided for @requestRecorded.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم تسجيل طلب المسار.'**
+  String get requestRecorded;
+
+  /// No description provided for @matchingDisabledNotice.
+  ///
+  /// In ar, this message translates to:
+  /// **'المطابقة غير مفعلة في هذه المرحلة. لم يُعيَّن سائق ولم تُنشأ رحلة.'**
+  String get matchingDisabledNotice;
+
+  /// No description provided for @canonicalMerchantOrder.
+  ///
+  /// In ar, this message translates to:
+  /// **'طلب طرود عبر مسار'**
+  String get canonicalMerchantOrder;
+
+  /// No description provided for @canonicalMerchantOrderBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'أنشئ طلباً واحداً متكاملاً على مسار معتمد.'**
+  String get canonicalMerchantOrderBody;
+
+  /// No description provided for @parcelPickupStop.
+  ///
+  /// In ar, this message translates to:
+  /// **'محطة استلام الطرود'**
+  String get parcelPickupStop;
+
+  /// No description provided for @parcelDestination.
+  ///
+  /// In ar, this message translates to:
+  /// **'وجهة الطرد'**
+  String get parcelDestination;
+
+  /// No description provided for @parcelPriority.
+  ///
+  /// In ar, this message translates to:
+  /// **'أولوية الطرد'**
+  String get parcelPriority;
+
+  /// No description provided for @orderRecorded.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم تسجيل طلب الطرود عبر المسار.'**
+  String get orderRecorded;
+
+  /// No description provided for @batchingMatchingDisabledNotice.
+  ///
+  /// In ar, this message translates to:
+  /// **'التجميع والمطابقة غير مفعلين في هذه المرحلة. لم يُعيَّن سائق ولم تُنشأ رحلة توصيل.'**
+  String get batchingMatchingDisabledNotice;
+
+  /// No description provided for @submitAvailability.
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال الإتاحة'**
+  String get submitAvailability;
+
+  /// No description provided for @selectDateTime.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر التاريخ والوقت'**
+  String get selectDateTime;
+
+  /// No description provided for @invalidDepartureWindow.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر نافذة انطلاق مستقبلية وصحيحة.'**
+  String get invalidDepartureWindow;
+
+  /// No description provided for @invalidStopOrder.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر محطة معتمدة لاحقة في المسار.'**
+  String get invalidStopOrder;
+
+  /// No description provided for @operationTemporaryFailure.
+  ///
+  /// In ar, this message translates to:
+  /// **'نتيجة العملية غير مؤكدة. أعد محاولة العملية نفسها عند توفر الاتصال.'**
+  String get operationTemporaryFailure;
+
+  /// No description provided for @transactionRetryRequired.
+  ///
+  /// In ar, this message translates to:
+  /// **'حدث تعارض مؤقت في المعاملة. أعد محاولة هذه العملية.'**
+  String get transactionRetryRequired;
+
+  /// No description provided for @refreshRoutes.
+  ///
+  /// In ar, this message translates to:
+  /// **'تحديث المسارات'**
+  String get refreshRoutes;
+
+  /// No description provided for @statusPaused.
+  ///
+  /// In ar, this message translates to:
+  /// **'متوقفة مؤقتاً'**
+  String get statusPaused;
+
+  /// No description provided for @statusFilled.
+  ///
+  /// In ar, this message translates to:
+  /// **'ممتلئة'**
+  String get statusFilled;
+
+  /// No description provided for @statusDeparted.
+  ///
+  /// In ar, this message translates to:
+  /// **'انطلقت'**
+  String get statusDeparted;
+
+  /// No description provided for @returnToDashboard.
+  ///
+  /// In ar, this message translates to:
+  /// **'العودة إلى لوحة التحكم'**
+  String get returnToDashboard;
 }
 
 class _AppLocalizationsDelegate

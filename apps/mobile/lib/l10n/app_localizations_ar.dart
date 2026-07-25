@@ -505,7 +505,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get statusExpired => 'منتهية';
 
   @override
-  String get statusActive => 'نشط';
+  String get statusActive => 'نشطة';
 
   @override
   String get statusInactive => 'غير نشط';
@@ -836,4 +836,172 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get signInAfterApproval =>
       'تمت الموافقة على حسابك. سجّل الدخول للمتابعة.';
+
+  @override
+  String get canonicalRoutes => 'خدمات المسارات المتعددة';
+
+  @override
+  String get canonicalRoutesBody =>
+      'اختر من المسارات الحالية والمحطات المعتمدة.';
+
+  @override
+  String get featureUnavailable => 'هذه الخدمة غير متاحة في هذه البيئة.';
+
+  @override
+  String get routeCatalogUnavailable =>
+      'المسارات غير متاحة مؤقتاً. حدّثها قبل الإرسال.';
+
+  @override
+  String get noPublishedRoutes => 'لا توجد مسارات منشورة ومؤهلة حالياً.';
+
+  @override
+  String get selectRoute => 'اختر المسار';
+
+  @override
+  String get routeDirection => 'الاتجاه';
+
+  @override
+  String get directionOutbound => 'ذهاب';
+
+  @override
+  String get directionInbound => 'عودة';
+
+  @override
+  String get directionLoop => 'دائري';
+
+  @override
+  String get orderedStops => 'المحطات بالترتيب';
+
+  @override
+  String stopSequence(int sequence) {
+    return 'المحطة $sequence';
+  }
+
+  @override
+  String get driverAvailabilities => 'إتاحة المسار';
+
+  @override
+  String get newAvailability => 'إنشاء إتاحة لمسار';
+
+  @override
+  String get noAvailabilities => 'لم تُنشأ إتاحة لمسار بعد.';
+
+  @override
+  String get departureTime => 'وقت الانطلاق';
+
+  @override
+  String get availabilityWindowEnd => 'نهاية نافذة الإتاحة (اختياري)';
+
+  @override
+  String get seatCapacity => 'سعة المقاعد';
+
+  @override
+  String get reviewAndConfirm => 'مراجعة وتأكيد';
+
+  @override
+  String get availabilityRecorded => 'تم تسجيل الإتاحة';
+
+  @override
+  String remainingCapacity(int seats, int parcels) {
+    return 'المتبقي: $seats مقاعد، $parcels طرود';
+  }
+
+  @override
+  String get activateAvailability => 'تفعيل الإتاحة';
+
+  @override
+  String get pauseAvailability => 'إيقاف الإتاحة مؤقتاً';
+
+  @override
+  String get resumeAvailability => 'استئناف الإتاحة';
+
+  @override
+  String get cancelAvailability => 'إلغاء الإتاحة';
+
+  @override
+  String get editAvailability => 'تعديل الإتاحة';
+
+  @override
+  String get canonicalPassengerRequest => 'طلب مسار';
+
+  @override
+  String get canonicalPassengerRequestBody =>
+      'اطلب التنقل عبر مسار ومحطات معتمدة.';
+
+  @override
+  String get pickupStop => 'محطة الصعود';
+
+  @override
+  String get dropoffStop => 'محطة النزول';
+
+  @override
+  String get departureFrom => 'بداية وقت الانطلاق';
+
+  @override
+  String get departureUntil => 'نهاية وقت الانطلاق';
+
+  @override
+  String get requestRecorded => 'تم تسجيل طلب المسار.';
+
+  @override
+  String get matchingDisabledNotice =>
+      'المطابقة غير مفعلة في هذه المرحلة. لم يُعيَّن سائق ولم تُنشأ رحلة.';
+
+  @override
+  String get canonicalMerchantOrder => 'طلب طرود عبر مسار';
+
+  @override
+  String get canonicalMerchantOrderBody =>
+      'أنشئ طلباً واحداً متكاملاً على مسار معتمد.';
+
+  @override
+  String get parcelPickupStop => 'محطة استلام الطرود';
+
+  @override
+  String get parcelDestination => 'وجهة الطرد';
+
+  @override
+  String get parcelPriority => 'أولوية الطرد';
+
+  @override
+  String get orderRecorded => 'تم تسجيل طلب الطرود عبر المسار.';
+
+  @override
+  String get batchingMatchingDisabledNotice =>
+      'التجميع والمطابقة غير مفعلين في هذه المرحلة. لم يُعيَّن سائق ولم تُنشأ رحلة توصيل.';
+
+  @override
+  String get submitAvailability => 'إرسال الإتاحة';
+
+  @override
+  String get selectDateTime => 'اختر التاريخ والوقت';
+
+  @override
+  String get invalidDepartureWindow => 'اختر نافذة انطلاق مستقبلية وصحيحة.';
+
+  @override
+  String get invalidStopOrder => 'اختر محطة معتمدة لاحقة في المسار.';
+
+  @override
+  String get operationTemporaryFailure =>
+      'نتيجة العملية غير مؤكدة. أعد محاولة العملية نفسها عند توفر الاتصال.';
+
+  @override
+  String get transactionRetryRequired =>
+      'حدث تعارض مؤقت في المعاملة. أعد محاولة هذه العملية.';
+
+  @override
+  String get refreshRoutes => 'تحديث المسارات';
+
+  @override
+  String get statusPaused => 'متوقفة مؤقتاً';
+
+  @override
+  String get statusFilled => 'ممتلئة';
+
+  @override
+  String get statusDeparted => 'انطلقت';
+
+  @override
+  String get returnToDashboard => 'العودة إلى لوحة التحكم';
 }

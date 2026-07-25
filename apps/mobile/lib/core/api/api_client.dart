@@ -32,9 +32,13 @@ class ApiClient {
   final http.Client client;
   final Duration timeout;
 
-  Future<Map<String, dynamic>> getJson(String path, {String? token}) async {
+  Future<Map<String, dynamic>> getJson(
+    String path, {
+    String? token,
+    Map<String, String> headers = const {},
+  }) async {
     return _sendJson(() {
-      return client.get(_uri(path), headers: _headers(token));
+      return client.get(_uri(path), headers: _headers(token, headers));
     });
   }
 
@@ -42,11 +46,12 @@ class ApiClient {
     String path, {
     required Map<String, dynamic> body,
     String? token,
+    Map<String, String> headers = const {},
   }) async {
     return _sendJson(() {
       return client.post(
         _uri(path),
-        headers: _headers(token),
+        headers: _headers(token, headers),
         body: jsonEncode(body),
       );
     });
@@ -56,28 +61,39 @@ class ApiClient {
     String path, {
     Map<String, dynamic> body = const {},
     String? token,
+    Map<String, String> headers = const {},
   }) async {
     return _sendJson(() {
       return client.patch(
         _uri(path),
-        headers: _headers(token),
+        headers: _headers(token, headers),
         body: jsonEncode(body),
       );
     });
   }
 
-  Future<Map<String, dynamic>> deleteJson(String path, {String? token}) async {
+  Future<Map<String, dynamic>> deleteJson(
+    String path, {
+    String? token,
+    Map<String, String> headers = const {},
+  }) async {
     return _sendJson(() {
-      return client.delete(_uri(path), headers: _headers(token));
+      return client.delete(_uri(path), headers: _headers(token, headers));
     });
   }
 
   Uri _uri(String path) => Uri.parse('$baseUrl/api/v1$path');
 
-  Map<String, String> _headers(String? token) {
+  Map<String, String> _headers(String? token, Map<String, String> additional) {
+    if (additional.keys.any(
+      (key) => key.toLowerCase() == HttpHeaders.authorizationHeader,
+    )) {
+      throw ArgumentError('Authorization is managed by the session boundary');
+    }
     final headers = <String, String>{
       HttpHeaders.acceptHeader: 'application/json',
       HttpHeaders.contentTypeHeader: 'application/json',
+      ...additional,
     };
     if (token != null && token.isNotEmpty) {
       headers[HttpHeaders.authorizationHeader] = 'Bearer $token';
