@@ -3,7 +3,8 @@
 [PROJECT_OVERVIEW]
 Masari is a Palestine-focused smart route-sharing logistics MVP.
 
-Current implementation status: M7B Canonical Route Management and M7C1 Backend Multi-Route Operational Foundation are closed on `production-readiness`. M7C1 provides backend-only canonical entry, immutable operational references, one-off driver availability, and transactional capacity services behind local/test/demo-only gates. M7C2 and M7C3 have not started; production multi-route matching, mobile selection, maps, GPS, and realtime remain disabled and deferred.
+Current implementation status: M7B Canonical Route Management and M7C1 Backend Multi-Route Operational Foundation are closed on `production-readiness`. M7C1 provides backend-only canonical entry, immutable operational references, one-off driver availability, and transactional capacity services behind local/test/demo-only gates. M7C2 is active; M7C3 has not started, and production multi-route matching, maps, GPS, and realtime remain disabled and deferred.
+M7C2 Flutter Multi-Route Role Flows is active on feature branch `m7c2/flutter-multi-route-flows`. Its primary scope is mobile catalog/stop selection, driver one-off availability, passenger canonical requests, merchant canonical orders, secure exact-operation replay, and Arabic/English accessibility behind server-authoritative local/test/demo capability checks. M7C3 matching/trips and M7D maps/GPS/realtime have not started.
 
 Locked MVP corridor:
 Hebron / PPU / Bab Al-Zawiya -> Bethlehem.
@@ -2601,3 +2602,13 @@ Accepted obligations and next boundary:
 - Privileged direct-database insertion of an inverse-mode Parcel remains outside the normal application threat boundary. Before M7C3 introduces any standalone Parcel writer, import, admin creation, ETL, or direct application writer, it must add normalized non-null parent/child operational-mode enforcement.
 - Millisecond-different driver departures intentionally remain separate availability identities with separate capacity. Bounded internal deadlock retry is optional future hardening; M7C1 guarantees atomic rollback and a safe retryable response category.
 - M7C2 and M7C3 have not started. Mobile route selection, canonical matching/batching/offers/acceptance/trips, maps, GPS, location ingestion, realtime, pricing, and dispatching remain future milestones.
+
+[M7C2_FLUTTER_MULTI_ROUTE_ROLE_FLOWS]
+Approved implementation boundary (2026-07-25):
+- M7C2 is a Flutter-first data-entry and lifecycle milestone. It adds separate canonical role flows without replacing or reinterpreting the deterministic fixed-corridor passenger, driver, merchant, matching, or trip paths.
+- The server remains authoritative through an authenticated safe capability result. Catalog publication and canonical entry are independent; production/staging entry remains forbidden, matching remains disabled everywhere, and stale cached capability or route data cannot authorize submission.
+- Mobile route selection uses only stable route/version/stop IDs, bilingual names, direction, active dates, ordered sequence, and pickup/drop-off permissions. It accepts no address, coordinate, route label, geometry, recurrence, price, assignment, or capacity-reservation authority.
+- Exact uncertain create operations persist the minimum replay bundle only in secure storage. Changed payloads create a new logical key; terminal outcomes clear the bundle; logout, logout-all, role/session termination, and feature disablement clear canonical state.
+- No Prisma schema or migration change is planned. Existing driver owner list/detail contracts and idempotent create replay are sufficient; passenger/merchant history reads remain optional and out of scope.
+- M7C3 must enforce normalized MerchantOrder/Parcel operational mode before any standalone Parcel writer, import, admin creation, ETL, or direct application writer. M7C3 also owns matching, batching, offers, capacity holds, acceptance, assignment, and canonical trips.
+- No map SDK/provider, route-line placeholder, GPS/location permission, location ingestion, realtime transport, dispatching, or pricing is part of M7C2. Maps remain an M7D boundary.
