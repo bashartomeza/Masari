@@ -38,3 +38,40 @@ Live demo preflight passed 22/22 and deterministic smoke retained score
 `0.9317`, sequence `2`, trips `1` versus `6`, distance `21.53` versus `129.19`,
 cost `43.06` versus `258.38`, and winner `masari`. Captured-log scanning found
 no credential, authorization, idempotency-header, or coordinate markers.
+
+## Independent review correction evidence
+
+The independent review found no Critical issue and corrected the High-risk
+operation-recovery defects before review readiness. The secure create bundle is
+now versioned and actor-bound, persisted before send, preserved through
+ambiguous idempotency/network outcomes and authentication termination, blocked
+from payload/operation/account replacement, and deleted only after confirmed
+result acknowledgement or exact owner-detail reconciliation. Expired,
+clock-anomalous, and unreadable bundles are quarantined instead of silently
+discarded. New operations revalidate both capability and current-route
+eligibility immediately before persistence/send.
+
+The emulator reproduced passenger and merchant process death after a committed
+response and before result acknowledgement. Both exact replays retained one
+logical record and produced zero canonical matches/trips. Cross-account access
+was blocked without exposing the encrypted payload. A real driver-to-merchant
+sequence found and corrected MySQL millisecond versus Flutter microsecond
+result reconciliation; the rebuilt app then cleared only the exact driver
+bundle and allowed the merchant operation. Driver draft/activate/pause/resume/
+cancel lifecycle state remained server-authoritative.
+
+Final correction-head local gates passed 179 API tests, 27 admin tests, 163
+Flutter tests, eight tooling tests, production admin/release-APK scans, empty
+and repeatable 13-migration deployment, trusted sessions, onboarding, 76-check
+public onboarding, route lifecycle, the M7C1 78-assertion harness, backup/
+isolated restore, 22/22 preflight, and deterministic smoke. The final reset
+left zero canonical availability/request/order/match/trip records. Arabic RTL,
+English LTR, API 36, landscape, and 200% text were inspected on the rebuilt
+debug APK.
+
+Accepted non-blocking follow-ups remain: add dirty-form-specific back warnings;
+add a spoken reason when the merchant reaches 50 parcels and a dedicated
+TalkBack 50/51 automation; expose driver edit controls if product scope later
+requires them; and add an owner-history/support reconciliation contract before
+automating recovery beyond the server idempotency window. These do not weaken
+the exact replay, actor isolation, feature gate, or M7C3 boundary.

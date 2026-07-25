@@ -12,3 +12,9 @@ The list and detail always use server-returned status, revision, totals, and rem
 Every mutation uses the server's resulting record; the UI does not optimistically infer a lifecycle transition. Backend validation remains authoritative for timing, route eligibility, verification, reservations, revisions, and conflicts. A transaction retry is shown as an explicit retryable condition, while validation and reservation conflicts are terminal for that attempted payload.
 
 Creation is idempotent and recoverable through the shared secure operation bundle. The flow makes no claim that a passenger, merchant, match, assignment, or trip exists.
+
+The create bundle is acknowledged only after the owner detail read matches the
+route version, departure/window instants, and capacity totals. Timestamp
+comparison uses the MySQL-supported millisecond precision so a Flutter
+microsecond timestamp cannot strand a confirmed result, while any materially
+different result remains unresolved.

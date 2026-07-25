@@ -15,7 +15,7 @@ Add one authenticated, allowlisted capability read that reports only whether the
 
 Flutter adds a separate canonical module alongside—not inside—the existing passenger, driver, and merchant legacy repositories. It uses strict typed catalog and operational response parsing, revalidates capability and the selected current route before submission, derives stop choices only from ordered server permissions, and never treats route data as geometry.
 
-Each logical create operation owns one secure in-flight bundle containing the operation type, role scope, raw idempotency key, normalized exact payload, fingerprint, creation time, and safe route identifier. The bundle is written through `flutter_secure_storage` before sending, retained only for ambiguous retryable outcomes, reused unchanged after response loss or process death, and cleared after authoritative success or terminal failure. Lifecycle actions use optimistic revisions and synchronous busy fencing; they do not call capacity services.
+Each logical create operation owns one secure in-flight bundle containing the operation type, role scope, authenticated actor ID, raw idempotency key, normalized exact payload, fingerprint, creation time, and safe route identifier. The bundle is written through `flutter_secure_storage` before sending, retained for ambiguous outcomes and across authentication termination, reused unchanged after response loss or process death only by the same actor, and cleared after confirmed result reconciliation/acknowledgement or a definitively uncommitted terminal failure. A changed payload or different operation cannot replace an unresolved bundle. Expired, clock-anomalous, or unreadable bundles are quarantined for support-assisted resolution rather than silently deleted. Lifecycle actions use optimistic revisions and synchronous busy fencing; they do not call capacity services.
 
 Canonical navigation is available only to the authenticated matching role after a fresh enabled capability result. Disabled, stale, revoked, suspended, role-changed, or terminal-session state clears canonical providers and safely returns to the role dashboard. The existing fixed-corridor demo UI and contracts remain unchanged.
 
@@ -23,7 +23,7 @@ Canonical navigation is available only to the authenticated matching role after 
 
 - Driver mobile users can manage one-off canonical availability without editing route content.
 - Passenger and merchant users can record normalized route/stop demand with truthful matching-disabled results.
-- Exact response-loss replay cannot create a second logical operation.
+- Exact response-loss replay cannot create a second logical operation, and an unresolved operation blocks replacement with a new payload or actor.
 - Production-like builds cannot enable canonical entry locally.
 - No schema or migration change is required.
 - M7C3 retains responsibility for canonical matching, batching, offers, capacity holds, acceptance, trips, and normalized parent/child Parcel mode enforcement before any standalone Parcel writer.
