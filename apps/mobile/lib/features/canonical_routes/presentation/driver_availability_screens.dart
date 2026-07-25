@@ -7,6 +7,7 @@ import '../../../core/api/api_error.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/masari_card.dart';
 import '../application/canonical_route_controller.dart';
+import '../data/canonical_operation_storage.dart';
 import '../domain/canonical_route_models.dart';
 import 'canonical_route_widgets.dart';
 
@@ -83,6 +84,7 @@ class DriverAvailabilityFormScreen extends ConsumerStatefulWidget {
 
 class _DriverAvailabilityFormScreenState
     extends ConsumerState<DriverAvailabilityFormScreen> {
+  String? _restoredRouteVersionId;
   CanonicalRoute? _route;
   DateTime _departure = DateTime.now().add(const Duration(hours: 2));
   DateTime? _windowEnd;
@@ -90,6 +92,33 @@ class _DriverAvailabilityFormScreenState
   int _parcels = 0;
   bool _busy = false;
   Object? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    Future<void>(() async {
+      final bundle = await ref.read(canonicalOperationStorageProvider).read();
+      if (!mounted ||
+          bundle?.operation != 'driver_availability_create' ||
+          bundle?.scope != 'driver') {
+        return;
+      }
+      final payload = bundle!.payload;
+      setState(() {
+        _restoredRouteVersionId = payload['route_version_id'] as String?;
+        _departure =
+            DateTime.tryParse(
+              payload['departure_at'] as String? ?? '',
+            )?.toLocal() ??
+            _departure;
+        _windowEnd = DateTime.tryParse(
+          payload['availability_window_end'] as String? ?? '',
+        )?.toLocal();
+        _seats = payload['total_seats'] as int? ?? _seats;
+        _parcels = payload['total_parcel_capacity'] as int? ?? _parcels;
+      });
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -111,6 +140,27 @@ class _DriverAvailabilityFormScreenState
                 data: (routes) => ListView(
                   padding: const EdgeInsets.all(AppTokens.spaceLarge),
                   children: [
+                    if (_route == null && _restoredRouteVersionId != null)
+                      Builder(
+                        builder: (context) {
+                          final restored = routes
+                              .where(
+                                (route) =>
+                                    route.versionId == _restoredRouteVersionId,
+                              )
+                              .firstOrNull;
+                          if (restored != null) {
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              if (mounted && _route == null) {
+                                setState(() => _route = restored);
+                              }
+                            });
+                          } else {
+                            _restoredRouteVersionId = null;
+                          }
+                          return const SizedBox.shrink();
+                        },
+                      ),
                     Text(
                       l10n.selectRoute,
                       style: Theme.of(context).textTheme.titleLarge,
@@ -229,6 +279,10 @@ class _DriverAvailabilityFormScreenState
           });
       if (mounted) context.go('/driver/availability/${value.id}');
     } catch (error) {
+      if (error is ApiException && error.statusCode == 404) {
+        ref.invalidate(mobileCapabilitiesProvider);
+        ref.invalidate(canonicalRouteCatalogProvider);
+      }
       if (mounted) setState(() => _error = error);
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -353,6 +407,10 @@ class _DriverAvailabilityDetailScreenState
           .read(driverAvailabilitiesProvider.notifier)
           .transition(value, action);
     } catch (error) {
+      if (error is ApiException && error.statusCode == 404) {
+        ref.invalidate(mobileCapabilitiesProvider);
+        ref.invalidate(canonicalRouteCatalogProvider);
+      }
       if (mounted) setState(() => _error = error);
     } finally {
       if (mounted) setState(() => _busy = false);

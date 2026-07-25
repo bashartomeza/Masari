@@ -112,14 +112,19 @@ class DriverAvailabilitiesNotifier
     if (_mutating) throw StateError('operation_in_progress');
     _mutating = true;
     try {
-      final value = await ref
-          .read(canonicalRouteRepositoryProvider)
-          .updateAvailability(availability.id, {
-            'expected_revision': availability.revision,
-            ...changes,
-          });
-      await refresh();
-      return value;
+      try {
+        final value = await ref
+            .read(canonicalRouteRepositoryProvider)
+            .updateAvailability(availability.id, {
+              'expected_revision': availability.revision,
+              ...changes,
+            });
+        await refresh();
+        return value;
+      } catch (_) {
+        await refresh();
+        rethrow;
+      }
     } finally {
       _mutating = false;
     }
@@ -132,11 +137,18 @@ class DriverAvailabilitiesNotifier
     if (_mutating) throw StateError('operation_in_progress');
     _mutating = true;
     try {
-      final value = await ref
-          .read(canonicalRouteRepositoryProvider)
-          .transitionAvailability(availability, action);
-      await refresh();
-      return value;
+      try {
+        final value = await ref
+            .read(canonicalRouteRepositoryProvider)
+            .transitionAvailability(availability, action);
+        await refresh();
+        return value;
+      } catch (_) {
+        // Response loss can leave the mutation committed. Reloading server
+        // state prevents a second lifecycle action based on a stale revision.
+        await refresh();
+        rethrow;
+      }
     } finally {
       _mutating = false;
     }

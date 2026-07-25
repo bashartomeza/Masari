@@ -354,6 +354,10 @@ class _MerchantRouteOrderScreenState
           );
       if (mounted) setState(() => _result = result);
     } catch (error) {
+      if (error is ApiException && error.statusCode == 404) {
+        ref.invalidate(mobileCapabilitiesProvider);
+        ref.invalidate(canonicalRouteCatalogProvider);
+      }
       if (mounted) setState(() => _error = error);
     } finally {
       if (mounted) setState(() => _busy = false);
