@@ -2601,7 +2601,7 @@ Post-merge validation evidence:
 Accepted obligations and next boundary:
 - Privileged direct-database insertion of an inverse-mode Parcel remains outside the normal application threat boundary. Before M7C3 introduces any standalone Parcel writer, import, admin creation, ETL, or direct application writer, it must add normalized non-null parent/child operational-mode enforcement.
 - Millisecond-different driver departures intentionally remain separate availability identities with separate capacity. Bounded internal deadlock retry is optional future hardening; M7C1 guarantees atomic rollback and a safe retryable response category.
-- M7C2 and M7C3 have not started. Mobile route selection, canonical matching/batching/offers/acceptance/trips, maps, GPS, location ingestion, realtime, pricing, and dispatching remain future milestones.
+- M7C2 is implemented on its review branch. M7C3 canonical matching/batching/offers/acceptance/trips, maps, GPS, location ingestion, realtime, pricing, and dispatching remain future milestones.
 
 [M7C2_FLUTTER_MULTI_ROUTE_ROLE_FLOWS]
 Approved implementation boundary (2026-07-25):
@@ -2621,3 +2621,10 @@ Implemented branch state (2026-07-25):
 - Arabic/English strings, RTL/LTR direction, textual ordered-stop timeline, minimum Material targets, semantics, scrollable responsive layouts, and truthful matching-disabled confirmations are included.
 - Focused API capability/privacy tests and Flutter contract, ordered-permission, replay, temporary/terminal error, changed-payload, tamper, and rapid-tap tests are present. Complete MySQL/emulator/artifact/deterministic validation remains the delivery gate before the draft PR can be considered review-ready.
 - During M7C2 validation, the registry disclosed a high PostCSS advisory and a moderate advisory in Prisma CLI's exact-pinned `valibot`. A non-breaking lockfile-only PostCSS/nanoid refresh removed the High finding. `valibot` remains documented only inside the non-runtime Prisma CLI moderate exception because the proposed npm repair changes Prisma outside its approved range; no force fix or Prisma change was made.
+
+Final validation evidence (2026-07-25):
+- Clean npm install, Prisma validation/generation, repeat no-op deployment and current status for 13 migrations, workspace typecheck/build, 179 API tests, 27 admin tests, eight tooling tests, and standard/security policy passed. The raw production audit retains only four approved moderate Prisma CLI transitives and no High/Critical finding.
+- Flutter dependency/localization generation, zero-change formatting, analysis, and 155 tests passed. Debug and production-like APKs built; the production admin and APK artifact scans passed.
+- The dedicated real-MySQL empty/current suites passed migration repeatability, trusted sessions, onboarding, public onboarding, M7B routes, and the M7C1 78-assertion operational/concurrency harness, then cleaned up. Checksum-backed backup/isolated restore verification passed and removed the restore database.
+- Emulator API 36 validation passed Arabic-first RTL, English LTR, driver availability lifecycle, passenger canonical request, merchant atomic route order, truthful matching-disabled outcomes, system back, landscape, and 200% text. A raw service-region key discovered in the route card was removed and the rebuilt APK was rechecked.
+- Live demo preflight passed 22/22. Deterministic smoke retained score `0.9317`, sequence `2`, trips `1` versus `6`, distance `21.53` versus `129.19`, cost `43.06` versus `258.38`, and winner `masari`. Production artifact and captured-log scans found no forbidden configuration, credential, authorization, idempotency-header, coordinate, demo-control, matching, map, GPS, or realtime leakage.
