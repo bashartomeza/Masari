@@ -26,7 +26,7 @@ npm run validate:security
 
 The backend workflow deploys the checked-in MySQL migrations into an empty ephemeral database, deploys them a second time to prove idempotence, checks migration status, then runs the compiled API and the deterministic smoke against real MySQL. It never connects to a developer, staging, or production database.
 
-The security workflow scans tracked paths/content without printing matches, enforces the lockfile, runs production-isolation tests, and applies the dependency policy: high/critical and unapproved moderate advisories fail. The documented moderate exception is limited to the current Prisma CLI chain (`@hono/node-server`, `@prisma/dev`, and `prisma`); it is not a global severity waiver.
+The security workflow scans tracked paths/content without printing matches, enforces the lockfile, runs production-isolation tests, and applies the dependency policy: high/critical and unapproved moderate advisories fail. The documented moderate exception is limited to the current Prisma CLI-only chain (`@hono/node-server`, `@prisma/dev`, `prisma`, and its pinned `valibot`); it is not a global severity waiver. The application does not import these CLI transitive packages at runtime, and their upstream fix currently requires the prohibited out-of-range Prisma force update.
 
 Production admin and APK outputs are scanned for reset/simulation controls, demo credential markers, and the Full Demo Sequence marker. Ordinary CI builds an unsigned APK and does not receive signing material.
 
