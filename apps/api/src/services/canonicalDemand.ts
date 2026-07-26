@@ -195,7 +195,7 @@ export function createCanonicalDemandService(db: PrismaClient = prisma) {
         });
         const { pickup, destinations } = requireMerchantStops(route, input.pickupStopId, destinationIds);
         const now = new Date();
-        const resource = await tx.merchantOrder.create({
+        const createdOrder = await tx.merchantOrder.create({
           data: {
             merchant_id: actor.id,
             pickup_label: pickup.stop.nameEn,
@@ -208,22 +208,26 @@ export function createCanonicalDemandService(db: PrismaClient = prisma) {
             requested_departure_from: input.requestedDepartureFrom,
             requested_departure_until: input.requestedDepartureUntil,
             canonical_created_at: now,
-            operational_mode: CANONICAL_ENTRY_VERSION,
-            parcels: {
-              create: input.parcels.map((parcel, index) => ({
-                destination_label: destinations[index].stop.nameEn,
-                destination_lat: destinations[index].stop.latitude,
-                destination_lng: destinations[index].stop.longitude,
-                size: parcel.size,
-                priority: parcel.priority,
-                status: "pending" as const,
-                route_version_id: route.id,
-                destination_stop_id: destinations[index].stopId,
-                canonical_entry_version: CANONICAL_ENTRY_VERSION,
-                operational_mode: CANONICAL_ENTRY_VERSION
-              }))
-            }
-          },
+            operational_mode: CANONICAL_ENTRY_VERSION
+          }
+        });
+        await tx.parcel.createMany({
+          data: input.parcels.map((parcel, index) => ({
+            order_id: createdOrder.id,
+            destination_label: destinations[index].stop.nameEn,
+            destination_lat: destinations[index].stop.latitude,
+            destination_lng: destinations[index].stop.longitude,
+            size: parcel.size,
+            priority: parcel.priority,
+            status: "pending" as const,
+            route_version_id: route.id,
+            destination_stop_id: destinations[index].stopId,
+            canonical_entry_version: CANONICAL_ENTRY_VERSION,
+            operational_mode: CANONICAL_ENTRY_VERSION
+          }))
+        });
+        const resource = await tx.merchantOrder.findUniqueOrThrow({
+          where: { id: createdOrder.id },
           include: { parcels: true }
         });
         await tx.canonicalDemandDispatch.create({

@@ -240,7 +240,7 @@ describe("M7C3A canonical matching APIs", () => {
       TRUST_PROXY: "none"
     });
     const service = createCanonicalMatchingService({} as never, production);
-    await expect(service.run()).rejects.toMatchObject({ status: 404 });
-    await expect(service.expire()).rejects.toMatchObject({ status: 404 });
+    await expect(service.run()).rejects.toMatchObject({ statusCode: 404 });
+    await expect(service.expire()).rejects.toMatchObject({ statusCode: 404 });
   });
 });

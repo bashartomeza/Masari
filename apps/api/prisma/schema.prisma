@@ -648,6 +648,8 @@ model DriverRoute {
   trips          Trip[]
   capacity_reservations CapacityReservation[]
   canonical_matches Match[] @relation("CanonicalOfferAvailability")
+  mode_matches Match[] @relation("MatchAvailabilityMode")
+  mode_trips Trip[] @relation("TripAvailabilityMode")
 
   @@index([corridor_key])
   @@index([route_version_id, availability_status, departure_at])
@@ -930,6 +932,7 @@ model Match {
   expiry_last_failed_at DateTime?
 
   driver_route      DriverRoute       @relation(fields: [driver_route_id], references: [id], onDelete: Restrict)
+  mode_driver_route DriverRoute       @relation("MatchAvailabilityMode", fields: [driver_route_id, operational_mode], references: [id, operational_mode], onDelete: Restrict, onUpdate: Restrict)
   canonical_driver_route DriverRoute? @relation("CanonicalOfferAvailability", fields: [driver_route_id, route_version_id, operational_mode], references: [id, route_version_id, operational_mode], onDelete: Restrict, onUpdate: Restrict)
   passenger_request PassengerRequest? @relation(fields: [passenger_request_id], references: [id], onDelete: Restrict)
   merchant_order    MerchantOrder?    @relation(fields: [merchant_order_id], references: [id], onDelete: Restrict)
@@ -988,6 +991,7 @@ model Trip {
   canonical_dispatch_id  String?    @unique
 
   driver_route      DriverRoute       @relation(fields: [driver_route_id], references: [id], onDelete: Restrict)
+  mode_driver_route DriverRoute       @relation("TripAvailabilityMode", fields: [driver_route_id, operational_mode], references: [id, operational_mode], onDelete: Restrict, onUpdate: Restrict)
   passenger_request PassengerRequest? @relation(fields: [passenger_request_id], references: [id], onDelete: Restrict)
   merchant_order    MerchantOrder?    @relation(fields: [merchant_order_id], references: [id], onDelete: Restrict)
   parcel_batch      ParcelBatch?      @relation(fields: [parcel_batch_id], references: [id], onDelete: Restrict)

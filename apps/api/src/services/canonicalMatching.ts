@@ -584,7 +584,7 @@ export function createCanonicalMatchingService(db: PrismaClient = prisma, appCon
       requireEnabled();
       const owned = await this.getDriverOffer(driverUserId, offerId);
       try {
-        return await db.$transaction(async (tx) => {
+        const result = await db.$transaction(async (tx) => {
           const claim = await claimMutation(tx, "canonical_offer_accept", actor, offerId, { offer_id: offerId });
           if (claim.kind === "replay") {
             if (claim.record.resource_type !== "Trip" || !claim.record.resource_id) throw new HttpError(409, "idempotency_replay_unavailable");
@@ -592,7 +592,13 @@ export function createCanonicalMatchingService(db: PrismaClient = prisma, appCon
             if (!trip) throw new HttpError(409, "idempotency_replay_unavailable");
             return { trip, replayed: true };
           }
-          await requireEligibleOperationalRoute(tx, owned.route_version_id!, { lockForUpdate: true });
+          let routeEligible = true;
+          try {
+            await requireEligibleOperationalRoute(tx, owned.route_version_id!, { lockForUpdate: true });
+          } catch (error) {
+            if (!(error instanceof HttpError)) throw error;
+            routeEligible = false;
+          }
           await lockRow(tx, "canonical_demand_dispatches", owned.dispatch_id!);
           await lockRow(tx, "matches", offerId);
           await lockRow(tx, "driver_routes", owned.driver_route_id);
@@ -614,14 +620,25 @@ export function createCanonicalMatchingService(db: PrismaClient = prisma, appCon
             await completeIdempotency(tx, { recordId: claim.record.id, claimVersion: claim.record.claim_version, resourceType: "Trip", resourceId: trip.id, responseStatus: 200 });
             return { trip, replayed: true };
           }
-          if (
-            offer.status !== "sent_to_driver" ||
+          if (offer.status !== "sent_to_driver") throw new HttpError(409, "canonical_offer_not_acceptable");
+          const structurallyReleasable =
+            offer.dispatch &&
+            offer.dispatch.status === "offered" &&
+            offer.dispatch.active_match_offer_id === offer.id &&
+            offer.offer_reservation &&
+            offer.offer_reservation.status === "held";
+          if (!structurallyReleasable) throw new HttpError(409, "canonical_offer_not_acceptable");
+          let demand: Demand | undefined;
+          try {
+            demand = await loadDemand(tx, offer.dispatch!.id);
+          } catch (error) {
+            if (!(error instanceof HttpError)) throw error;
+          }
+          const invalid =
+            !routeEligible ||
             offer.expires_at! <= now ||
             !offer.dispatch ||
-            offer.dispatch.status !== "offered" ||
-            offer.dispatch.active_match_offer_id !== offer.id ||
             !offer.offer_reservation ||
-            offer.offer_reservation.status !== "held" ||
             offer.offer_reservation.expires_at <= now ||
             offer.driver_route.operational_mode !== CANONICAL_MODE ||
             offer.driver_route.availability_status !== "active" ||
@@ -629,24 +646,55 @@ export function createCanonicalMatchingService(db: PrismaClient = prisma, appCon
             offer.driver_route.driver.user_id !== driverUserId ||
             !offer.driver_route.driver.verified ||
             offer.driver_route.driver.user.role !== "driver" ||
-            offer.driver_route.driver.user.account_status !== "active"
-          ) throw new HttpError(409, "canonical_offer_not_acceptable");
-          const demand = await loadDemand(tx, offer.dispatch.id);
-          if (!demand.eligible || demand.routeVersionId !== offer.route_version_id) throw new HttpError(409, "canonical_demand_unavailable");
+            offer.driver_route.driver.user.account_status !== "active" ||
+            !demand?.eligible ||
+            demand.routeVersionId !== offer.route_version_id;
+          if (invalid) {
+            await restoreHeldCapacity(tx, offer.offer_reservation!, "expired", "hold_expired", now);
+            await tx.match.update({
+              where: { id: offer.id },
+              data: { status: "expired", expired_at: now, active_dispatch_key: null }
+            });
+            const unavailable = offer.dispatch!.attempt_count >= CANONICAL_MATCH_LIMITS.maximumAttempts;
+            await tx.canonicalDemandDispatch.update({
+              where: { id: offer.dispatch!.id },
+              data: {
+                status: unavailable ? "unavailable" : "pending",
+                active_match_offer_id: null,
+                revision: { increment: 1 }
+              }
+            });
+            await auditEvent(tx, {
+              userId: driverUserId,
+              action: AuditAction.canonical_offer_expired,
+              entityType: "Match",
+              entityId: offer.id,
+              metadata: {
+                dispatch_id: offer.dispatch!.id,
+                route_version_id: offer.route_version_id,
+                attempt_number: offer.attempt_number,
+                transition: "invalidated_before_accept",
+                request_id: actor.requestId
+              }
+            });
+            return { invalid: true as const };
+          }
+          const dispatch = offer.dispatch!;
+          const reservation = offer.offer_reservation!;
 
           const snapshot = await snapshots.build({
-            routeVersionId: demand.routeVersionId,
-            pickupStopId: demand.pickupStopId,
-            destinationStopIds: demand.destinationStopIds,
+            routeVersionId: demand!.routeVersionId,
+            pickupStopId: demand!.pickupStopId,
+            destinationStopIds: demand!.destinationStopIds,
             operationalMode: CANONICAL_MODE
           }, tx);
           await tx.capacityReservation.update({
-            where: { id: offer.offer_reservation.id },
+            where: { id: reservation.id },
             data: { status: "confirmed", confirmed_at: now, revision: { increment: 1 } }
           });
           await tx.match.update({
             where: { id: offer.id },
-            data: { status: "accepted", accepted_at: now, active_dispatch_key: null, accepted_dispatch_key: offer.dispatch.id }
+            data: { status: "accepted", accepted_at: now, active_dispatch_key: null, accepted_dispatch_key: dispatch.id }
           });
           const trip = await tx.trip.create({
             data: {
@@ -662,11 +710,11 @@ export function createCanonicalMatchingService(db: PrismaClient = prisma, appCon
               route_snapshot_schema_version: snapshot.schemaVersion,
               operational_mode: CANONICAL_MODE,
               canonical_match_id: offer.id,
-              canonical_dispatch_id: offer.dispatch.id
+              canonical_dispatch_id: dispatch.id
             }
           });
           await tx.canonicalDemandDispatch.update({
-            where: { id: offer.dispatch.id },
+            where: { id: dispatch.id },
             data: { status: "assigned", active_match_offer_id: null, assigned_trip_id: trip.id, revision: { increment: 1 } }
           });
           if (offer.passenger_request_id) {
@@ -680,18 +728,20 @@ export function createCanonicalMatchingService(db: PrismaClient = prisma, appCon
             action: AuditAction.canonical_offer_accepted,
             entityType: "Match",
             entityId: offer.id,
-            metadata: { dispatch_id: offer.dispatch.id, route_version_id: offer.route_version_id, transition: "offered_to_accepted", request_id: actor.requestId }
+            metadata: { dispatch_id: dispatch.id, route_version_id: offer.route_version_id, transition: "offered_to_accepted", request_id: actor.requestId }
           });
           await auditEvent(tx, {
             userId: driverUserId,
             action: AuditAction.canonical_trip_created,
             entityType: "Trip",
             entityId: trip.id,
-            metadata: { dispatch_id: offer.dispatch.id, route_version_id: offer.route_version_id, operational_mode: CANONICAL_MODE, request_id: actor.requestId }
+            metadata: { dispatch_id: dispatch.id, route_version_id: offer.route_version_id, operational_mode: CANONICAL_MODE, request_id: actor.requestId }
           });
           await completeIdempotency(tx, { recordId: claim.record.id, claimVersion: claim.record.claim_version, resourceType: "Trip", resourceId: trip.id, responseStatus: 200 });
           return { trip, replayed: false };
         }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted });
+        if ("invalid" in result) throw new HttpError(409, "canonical_offer_invalidated");
+        return result;
       } catch (error) {
         safeTransactionError(error);
       }
@@ -708,7 +758,9 @@ export function createCanonicalMatchingService(db: PrismaClient = prisma, appCon
             if (!offer || offer.status !== "rejected") throw new HttpError(409, "idempotency_replay_unavailable");
             return { offer, replayed: true };
           }
-          await requireEligibleOperationalRoute(tx, owned.route_version_id!, { lockForUpdate: true });
+          await requireEligibleOperationalRoute(tx, owned.route_version_id!, { lockForUpdate: true }).catch((error) => {
+            if (!(error instanceof HttpError)) throw error;
+          });
           await lockRow(tx, "canonical_demand_dispatches", owned.dispatch_id!);
           await lockRow(tx, "matches", offerId);
           await lockRow(tx, "driver_routes", owned.driver_route_id);
