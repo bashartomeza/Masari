@@ -1,5 +1,17 @@
 # PROJECT_MAP.md
 
+[M7C3A_BACKEND_CANONICAL_MATCHING_ACTIVE]
+- M7C3A is active on `m7c3a/backend-canonical-matching` and remains backend-only. M7C3B Flutter offer/assignment UI, M7C3C combined passenger/merchant batching, and M7D/M7E maps, GPS, realtime, pricing, and production dispatch are not started.
+- Forward-only migration 14 normalizes non-null operational mode across canonical demand, MerchantOrder/Parcel parent-child rows, offers, reservations, and trips. Composite restrictive foreign keys and checks reject cross-mode and cross-route direct writes.
+- `CanonicalDemandDispatch` owns exactly one passenger request or merchant order and enforces one active offer, one accepted offer, and one canonical trip per demand.
+- Local/test/demo matching requires explicit entry, matching, and trip-creation gates. Staging/production fail closed, and no public runner or scheduler exists.
+- `canonical_route_match_v1` uses departure fit (45%), capacity utilization (25%), trust (20%), and recent-assignment fairness (10%) with a stable documented tie-break. It uses no coordinates, geometry, fake ETA, demographics, or legacy score.
+- Offer creation atomically creates one held reservation and one decrement. Driver owner-only list/detail and idempotent accept/reject APIs use safe allowlist serializers. Rejection/expiry restore once; later bounded matching excludes terminal candidates and stops after five attempts.
+- Acceptance confirms rather than decrements, revalidates live route/demand/driver authority, and creates one canonical Trip with a bounded deterministic `canonical_route_snapshot_v1` checksum. It creates no location, GPS, map, simulation, or realtime state.
+- Passenger and merchant owner status APIs expose dispatch state and a minimum post-acceptance Trip/vehicle summary without candidate, score, reservation, phone, coordinate, or parcel-description disclosure.
+- Legacy match/trip/tracking paths explicitly exclude canonical records. The deterministic matcher, batcher, comparison, and demo formulas remain unchanged.
+- Current implementation evidence: migration 14 applies from empty and upgrades the backed-up 13-migration baseline; repeated deployment is a no-op; 189 API tests pass; and the disposable MySQL 8.0.46 M7C3A harness passes 73 persistent-state assertions including concurrent ten-call acceptance, exact capacity, deterministic snapshot, rejection, expiry, and reassignment.
+
 [PROJECT_OVERVIEW]
 Masari is a Palestine-focused smart route-sharing logistics MVP.
 
