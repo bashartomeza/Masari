@@ -32,6 +32,9 @@ const matchSummarySelect = {
   explanation: true,
   scoring_breakdown: true,
   created_at: true,
+  operational_mode: true,
+  canonical_match_version: true,
+  route_version_id: true,
   driver_route: {
     select: {
       id: true,
@@ -308,7 +311,20 @@ matchingRouter.get("/matches", requireAuth, async (req: AuthenticatedRequest, re
       orderBy: { created_at: "desc" }
     });
 
-    res.json({ matches: matches.map(toMatchSummary) });
+    res.json({
+      matches: matches
+        .filter((match) => {
+          const mode = match as MatchSummaryRecord & {
+            operational_mode?: string;
+            canonical_match_version?: string | null;
+            route_version_id?: string | null;
+          };
+          return (mode.operational_mode ?? "legacy") === "legacy" &&
+            !mode.canonical_match_version &&
+            !mode.route_version_id;
+        })
+        .map(toMatchSummary)
+    });
   } catch (error) {
     next(error);
   }
@@ -322,6 +338,14 @@ matchingRouter.get("/matches/:id", requireAuth, async (req: AuthenticatedRequest
       select: matchSummarySelect
     });
     if (!match) throw new HttpError(404, "match_not_found");
+    const mode = match as MatchSummaryRecord & {
+      operational_mode?: string;
+      canonical_match_version?: string | null;
+      route_version_id?: string | null;
+    };
+    if ((mode.operational_mode ?? "legacy") !== "legacy" || mode.canonical_match_version || mode.route_version_id) {
+      throw new HttpError(404, "match_not_found");
+    }
 
     if (req.user!.role !== "admin") {
       const ownsDriver = req.user!.role === "driver" && match.driver_route.driver.user_id === req.user!.id;

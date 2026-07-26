@@ -42,6 +42,10 @@ async function getVisibleTrip(id: string, req: AuthenticatedRequest) {
     }
   });
   if (!trip) throw new HttpError(404, "trip_not_found");
+  if (
+    ((trip as typeof trip & { operational_mode?: string }).operational_mode ?? "legacy") !== "legacy" ||
+    trip.canonical_trip_version
+  ) throw new HttpError(404, "trip_not_found");
 
   if (req.user!.role === "admin") return trip;
   if (req.user!.role === "driver" && trip.driver_route.driver.user_id === req.user!.id) return trip;
@@ -52,10 +56,11 @@ async function getVisibleTrip(id: string, req: AuthenticatedRequest) {
 }
 
 function tripWhereForUser(req: AuthenticatedRequest) {
-  if (req.user!.role === "admin") return {};
-  if (req.user!.role === "driver") return { driver_route: { driver: { user_id: req.user!.id } } };
-  if (req.user!.role === "passenger") return { passenger_request: { passenger_id: req.user!.id } };
-  return { merchant_order: { merchant_id: req.user!.id } };
+  const legacy = { operational_mode: "legacy", canonical_trip_version: null };
+  if (req.user!.role === "admin") return legacy;
+  if (req.user!.role === "driver") return { ...legacy, driver_route: { driver: { user_id: req.user!.id } } };
+  if (req.user!.role === "passenger") return { ...legacy, passenger_request: { passenger_id: req.user!.id } };
+  return { ...legacy, merchant_order: { merchant_id: req.user!.id } };
 }
 
 tripsRouter.post("/matches/:id/accept", requireAuth, async (req: AuthenticatedRequest, res, next) => {
