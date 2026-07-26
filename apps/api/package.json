@@ -9,6 +9,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:integration:multi-route": "node dist/scripts/multiRouteIntegration.js",
+    "test:integration:canonical-matching": "node dist/scripts/canonicalMatchingIntegration.js",
+    "canonical:match": "node dist/scripts/canonicalMatchingCommand.js",
     "prisma:generate": "prisma generate",
     "prisma:validate": "prisma validate",
     "db:migrate": "prisma migrate deploy",
