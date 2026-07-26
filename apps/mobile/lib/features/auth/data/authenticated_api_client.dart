@@ -19,27 +19,34 @@ class AuthenticatedApiClient {
   final ApiClient apiClient;
   final AuthSessionCoordinator sessionCoordinator;
 
-  Future<Map<String, dynamic>> getJson(String path) {
+  Future<Map<String, dynamic>> getJson(
+    String path, {
+    Map<String, String> headers = const {},
+  }) {
     return sessionCoordinator.sendAuthenticated(
-      (token) => apiClient.getJson(path, token: token),
+      (token) => apiClient.getJson(path, token: token, headers: headers),
     );
   }
 
   Future<Map<String, dynamic>> postJson(
     String path, {
     required Map<String, dynamic> body,
+    Map<String, String> headers = const {},
   }) {
     return sessionCoordinator.sendAuthenticated(
-      (token) => apiClient.postJson(path, body: body, token: token),
+      (token) =>
+          apiClient.postJson(path, body: body, token: token, headers: headers),
     );
   }
 
   Future<Map<String, dynamic>> patchJson(
     String path, {
     Map<String, dynamic> body = const {},
+    Map<String, String> headers = const {},
   }) {
     return sessionCoordinator.sendAuthenticated(
-      (token) => apiClient.patchJson(path, body: body, token: token),
+      (token) =>
+          apiClient.patchJson(path, body: body, token: token, headers: headers),
     );
   }
 

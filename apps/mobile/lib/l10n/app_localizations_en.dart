@@ -838,4 +838,178 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get signInAfterApproval =>
       'Your account was approved. Sign in to continue.';
+
+  @override
+  String get canonicalRoutes => 'Multi-route services';
+
+  @override
+  String get canonicalRoutesBody =>
+      'Choose from current routes and approved stops.';
+
+  @override
+  String get featureUnavailable =>
+      'This service is not available in this environment.';
+
+  @override
+  String get routeCatalogUnavailable =>
+      'Routes are temporarily unavailable. Refresh before submitting.';
+
+  @override
+  String get noPublishedRoutes => 'No eligible published routes are available.';
+
+  @override
+  String get selectRoute => 'Select route';
+
+  @override
+  String get routeDirection => 'Direction';
+
+  @override
+  String get directionOutbound => 'Outbound';
+
+  @override
+  String get directionInbound => 'Inbound';
+
+  @override
+  String get directionLoop => 'Loop';
+
+  @override
+  String get orderedStops => 'Ordered stops';
+
+  @override
+  String stopSequence(int sequence) {
+    return 'Stop $sequence';
+  }
+
+  @override
+  String get driverAvailabilities => 'Route availability';
+
+  @override
+  String get newAvailability => 'Create route availability';
+
+  @override
+  String get noAvailabilities => 'No route availability has been created.';
+
+  @override
+  String get departureTime => 'Departure time';
+
+  @override
+  String get availabilityWindowEnd => 'Availability window end (optional)';
+
+  @override
+  String get seatCapacity => 'Seat capacity';
+
+  @override
+  String get reviewAndConfirm => 'Review and confirm';
+
+  @override
+  String get availabilityRecorded => 'Availability recorded';
+
+  @override
+  String remainingCapacity(int seats, int parcels) {
+    return 'Remaining: $seats seats, $parcels parcels';
+  }
+
+  @override
+  String get activateAvailability => 'Activate availability';
+
+  @override
+  String get pauseAvailability => 'Pause availability';
+
+  @override
+  String get resumeAvailability => 'Resume availability';
+
+  @override
+  String get cancelAvailability => 'Cancel availability';
+
+  @override
+  String get editAvailability => 'Edit availability';
+
+  @override
+  String get canonicalPassengerRequest => 'Route request';
+
+  @override
+  String get canonicalPassengerRequestBody =>
+      'Request travel using an approved route and stops.';
+
+  @override
+  String get pickupStop => 'Pickup stop';
+
+  @override
+  String get dropoffStop => 'Drop-off stop';
+
+  @override
+  String get departureFrom => 'Departure from';
+
+  @override
+  String get departureUntil => 'Departure until';
+
+  @override
+  String get requestRecorded => 'Your route request was recorded.';
+
+  @override
+  String get matchingDisabledNotice =>
+      'Matching is not enabled in this milestone. No driver has been assigned and no trip has been created.';
+
+  @override
+  String get canonicalMerchantOrder => 'Route parcel order';
+
+  @override
+  String get canonicalMerchantOrderBody =>
+      'Create one atomic order on an approved route.';
+
+  @override
+  String get parcelPickupStop => 'Parcel pickup stop';
+
+  @override
+  String get parcelDestination => 'Parcel destination';
+
+  @override
+  String get parcelPriority => 'Parcel priority';
+
+  @override
+  String get orderRecorded => 'Your route parcel order was recorded.';
+
+  @override
+  String get batchingMatchingDisabledNotice =>
+      'Batching and matching are not enabled in this milestone. No driver has been assigned and no delivery trip has been created.';
+
+  @override
+  String get submitAvailability => 'Submit availability';
+
+  @override
+  String get selectDateTime => 'Select date and time';
+
+  @override
+  String get invalidDepartureWindow =>
+      'Choose a valid future departure window.';
+
+  @override
+  String get invalidStopOrder => 'Choose an approved downstream stop.';
+
+  @override
+  String get operationTemporaryFailure =>
+      'The result is uncertain. Retry the same operation when connected.';
+
+  @override
+  String get canonicalRecoveryRequired =>
+      'A previous operation is unresolved. Sign in with the original account and retry the exact operation, or contact support if its recovery window expired.';
+
+  @override
+  String get transactionRetryRequired =>
+      'A temporary transaction conflict occurred. Retry this operation.';
+
+  @override
+  String get refreshRoutes => 'Refresh routes';
+
+  @override
+  String get statusPaused => 'Paused';
+
+  @override
+  String get statusFilled => 'Filled';
+
+  @override
+  String get statusDeparted => 'Departed';
+
+  @override
+  String get returnToDashboard => 'Return to dashboard';
 }

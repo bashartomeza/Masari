@@ -8,6 +8,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/language_switch.dart';
 import '../../../core/widgets/masari_card.dart';
 import '../../auth/application/auth_controller.dart';
+import '../../canonical_routes/application/canonical_route_controller.dart';
 import '../../security/presentation/security_actions.dart';
 import '../../security/presentation/session_status_banner.dart';
 import '../application/driver_controller.dart';
@@ -21,6 +22,9 @@ class DriverHomeScreen extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final user = ref.watch(authControllerProvider).value?.user;
     final dashboard = ref.watch(driverDashboardProvider);
+    final canonicalEntry =
+        ref.watch(mobileCapabilitiesProvider).value?.multiRouteEntryAvailable ==
+        true;
     return Scaffold(
       body: SafeArea(
         child: RefreshIndicator(
@@ -59,6 +63,26 @@ class DriverHomeScreen extends ConsumerWidget {
               const SizedBox(height: AppTokens.spaceMedium),
               const SessionStatusBanner(),
               const SizedBox(height: AppTokens.spaceMedium),
+              if (canonicalEntry) ...[
+                MasariCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        l10n.canonicalRoutes,
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      Text(l10n.canonicalRoutesBody),
+                      FilledButton(
+                        key: const ValueKey('openCanonicalAvailabilities'),
+                        onPressed: () => context.go('/driver/availabilities'),
+                        child: Text(l10n.driverAvailabilities),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppTokens.spaceMedium),
+              ],
               dashboard.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (error, _) => MasariCard(

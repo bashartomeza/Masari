@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { executable } from "./lib/process.mjs";
 
-const approvedModerate = new Set(["@hono/node-server", "@prisma/dev", "prisma"]);
+const approvedModerate = new Set(["@hono/node-server", "@prisma/dev", "prisma", "valibot"]);
 const npmFile = process.platform === "win32" && process.env.npm_execpath ? process.execPath : executable("npm");
 const npmArgs = process.platform === "win32" && process.env.npm_execpath
   ? [process.env.npm_execpath, "audit", "--omit=dev", "--json"]

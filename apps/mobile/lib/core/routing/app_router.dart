@@ -6,6 +6,9 @@ import '../../features/auth/domain/auth_models.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/splash_screen.dart';
 import '../../features/auth/presentation/unsupported_role_screen.dart';
+import '../../features/canonical_routes/presentation/driver_availability_screens.dart';
+import '../../features/canonical_routes/presentation/merchant_route_order_screen.dart';
+import '../../features/canonical_routes/presentation/passenger_route_request_screen.dart';
 import '../../features/driver/presentation/driver_home_screen.dart';
 import '../../features/driver/presentation/driver_match_detail_screen.dart';
 import '../../features/driver/presentation/driver_match_inbox_screen.dart';
@@ -56,6 +59,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const CreateRequestScreen(),
           ),
           GoRoute(
+            path: 'routes/request/new',
+            builder: (context, state) => const PassengerRouteRequestScreen(),
+          ),
+          GoRoute(
             path: 'request/:id',
             builder: (context, state) =>
                 RequestDetailScreen(requestId: state.pathParameters['id']!),
@@ -81,6 +88,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const DriverRouteScreen(),
           ),
           GoRoute(
+            path: 'availabilities',
+            builder: (context, state) => const DriverAvailabilityListScreen(),
+          ),
+          GoRoute(
+            path: 'availability/new',
+            builder: (context, state) => const DriverAvailabilityFormScreen(),
+          ),
+          GoRoute(
+            path: 'availability/:id',
+            builder: (context, state) => DriverAvailabilityDetailScreen(
+              availabilityId: state.pathParameters['id']!,
+            ),
+          ),
+          GoRoute(
             path: 'matches',
             builder: (context, state) => const DriverMatchInboxScreen(),
           ),
@@ -103,6 +124,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'order/new',
             builder: (context, state) => const CreateMerchantOrderScreen(),
+          ),
+          GoRoute(
+            path: 'routes/order/new',
+            builder: (context, state) => const MerchantRouteOrderScreen(),
           ),
           GoRoute(
             path: 'order/:id',

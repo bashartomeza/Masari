@@ -32,6 +32,7 @@ import { createDriverAvailabilityRouter } from "./modules/driverAvailability.js"
 import type { DriverAvailabilityService } from "./services/driverAvailability.js";
 import { createCanonicalDemandRouter } from "./modules/canonicalDemand.js";
 import type { CanonicalDemandService } from "./services/canonicalDemand.js";
+import { createCapabilitiesRouter } from "./modules/capabilities.js";
 
 export const HTTP_JSON_LIMIT = "64kb";
 export const HTTP_FORM_LIMIT = "16kb";
@@ -64,6 +65,7 @@ export function createApp(appConfig: AppConfig = config, dependencies: AppDepend
   app.use("/api/v1", createPublicOnboardingRouter(appConfig, dependencies.otpProvider));
 
   app.use("/api/v1", authRouter);
+  app.use("/api/v1", createCapabilitiesRouter(appConfig));
   if (appConfig.demoFeaturesEnabled) app.use("/api/v1", demoRouter);
   app.use("/api/v1", createCanonicalDemandRouter(appConfig, dependencies.canonicalDemandService));
   app.use("/api/v1", passengerRouter);
