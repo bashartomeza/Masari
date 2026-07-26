@@ -124,7 +124,16 @@ export function createCanonicalDemandService(db: PrismaClient = prisma) {
             canonical_entry_version: CANONICAL_ENTRY_VERSION,
             requested_departure_from: input.requestedDepartureFrom,
             requested_departure_until: input.requestedDepartureUntil,
-            canonical_created_at: now
+            canonical_created_at: now,
+            operational_mode: CANONICAL_ENTRY_VERSION
+          }
+        });
+        await tx.canonicalDemandDispatch.create({
+          data: {
+            demand_type: "passenger",
+            passenger_request_id: resource.id,
+            route_version_id: route.id,
+            operational_mode: CANONICAL_ENTRY_VERSION
           }
         });
         await auditEvent(tx, {
@@ -199,6 +208,7 @@ export function createCanonicalDemandService(db: PrismaClient = prisma) {
             requested_departure_from: input.requestedDepartureFrom,
             requested_departure_until: input.requestedDepartureUntil,
             canonical_created_at: now,
+            operational_mode: CANONICAL_ENTRY_VERSION,
             parcels: {
               create: input.parcels.map((parcel, index) => ({
                 destination_label: destinations[index].stop.nameEn,
@@ -209,11 +219,20 @@ export function createCanonicalDemandService(db: PrismaClient = prisma) {
                 status: "pending" as const,
                 route_version_id: route.id,
                 destination_stop_id: destinations[index].stopId,
-                canonical_entry_version: CANONICAL_ENTRY_VERSION
+                canonical_entry_version: CANONICAL_ENTRY_VERSION,
+                operational_mode: CANONICAL_ENTRY_VERSION
               }))
             }
           },
           include: { parcels: true }
+        });
+        await tx.canonicalDemandDispatch.create({
+          data: {
+            demand_type: "merchant_order",
+            merchant_order_id: resource.id,
+            route_version_id: route.id,
+            operational_mode: CANONICAL_ENTRY_VERSION
+          }
         });
         await auditEvent(tx, {
           userId: actor.id,
