@@ -2,7 +2,7 @@
 
 [M7C3A_BACKEND_CANONICAL_MATCHING_ACTIVE]
 - M7C3A is active on `m7c3a/backend-canonical-matching` and remains backend-only. M7C3B Flutter offer/assignment UI, M7C3C combined passenger/merchant batching, and M7D/M7E maps, GPS, realtime, pricing, and production dispatch are not started.
-- Forward-only migration 14 normalizes non-null operational mode across canonical demand, MerchantOrder/Parcel parent-child rows, offers, reservations, and trips. Composite restrictive foreign keys and checks reject cross-mode and cross-route direct writes.
+- Forward-only migrations 14 and 15 normalize non-null operational mode across canonical demand, MerchantOrder/Parcel parent-child rows, offers, reservations, and trips. Composite restrictive foreign keys and checks reject cross-mode and cross-route direct writes; the mode-only Match/Trip ownership keys also close MySQL's nullable composite-key bypass for legacy rows.
 - `CanonicalDemandDispatch` owns exactly one passenger request or merchant order and enforces one active offer, one accepted offer, and one canonical trip per demand.
 - Local/test/demo matching requires explicit entry, matching, and trip-creation gates. Staging/production fail closed, and no public runner or scheduler exists.
 - `canonical_route_match_v1` uses departure fit (45%), capacity utilization (25%), trust (20%), and recent-assignment fairness (10%) with a stable documented tie-break. It uses no coordinates, geometry, fake ETA, demographics, or legacy score.
@@ -10,13 +10,15 @@
 - Acceptance confirms rather than decrements, revalidates live route/demand/driver authority, and creates one canonical Trip with a bounded deterministic `canonical_route_snapshot_v1` checksum. It creates no location, GPS, map, simulation, or realtime state.
 - Passenger and merchant owner status APIs expose dispatch state and a minimum post-acceptance Trip/vehicle summary without candidate, score, reservation, phone, coordinate, or parcel-description disclosure.
 - Legacy match/trip/tracking paths explicitly exclude canonical records. The deterministic matcher, batcher, comparison, and demo formulas remain unchanged.
-- Current implementation evidence: migration 14 applies from empty and upgrades the backed-up 13-migration baseline; repeated deployment is a no-op; 189 API tests pass; and the disposable MySQL 8.0.46 M7C3A harness passes 73 persistent-state assertions including concurrent ten-call acceptance, exact capacity, deterministic snapshot, rejection, expiry, and reassignment.
+- Current implementation evidence: all 15 migrations apply from empty and migrations 14/15 upgrade the checksum-backed 13-migration baseline; repeated deployment is a no-op; pre- and post-M7C3A checksum-backed restore checks pass; 189 API, 27 admin, and 163 Flutter tests pass; and the disposable MySQL 8.0.46 M7C3A harness passes 73 persistent-state assertions including concurrent ten-call acceptance, exact capacity, deterministic snapshot, rejection, expiry, and reassignment.
+- Compatibility evidence remains green: trusted-session isolation, onboarding, the 76-check public-onboarding harness, route lifecycle, and the M7C1 78-assertion MySQL harness all pass with migration 15 current.
+- Production-like admin and release APK builds pass artifact isolation. Runtime logs contain no configured secret values, authorization headers, database URLs, phone numbers, route snapshot JSON, parcel descriptions, or raw idempotency keys. Canonical entry remains hidden and matching/trip creation remain fail-closed in staging/production.
+- Live demo preflight passes 22/22 on real MySQL and deterministic smoke remains exact: score `0.9317`, tracking sequence `2`, trips `1` versus `6`, distance `21.53` versus `129.19`, cost `43.06` versus `258.38`, winner `masari`. Canonical rows do not enter legacy comparison or tracking.
 
 [PROJECT_OVERVIEW]
 Masari is a Palestine-focused smart route-sharing logistics MVP.
 
-Current implementation status: M7B Canonical Route Management and M7C1 Backend Multi-Route Operational Foundation are closed on `production-readiness`. M7C1 provides backend-only canonical entry, immutable operational references, one-off driver availability, and transactional capacity services behind local/test/demo-only gates. M7C2 is active; M7C3 has not started, and production multi-route matching, maps, GPS, and realtime remain disabled and deferred.
-M7C2 Flutter Multi-Route Role Flows is active on feature branch `m7c2/flutter-multi-route-flows`. Its primary scope is mobile catalog/stop selection, driver one-off availability, passenger canonical requests, merchant canonical orders, secure exact-operation replay, and Arabic/English accessibility behind server-authoritative local/test/demo capability checks. M7C3 matching/trips and M7D maps/GPS/realtime have not started.
+Current implementation status: M7B Canonical Route Management, M7C1 Backend Multi-Route Operational Foundation, and M7C2 Flutter Multi-Route Role Flows are closed on `production-readiness`. M7C3A backend canonical matching, sequential driver offers, capacity confirmation, and canonical trip creation are active on `m7c3a/backend-canonical-matching` for independent review. Production multi-route matching remains disabled; M7C3B Flutter offer UI, M7C3C combined batching, and M7D/M7E maps, GPS, and realtime are not started.
 
 Locked MVP corridor:
 Hebron / PPU / Bab Al-Zawiya -> Bethlehem.
