@@ -1,7 +1,7 @@
 # PROJECT_MAP.md
 
-[M7C3A_BACKEND_CANONICAL_MATCHING_ACTIVE]
-- M7C3A is active on `m7c3a/backend-canonical-matching` and remains backend-only. M7C3B Flutter offer/assignment UI, M7C3C combined passenger/merchant batching, and M7D/M7E maps, GPS, realtime, pricing, and production dispatch are not started.
+[M7C3A_BACKEND_CANONICAL_MATCHING_CLOSED]
+- M7C3A is merged and closed on `production-readiness` and remains backend-only. M7C3B Flutter offer/assignment UI, M7C3C combined passenger/merchant batching, and M7D/M7E maps, GPS, realtime, pricing, and production dispatch are not started.
 - Forward-only migrations 14 and 15 normalize non-null operational mode across canonical demand, MerchantOrder/Parcel parent-child rows, offers, reservations, and trips. Correction migration 16 adds non-null status ownership keys, demand fingerprints, assignment provenance, same-dispatch pointer foreign keys, and one-off availability uniqueness without changing migrations 1-15.
 - `CanonicalDemandDispatch` owns exactly one passenger request or merchant order and enforces one active offer, one accepted offer, and one canonical trip per demand. Until M7C3C introduces an explicit aggregate trip/membership model, one `DriverRoute` availability may own at most one active/accepted canonical offer and one canonical Trip.
 - Local/test/demo matching requires explicit entry, matching, and trip-creation gates. Staging/production fail closed, and no public runner or scheduler exists.
@@ -15,10 +15,34 @@
 - Production-like admin and release APK builds pass artifact isolation. Runtime logs contain no configured secret values, authorization headers, database URLs, phone numbers, route snapshot JSON, parcel descriptions, or raw idempotency keys. Canonical entry remains hidden and matching/trip creation remain fail-closed in staging/production.
 - Live demo preflight passes 22/22 on real MySQL and deterministic smoke remains exact: score `0.9317`, tracking sequence `2`, trips `1` versus `6`, distance `21.53` versus `129.19`, cost `43.06` versus `258.38`, winner `masari`. Canonical rows do not enter legacy comparison or tracking.
 
+[M7C3A_POST_MERGE_CLOSURE]
+Merge and migration integrity (2026-07-27):
+- PR #10 was merged with a merge commit. Approved feature head `e0f69a771caac3e23e5fc5384e93897e6dcd3c96` is preserved as an ancestor of merge commit `81629473b76bf3f287bf04f177256edf92d85b9b`; original implementation and corrective commits remain visible. The local and remote feature branches were deleted only after ancestry verification.
+- The production-readiness drift after reviewed base `757265d467e4b769f62a073841adbd35184a58c4` was limited to unrelated README prose commit `39617f70640825369656d4508b336f46cff9c596`; no operational compatibility review was required and the feature branch was not rebased.
+- All 16 forward-only MySQL migrations are current. Migrations 1-15 remain unchanged. Migration 16, `20260727110000_harden_canonical_assignment_integrity`, enforces same-dispatch ownership, accepted-offer/Trip provenance, merchant demand fingerprints, and one canonical Trip per one-off availability. Empty deployment, repeat no-op, current status, checksum-backed migration-13 upgrade through 16, and current-state restore all passed without `db push`, reset, migrate resolution, or migration editing.
+
+Canonical assignment result:
+- Normalized operational modes and `CanonicalDemandDispatch` own canonical demand assignment. The deterministic scorer creates at most one active offer per demand and one canonical Trip per demand, dispatch, accepted offer, and one-off DriverRoute availability.
+- Passenger and merchant matching create one held capacity reservation and one decrement. Accept confirms the existing hold, revalidates route, demand, driver authority, departure, reservation amounts, and merchant parcel fingerprint, then creates one canonical Trip with an immutable privacy-bounded route snapshot and checksum. Exact acceptance replay returns the same Trip without a second decrement.
+- Reject and canonical expiry restore capacity exactly once, generic reservation expiry cannot double-restore an offer hold, and bounded reassignment excludes rejected/expired drivers. Passenger and merchant owner-status APIs conceal cross-owner demand, offer, reservation, candidate, phone, coordinate, and parcel-description data.
+- Legacy matcher, batcher, comparison, trip lifecycle, and simulated tracking remain isolated from canonical records. Canonical matching creates no legacy Match, Trip, ParcelBatch, ComparisonRun, LocationEvent, or tracking state.
+
+Merged-head validation and release boundary:
+- Local validation passed dependency installation, Prisma validate/generate, workspace typecheck/build, 190 API tests, 27 admin tests, 163 Flutter tests, standard/security/workflow/tooling policy, production-configured admin and release-APK artifact scans, and the raw production audit. Only the four approved Prisma CLI moderate transitives remain; no force fix was run.
+- Disposable MySQL 8.0.46 with `utf8mb4_0900_ai_ci` passed the 98-assertion M7C3A harness, the 79-assertion M7C1 harness, trusted sessions, onboarding, the 76-check public-onboarding harness, route lifecycle, deterministic reset/reseed, and backup/restore. The Windows aggregate runner still reproduces documented `spawn EINVAL`; individual harnesses and Linux CI are authoritative.
+- Live preflight passed 22/22. Deterministic smoke remained score `0.9317`, sequence `2`, trips `1` versus `6`, distance `21.53` versus `129.19`, cost `43.06` versus `258.38`, and winner `masari`.
+- Canonical entry, matching, and canonical Trip creation remain explicit local/test/demo gates and fail closed in staging/production. No public matching/expiry runner, automatic worker, Flutter offer UI, combined batching, map/GPS/realtime dependency, pricing, or dispatch UI was added.
+- Admin, backend-mysql, mobile, and security workflows all passed on exact merge commit `81629473b76bf3f287bf04f177256edf92d85b9b`.
+
+Accepted obligations and next boundary:
+- Replace driver-offer ID-only pagination with `(created_at, id)` keyset pagination.
+- Continue broader deadlock/backoff stress across administrative route and availability mutations.
+- M7C3B and M7C3C are not started. Maps/GPS/realtime remain M7D/M7E.
+
 [PROJECT_OVERVIEW]
 Masari is a Palestine-focused smart route-sharing logistics MVP.
 
-Current implementation status: M7B Canonical Route Management, M7C1 Backend Multi-Route Operational Foundation, and M7C2 Flutter Multi-Route Role Flows are closed on `production-readiness`. M7C3A backend canonical matching, sequential driver offers, capacity confirmation, and canonical trip creation are active on `m7c3a/backend-canonical-matching` for independent review. Production multi-route matching remains disabled; M7C3B Flutter offer UI, M7C3C combined batching, and M7D/M7E maps, GPS, and realtime are not started.
+Current implementation status: M7B Canonical Route Management, M7C1 Backend Multi-Route Operational Foundation, M7C2 Flutter Multi-Route Role Flows, and M7C3A Backend Canonical Matching are closed on `production-readiness`. Production multi-route matching remains disabled; M7C3B Flutter offer UI, M7C3C combined batching, and M7D/M7E maps, GPS, and realtime are not started.
 
 Locked MVP corridor:
 Hebron / PPU / Bab Al-Zawiya -> Bethlehem.
