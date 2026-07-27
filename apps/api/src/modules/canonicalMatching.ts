@@ -12,7 +12,7 @@ import {
 const id = z.string().min(1).max(191);
 const idempotencyKey = z.string().min(8).max(128).regex(/^[A-Za-z0-9._:-]+$/);
 const page = z.strictObject({
-  cursor: z.string().min(1).max(191).optional(),
+  cursor: z.string().min(1).max(512).optional(),
   limit: z.coerce.number().int().min(1).max(50).default(25)
 });
 const rejectBody = z.strictObject({ reason: z.nativeEnum(CanonicalRejectReason) });
@@ -28,13 +28,22 @@ function offerResponse(offer: Record<string, any>) {
   const merchant = offer.merchant_order;
   return {
     id: offer.id,
-    status: offer.status,
+    status:
+      offer.status === "sent_to_driver"
+        ? "offered"
+        : offer.status,
     demand_type: passenger ? "passenger" : "merchant_order",
     route_version_id: offer.route_version_id,
     attempt_number: offer.attempt_number,
     offered_at: offer.offered_at,
     expires_at: offer.expires_at,
+    accepted_at: offer.accepted_at,
+    rejected_at: offer.rejected_at,
+    expired_at: offer.expired_at,
+    reject_reason: offer.reject_reason,
+    created_at: offer.created_at,
     departure_at: offer.driver_route?.departure_at,
+    route: routeResponse(offer.route_version),
     demand: passenger
       ? {
           passenger_count: passenger.passenger_count,
@@ -49,7 +58,36 @@ function offerResponse(offer: Record<string, any>) {
           destination_stop_ids: merchant?.parcels?.map((parcel: Record<string, unknown>) => parcel.destination_stop_id),
           requested_departure_from: merchant?.requested_departure_from,
           requested_departure_until: merchant?.requested_departure_until
-        }
+        },
+    trip: tripResponse(offer.canonical_trip)
+  };
+}
+
+function routeResponse(version: Record<string, any> | null | undefined) {
+  if (!version) return null;
+  return {
+    id: version.id,
+    name_ar: version.name_ar,
+    name_en: version.name_en,
+    direction: version.service_route?.direction,
+    stops: (version.stops ?? []).map((membership: Record<string, any>) => ({
+      id: membership.stop?.id,
+      name_ar: membership.stop?.name_ar,
+      name_en: membership.stop?.name_en,
+      sequence: membership.sequence
+    }))
+  };
+}
+
+function tripResponse(trip: Record<string, any> | null | undefined) {
+  if (!trip) return null;
+  return {
+    id: trip.id,
+    status: trip.status,
+    route_version_id: trip.route_version_id,
+    departure_at: trip.driver_route?.departure_at,
+    vehicle_type: trip.driver_route?.driver?.vehicle_type,
+    created_at: trip.created_at
   };
 }
 
@@ -60,6 +98,7 @@ function statusResponse(resource: Record<string, any>) {
     id: resource.id,
     status: resource.status,
     route_version_id: resource.route_version_id,
+    route: routeResponse(resource.route_version),
     pickup_stop_id: resource.pickup_stop_id,
     dropoff_stop_id: resource.dropoff_stop_id,
     requested_departure_from: resource.requested_departure_from,
@@ -67,7 +106,8 @@ function statusResponse(resource: Record<string, any>) {
     dispatch_status: dispatch?.status ?? "pending",
     offer_pending: dispatch?.status === "offered",
     assigned: dispatch?.status === "assigned",
-    trip: trip ? { id: trip.id, status: trip.status, vehicle_type: trip.driver_route.driver.vehicle_type } : null,
+    passenger_count: resource.passenger_count,
+    trip: tripResponse(trip),
     created_at: resource.canonical_created_at ?? resource.created_at,
     updated_at: dispatch?.updated_at ?? resource.created_at,
     ...(resource.parcels
@@ -87,19 +127,27 @@ export function createCanonicalMatchingRouter(
   service: CanonicalMatchingService = canonicalMatchingService
 ) {
   const router = Router();
-  if (!appConfig.multiRouteEntryEnabled || !appConfig.multiRouteMatchingEnabled || !appConfig.canonicalTripCreationEnabled) {
+  if (!appConfig.multiRouteEntryEnabled) {
     router.use("/driver/canonical-match-offers", notFoundHandler);
     router.use("/passenger/route-requests", notFoundHandler);
     router.use("/merchant/route-orders", notFoundHandler);
     return router;
   }
 
+  if (!appConfig.multiRouteMatchingEnabled || !appConfig.canonicalTripCreationEnabled) {
+    router.use("/driver/canonical-match-offers", notFoundHandler);
+  } else {
   router.get("/driver/canonical-match-offers", requireAuth, requireRole("driver"), async (req: AuthenticatedRequest, res, next) => {
     try {
       const query = page.parse(req.query);
       await service.assertDriverEligible(req.user!.id);
-      const offers = await service.listDriverOffers(req.user!.id, query);
-      res.json({ offers: offers.map((offer) => offerResponse(offer)), next_cursor: offers.length === query.limit ? offers.at(-1)!.id : null, request_id: req.requestId });
+      const result = await service.listDriverOffers(req.user!.id, query);
+      res.json({
+        offers: result.offers.map((offer) => offerResponse(offer)),
+        next_cursor: result.nextCursor,
+        server_now: new Date(),
+        request_id: req.requestId
+      });
     } catch (error) { next(error); }
   });
 
@@ -107,7 +155,7 @@ export function createCanonicalMatchingRouter(
     try {
       await service.assertDriverEligible(req.user!.id);
       const offer = await service.getDriverOffer(req.user!.id, id.parse(req.params.id));
-      res.json({ offer: offerResponse(offer), request_id: req.requestId });
+      res.json({ offer: offerResponse(offer), server_now: new Date(), request_id: req.requestId });
     } catch (error) { next(error); }
   });
 
@@ -119,7 +167,18 @@ export function createCanonicalMatchingRouter(
         requestId: req.requestId,
         idempotencyKey: requireKey(req)
       });
-      res.json({ trip: { id: result.trip.id, status: result.trip.status, route_version_id: result.trip.route_version_id }, replayed: result.replayed, request_id: req.requestId });
+      const offer = await service.getDriverOffer(req.user!.id, id.parse(req.params.id));
+      res.json({
+        offer: offerResponse(offer),
+        trip: tripResponse(offer.canonical_trip) ?? {
+          id: result.trip.id,
+          status: result.trip.status,
+          route_version_id: result.trip.route_version_id
+        },
+        replayed: result.replayed,
+        server_now: new Date(),
+        request_id: req.requestId
+      });
     } catch (error) { next(error); }
   });
 
@@ -132,15 +191,22 @@ export function createCanonicalMatchingRouter(
         requestId: req.requestId,
         idempotencyKey: requireKey(req)
       });
-      res.json({ offer: { id: result.offer.id, status: result.offer.status, reject_reason: result.offer.reject_reason }, replayed: result.replayed, request_id: req.requestId });
+      const offer = await service.getDriverOffer(req.user!.id, id.parse(req.params.id));
+      res.json({
+        offer: offerResponse(offer),
+        replayed: result.replayed,
+        server_now: new Date(),
+        request_id: req.requestId
+      });
     } catch (error) { next(error); }
   });
+  }
 
   router.get("/passenger/route-requests", requireAuth, requireRole("passenger"), async (req: AuthenticatedRequest, res, next) => {
     try {
       const query = page.parse(req.query);
       const resources = await service.passengerStatus(req.user!.id, undefined, query.limit);
-      res.json({ requests: resources.map((resource) => statusResponse(resource)), request_id: req.requestId });
+      res.json({ requests: resources.map((resource) => statusResponse(resource)), server_now: new Date(), request_id: req.requestId });
     } catch (error) { next(error); }
   });
 
@@ -148,7 +214,7 @@ export function createCanonicalMatchingRouter(
     try {
       const resources = await service.passengerStatus(req.user!.id, id.parse(req.params.id), 1);
       if (!resources[0]) throw new HttpError(404, "canonical_route_request_not_found");
-      res.json({ request: statusResponse(resources[0]), request_id: req.requestId });
+      res.json({ request: statusResponse(resources[0]), server_now: new Date(), request_id: req.requestId });
     } catch (error) { next(error); }
   });
 
@@ -156,7 +222,7 @@ export function createCanonicalMatchingRouter(
     try {
       const query = page.parse(req.query);
       const resources = await service.merchantStatus(req.user!.id, undefined, query.limit);
-      res.json({ orders: resources.map((resource) => statusResponse(resource)), request_id: req.requestId });
+      res.json({ orders: resources.map((resource) => statusResponse(resource)), server_now: new Date(), request_id: req.requestId });
     } catch (error) { next(error); }
   });
 
@@ -164,7 +230,7 @@ export function createCanonicalMatchingRouter(
     try {
       const resources = await service.merchantStatus(req.user!.id, id.parse(req.params.id), 1);
       if (!resources[0]) throw new HttpError(404, "canonical_route_order_not_found");
-      res.json({ order: statusResponse(resources[0]), request_id: req.requestId });
+      res.json({ order: statusResponse(resources[0]), server_now: new Date(), request_id: req.requestId });
     } catch (error) { next(error); }
   });
   return router;

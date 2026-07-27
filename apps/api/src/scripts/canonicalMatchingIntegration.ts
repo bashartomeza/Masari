@@ -301,8 +301,11 @@ try {
   check(await prisma.match.count({ where: { dispatch_id: passengerOffer.dispatch_id } }) === 1, "one active passenger offer");
 
   const offers = await matching.listDriverOffers(fixture.drivers[0].user.id);
-  check(offers.length === 1, "selected driver sees offer");
-  check((await matching.listDriverOffers(fixture.drivers[1].user.id)).length === 0, "other driver cannot see offer");
+  check(offers.offers.length === 1, "selected driver sees offer");
+  check(
+    (await matching.listDriverOffers(fixture.drivers[1].user.id)).offers.length === 0,
+    "other driver cannot see offer"
+  );
 
   const acceptResults = await Promise.all(
     Array.from({ length: 10 }, (_, index) =>

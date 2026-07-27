@@ -24,6 +24,37 @@ export const CANONICAL_MATCH_LIMITS = {
   expiryFailureLimit: 3
 } as const;
 
+type DriverOfferCursor = { createdAt: Date; id: string };
+
+function encodeDriverOfferCursor(value: DriverOfferCursor) {
+  return Buffer.from(
+    JSON.stringify({ v: 1, created_at: value.createdAt.toISOString(), id: value.id }),
+    "utf8"
+  ).toString("base64url");
+}
+
+function decodeDriverOfferCursor(value: string): DriverOfferCursor {
+  try {
+    if (value.length > 512 || !/^[A-Za-z0-9_-]+$/.test(value)) throw new Error("invalid");
+    const parsed = JSON.parse(Buffer.from(value, "base64url").toString("utf8")) as Record<string, unknown>;
+    if (
+      Object.keys(parsed).length !== 3 ||
+      parsed.v !== 1 ||
+      typeof parsed.created_at !== "string" ||
+      typeof parsed.id !== "string" ||
+      parsed.id.length < 1 ||
+      parsed.id.length > 191
+    ) throw new Error("invalid");
+    const createdAt = new Date(parsed.created_at);
+    if (!Number.isFinite(createdAt.getTime()) || createdAt.toISOString() !== parsed.created_at) {
+      throw new Error("invalid");
+    }
+    return { createdAt, id: parsed.id };
+  } catch {
+    throw new HttpError(400, "invalid_cursor");
+  }
+}
+
 type Actor = { id: string; requestId?: string; idempotencyKey: string };
 type InternalRunInput = {
   routeVersionId?: string;
@@ -600,6 +631,12 @@ export function createCanonicalMatchingService(db: PrismaClient = prisma, appCon
       !appConfig.canonicalTripCreationEnabled
     ) throw new HttpError(404, "not_found");
   };
+  const requireAssignmentStatusEnabled = () => {
+    if (
+      !(appConfig.isLocal || appConfig.isTest || appConfig.isDemo) ||
+      !appConfig.multiRouteEntryEnabled
+    ) throw new HttpError(404, "not_found");
+  };
   return {
     async assertDriverEligible(driverUserId: string) {
       requireEnabled();
@@ -669,21 +706,62 @@ export function createCanonicalMatchingService(db: PrismaClient = prisma, appCon
     async listDriverOffers(driverUserId: string, input: { cursor?: string; limit?: number; now?: Date } = {}) {
       requireEnabled();
       const limit = Math.min(Math.max(input.limit ?? 25, 1), 50);
-      return db.match.findMany({
+      const cursor = input.cursor ? decodeDriverOfferCursor(input.cursor) : undefined;
+      const rows = await db.match.findMany({
         where: {
           operational_mode: CANONICAL_MODE,
           canonical_match_version: CANONICAL_MATCH_VERSION,
           driver_route: { driver: { user_id: driverUserId, verified: true, user: { account_status: "active", role: "driver" } } },
-          ...(input.cursor ? { id: { lt: input.cursor } } : {})
+          ...(cursor
+            ? {
+                OR: [
+                  { created_at: { lt: cursor.createdAt } },
+                  { created_at: cursor.createdAt, id: { lt: cursor.id } }
+                ]
+              }
+            : {})
         },
         include: {
           driver_route: { select: { departure_at: true, route_version_id: true } },
           passenger_request: { select: { passenger_count: true, pickup_stop_id: true, dropoff_stop_id: true, requested_departure_from: true, requested_departure_until: true } },
-          merchant_order: { select: { pickup_stop_id: true, requested_departure_from: true, requested_departure_until: true, _count: { select: { parcels: true } } } }
+          merchant_order: { select: { pickup_stop_id: true, requested_departure_from: true, requested_departure_until: true, parcels: { select: { destination_stop_id: true } }, _count: { select: { parcels: true } } } },
+          route_version: {
+            select: {
+              id: true,
+              name_ar: true,
+              name_en: true,
+              service_route: { select: { direction: true } },
+              stops: {
+                select: {
+                  sequence: true,
+                  stop: { select: { id: true, name_ar: true, name_en: true } }
+                },
+                orderBy: { sequence: "asc" }
+              }
+            }
+          },
+          canonical_trip: {
+            select: {
+              id: true,
+              status: true,
+              route_version_id: true,
+              created_at: true,
+              driver_route: { select: { departure_at: true, driver: { select: { vehicle_type: true } } } }
+            }
+          }
         },
         orderBy: [{ created_at: "desc" }, { id: "desc" }],
-        take: limit
+        take: limit + 1
       });
+      const offers = rows.slice(0, limit);
+      const last = offers.at(-1);
+      return {
+        offers,
+        nextCursor:
+          rows.length > limit && last
+            ? encodeDriverOfferCursor({ createdAt: last.created_at, id: last.id })
+            : null
+      };
     },
 
     async getDriverOffer(driverUserId: string, offerId: string) {
@@ -698,7 +776,31 @@ export function createCanonicalMatchingService(db: PrismaClient = prisma, appCon
         include: {
           driver_route: { select: { departure_at: true, route_version_id: true } },
           passenger_request: { select: { passenger_count: true, pickup_stop_id: true, dropoff_stop_id: true, requested_departure_from: true, requested_departure_until: true } },
-          merchant_order: { select: { pickup_stop_id: true, requested_departure_from: true, requested_departure_until: true, parcels: { select: { destination_stop_id: true } } } }
+          merchant_order: { select: { pickup_stop_id: true, requested_departure_from: true, requested_departure_until: true, parcels: { select: { destination_stop_id: true } } } },
+          route_version: {
+            select: {
+              id: true,
+              name_ar: true,
+              name_en: true,
+              service_route: { select: { direction: true } },
+              stops: {
+                select: {
+                  sequence: true,
+                  stop: { select: { id: true, name_ar: true, name_en: true } }
+                },
+                orderBy: { sequence: "asc" }
+              }
+            }
+          },
+          canonical_trip: {
+            select: {
+              id: true,
+              status: true,
+              route_version_id: true,
+              created_at: true,
+              driver_route: { select: { departure_at: true, driver: { select: { vehicle_type: true } } } }
+            }
+          }
         }
       });
       if (!offer) throw new HttpError(404, "canonical_offer_not_found");
@@ -1114,22 +1216,54 @@ export function createCanonicalMatchingService(db: PrismaClient = prisma, appCon
     },
 
     async passengerStatus(ownerId: string, id?: string, limit = 25) {
-      requireEnabled();
+      requireAssignmentStatusEnabled();
       return db.passengerRequest.findMany({
         where: { passenger_id: ownerId, operational_mode: CANONICAL_MODE, ...(id ? { id } : {}) },
-        include: { canonical_dispatch: { include: { assigned_trip: { select: { id: true, status: true, driver_route: { select: { driver: { select: { vehicle_type: true } } } } } } } } },
+        include: {
+          route_version: {
+            select: {
+              id: true,
+              name_ar: true,
+              name_en: true,
+              service_route: { select: { direction: true } },
+              stops: {
+                select: {
+                  sequence: true,
+                  stop: { select: { id: true, name_ar: true, name_en: true } }
+                },
+                orderBy: { sequence: "asc" }
+              }
+            }
+          },
+          canonical_dispatch: { include: { assigned_trip: { select: { id: true, status: true, route_version_id: true, created_at: true, driver_route: { select: { departure_at: true, driver: { select: { vehicle_type: true } } } } } } } }
+        },
         orderBy: [{ created_at: "desc" }, { id: "desc" }],
         take: Math.min(Math.max(limit, 1), 50)
       });
     },
 
     async merchantStatus(ownerId: string, id?: string, limit = 25) {
-      requireEnabled();
+      requireAssignmentStatusEnabled();
       return db.merchantOrder.findMany({
         where: { merchant_id: ownerId, operational_mode: CANONICAL_MODE, ...(id ? { id } : {}) },
         include: {
           parcels: { select: { id: true, status: true, destination_stop_id: true } },
-          canonical_dispatch: { include: { assigned_trip: { select: { id: true, status: true, driver_route: { select: { driver: { select: { vehicle_type: true } } } } } } } }
+          route_version: {
+            select: {
+              id: true,
+              name_ar: true,
+              name_en: true,
+              service_route: { select: { direction: true } },
+              stops: {
+                select: {
+                  sequence: true,
+                  stop: { select: { id: true, name_ar: true, name_en: true } }
+                },
+                orderBy: { sequence: "asc" }
+              }
+            }
+          },
+          canonical_dispatch: { include: { assigned_trip: { select: { id: true, status: true, route_version_id: true, created_at: true, driver_route: { select: { departure_at: true, driver: { select: { vehicle_type: true } } } } } } } }
         },
         orderBy: [{ created_at: "desc" }, { id: "desc" }],
         take: Math.min(Math.max(limit, 1), 50)
@@ -1142,3 +1276,7 @@ export type CanonicalMatchingService = ReturnType<typeof createCanonicalMatching
 export const canonicalMatchingService = createCanonicalMatchingService();
 
 export const canonicalScoring = { scoreCandidate };
+export const canonicalOfferPagination = {
+  encode: encodeDriverOfferCursor,
+  decode: decodeDriverOfferCursor
+};
