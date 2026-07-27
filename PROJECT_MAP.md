@@ -1,21 +1,25 @@
 # PROJECT_MAP.md
 
-[M7C3B_FLUTTER_CANONICAL_OFFERS_ACTIVE]
-- M7C3B is active on `m7c3b/flutter-canonical-offers-assignment` as a mobile presentation and state-management milestone. Flutter consumes driver-owned canonical offers and passenger/merchant owner assignment status without invoking matching, offer creation, capacity mutation, expiry, reassignment, or Trip lifecycle mutation.
+[M7C3B_FLUTTER_CANONICAL_OFFERS_CLOSED]
+- M7C3B is merged and closed on `production-readiness`. Approved feature head `11454b4a08307d27a7616bf935c860b887d8ecf0` is preserved under PR #11 merge commit `61e186afe1ace7923093b2dfde511f2d7bb66b09`; the implementation and correction commits remain visible.
+- Flutter consumes driver-owned canonical offers and passenger/merchant owner assignment status without invoking matching, offer creation, capacity mutation, expiry, reassignment, or Trip lifecycle mutation.
 - Driver offer history closes the M7C3A pagination obligation with an opaque, stable, bounded `(created_at, id)` keyset cursor. Owner filtering precedes pagination, equal timestamps use ID ordering, and insertion between pages cannot duplicate or skip older results.
 - Accept/reject extend the actor-bound encrypted version-2 operation bundle with write-before-send, stable-key authentication retry, response-loss/process-death recovery, payload/actor blocking, and delete-after-owner-detail reconciliation. Logout and session termination preserve unresolved encrypted work for same-account recovery.
+- Accept, reject, and exact recovery re-fetch capability and authoritative offer state before sending. Mutation generation fencing prevents an older offered response from restoring terminal actions, and ambiguous server/invalid-response outcomes preserve the actor-bound unresolved bundle until authoritative reconciliation.
 - Passenger and merchant status are owner-only and disclose no pre-accept driver identity. Assigned state exposes only an approved minimum canonical Trip/vehicle summary and truthful no-tracking/no-map/no-ETA wording.
 - Refresh is manual, pull-to-refresh, or foreground resume with request-generation fencing. There is no polling, push, WebSocket, Socket.IO, or realtime channel.
 - Arabic RTL, English LTR, categorical controls, semantic status announcements, dirty rejection back warnings, scrollable responsive layouts, and 200% text coverage are included.
 - Production/staging canonical entry remains fail closed. The capability contract publishes separate safe booleans for route catalog, entry, matching, Trip creation, driver offers, assignment reads, maps, and live tracking.
 - One demand per offer and Trip and one canonical Trip per one-off DriverRoute availability remain enforced. M7C3C aggregation, M7D maps/GPS, and M7E live tracking/realtime are not started.
 - M7C3A accepted obligations remain: broader administrative deadlock/backoff stress is future work. The driver-offer pagination obligation is resolved by M7C3B.
-- Branch validation is green with 193 API tests, 27 admin tests, and 173 Flutter tests. A disposable MySQL 8.0.46 instance applied all 16 migrations from empty, repeated deployment as a no-op, reported current status, passed the M7C3A 98-assertion and M7C1 79-assertion harnesses, and passed trusted-session, onboarding, public-onboarding, route-lifecycle, backup/restore, and restrictive cleanup gates.
-- Selected real-emulator evidence covers Arabic-default and English layouts, driver offered/expired/detail/accept/assigned states, passenger assigned status, merchant pending/assigned history, minimal canonical Trip summaries, manual refresh, back navigation, and the explicit absence of map/tracking/ETA controls. Response-loss, process-death, actor isolation, payload fencing, secure-save failure, auth refresh, rejection replay, and terminal races are covered by persistent-state integration and Flutter automation.
+- Merged-head validation is green with 193 API tests, 27 admin tests, and 179 Flutter tests. Disposable MySQL 8.0.46 applied all 16 unchanged migrations from empty, repeated deployment as a no-op, reported current status, passed the M7C3A 98-assertion and M7C1 79-assertion harnesses, and passed trusted-session, onboarding, 76-check public-onboarding, route-lifecycle, backup/restore, and restrictive cleanup gates.
+- Selected real-emulator evidence covers Arabic-default and English layouts, driver accepted-offer list/detail, passenger pending/cancelled/assigned history and minimum Trip summary, merchant pending/unavailable history, manual refresh, landscape/back behavior, and the explicit absence of map/tracking/ETA controls. Accept/reject response loss, process death, actor isolation, payload fencing, secure-save failure, auth refresh, rejection replay, expiry, and terminal races are proven by persistent-state integration and Flutter automation; they are not claimed as a complete manual device matrix.
 - Production-like admin and APK artifacts pass isolation scanning. Legacy demo preflight remains `22/22`; deterministic smoke remains score `0.9317`, sequence `2`, trips `1` versus `6`, distance `21.53` versus `129.19`, cost `43.06` versus `258.38`, winner `masari`.
+- Accepted non-blocking obligations remain: refresh is required to advance the display-only countdown snapshot; unknown Trip/vehicle enums need localized fail-closed presentation; offer-card semantics may duplicate announcements; disabled actions need clearer spoken reasons; manual process-death/emulator evidence must not be overstated; and capability-disabled direct assignment lists currently use an empty rather than dedicated unavailable state.
+- M7C3C aggregation/shared-trip membership is not started. M7D maps/GPS/location ingestion and M7E realtime/pricing/production dispatch are not started. One canonical Trip per one-off DriverRoute availability remains enforced.
 
 [M7C3A_BACKEND_CANONICAL_MATCHING_CLOSED]
-- M7C3A is merged and closed on `production-readiness` and remains backend-only. M7C3B Flutter offer/assignment UI, M7C3C combined passenger/merchant batching, and M7D/M7E maps, GPS, realtime, pricing, and production dispatch are not started.
+- M7C3A is merged and closed on `production-readiness` and remains backend-only. M7C3B Flutter offer/assignment UI is also closed; M7C3C combined passenger/merchant batching and M7D/M7E maps, GPS, realtime, pricing, and production dispatch are not started.
 - Forward-only migrations 14 and 15 normalize non-null operational mode across canonical demand, MerchantOrder/Parcel parent-child rows, offers, reservations, and trips. Correction migration 16 adds non-null status ownership keys, demand fingerprints, assignment provenance, same-dispatch pointer foreign keys, and one-off availability uniqueness without changing migrations 1-15.
 - `CanonicalDemandDispatch` owns exactly one passenger request or merchant order and enforces one active offer, one accepted offer, and one canonical trip per demand. Until M7C3C introduces an explicit aggregate trip/membership model, one `DriverRoute` availability may own at most one active/accepted canonical offer and one canonical Trip.
 - Local/test/demo matching requires explicit entry, matching, and trip-creation gates. Staging/production fail closed, and no public runner or scheduler exists.
@@ -49,14 +53,14 @@ Merged-head validation and release boundary:
 - Admin, backend-mysql, mobile, and security workflows all passed on exact merge commit `81629473b76bf3f287bf04f177256edf92d85b9b`.
 
 Accepted obligations and next boundary:
-- Replace driver-offer ID-only pagination with `(created_at, id)` keyset pagination.
+- M7C3B resolved driver-offer pagination with the stable `(created_at, id)` keyset cursor.
 - Continue broader deadlock/backoff stress across administrative route and availability mutations.
-- M7C3B and M7C3C are not started. Maps/GPS/realtime remain M7D/M7E.
+- M7C3B is closed. M7C3C is not started. Maps/GPS/realtime remain M7D/M7E.
 
 [PROJECT_OVERVIEW]
 Masari is a Palestine-focused smart route-sharing logistics MVP.
 
-Current implementation status: M7B Canonical Route Management, M7C1 Backend Multi-Route Operational Foundation, M7C2 Flutter Multi-Route Role Flows, and M7C3A Backend Canonical Matching are closed on `production-readiness`. Production multi-route matching remains disabled; M7C3B Flutter offer UI, M7C3C combined batching, and M7D/M7E maps, GPS, and realtime are not started.
+Current implementation status: M7B Canonical Route Management, M7C1 Backend Multi-Route Operational Foundation, M7C2 Flutter Multi-Route Role Flows, M7C3A Backend Canonical Matching, and M7C3B Flutter Canonical Offers and Assignment Status are closed on `production-readiness`. Production multi-route matching remains disabled; M7C3C combined batching and M7D/M7E maps, GPS, and realtime are not started.
 
 Locked MVP corridor:
 Hebron / PPU / Bab Al-Zawiya -> Bethlehem.
