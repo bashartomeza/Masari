@@ -928,6 +928,10 @@ model Match {
   score_version        String?     @db.VarChar(50)
   active_dispatch_key  String?     @unique @db.VarChar(191)
   accepted_dispatch_key String?    @unique @db.VarChar(191)
+  demand_checksum       String?    @db.Char(64)
+  active_driver_route_key String?  @unique @db.VarChar(191)
+  accepted_driver_route_key String? @unique @db.VarChar(191)
+  canonical_assignment_key String? @db.Char(64)
   expiry_failure_count Int         @default(0)
   expiry_last_failed_at DateTime?
 
@@ -950,6 +954,8 @@ model Match {
   @@unique([dispatch_id, attempt_number], map: "matches_dispatch_attempt_key")
   @@unique([id, route_version_id], map: "matches_route_ownership_key")
   @@unique([id, operational_mode], map: "matches_mode_ownership_key")
+  @@unique([id, active_dispatch_key], map: "matches_active_dispatch_ownership_key")
+  @@unique([id, canonical_assignment_key], map: "matches_assignment_ownership_key")
   @@map("matches")
 }
 
@@ -989,6 +995,8 @@ model Trip {
   operational_mode       String     @default("legacy") @db.VarChar(50)
   canonical_match_id     String?    @unique
   canonical_dispatch_id  String?    @unique
+  canonical_assignment_key String?  @db.Char(64)
+  canonical_availability_key String? @unique @db.VarChar(191)
 
   driver_route      DriverRoute       @relation(fields: [driver_route_id], references: [id], onDelete: Restrict)
   mode_driver_route DriverRoute       @relation("TripAvailabilityMode", fields: [driver_route_id, operational_mode], references: [id, operational_mode], onDelete: Restrict, onUpdate: Restrict)
@@ -997,13 +1005,15 @@ model Trip {
   parcel_batch      ParcelBatch?      @relation(fields: [parcel_batch_id], references: [id], onDelete: Restrict)
   location_events   LocationEvent[]
   route_version     ServiceRouteVersion? @relation(fields: [route_version_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  canonical_match Match? @relation("CanonicalTripOffer", fields: [canonical_match_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  canonical_match Match? @relation("CanonicalTripOffer", fields: [canonical_match_id, canonical_assignment_key], references: [id, canonical_assignment_key], onDelete: Restrict, onUpdate: Restrict)
   canonical_dispatch CanonicalDemandDispatch? @relation("DispatchTrips", fields: [canonical_dispatch_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
   assigned_for_dispatch CanonicalDemandDispatch? @relation("AssignedDispatchTrip")
 
   @@index([driver_id])
   @@index([route_version_id, status])
   @@unique([id, operational_mode], map: "trips_mode_ownership_key")
+  @@unique([canonical_match_id, canonical_assignment_key], map: "trips_match_assignment_key")
+  @@unique([id, canonical_dispatch_id], map: "trips_dispatch_ownership_key")
   @@map("trips")
 }
 
@@ -1060,14 +1070,16 @@ model CanonicalDemandDispatch {
   passenger_request PassengerRequest? @relation(fields: [passenger_request_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
   merchant_order MerchantOrder? @relation(fields: [merchant_order_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
   route_version ServiceRouteVersion @relation(fields: [route_version_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  active_match_offer Match? @relation("ActiveDispatchOffer", fields: [active_match_offer_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  assigned_trip Trip? @relation("AssignedDispatchTrip", fields: [assigned_trip_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  active_match_offer Match? @relation("ActiveDispatchOffer", fields: [active_match_offer_id, id], references: [id, active_dispatch_key], onDelete: Restrict, onUpdate: Restrict)
+  assigned_trip Trip? @relation("AssignedDispatchTrip", fields: [assigned_trip_id, id], references: [id, canonical_dispatch_id], onDelete: Restrict, onUpdate: Restrict)
   offers Match[] @relation("DispatchOffers")
   trips Trip[] @relation("DispatchTrips")
 
   @@index([status, demand_type, created_at])
   @@index([route_version_id, status])
   @@unique([id, route_version_id, operational_mode], map: "canonical_dispatch_route_mode_ownership_key")
+  @@unique([active_match_offer_id, id], map: "canonical_dispatch_active_offer_ownership_key")
+  @@unique([assigned_trip_id, id], map: "canonical_dispatch_assigned_trip_ownership_key")
   @@map("canonical_demand_dispatches")
 }
 

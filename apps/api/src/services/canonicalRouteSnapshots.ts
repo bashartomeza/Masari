@@ -28,6 +28,12 @@ export function createCanonicalRouteSnapshotService(db: PrismaClient = prisma) {
         pickupStopId: string;
         destinationStopIds: string[];
         operationalMode: "canonical_route_v1";
+        demand?: {
+          type: "passenger" | "merchant_order";
+          passengerCount: number;
+          parcelCount: number;
+          destinationStopIds: string[];
+        };
       },
       transaction?: Prisma.TransactionClient
     ) {
@@ -90,6 +96,21 @@ export function createCanonicalRouteSnapshotService(db: PrismaClient = prisma) {
         destination_stop: version.destination_stop
           ? { id: version.destination_stop.id, name_ar: version.destination_stop.name_ar, name_en: version.destination_stop.name_en }
           : null,
+        ...(input.demand
+          ? {
+              demand_summary: input.demand.type === "passenger"
+                ? {
+                    type: "passenger",
+                    passenger_count: input.demand.passengerCount,
+                    selected_destination_stop_ids: [...input.demand.destinationStopIds]
+                  }
+                : {
+                    type: "merchant_order",
+                    parcel_count: input.demand.parcelCount,
+                    selected_destination_stop_ids: [...input.demand.destinationStopIds]
+                  }
+            }
+          : {}),
         selected_pickup: stopSummary(pickup),
         selected_destinations: destinations.map(stopSummary),
         ordered_relevant_stops: version.stops
