@@ -10,7 +10,7 @@ The internal runner processes at most 25 pending dispatches by default and 100 b
 
 Staging and production fail startup if any canonical write/matching gate is enabled. There is no scheduler.
 
-Candidates must share the exact current published `ServiceRouteVersion`, have active canonical availability, a future departure inside the demand window, sufficient capacity, and an active verified driver account whose current role remains `driver`.
+Candidates must share the exact current published `ServiceRouteVersion`, have active canonical availability, a future departure inside the demand window, sufficient capacity, and an active verified driver account whose current role remains `driver`. M7C3A excludes any availability that already owns an active or accepted canonical offer or canonical Trip. Remaining capacity does not authorize a second Trip before M7C3C adds an explicit aggregate trip/membership model.
 
 `canonical_route_match_v1` is deterministic:
 
@@ -25,6 +25,6 @@ Ties resolve by score descending, departure delta ascending, trust descending, r
 
 The stored explanation is an allowlist of route-version ID, departure delta, requested and available capacity, trust category/normalization, fairness count, scorer version, and final score.
 
-The lock order is route, route version, demand/dispatch, offer, DriverRoute, reservation, Trip. Each dispatch is processed in its own `READ COMMITTED` transaction. One failed dispatch is quarantined independently.
+The canonical lock order is route/version/stops, dispatch, demand aggregate, driver user/profile, offer, DriverRoute, reservation, then Trip creation. Merchant demand locks the order parent before its parcel rows. Each dispatch is processed in its own `READ COMMITTED` transaction. One failed dispatch is quarantined independently.
 
 Beta constants are a five-minute offer lifetime, maximum five sequential attempts, default batch 25, and maximum batch 100.

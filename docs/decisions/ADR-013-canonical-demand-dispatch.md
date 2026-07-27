@@ -21,21 +21,24 @@ Candidate selection requires the exact current published route version, active c
 
 Offer lifetime is five minutes, the runner batch defaults to 25 and is capped at 100, and a dispatch permits at most five sequential attempts. These are beta constants. Rejected and expired availability is excluded from later attempts for the same dispatch. Rejection and expiry only return the demand to `pending` after capacity is restored exactly once; a separate bounded run may then issue the next offer.
 
-The common transactional lock order is:
+The common canonical transactional lock order is:
 
 1. `ServiceRoute`
 2. `ServiceRouteVersion`
-3. demand and `CanonicalDemandDispatch`
-4. `Match`
-5. `DriverRoute`
-6. `CapacityReservation`
-7. `Trip`
+3. `CanonicalDemandDispatch`
+4. passenger request, or merchant order then parcel rows
+5. driver user then `DriverProfile`
+6. `Match`
+7. `DriverRoute`
+8. `CapacityReservation`
+9. `Trip`
 
 Operations may omit rows they do not need but never invert the relative order. MySQL deadlock or serialization failure rolls the full transaction back and becomes a safe retryable error.
 
 ## Consequences
 
 - At most one active and one accepted offer can exist per canonical demand.
+- At most one active/accepted canonical offer and one canonical Trip can exist per one-off `DriverRoute` availability until M7C3C introduces explicit aggregate membership.
 - Offer creation and its capacity decrement commit atomically.
 - Acceptance confirms the existing hold without decrementing twice and creates at most one trip.
 - Exact idempotency replay returns the existing logical result; changed payload conflicts.

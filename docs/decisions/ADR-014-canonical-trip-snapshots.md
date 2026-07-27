@@ -9,7 +9,7 @@ Canonical routes are immutable by version, but route status and the current vers
 
 ## Decision
 
-A canonical trip is created only from an accepted canonical offer and its confirmed capacity reservation, inside the same MySQL transaction. It references the exact route version, dispatch, offer, DriverRoute, and exactly one passenger request or merchant order. Database uniqueness permits at most one canonical trip per offer and per dispatch.
+A canonical trip is created only from an accepted canonical offer and its confirmed capacity reservation, inside the same MySQL transaction. A deterministic assignment key binds the exact route version, dispatch, accepted offer, DriverRoute, operational mode, demand type, and demand ID. Database uniqueness permits at most one canonical trip per offer, dispatch, and one-off availability.
 
 The trip stores a bounded `canonical_route_snapshot_v1` JSON document and SHA-256 checksum. The snapshot is built from freshly locked route data and serialized with recursively sorted object keys. Arrays retain semantic route order. The document contains only:
 
@@ -17,10 +17,10 @@ The trip stores a bounded `canonical_route_snapshot_v1` JSON document and SHA-25
 - route ID, key, direction, and bilingual route names;
 - route-version ID, number, status, and publication metadata;
 - origin and destination stop IDs with bilingual names;
-- selected pickup and passenger drop-off or merchant parcel destinations;
+- selected pickup and passenger drop-off or the exact merchant parcel destination-stop multiset and count;
 - ordered relevant stop IDs, keys, bilingual names, and sequence numbers.
 
-Merchant destination stops are deduplicated and ordered by route sequence. The snapshot excludes phone numbers, user names, parcel descriptions, coordinates, geometry, provider responses, notes, payments, tokens, and raw request or idempotency data. The same normalized input always yields the same bytes and checksum.
+Route stop summaries are deduplicated and ordered by route sequence, while the bounded merchant demand summary preserves the accepted parcel count and destination-stop multiset used by the demand fingerprint. The snapshot excludes phone numbers, user names, parcel descriptions, coordinates, geometry, provider responses, notes, payments, tokens, and raw request or idempotency data. The same normalized input always yields the same bytes and checksum.
 
 Acceptance revalidates the route is active, current, published, and within its activation window. If route, demand, availability, driver authority, or reservation is no longer eligible, no trip is created. The invalid offer is expired, its held capacity is restored in the same transaction, and the dispatch returns to a retryable state or becomes unavailable at the attempt limit.
 
