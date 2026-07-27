@@ -57,10 +57,11 @@ async function main() {
   const migrations = await prisma.$queryRaw<Array<{ migration_name: string }>>`
     SELECT migration_name FROM _prisma_migrations WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL
   `;
-  check(migrations.length === 15, "all fifteen migrations applied from empty");
+  check(migrations.length === 16, "all sixteen migrations applied from empty");
   check(migrations.some((migration) => migration.migration_name === "20260722130000_multi_route_operational_foundation"), "M7C1 migration current");
   check(migrations.some((migration) => migration.migration_name === "20260722180000_harden_multi_route_operations"), "M7C1 review hardening migration current");
   check(migrations.some((migration) => migration.migration_name === "20260722200000_enforce_operational_mode_and_expiry_quarantine"), "M7C1 follow-up hardening migration current");
+  check(migrations.some((migration) => migration.migration_name === "20260727110000_harden_canonical_assignment_integrity"), "M7C3A assignment hardening migration current");
 
   await resetDemoData(prisma);
   const [admin, passenger, driver1, driver2, merchant] = await Promise.all([
@@ -682,8 +683,8 @@ async function main() {
   check(await prisma.capacityReservation.count() === 0 && await prisma.driverRoute.count() === 2, "demo reset is idempotent");
   check(await prisma.auditEvent.count({ where: { action: "demo_reset" } }) === 1, "reset leaves only bounded deterministic audit state");
 
-  check(checks === 78, `expected 78 persistent-state assertions, received ${checks}`);
-  console.log("M7C1 real-MySQL operational and concurrency integration passed: 78 persistent-state assertions");
+  check(checks === 79, `expected 79 persistent-state assertions, received ${checks}`);
+  console.log("M7C1 real-MySQL operational and concurrency integration passed: 79 persistent-state assertions");
 }
 
 main()

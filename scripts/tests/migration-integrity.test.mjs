@@ -21,7 +21,8 @@ const expected = {
   "20260722180000_harden_multi_route_operations": "0a2f166377916bf44f2e45f7d70c7775dfc360b573367fa764f6ec5e15938684",
   "20260722200000_enforce_operational_mode_and_expiry_quarantine": "3d671ad02a5d6e58bc90e9a6779ce042d0653725339d05162d15de294d17930f",
   "20260726130000_canonical_matching_dispatch": "813ba595443e147dceaf391924a5ec4b0d30c2c1d88ca7d1fdc3898f94c699dc",
-  "20260726170000_enforce_match_trip_availability_mode": "189a0ff189c52fcc84f343f0e535d1f84696c9e6f62271597cc52f0915e7a59a"
+  "20260726170000_enforce_match_trip_availability_mode": "189a0ff189c52fcc84f343f0e535d1f84696c9e6f62271597cc52f0915e7a59a",
+  "20260727110000_harden_canonical_assignment_integrity": "1ee6e63b4ba698fd122fe2680e88d7612c2fb27940e74501002ca449f69d3bbf"
 };
 
 function normalizedChecksum(path) {

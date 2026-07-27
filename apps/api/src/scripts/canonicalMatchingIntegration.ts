@@ -1,5 +1,6 @@
 import { createCanonicalMatchingService } from "../services/canonicalMatching.js";
 import { createCanonicalRouteSnapshotService } from "../services/canonicalRouteSnapshots.js";
+import { createCapacityReservationService } from "../services/capacityReservations.js";
 import { config } from "../config.js";
 import { prisma } from "../lib/prisma.js";
 
@@ -331,7 +332,13 @@ try {
     routeVersionId: fixture.version.id,
     pickupStopId: fixture.stops[1].id,
     destinationStopIds: [fixture.stops[3].id],
-    operationalMode: mode
+    operationalMode: mode,
+    demand: {
+      type: "passenger",
+      passengerCount: 2,
+      parcelCount: 0,
+      destinationStopIds: [fixture.stops[3].id]
+    }
   });
   check(snapshot.checksum === trip.route_snapshot_checksum, "snapshot checksum deterministic");
   check(!JSON.stringify(snapshot.snapshot).includes("phone"), "snapshot excludes phones");
@@ -373,7 +380,13 @@ try {
   const nextOffer = await prisma.match.findUniqueOrThrow({ where: { id: reassigned.offerIds[0] } });
   check(nextOffer.driver_route_id !== merchantOffer.driver_route_id, "rejected driver excluded");
   check(nextOffer.attempt_number === 2, "attempt increments");
-  const expired = await matching.expire({ now: new Date(nextOffer.expires_at!.getTime() + 1), requestId: "expiry" });
+  const expiryNow = new Date(nextOffer.expires_at!.getTime() + 1);
+  const capacityReservations = createCapacityReservationService(prisma);
+  const [genericExpiry, expired] = await Promise.all([
+    capacityReservations.expireBatch({ now: expiryNow }),
+    matching.expire({ now: expiryNow, requestId: "expiry" })
+  ]);
+  check(genericExpiry.expired === 0, "generic expiry does not own canonical offer reservations");
   check(expired.expired === 1, "offer expiry processed");
   check((await prisma.match.findUniqueOrThrow({ where: { id: nextOffer.id } })).status === "expired", "offer expired terminal");
   check((await prisma.capacityReservation.findUniqueOrThrow({ where: { id: nextOffer.reservation_id! } })).status === "expired", "expiry marks reservation expired");
@@ -383,12 +396,396 @@ try {
   check(merchantStatus[0]?.canonical_dispatch?.status === "pending", "merchant owner sees pending reassignment");
   check(merchantStatus[0]?.parcels.length === 2, "merchant owner sees exact parcel count");
   check((await matching.merchantStatus("m7c3a_other_owner", fixture.order.id, 1)).length === 0, "cross-owner merchant status concealed");
+  await prisma.canonicalDemandDispatch.update({
+    where: { id: "m7c3a_merchant_dispatch" },
+    data: { status: "unavailable" }
+  });
+
+  await prisma.driverRoute.updateMany({
+    where: { id: { in: [fixture.availabilities[1].id, fixture.availabilities[2].id] } },
+    data: { availability_status: "paused" }
+  });
+  const competitionAvailability = await prisma.driverRoute.create({
+    data: {
+      id: "m7c3a_competition_availability",
+      driver_id: fixture.drivers[0].profile.id,
+      origin_label: "canonical",
+      origin_lat: 31.5,
+      origin_lng: 35,
+      destination_label: "canonical",
+      destination_lat: 31.7,
+      destination_lng: 35.2,
+      corridor_key: "canonical",
+      seats_available: 4,
+      parcel_capacity_available: 10,
+      status: "active",
+      route_version_id: fixture.version.id,
+      departure_at: new Date(departure.getTime() + 10 * 60_000),
+      availability_window_end: until,
+      total_seats: 4,
+      remaining_seats: 4,
+      total_parcel_capacity: 10,
+      remaining_parcel_capacity: 10,
+      availability_status: "active",
+      canonical_availability_version: mode,
+      operational_mode: mode,
+      activated_at: now
+    }
+  });
+  for (let index = 1; index <= 2; index += 1) {
+    const request = await prisma.passengerRequest.create({
+      data: {
+        id: `m7c3a_competition_request_${index}`,
+        passenger_id: fixture.passenger.id,
+        pickup_label: "canonical",
+        pickup_lat: 31.51,
+        pickup_lng: 35.01,
+        destination_label: "canonical",
+        destination_lat: 31.53,
+        destination_lng: 35.03,
+        preferred_time: from,
+        passenger_count: 1,
+        status: "pending",
+        source: mode,
+        route_version_id: fixture.version.id,
+        pickup_stop_id: fixture.stops[1].id,
+        dropoff_stop_id: fixture.stops[3].id,
+        canonical_entry_version: mode,
+        operational_mode: mode,
+        requested_departure_from: from,
+        requested_departure_until: until,
+        canonical_created_at: now
+      }
+    });
+    await prisma.canonicalDemandDispatch.create({
+      data: {
+        id: `m7c3a_competition_dispatch_${index}`,
+        demand_type: "passenger",
+        passenger_request_id: request.id,
+        route_version_id: fixture.version.id,
+        operational_mode: mode
+      }
+    });
+  }
+  const competingRuns = await Promise.all([
+    matching.run({ demandType: "passenger", now, requestId: "competition-a" }),
+    matching.run({ demandType: "passenger", now, requestId: "competition-b" })
+  ]);
+  const competingOffers = await prisma.match.findMany({
+    where: {
+      driver_route_id: competitionAvailability.id,
+      operational_mode: mode,
+      status: "sent_to_driver"
+    },
+    include: { offer_reservation: true }
+  });
+  check(competingRuns.reduce((sum, run) => sum + run.offered, 0) === 1, "competing workers create one offer for one availability");
+  check(competingOffers.length === 1, "one active offer persists for one availability");
+  check(
+    await prisma.capacityReservation.count({
+      where: { driver_route_id: competitionAvailability.id, status: "held" }
+    }) === 1,
+    "one held reservation persists for one availability"
+  );
+  check(
+    (await prisma.driverRoute.findUniqueOrThrow({ where: { id: competitionAvailability.id } })).remaining_seats === 3,
+    "competing workers decrement availability once"
+  );
+  const competitionAccept = await matching.accept(
+    fixture.drivers[0].user.id,
+    competingOffers[0].id,
+    {
+      id: fixture.drivers[0].user.id,
+      idempotencyKey: "competition-accept",
+      requestId: "competition-accept"
+    }
+  );
+  check(Boolean(competitionAccept.trip.id), "competition winner creates one trip");
+  const competitionReplay = await matching.accept(
+    fixture.drivers[0].user.id,
+    competingOffers[0].id,
+    {
+      id: fixture.drivers[0].user.id,
+      idempotencyKey: "competition-accept",
+      requestId: "competition-accept-response-loss-replay"
+    }
+  );
+  check(competitionReplay.replayed, "accept response-loss replay is recognized");
+  check(competitionReplay.trip.id === competitionAccept.trip.id, "accept response-loss replay returns same trip");
+  check(
+    await prisma.trip.count({
+      where: { driver_route_id: competitionAvailability.id, operational_mode: mode }
+    }) === 1,
+    "accept replay keeps one trip for one-off availability"
+  );
+  check(
+    await prisma.auditEvent.count({
+      where: { action: "canonical_trip_created", entity_id: competitionAccept.trip.id }
+    }) === 1,
+    "accept replay keeps one trip-created audit"
+  );
+  check(
+    (await prisma.driverRoute.findUniqueOrThrow({ where: { id: competitionAvailability.id } }))
+      .availability_status === "filled",
+    "accepted one-off availability is terminally filled"
+  );
+  check(
+    (await matching.run({ demandType: "passenger", now })).offered === 0,
+    "filled availability is excluded from matching"
+  );
+  const unofferedCompetitionDispatch = await prisma.canonicalDemandDispatch.findFirstOrThrow({
+    where: { id: { in: ["m7c3a_competition_dispatch_1", "m7c3a_competition_dispatch_2"] }, status: "pending" }
+  });
+  await prisma.canonicalDemandDispatch.update({
+    where: { id: unofferedCompetitionDispatch.id },
+    data: { status: "cancelled" }
+  });
+  await prisma.passengerRequest.update({
+    where: { id: unofferedCompetitionDispatch.passenger_request_id! },
+    data: { status: "cancelled" }
+  });
+
+  await rejects(
+    () => prisma.canonicalDemandDispatch.update({
+      where: { id: "m7c3a_merchant_dispatch" },
+      data: { status: "offered", active_match_offer_id: passengerOffer.id }
+    }),
+    "dispatch cannot point to another dispatch offer"
+  );
+  await rejects(
+    () => prisma.canonicalDemandDispatch.update({
+      where: { id: "m7c3a_merchant_dispatch" },
+      data: { status: "assigned", assigned_trip_id: trip.id }
+    }),
+    "dispatch cannot point to another dispatch trip"
+  );
+  await rejects(
+    () => prisma.trip.update({
+      where: { id: trip.id },
+      data: {
+        canonical_match_id: merchantOffer.id,
+        canonical_assignment_key: null
+      }
+    }),
+    "canonical trip cannot reference a rejected or cross-demand offer"
+  );
+
+  const driftAvailability = await prisma.driverRoute.create({
+    data: {
+      id: "m7c3a_drift_availability",
+      driver_id: fixture.drivers[1].profile.id,
+      origin_label: "canonical",
+      origin_lat: 31.5,
+      origin_lng: 35,
+      destination_label: "canonical",
+      destination_lat: 31.7,
+      destination_lng: 35.2,
+      corridor_key: "canonical",
+      seats_available: 4,
+      parcel_capacity_available: 10,
+      status: "active",
+      route_version_id: fixture.version.id,
+      departure_at: new Date(departure.getTime() + 15 * 60_000),
+      availability_window_end: until,
+      total_seats: 4,
+      remaining_seats: 4,
+      total_parcel_capacity: 10,
+      remaining_parcel_capacity: 10,
+      availability_status: "active",
+      canonical_availability_version: mode,
+      operational_mode: mode,
+      activated_at: now
+    }
+  });
+  const driftOrder = await prisma.merchantOrder.create({
+    data: {
+      id: "m7c3a_drift_order",
+      merchant_id: fixture.merchant.id,
+      pickup_label: "canonical",
+      pickup_lat: 31.51,
+      pickup_lng: 35.01,
+      status: "submitted",
+      route_version_id: fixture.version.id,
+      pickup_stop_id: fixture.stops[1].id,
+      canonical_entry_version: mode,
+      operational_mode: mode,
+      requested_departure_from: from,
+      requested_departure_until: until,
+      canonical_created_at: now
+    }
+  });
+  for (let index = 1; index <= 2; index += 1) {
+    await prisma.parcel.create({
+      data: {
+        id: `m7c3a_drift_parcel_${index}`,
+        order_id: driftOrder.id,
+        destination_label: "canonical",
+        destination_lat: 31.52,
+        destination_lng: 35.02,
+        size: "S",
+        priority: "normal",
+        route_version_id: fixture.version.id,
+        destination_stop_id: fixture.stops[2 + (index % 2)].id,
+        canonical_entry_version: mode,
+        operational_mode: mode
+      }
+    });
+  }
+  await prisma.canonicalDemandDispatch.create({
+    data: {
+      id: "m7c3a_drift_dispatch",
+      demand_type: "merchant_order",
+      merchant_order_id: driftOrder.id,
+      route_version_id: fixture.version.id,
+      operational_mode: mode
+    }
+  });
+  const driftRun = await matching.run({ demandType: "merchant_order", now, requestId: "drift-run" });
+  const driftOffer = await prisma.match.findUniqueOrThrow({
+    where: { id: driftRun.offerIds[0] },
+    include: { offer_reservation: true }
+  });
+  check(driftOffer.driver_route_id === driftAvailability.id, "merchant drift fixture selects isolated availability");
+  await prisma.parcel.create({
+    data: {
+      id: "m7c3a_drift_parcel_3",
+      order_id: driftOrder.id,
+      destination_label: "canonical",
+      destination_lat: 31.53,
+      destination_lng: 35.03,
+      size: "S",
+      priority: "normal",
+      route_version_id: fixture.version.id,
+      destination_stop_id: fixture.stops[3].id,
+      canonical_entry_version: mode,
+      operational_mode: mode
+    }
+  });
+  await rejects(
+    () => matching.accept(fixture.drivers[1].user.id, driftOffer.id, {
+      id: fixture.drivers[1].user.id,
+      idempotencyKey: "drift-accept",
+      requestId: "drift-accept"
+    }),
+    "merchant parcel mutation invalidates acceptance"
+  );
+  check(
+    await prisma.trip.count({ where: { canonical_dispatch_id: "m7c3a_drift_dispatch" } }) === 0,
+    "merchant drift creates no trip"
+  );
+  check(
+    (await prisma.capacityReservation.findUniqueOrThrow({ where: { id: driftOffer.reservation_id! } }))
+      .status === "expired",
+    "merchant drift releases reservation"
+  );
+  check(
+    (await prisma.driverRoute.findUniqueOrThrow({ where: { id: driftAvailability.id } }))
+      .remaining_parcel_capacity === 10,
+    "merchant drift restores exact parcel capacity"
+  );
+  await prisma.driverRoute.update({
+    where: { id: driftAvailability.id },
+    data: { availability_status: "paused" }
+  });
+  const elapsedAvailability = await prisma.driverRoute.create({
+    data: {
+      id: "m7c3a_elapsed_availability",
+      driver_id: fixture.drivers[2].profile.id,
+      origin_label: "canonical",
+      origin_lat: 31.5,
+      origin_lng: 35,
+      destination_label: "canonical",
+      destination_lat: 31.7,
+      destination_lng: 35.2,
+      corridor_key: "canonical",
+      seats_available: 4,
+      parcel_capacity_available: 10,
+      status: "active",
+      route_version_id: fixture.version.id,
+      departure_at: new Date(departure.getTime() + 20 * 60_000),
+      availability_window_end: until,
+      total_seats: 4,
+      remaining_seats: 4,
+      total_parcel_capacity: 10,
+      remaining_parcel_capacity: 10,
+      availability_status: "active",
+      canonical_availability_version: mode,
+      operational_mode: mode,
+      activated_at: now
+    }
+  });
+  const elapsedRequest = await prisma.passengerRequest.create({
+    data: {
+      id: "m7c3a_elapsed_request",
+      passenger_id: fixture.passenger.id,
+      pickup_label: "canonical",
+      pickup_lat: 31.51,
+      pickup_lng: 35.01,
+      destination_label: "canonical",
+      destination_lat: 31.53,
+      destination_lng: 35.03,
+      preferred_time: from,
+      passenger_count: 1,
+      status: "pending",
+      source: mode,
+      route_version_id: fixture.version.id,
+      pickup_stop_id: fixture.stops[1].id,
+      dropoff_stop_id: fixture.stops[3].id,
+      canonical_entry_version: mode,
+      operational_mode: mode,
+      requested_departure_from: from,
+      requested_departure_until: until,
+      canonical_created_at: now
+    }
+  });
+  await prisma.canonicalDemandDispatch.create({
+    data: {
+      id: "m7c3a_elapsed_dispatch",
+      demand_type: "passenger",
+      passenger_request_id: elapsedRequest.id,
+      route_version_id: fixture.version.id,
+      operational_mode: mode
+    }
+  });
+  const elapsedRun = await matching.run({ demandType: "passenger", now, requestId: "elapsed-run" });
+  const elapsedOffer = await prisma.match.findUniqueOrThrow({
+    where: { id: elapsedRun.offerIds[0] },
+    include: { offer_reservation: true }
+  });
+  check(elapsedOffer.driver_route_id === elapsedAvailability.id, "elapsed fixture selects isolated availability");
+  await prisma.driverRoute.update({
+    where: { id: elapsedAvailability.id },
+    data: { departure_at: new Date(Date.now() - 60_000) }
+  });
+  await rejects(
+    () => matching.accept(fixture.drivers[2].user.id, elapsedOffer.id, {
+      id: fixture.drivers[2].user.id,
+      idempotencyKey: "elapsed-accept",
+      requestId: "elapsed-accept"
+    }),
+    "elapsed departure invalidates acceptance"
+  );
+  check(
+    await prisma.trip.count({ where: { canonical_dispatch_id: "m7c3a_elapsed_dispatch" } }) === 0,
+    "elapsed departure creates no trip"
+  );
+  check(
+    (await prisma.capacityReservation.findUniqueOrThrow({ where: { id: elapsedOffer.reservation_id! } }))
+      .status === "expired",
+    "elapsed departure releases reservation"
+  );
+  check(
+    (await prisma.driverRoute.findUniqueOrThrow({ where: { id: elapsedAvailability.id } }))
+      .remaining_seats === 4,
+    "elapsed departure restores exact seats"
+  );
+
   check(await prisma.match.count({ where: { operational_mode: "legacy" } }) === 0, "canonical runner creates no legacy offer");
   check(await prisma.trip.count({ where: { operational_mode: "legacy" } }) === 0, "canonical acceptance creates no legacy trip");
   check(await prisma.locationEvent.count() === 0, "harness creates no tracking state");
   check(await prisma.parcelBatch.count() === 0, "harness creates no legacy batch");
   check(await prisma.comparisonRun.count() === 0, "harness creates no comparison row");
-  check(assertions >= 61, "at least 61 persistent-state assertions");
+  check(assertions >= 97, "at least 97 persistent-state assertions");
   process.stdout.write(`M7C3A MySQL integration passed: ${assertions} assertions\n`);
 } finally {
   await prisma.$disconnect();

@@ -55,7 +55,11 @@ const offer = {
   },
   merchant_order: null,
   scoring_breakdown: { must_not_leak: true },
-  reservation_id: "must-not-leak"
+  reservation_id: "must-not-leak",
+  demand_checksum: "must-not-leak",
+  active_driver_route_key: "must-not-leak",
+  accepted_driver_route_key: "must-not-leak",
+  canonical_assignment_key: "must-not-leak"
 };
 
 function serviceMock() {
@@ -227,6 +231,19 @@ describe("M7C3A canonical matching APIs", () => {
     const summary = canonicalMatchingSerializers.offerResponse(offer);
     expect(summary).not.toHaveProperty("reservation_id");
     expect(summary).not.toHaveProperty("scoring_breakdown");
+  });
+
+  it("does not expose database integrity keys through driver offer serializers", () => {
+    const encoded = JSON.stringify(canonicalMatchingSerializers.offerResponse(offer));
+    for (const field of [
+      "demand_checksum",
+      "active_driver_route_key",
+      "accepted_driver_route_key",
+      "canonical_assignment_key"
+    ]) {
+      expect(encoded).not.toContain(field);
+    }
+    expect(encoded).not.toContain("must-not-leak");
   });
 
   it("keeps the internal runner unavailable in production-like configuration", async () => {
