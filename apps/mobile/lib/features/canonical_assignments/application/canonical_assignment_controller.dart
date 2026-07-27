@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/api/api_error.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../canonical_routes/application/canonical_route_controller.dart';
 import '../../canonical_routes/data/canonical_operation_storage.dart';
@@ -190,6 +191,7 @@ class DriverCanonicalOfferDetailNotifier
   }
 
   Future<void> refresh() async {
+    if (_mutating) return;
     final generation = ++_generation;
     final previous = state.value;
     if (previous == null) state = const AsyncLoading();
@@ -265,21 +267,31 @@ class DriverCanonicalOfferDetailNotifier
     if (current == null || !current.offer.actionable) {
       throw StateError('offer_not_actionable');
     }
-    if (current.offer.expiredAt(current.serverNow)) {
-      await refresh();
-      throw StateError('offer_expired');
-    }
+    ++_generation;
     _mutating = true;
     state = AsyncData(current.copyWith(mutating: true, uncertain: false));
     final actorId = _actorId();
     try {
+      final fresh = await _freshOffer();
+      if (!fresh.offer.actionable || fresh.offer.expiredAt(fresh.serverNow)) {
+        state = AsyncData(
+          DriverOfferDetailState(
+            offer: fresh.offer,
+            serverNow: fresh.serverNow,
+            recoveryPending: false,
+          ),
+        );
+        throw StateError(
+          fresh.offer.actionable ? 'offer_expired' : 'offer_not_actionable',
+        );
+      }
       await ref
           .read(canonicalMutationRunnerProvider)
           .run<CanonicalDriverOffer>(
             operation: operation,
             scope: 'driver',
             actorId: actorId,
-            payload: payload(current.offer),
+            payload: payload(fresh.offer),
             send: (bundle) =>
                 send(ref.read(canonicalAssignmentRepositoryProvider), bundle),
           );
@@ -289,9 +301,13 @@ class DriverCanonicalOfferDetailNotifier
       ref.invalidate(passengerCanonicalAssignmentsProvider);
       ref.invalidate(merchantCanonicalAssignmentsProvider);
     } catch (error, stackTrace) {
+      if (error is ApiException && error.statusCode == 404) {
+        ref.invalidate(mobileCapabilitiesProvider);
+      }
       final pending = await _pendingForActor(actorId);
+      final latest = state.value ?? current;
       state = AsyncData(
-        current.copyWith(
+        latest.copyWith(
           mutating: false,
           recoveryPending:
               pending != null && pending.payload['offer_id'] == offerId,
@@ -302,6 +318,20 @@ class DriverCanonicalOfferDetailNotifier
     } finally {
       _mutating = false;
     }
+  }
+
+  Future<CanonicalOfferEnvelope> _freshOffer() async {
+    await ref.read(mobileCapabilitiesProvider.notifier).refresh();
+    final capabilities = await ref.read(mobileCapabilitiesProvider.future);
+    if (!capabilities.matchingAvailable ||
+        !capabilities.canonicalTripCreationAvailable ||
+        !capabilities.driverCanonicalOffersAvailable) {
+      throw StateError('canonical_offer_feature_unavailable');
+    }
+    final envelope = await ref
+        .read(canonicalAssignmentRepositoryProvider)
+        .driverOffer(offerId);
+    return envelope;
   }
 
   String _actorId() {

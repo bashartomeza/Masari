@@ -1,13 +1,20 @@
 import 'dart:convert';
+import 'dart:async';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:masari_mobile/core/api/api_error.dart';
+import 'package:masari_mobile/features/auth/application/auth_controller.dart';
+import 'package:masari_mobile/features/auth/domain/auth_models.dart';
+import 'package:masari_mobile/features/canonical_assignments/application/canonical_assignment_controller.dart';
 import 'package:masari_mobile/features/canonical_assignments/data/canonical_assignment_repository.dart';
 import 'package:masari_mobile/features/canonical_assignments/domain/canonical_assignment_models.dart';
 import 'package:masari_mobile/features/auth/data/authenticated_api_client.dart';
 import 'package:masari_mobile/features/canonical_routes/application/canonical_route_controller.dart';
+import 'package:masari_mobile/features/canonical_routes/data/canonical_route_repository.dart';
 import 'package:masari_mobile/features/canonical_routes/data/canonical_operation_storage.dart';
+import 'package:masari_mobile/features/canonical_routes/domain/canonical_route_models.dart';
 
 import 'support/auth_test_support.dart';
 
@@ -262,7 +269,161 @@ void main() {
       );
       expect(sends, 0);
     });
+
+    test('terminal mutation fences an older offered detail response', () async {
+      final stale = Completer<CanonicalOfferEnvelope>();
+      final repository = _FakeAssignmentRepository(
+        detailResponses: [
+          Future.value(_offerEnvelope()),
+          stale.future,
+          Future.value(_offerEnvelope()),
+          Future.value(_offerEnvelope(status: 'accepted')),
+        ],
+      );
+      final container = _offerContainer(repository: repository);
+      addTearDown(container.dispose);
+      await container.read(authControllerProvider.future);
+      final provider = driverCanonicalOfferDetailProvider('offer_1');
+      await container.read(provider.future);
+
+      final refresh = container.read(provider.notifier).refresh();
+      await Future<void>.delayed(Duration.zero);
+      await container.read(provider.notifier).accept();
+      stale.complete(_offerEnvelope());
+      await refresh;
+
+      expect(
+        container.read(provider).value?.offer.status,
+        CanonicalOfferStatus.accepted,
+      );
+      expect(container.read(provider).value?.offer.actionable, isFalse);
+    });
+
+    test(
+      'fresh disabled capability prevents persistence and network send',
+      () async {
+        final capabilities = _FakeCanonicalRouteRepository();
+        final repository = _FakeAssignmentRepository(
+          detailResponses: [Future.value(_offerEnvelope())],
+        );
+        final storage = _MemoryCanonicalStorage();
+        final container = _offerContainer(
+          repository: repository,
+          capabilities: capabilities,
+          storage: storage,
+        );
+        addTearDown(container.dispose);
+        await container.read(authControllerProvider.future);
+        final provider = driverCanonicalOfferDetailProvider('offer_1');
+        await container.read(provider.future);
+        capabilities.enabled = false;
+
+        await expectLater(
+          container.read(provider.notifier).accept(),
+          throwsStateError,
+        );
+
+        expect(repository.acceptCalls, 0);
+        expect(storage.bundle, isNull);
+      },
+    );
+
+    test('fresh terminal offer replaces cached actionable detail', () async {
+      final repository = _FakeAssignmentRepository(
+        detailResponses: [
+          Future.value(_offerEnvelope()),
+          Future.value(_offerEnvelope(status: 'accepted')),
+        ],
+      );
+      final storage = _MemoryCanonicalStorage();
+      final container = _offerContainer(
+        repository: repository,
+        storage: storage,
+      );
+      addTearDown(container.dispose);
+      await container.read(authControllerProvider.future);
+      final provider = driverCanonicalOfferDetailProvider('offer_1');
+      await container.read(provider.future);
+
+      await expectLater(
+        container.read(provider.notifier).accept(),
+        throwsStateError,
+      );
+
+      expect(repository.acceptCalls, 0);
+      expect(storage.bundle, isNull);
+      expect(
+        container.read(provider).value?.offer.status,
+        CanonicalOfferStatus.accepted,
+      );
+      expect(container.read(provider).value?.offer.actionable, isFalse);
+    });
+
+    test(
+      'disabled capability preserves an exact unresolved recovery bundle',
+      () async {
+        final capabilities = _FakeCanonicalRouteRepository();
+        final storage = _MemoryCanonicalStorage()
+          ..bundle = CanonicalOperationBundle.create(
+            operation: 'driver_canonical_offer_accept',
+            scope: 'driver',
+            actorId: 'driver_1',
+            payload: const {
+              'route_version_id': 'version_1',
+              'offer_id': 'offer_1',
+            },
+          );
+        final repository = _FakeAssignmentRepository(
+          detailResponses: [Future.value(_offerEnvelope())],
+        );
+        final container = _offerContainer(
+          repository: repository,
+          capabilities: capabilities,
+          storage: storage,
+        );
+        addTearDown(container.dispose);
+        await container.read(authControllerProvider.future);
+        final provider = driverCanonicalOfferDetailProvider('offer_1');
+        await container.read(provider.future);
+        final originalKey = storage.bundle!.idempotencyKey;
+        capabilities.enabled = false;
+
+        await expectLater(
+          container.read(provider.notifier).recover(),
+          throwsStateError,
+        );
+
+        expect(repository.acceptCalls, 0);
+        expect(storage.bundle?.idempotencyKey, originalKey);
+      },
+    );
   });
+}
+
+ProviderContainer _offerContainer({
+  required _FakeAssignmentRepository repository,
+  _FakeCanonicalRouteRepository? capabilities,
+  _MemoryCanonicalStorage? storage,
+}) {
+  return ProviderContainer(
+    overrides: [
+      authControllerProvider.overrideWith(_AuthenticatedDriverController.new),
+      canonicalAssignmentRepositoryProvider.overrideWithValue(repository),
+      canonicalRouteRepositoryProvider.overrideWithValue(
+        capabilities ?? _FakeCanonicalRouteRepository(),
+      ),
+      canonicalOperationStorageProvider.overrideWithValue(
+        storage ?? _MemoryCanonicalStorage(),
+      ),
+    ],
+  );
+}
+
+CanonicalOfferEnvelope _offerEnvelope({String status = 'offered'}) {
+  return CanonicalOfferEnvelope(
+    offer: CanonicalDriverOffer.fromJson(offerJson(status: status)),
+    serverNow: DateTime.parse('2026-07-27T10:00:00.000Z'),
+  );
 }
 
 Map<String, dynamic> offerJson({
@@ -373,5 +534,68 @@ class _MemoryCanonicalStorage implements CanonicalOperationStorage {
   Future<void> save(CanonicalOperationBundle value) async {
     if (saveError case final error?) throw error;
     bundle = value;
+  }
+}
+
+class _AuthenticatedDriverController extends AuthController {
+  @override
+  Future<AuthState> build() async => const AuthState.authenticated(
+    AuthUser(
+      id: 'driver_1',
+      name: 'Driver',
+      phone: '+970590000002',
+      role: UserRole.driver,
+      demoAccount: true,
+    ),
+  );
+}
+
+class _FakeCanonicalRouteRepository extends CanonicalRouteRepository {
+  _FakeCanonicalRouteRepository()
+    : super(
+        apiClient: TestAuthenticatedClient(
+          handler: (_) async => http.Response('{"error":"unused"}', 500),
+        ).client,
+      );
+
+  bool enabled = true;
+
+  @override
+  Future<MobileCapabilities> capabilities() async => MobileCapabilities(
+    routeCatalogAvailable: enabled,
+    multiRouteEntryAvailable: enabled,
+    matchingAvailable: enabled,
+    canonicalTripCreationAvailable: enabled,
+    driverCanonicalOffersAvailable: enabled,
+    canonicalAssignmentStatusAvailable: enabled,
+    mapsAvailable: false,
+    liveTrackingAvailable: false,
+  );
+}
+
+class _FakeAssignmentRepository extends CanonicalAssignmentRepository {
+  _FakeAssignmentRepository({required this.detailResponses})
+    : super(
+        apiClient: TestAuthenticatedClient(
+          handler: (_) async => http.Response('{"error":"unused"}', 500),
+        ).client,
+      );
+
+  final List<Future<CanonicalOfferEnvelope>> detailResponses;
+  var detailIndex = 0;
+  var acceptCalls = 0;
+
+  @override
+  Future<CanonicalOfferEnvelope> driverOffer(String id) {
+    return detailResponses[detailIndex++];
+  }
+
+  @override
+  Future<CanonicalDriverOffer> acceptOffer({
+    required String id,
+    required String idempotencyKey,
+  }) async {
+    acceptCalls += 1;
+    return CanonicalDriverOffer.fromJson(offerJson(status: 'accepted'));
   }
 }
