@@ -25,6 +25,12 @@ class DriverHomeScreen extends ConsumerWidget {
     final canonicalEntry =
         ref.watch(mobileCapabilitiesProvider).value?.multiRouteEntryAvailable ==
         true;
+    final canonicalOffers =
+        ref
+            .watch(mobileCapabilitiesProvider)
+            .value
+            ?.driverCanonicalOffersAvailable ==
+        true;
     return Scaffold(
       body: SafeArea(
         child: RefreshIndicator(
@@ -78,6 +84,13 @@ class DriverHomeScreen extends ConsumerWidget {
                         onPressed: () => context.go('/driver/availabilities'),
                         child: Text(l10n.driverAvailabilities),
                       ),
+                      if (canonicalOffers)
+                        OutlinedButton(
+                          key: const ValueKey('openCanonicalDriverOffers'),
+                          onPressed: () =>
+                              context.go('/driver/canonical-offers'),
+                          child: Text(l10n.canonicalDriverOffers),
+                        ),
                     ],
                   ),
                 ),

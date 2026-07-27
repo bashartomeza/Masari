@@ -2017,6 +2017,228 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'العودة إلى لوحة التحكم'**
   String get returnToDashboard;
+
+  /// No description provided for @canonicalDriverOffers.
+  ///
+  /// In ar, this message translates to:
+  /// **'عروض المسار'**
+  String get canonicalDriverOffers;
+
+  /// No description provided for @canonicalDriverOffersBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'راجع طلبات الركاب والطرود الحالية المرتبطة بإتاحة مسارك.'**
+  String get canonicalDriverOffersBody;
+
+  /// No description provided for @noCanonicalOffers.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد عروض مسار حالياً.'**
+  String get noCanonicalOffers;
+
+  /// No description provided for @loadMore.
+  ///
+  /// In ar, this message translates to:
+  /// **'تحميل المزيد'**
+  String get loadMore;
+
+  /// No description provided for @offerDetails.
+  ///
+  /// In ar, this message translates to:
+  /// **'تفاصيل العرض'**
+  String get offerDetails;
+
+  /// No description provided for @offerExpires.
+  ///
+  /// In ar, this message translates to:
+  /// **'ينتهي العرض'**
+  String get offerExpires;
+
+  /// No description provided for @offerExpired.
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت صلاحية هذا العرض.'**
+  String get offerExpired;
+
+  /// No description provided for @demandPassenger.
+  ///
+  /// In ar, this message translates to:
+  /// **'طلب راكب'**
+  String get demandPassenger;
+
+  /// No description provided for @demandMerchant.
+  ///
+  /// In ar, this message translates to:
+  /// **'طلب طرود'**
+  String get demandMerchant;
+
+  /// No description provided for @acceptOffer.
+  ///
+  /// In ar, this message translates to:
+  /// **'قبول العرض'**
+  String get acceptOffer;
+
+  /// No description provided for @rejectOffer.
+  ///
+  /// In ar, this message translates to:
+  /// **'رفض العرض'**
+  String get rejectOffer;
+
+  /// No description provided for @rejectReason.
+  ///
+  /// In ar, this message translates to:
+  /// **'سبب الرفض'**
+  String get rejectReason;
+
+  /// No description provided for @rejectDriverDeclined.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا أستطيع تنفيذ هذه المهمة'**
+  String get rejectDriverDeclined;
+
+  /// No description provided for @rejectScheduleConflict.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعارض في الموعد'**
+  String get rejectScheduleConflict;
+
+  /// No description provided for @rejectCapacityUnavailable.
+  ///
+  /// In ar, this message translates to:
+  /// **'السعة غير متوفرة'**
+  String get rejectCapacityUnavailable;
+
+  /// No description provided for @confirmAcceptOffer.
+  ///
+  /// In ar, this message translates to:
+  /// **'هل تريد قبول مهمة المسار هذه؟'**
+  String get confirmAcceptOffer;
+
+  /// No description provided for @confirmRejectOffer.
+  ///
+  /// In ar, this message translates to:
+  /// **'هل تريد رفض مهمة المسار هذه؟'**
+  String get confirmRejectOffer;
+
+  /// No description provided for @offerAccepted.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم قبول المهمة.'**
+  String get offerAccepted;
+
+  /// No description provided for @offerRejected.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم رفض المهمة.'**
+  String get offerRejected;
+
+  /// No description provided for @operationResultUncertain.
+  ///
+  /// In ar, this message translates to:
+  /// **'نتيجة العملية غير مؤكدة. احتفظ بهذه العملية وقم بمطابقتها قبل محاولة عملية أخرى.'**
+  String get operationResultUncertain;
+
+  /// No description provided for @recoverOperation.
+  ///
+  /// In ar, this message translates to:
+  /// **'مطابقة نتيجة العملية'**
+  String get recoverOperation;
+
+  /// No description provided for @canonicalAssignmentStatus.
+  ///
+  /// In ar, this message translates to:
+  /// **'حالة إسناد المسار'**
+  String get canonicalAssignmentStatus;
+
+  /// No description provided for @canonicalAssignments.
+  ///
+  /// In ar, this message translates to:
+  /// **'طلبات المسار والإسناد'**
+  String get canonicalAssignments;
+
+  /// No description provided for @noCanonicalAssignments.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم تُسجل إسنادات مسار بعد.'**
+  String get noCanonicalAssignments;
+
+  /// No description provided for @statusOffered.
+  ///
+  /// In ar, this message translates to:
+  /// **'معروض على سائق'**
+  String get statusOffered;
+
+  /// No description provided for @statusUnavailable.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد إسناد متاح'**
+  String get statusUnavailable;
+
+  /// No description provided for @canonicalTrip.
+  ///
+  /// In ar, this message translates to:
+  /// **'الرحلة المسندة'**
+  String get canonicalTrip;
+
+  /// No description provided for @vehicleType.
+  ///
+  /// In ar, this message translates to:
+  /// **'نوع المركبة'**
+  String get vehicleType;
+
+  /// No description provided for @trackingNotAvailable.
+  ///
+  /// In ar, this message translates to:
+  /// **'التتبع المباشر والخرائط وتقديرات الوصول غير متوفرة في هذه المرحلة.'**
+  String get trackingNotAvailable;
+
+  /// No description provided for @manualRefreshNotice.
+  ///
+  /// In ar, this message translates to:
+  /// **'اسحب للأسفل أو استخدم زر التحديث للتحقق من المستجدات.'**
+  String get manualRefreshNotice;
+
+  /// No description provided for @assignmentPendingBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'طلبك بانتظار المطابقة.'**
+  String get assignmentPendingBody;
+
+  /// No description provided for @assignmentOfferedBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'العرض بانتظار قرار السائق.'**
+  String get assignmentOfferedBody;
+
+  /// No description provided for @assignmentAssignedBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'قبل السائق وتم إنشاء رحلة.'**
+  String get assignmentAssignedBody;
+
+  /// No description provided for @assignmentUnavailableBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد إسناد نشط لسائق.'**
+  String get assignmentUnavailableBody;
+
+  /// No description provided for @assignmentCancelledBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إلغاء هذا الطلب.'**
+  String get assignmentCancelledBody;
+
+  /// No description provided for @leaveRejectionWarning.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يتم إرسال سبب الرفض المحدد. هل تريد مغادرة الشاشة؟'**
+  String get leaveRejectionWarning;
+
+  /// No description provided for @routeStops.
+  ///
+  /// In ar, this message translates to:
+  /// **'محطات المسار'**
+  String get routeStops;
 }
 
 class _AppLocalizationsDelegate

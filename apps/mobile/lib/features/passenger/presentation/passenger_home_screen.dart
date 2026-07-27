@@ -24,6 +24,12 @@ class PassengerHomeScreen extends ConsumerWidget {
     final canonicalEntry =
         ref.watch(mobileCapabilitiesProvider).value?.multiRouteEntryAvailable ==
         true;
+    final canonicalStatus =
+        ref
+            .watch(mobileCapabilitiesProvider)
+            .value
+            ?.canonicalAssignmentStatusAvailable ==
+        true;
 
     return Scaffold(
       body: SafeArea(
@@ -79,6 +85,15 @@ class PassengerHomeScreen extends ConsumerWidget {
                             context.go('/passenger/routes/request/new'),
                         child: Text(l10n.canonicalPassengerRequest),
                       ),
+                      if (canonicalStatus)
+                        OutlinedButton(
+                          key: const ValueKey(
+                            'openPassengerCanonicalAssignments',
+                          ),
+                          onPressed: () =>
+                              context.go('/passenger/canonical-assignments'),
+                          child: Text(l10n.canonicalAssignmentStatus),
+                        ),
                     ],
                   ),
                 ),

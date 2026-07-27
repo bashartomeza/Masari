@@ -1008,4 +1008,120 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get returnToDashboard => 'العودة إلى لوحة التحكم';
+
+  @override
+  String get canonicalDriverOffers => 'عروض المسار';
+
+  @override
+  String get canonicalDriverOffersBody =>
+      'راجع طلبات الركاب والطرود الحالية المرتبطة بإتاحة مسارك.';
+
+  @override
+  String get noCanonicalOffers => 'لا توجد عروض مسار حالياً.';
+
+  @override
+  String get loadMore => 'تحميل المزيد';
+
+  @override
+  String get offerDetails => 'تفاصيل العرض';
+
+  @override
+  String get offerExpires => 'ينتهي العرض';
+
+  @override
+  String get offerExpired => 'انتهت صلاحية هذا العرض.';
+
+  @override
+  String get demandPassenger => 'طلب راكب';
+
+  @override
+  String get demandMerchant => 'طلب طرود';
+
+  @override
+  String get acceptOffer => 'قبول العرض';
+
+  @override
+  String get rejectOffer => 'رفض العرض';
+
+  @override
+  String get rejectReason => 'سبب الرفض';
+
+  @override
+  String get rejectDriverDeclined => 'لا أستطيع تنفيذ هذه المهمة';
+
+  @override
+  String get rejectScheduleConflict => 'تعارض في الموعد';
+
+  @override
+  String get rejectCapacityUnavailable => 'السعة غير متوفرة';
+
+  @override
+  String get confirmAcceptOffer => 'هل تريد قبول مهمة المسار هذه؟';
+
+  @override
+  String get confirmRejectOffer => 'هل تريد رفض مهمة المسار هذه؟';
+
+  @override
+  String get offerAccepted => 'تم قبول المهمة.';
+
+  @override
+  String get offerRejected => 'تم رفض المهمة.';
+
+  @override
+  String get operationResultUncertain =>
+      'نتيجة العملية غير مؤكدة. احتفظ بهذه العملية وقم بمطابقتها قبل محاولة عملية أخرى.';
+
+  @override
+  String get recoverOperation => 'مطابقة نتيجة العملية';
+
+  @override
+  String get canonicalAssignmentStatus => 'حالة إسناد المسار';
+
+  @override
+  String get canonicalAssignments => 'طلبات المسار والإسناد';
+
+  @override
+  String get noCanonicalAssignments => 'لم تُسجل إسنادات مسار بعد.';
+
+  @override
+  String get statusOffered => 'معروض على سائق';
+
+  @override
+  String get statusUnavailable => 'لا يوجد إسناد متاح';
+
+  @override
+  String get canonicalTrip => 'الرحلة المسندة';
+
+  @override
+  String get vehicleType => 'نوع المركبة';
+
+  @override
+  String get trackingNotAvailable =>
+      'التتبع المباشر والخرائط وتقديرات الوصول غير متوفرة في هذه المرحلة.';
+
+  @override
+  String get manualRefreshNotice =>
+      'اسحب للأسفل أو استخدم زر التحديث للتحقق من المستجدات.';
+
+  @override
+  String get assignmentPendingBody => 'طلبك بانتظار المطابقة.';
+
+  @override
+  String get assignmentOfferedBody => 'العرض بانتظار قرار السائق.';
+
+  @override
+  String get assignmentAssignedBody => 'قبل السائق وتم إنشاء رحلة.';
+
+  @override
+  String get assignmentUnavailableBody => 'لا يوجد إسناد نشط لسائق.';
+
+  @override
+  String get assignmentCancelledBody => 'تم إلغاء هذا الطلب.';
+
+  @override
+  String get leaveRejectionWarning =>
+      'لم يتم إرسال سبب الرفض المحدد. هل تريد مغادرة الشاشة؟';
+
+  @override
+  String get routeStops => 'محطات المسار';
 }
