@@ -32,6 +32,7 @@ const rawSchema = z.object({
   ROUTE_MANAGEMENT_ENABLED: z.string().optional(),
   MULTI_ROUTE_ENTRY_ENABLED: z.string().optional(),
   MULTI_ROUTE_MATCHING_ENABLED: z.string().optional(),
+  CANONICAL_TRIP_CREATION_ENABLED: z.string().optional(),
   DEMO_RESET_KEY: z.string().min(8).optional(),
   DEMO_PASSENGER_PASSWORD: z.string().min(12).optional(),
   DEMO_DRIVER_PASSWORD: z.string().min(12).optional(),
@@ -125,6 +126,10 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
   const routeManagementEnabled = parseBoolean("ROUTE_MANAGEMENT_ENABLED", raw.ROUTE_MANAGEMENT_ENABLED);
   const multiRouteEntryEnabled = parseBoolean("MULTI_ROUTE_ENTRY_ENABLED", raw.MULTI_ROUTE_ENTRY_ENABLED);
   const multiRouteMatchingEnabled = parseBoolean("MULTI_ROUTE_MATCHING_ENABLED", raw.MULTI_ROUTE_MATCHING_ENABLED);
+  const canonicalTripCreationEnabled = parseBoolean(
+    "CANONICAL_TRIP_CREATION_ENABLED",
+    raw.CANONICAL_TRIP_CREATION_ENABLED
+  );
   const invitationsEnabled = parseBoolean("INVITATIONS_ENABLED", raw.INVITATIONS_ENABLED);
   const publicOnboardingEnabled = parseBoolean("PUBLIC_ONBOARDING_ENABLED", raw.PUBLIC_ONBOARDING_ENABLED);
   const testLegalFixturesEnabled = parseBoolean(
@@ -137,10 +142,19 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
     problems.push("ENABLE_DEMO_FEATURES cannot be enabled in staging or production");
   }
   if (multiRouteEntryEnabled && productionLike) {
-    problems.push("MULTI_ROUTE_ENTRY_ENABLED is forbidden in staging and production during M7C1");
+    problems.push("MULTI_ROUTE_ENTRY_ENABLED is forbidden in staging and production");
   }
-  if (multiRouteMatchingEnabled) {
-    problems.push("MULTI_ROUTE_MATCHING_ENABLED cannot be enabled during M7C1");
+  if (multiRouteMatchingEnabled && productionLike) {
+    problems.push("MULTI_ROUTE_MATCHING_ENABLED is forbidden in staging and production");
+  }
+  if (multiRouteMatchingEnabled && !multiRouteEntryEnabled) {
+    problems.push("MULTI_ROUTE_MATCHING_ENABLED requires MULTI_ROUTE_ENTRY_ENABLED");
+  }
+  if (canonicalTripCreationEnabled && productionLike) {
+    problems.push("CANONICAL_TRIP_CREATION_ENABLED is forbidden in staging and production");
+  }
+  if (canonicalTripCreationEnabled && !multiRouteMatchingEnabled) {
+    problems.push("CANONICAL_TRIP_CREATION_ENABLED requires MULTI_ROUTE_MATCHING_ENABLED");
   }
   if (publicOnboardingEnabled && productionLike) {
     problems.push("PUBLIC_ONBOARDING_ENABLED cannot be enabled in staging or production without an approved provider");
@@ -310,6 +324,7 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
     routeManagementEnabled,
     multiRouteEntryEnabled,
     multiRouteMatchingEnabled,
+    canonicalTripCreationEnabled,
     invitationsEnabled,
     publicOnboardingEnabled,
     publicRegistration: publicOnboardingEnabled

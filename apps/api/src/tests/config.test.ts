@@ -47,20 +47,42 @@ describe("fail-closed application configuration", () => {
     );
   });
 
-  it("keeps route management independent and M7C1 operational gates fail-closed", () => {
+  it("keeps route management independent and canonical matching gates fail-closed", () => {
     expect(createConfig(environment())).toEqual(
       expect.objectContaining({
         routeManagementEnabled: false,
         multiRouteEntryEnabled: false,
-        multiRouteMatchingEnabled: false
+        multiRouteMatchingEnabled: false,
+        canonicalTripCreationEnabled: false
       })
     );
     expect(createConfig(environment({ ROUTE_MANAGEMENT_ENABLED: "true" })).routeManagementEnabled).toBe(true);
     expect(createConfig(environment({ APP_ENV: "local", MULTI_ROUTE_ENTRY_ENABLED: "true" })).multiRouteEntryEnabled).toBe(true);
     expect(() => createConfig(environment({ MULTI_ROUTE_ENTRY_ENABLED: "true" }))).toThrow(/forbidden in staging and production/);
     expect(() => createConfig(environment({ APP_ENV: "staging", MULTI_ROUTE_ENTRY_ENABLED: "true" }))).toThrow(/forbidden/);
-    expect(() => createConfig(environment({ APP_ENV: "local", MULTI_ROUTE_MATCHING_ENABLED: "true" }))).toThrow(/during M7C1/);
-    expect(() => createConfig(environment({ MULTI_ROUTE_MATCHING_ENABLED: "true" }))).toThrow(/during M7C1/);
+    expect(() => createConfig(environment({ APP_ENV: "local", MULTI_ROUTE_MATCHING_ENABLED: "true" }))).toThrow(/requires MULTI_ROUTE_ENTRY_ENABLED/);
+    expect(() => createConfig(environment({ MULTI_ROUTE_MATCHING_ENABLED: "true" }))).toThrow(/forbidden in staging and production/);
+    const localMatching = createConfig(environment({
+      APP_ENV: "local",
+      MULTI_ROUTE_ENTRY_ENABLED: "true",
+      MULTI_ROUTE_MATCHING_ENABLED: "true",
+      CANONICAL_TRIP_CREATION_ENABLED: "true"
+    }));
+    expect(localMatching).toEqual(expect.objectContaining({
+      multiRouteEntryEnabled: true,
+      multiRouteMatchingEnabled: true,
+      canonicalTripCreationEnabled: true
+    }));
+    expect(() => createConfig(environment({
+      APP_ENV: "local",
+      MULTI_ROUTE_ENTRY_ENABLED: "true",
+      CANONICAL_TRIP_CREATION_ENABLED: "true"
+    }))).toThrow(/requires MULTI_ROUTE_MATCHING_ENABLED/);
+    expect(() => createConfig(environment({
+      MULTI_ROUTE_ENTRY_ENABLED: "true",
+      MULTI_ROUTE_MATCHING_ENABLED: "true",
+      CANONICAL_TRIP_CREATION_ENABLED: "true"
+    }))).toThrow(/forbidden in staging and production/);
     expect(() => createConfig(environment({ ROUTE_MANAGEMENT_ENABLED: "yes" }))).toThrow(/true or false/);
   });
 
@@ -71,6 +93,9 @@ describe("fail-closed application configuration", () => {
       );
       expect(() => createConfig(environment({ APP_ENV: "local", MULTI_ROUTE_MATCHING_ENABLED: value }))).toThrow(
         /MULTI_ROUTE_MATCHING_ENABLED must be true or false/
+      );
+      expect(() => createConfig(environment({ APP_ENV: "local", CANONICAL_TRIP_CREATION_ENABLED: value }))).toThrow(
+        /CANONICAL_TRIP_CREATION_ENABLED must be true or false/
       );
     }
   });

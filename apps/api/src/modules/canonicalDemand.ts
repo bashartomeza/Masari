@@ -108,7 +108,10 @@ export function createCanonicalDemandRouter(
         );
         res.status(result.replayed ? 200 : 201).json({
           request: passengerResponse(result.resource as unknown as Record<string, unknown>),
-          matching: { enabled: false, status: "not_active_in_m7c1" },
+          matching:
+            appConfig.multiRouteMatchingEnabled && appConfig.canonicalTripCreationEnabled
+              ? { enabled: true, status: "pending_internal_dispatch" }
+              : { enabled: false, status: "not_active_in_m7c1" },
           replayed: result.replayed,
           request_id: req.requestId
         });
@@ -142,7 +145,10 @@ export function createCanonicalDemandRouter(
         res.status(result.replayed ? 200 : 201).json({
           order: merchantResponse(result.resource as unknown as Record<string, unknown>),
           batching: { enabled: false, status: "not_active_in_m7c1" },
-          matching: { enabled: false, status: "not_active_in_m7c1" },
+          matching:
+            appConfig.multiRouteMatchingEnabled && appConfig.canonicalTripCreationEnabled
+              ? { enabled: true, status: "pending_internal_dispatch" }
+              : { enabled: false, status: "not_active_in_m7c1" },
           replayed: result.replayed,
           request_id: req.requestId
         });

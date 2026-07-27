@@ -75,9 +75,14 @@ export async function resetDemoData(db: PrismaClient = prisma) {
     await tx.refreshToken.deleteMany();
     await tx.authSession.deleteMany();
     await tx.locationEvent.deleteMany();
-    await tx.capacityReservation.deleteMany();
+    await tx.canonicalDemandDispatch.updateMany({
+      data: { status: "pending", active_match_offer_id: null, assigned_trip_id: null }
+    });
     await tx.trip.deleteMany();
+    await tx.capacityReservation.updateMany({ data: { match_id: null } });
     await tx.match.deleteMany();
+    await tx.capacityReservation.deleteMany();
+    await tx.canonicalDemandDispatch.deleteMany();
     await tx.comparisonRun.deleteMany();
     await tx.parcelBatch.deleteMany();
     await tx.parcel.deleteMany();

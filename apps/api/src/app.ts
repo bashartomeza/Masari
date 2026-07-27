@@ -33,6 +33,8 @@ import type { DriverAvailabilityService } from "./services/driverAvailability.js
 import { createCanonicalDemandRouter } from "./modules/canonicalDemand.js";
 import type { CanonicalDemandService } from "./services/canonicalDemand.js";
 import { createCapabilitiesRouter } from "./modules/capabilities.js";
+import { createCanonicalMatchingRouter } from "./modules/canonicalMatching.js";
+import type { CanonicalMatchingService } from "./services/canonicalMatching.js";
 
 export const HTTP_JSON_LIMIT = "64kb";
 export const HTTP_FORM_LIMIT = "16kb";
@@ -44,6 +46,7 @@ type AppDependencies = {
   routeManagementService?: RouteManagementService;
   driverAvailabilityService?: DriverAvailabilityService;
   canonicalDemandService?: CanonicalDemandService;
+  canonicalMatchingService?: CanonicalMatchingService;
 };
 
 export function createApp(appConfig: AppConfig = config, dependencies: AppDependencies = {}) {
@@ -68,6 +71,7 @@ export function createApp(appConfig: AppConfig = config, dependencies: AppDepend
   app.use("/api/v1", createCapabilitiesRouter(appConfig));
   if (appConfig.demoFeaturesEnabled) app.use("/api/v1", demoRouter);
   app.use("/api/v1", createCanonicalDemandRouter(appConfig, dependencies.canonicalDemandService));
+  app.use("/api/v1", createCanonicalMatchingRouter(appConfig, dependencies.canonicalMatchingService));
   app.use("/api/v1", passengerRouter);
   app.use("/api/v1", createDriverAvailabilityRouter(appConfig, dependencies.driverAvailabilityService));
   app.use("/api/v1", driverRouter);

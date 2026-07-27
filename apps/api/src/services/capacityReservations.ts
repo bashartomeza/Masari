@@ -343,7 +343,15 @@ export function createCapacityReservationService(db: PrismaClient = prisma) {
       const now = options.now ?? new Date();
       const limit = Math.min(Math.max(options.limit ?? CAPACITY_HOLD_LIMITS.expiryBatchSize, 1), CAPACITY_HOLD_LIMITS.expiryBatchSize);
       const candidates = await db.capacityReservation.findMany({
-        where: { status: "held", expiry_failure_count: { lt: 3 }, expires_at: { lte: now } },
+        where: {
+          status: "held",
+          expiry_failure_count: { lt: 3 },
+          expires_at: { lte: now },
+          OR: [
+            { match_id: null },
+            { match: { canonical_match_version: { not: "canonical_route_match_v1" } } }
+          ]
+        },
         select: { id: true },
         orderBy: [{ expires_at: "asc" }, { id: "asc" }],
         take: limit

@@ -57,10 +57,11 @@ async function main() {
   const migrations = await prisma.$queryRaw<Array<{ migration_name: string }>>`
     SELECT migration_name FROM _prisma_migrations WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL
   `;
-  check(migrations.length === 13, "all thirteen migrations applied from empty");
+  check(migrations.length === 16, "all sixteen migrations applied from empty");
   check(migrations.some((migration) => migration.migration_name === "20260722130000_multi_route_operational_foundation"), "M7C1 migration current");
   check(migrations.some((migration) => migration.migration_name === "20260722180000_harden_multi_route_operations"), "M7C1 review hardening migration current");
   check(migrations.some((migration) => migration.migration_name === "20260722200000_enforce_operational_mode_and_expiry_quarantine"), "M7C1 follow-up hardening migration current");
+  check(migrations.some((migration) => migration.migration_name === "20260727110000_harden_canonical_assignment_integrity"), "M7C3A assignment hardening migration current");
 
   await resetDemoData(prisma);
   const [admin, passenger, driver1, driver2, merchant] = await Promise.all([
@@ -154,13 +155,14 @@ async function main() {
     destination_label: "derived", destination_lat: destination.stop.latitude, destination_lng: destination.stop.longitude,
     preferred_time: from, passenger_count: 1, source: "canonical_route_v1", route_version_id: version.id,
     pickup_stop_id: second.origin.id, dropoff_stop_id: destination.stop_id, canonical_entry_version: "canonical_route_v1",
-    requested_departure_from: from, requested_departure_until: until, canonical_created_at: new Date()
+    requested_departure_from: from, requested_departure_until: until, canonical_created_at: new Date(),
+    operational_mode: "canonical_route_v1"
   } }), /foreign key|P2003/i, "database rejects direct passenger cross-route membership");
   await rejects(() => prisma.parcel.create({ data: {
     order_id: merchantCreate.resource.id, destination_label: "derived", destination_lat: second.destination.latitude,
     destination_lng: second.destination.longitude, size: "S", priority: "normal", status: "pending",
     route_version_id: second.current.id, destination_stop_id: second.destination.id,
-    canonical_entry_version: "canonical_route_v1"
+    canonical_entry_version: "canonical_route_v1", operational_mode: "canonical_route_v1"
   } }), /foreign key|P2003/i, "database rejects direct parcel/order route disagreement");
 
   const duplicateDeparture = new Date(Date.now() + 120 * 60_000);
@@ -533,11 +535,6 @@ async function main() {
     driverId: driver2.id, routeVersionId: second.current.id, departureOffsetMinutes: 156,
     seats: 1, parcels: 0, key: "m7c1-route-b-availability"
   });
-  const canonicalMatch = await prisma.match.create({ data: {
-    driver_route_id: updateReleaseAvailability.id, route_version_id: version.id,
-    canonical_match_version: "canonical_route_v1", operational_mode: "canonical_route_v1", score: "0.5000", method: "review_foundation",
-    explanation: "canonical foundation review", scoring_breakdown: { review: true }
-  } });
   const secondPassenger = await demandService.createPassengerRequest({
     routeVersionId: second.current.id, pickupStopId: second.origin.id, dropoffStopId: second.destination.id,
     requestedDepartureFrom: from, requestedDepartureUntil: until, passengerCount: 1
@@ -552,20 +549,20 @@ async function main() {
     passenger_request_id: secondPassenger.resource.id,
     canonical_match_version: "canonical_route_v1", operational_mode: "canonical_route_v1",
     score: "0.5000", method: "invalid_passenger_route", explanation: "must fail", scoring_breakdown: { review: true }
-  } }), /foreign key|P2003/i, "database rejects canonical match/passenger route disagreement");
+  } }), /constraint|foreign key|P2003|P2004/i, "database rejects canonical match/passenger route disagreement");
   await rejects(() => prisma.match.create({ data: {
     driver_route_id: updateReleaseAvailability.id, route_version_id: version.id,
     merchant_order_id: secondMerchant.resource.id,
     canonical_match_version: "canonical_route_v1", operational_mode: "canonical_route_v1",
     score: "0.5000", method: "invalid_merchant_route", explanation: "must fail", scoring_breakdown: { review: true }
-  } }), /foreign key|P2003/i, "database rejects canonical match/merchant route disagreement");
+  } }), /constraint|foreign key|P2003|P2004/i, "database rejects canonical match/merchant route disagreement");
   await rejects(() => capacityService.hold({
-    driverRouteId: routeBAvailability.id, routeVersionId: second.current.id, matchId: canonicalMatch.id,
+    driverRouteId: routeBAvailability.id, routeVersionId: version.id,
     reservationType: "passenger", seatsReserved: 1, parcelUnitsReserved: 0,
     expiresAt: new Date(Date.now() + 10 * 60_000)
-  }, { id: passenger.id, idempotencyKey: "m7c1-cross-route-match-hold" }), /canonical_route_mismatch/, "service rejects cross-route match reservation");
+  }, { id: passenger.id, idempotencyKey: "m7c1-cross-route-match-hold" }), /availability_not_reservable/, "service rejects cross-route match reservation");
   await rejects(() => prisma.capacityReservation.create({ data: {
-    driver_route_id: routeBAvailability.id, route_version_id: second.current.id, match_id: canonicalMatch.id,
+    driver_route_id: routeBAvailability.id, route_version_id: version.id,
     reservation_type: "passenger", seats_reserved: 1, parcel_units_reserved: 0,
     expires_at: new Date(Date.now() + 10 * 60_000), idempotency_fingerprint: "a".repeat(64)
   } }), /foreign key|P2003/i, "database rejects cross-route match reservation");
@@ -573,7 +570,7 @@ async function main() {
     driver_route_id: routeBAvailability.id, route_version_id: version.id,
     canonical_match_version: "canonical_route_v1", operational_mode: "canonical_route_v1", score: "0.5000", method: "invalid_review_foundation",
     explanation: "must fail", scoring_breakdown: { review: true }
-  } }), /foreign key|P2003/i, "database rejects canonical match/availability route disagreement");
+  } }), /constraint|foreign key|P2003|P2004/i, "database rejects canonical match/availability route disagreement");
 
   const decisionAvailability = await createAvailability({ driverId: driver1.id, routeVersionId: version.id, departureOffsetMinutes: 165, seats: 1, parcels: 1, key: "m7c1-decision-availability" });
   const decisionHold = await capacityService.hold({ driverRouteId: decisionAvailability.id, routeVersionId: version.id, reservationType: "combined", seatsReserved: 1, parcelUnitsReserved: 1, expiresAt: new Date(Date.now() + 10 * 60_000) }, { id: passenger.id, idempotencyKey: "m7c1-decision-hold" });
@@ -659,11 +656,11 @@ async function main() {
     driver_route_id: linkedLegacyRoute.id, route_version_id: linkedLegacyRoute.route_version_id!,
     canonical_match_version: "canonical_route_v1", operational_mode: "canonical_route_v1",
     score: "0.5000", method: "invalid_mode_crossing", explanation: "must fail", scoring_breakdown: { review: true }
-  } }), /foreign key|P2003/i, "database rejects canonical match on legacy-mode availability");
+  } }), /constraint|foreign key|P2003|P2004/i, "database rejects canonical match on legacy-mode availability");
   await rejects(() => prisma.match.create({ data: {
     driver_route_id: updateReleaseAvailability.id,
     score: "0.5000", method: "invalid_legacy_mode_crossing", explanation: "must fail", scoring_breakdown: { review: true }
-  } }), /foreign key|P2003/i, "database rejects legacy match on canonical-mode availability");
+  } }), /constraint|foreign key|P2003|P2004/i, "database rejects legacy match on canonical-mode availability");
   await rejects(() => prisma.capacityReservation.create({ data: {
     driver_route_id: linkedLegacyRoute.id, route_version_id: linkedLegacyRoute.route_version_id!,
     reservation_type: "passenger", seats_reserved: 1, parcel_units_reserved: 0,
@@ -686,8 +683,8 @@ async function main() {
   check(await prisma.capacityReservation.count() === 0 && await prisma.driverRoute.count() === 2, "demo reset is idempotent");
   check(await prisma.auditEvent.count({ where: { action: "demo_reset" } }) === 1, "reset leaves only bounded deterministic audit state");
 
-  check(checks === 78, `expected 78 persistent-state assertions, received ${checks}`);
-  console.log("M7C1 real-MySQL operational and concurrency integration passed: 78 persistent-state assertions");
+  check(checks === 79, `expected 79 persistent-state assertions, received ${checks}`);
+  console.log("M7C1 real-MySQL operational and concurrency integration passed: 79 persistent-state assertions");
 }
 
 main()

@@ -50,7 +50,10 @@ const SAFE_PATH_SEGMENTS = new Set([
   "resend",
   "verify",
   "complete",
-  "status-sessions"
+  "status-sessions",
+  "canonical-match-offers",
+  "route-requests",
+  "route-orders"
 ]);
 
 function normalizedRoute(req: Request) {
