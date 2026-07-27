@@ -20,6 +20,9 @@ class MobileCapabilities {
     required this.routeCatalogAvailable,
     required this.multiRouteEntryAvailable,
     required this.matchingAvailable,
+    required this.canonicalTripCreationAvailable,
+    required this.driverCanonicalOffersAvailable,
+    required this.canonicalAssignmentStatusAvailable,
     required this.mapsAvailable,
     required this.liveTrackingAvailable,
   });
@@ -27,6 +30,9 @@ class MobileCapabilities {
   final bool routeCatalogAvailable;
   final bool multiRouteEntryAvailable;
   final bool matchingAvailable;
+  final bool canonicalTripCreationAvailable;
+  final bool driverCanonicalOffersAvailable;
+  final bool canonicalAssignmentStatusAvailable;
   final bool mapsAvailable;
   final bool liveTrackingAvailable;
 
@@ -35,6 +41,9 @@ class MobileCapabilities {
       'canonical_route_catalog_available',
       'canonical_multi_route_entry_available',
       'canonical_matching_available',
+      'canonical_trip_creation_available',
+      'driver_canonical_offers_available',
+      'canonical_assignment_status_available',
       'maps_available',
       'live_tracking_available',
     });
@@ -45,6 +54,18 @@ class MobileCapabilities {
         'canonical_multi_route_entry_available',
       ),
       matchingAvailable: _bool(json, 'canonical_matching_available'),
+      canonicalTripCreationAvailable: _bool(
+        json,
+        'canonical_trip_creation_available',
+      ),
+      driverCanonicalOffersAvailable: _bool(
+        json,
+        'driver_canonical_offers_available',
+      ),
+      canonicalAssignmentStatusAvailable: _bool(
+        json,
+        'canonical_assignment_status_available',
+      ),
       mapsAvailable: _bool(json, 'maps_available'),
       liveTrackingAvailable: _bool(json, 'live_tracking_available'),
     );
