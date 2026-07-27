@@ -213,7 +213,7 @@ class CanonicalMutationRunner {
       try {
         return await send(bundle);
       } catch (error) {
-        if (!_ambiguous(error)) await storage.clear();
+        if (pending == null && !_ambiguous(error)) await storage.clear();
         rethrow;
       }
     } finally {
@@ -273,6 +273,8 @@ bool _ambiguous(Object error) {
   if (error is! ApiException) return false;
   return error.type == ApiErrorType.network ||
       error.type == ApiErrorType.timeout ||
+      error.type == ApiErrorType.server ||
+      error.message == 'invalid_response' ||
       error.statusCode == 502 ||
       error.statusCode == 503 ||
       error.message == 'transaction_retry_required' ||

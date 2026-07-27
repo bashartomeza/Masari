@@ -1012,4 +1012,124 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get returnToDashboard => 'Return to dashboard';
+
+  @override
+  String get canonicalDriverOffers => 'Route offers';
+
+  @override
+  String get canonicalDriverOffersBody =>
+      'Review current passenger and parcel assignments for your route availability.';
+
+  @override
+  String get noCanonicalOffers => 'No route offers are available.';
+
+  @override
+  String get loadMore => 'Load more';
+
+  @override
+  String get offerDetails => 'Offer details';
+
+  @override
+  String get offerExpires => 'Offer expires';
+
+  @override
+  String get offerExpired => 'This offer has expired.';
+
+  @override
+  String get demandPassenger => 'Passenger request';
+
+  @override
+  String get demandMerchant => 'Parcel order';
+
+  @override
+  String get acceptOffer => 'Accept offer';
+
+  @override
+  String get rejectOffer => 'Reject offer';
+
+  @override
+  String get rejectReason => 'Reason for rejection';
+
+  @override
+  String get rejectDriverDeclined => 'I cannot take this assignment';
+
+  @override
+  String get rejectScheduleConflict => 'Schedule conflict';
+
+  @override
+  String get rejectCapacityUnavailable => 'Capacity unavailable';
+
+  @override
+  String get confirmAcceptOffer => 'Accept this route assignment?';
+
+  @override
+  String get confirmRejectOffer => 'Reject this route assignment?';
+
+  @override
+  String get offerAccepted => 'The assignment was accepted.';
+
+  @override
+  String get offerRejected => 'The assignment was rejected.';
+
+  @override
+  String get operationResultUncertain =>
+      'The result is uncertain. Keep this operation and reconcile it before trying another.';
+
+  @override
+  String get recoverOperation => 'Reconcile operation';
+
+  @override
+  String get canonicalAssignmentStatus => 'Route assignment status';
+
+  @override
+  String get canonicalAssignments => 'Route requests and assignments';
+
+  @override
+  String get noCanonicalAssignments =>
+      'No route assignments have been recorded.';
+
+  @override
+  String get statusOffered => 'Offered to a driver';
+
+  @override
+  String get statusUnavailable => 'No assignment available';
+
+  @override
+  String get canonicalTrip => 'Assigned trip';
+
+  @override
+  String get vehicleType => 'Vehicle type';
+
+  @override
+  String get trackingNotAvailable =>
+      'Live tracking, maps, and arrival estimates are not available in this milestone.';
+
+  @override
+  String get manualRefreshNotice =>
+      'Pull down or use Refresh to check for updates.';
+
+  @override
+  String get assignmentPendingBody => 'Your request is waiting for matching.';
+
+  @override
+  String get assignmentOfferedBody =>
+      'An offer is awaiting a driver\'s decision.';
+
+  @override
+  String get assignmentAssignedBody =>
+      'A driver accepted and a trip was created.';
+
+  @override
+  String get assignmentUnavailableBody =>
+      'No active driver assignment is available.';
+
+  @override
+  String get assignmentCancelledBody => 'This request was cancelled.';
+
+  @override
+  String get leaveRejectionWarning =>
+      'Your selected rejection reason has not been submitted. Leave this screen?';
+
+  @override
+  String get routeStops => 'Route stops';
 }

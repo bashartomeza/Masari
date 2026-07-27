@@ -14,6 +14,9 @@ void main() {
         'canonical_route_catalog_available': true,
         'canonical_multi_route_entry_available': true,
         'canonical_matching_available': false,
+        'canonical_trip_creation_available': false,
+        'driver_canonical_offers_available': false,
+        'canonical_assignment_status_available': true,
         'maps_available': false,
         'live_tracking_available': false,
       });
@@ -30,6 +33,9 @@ void main() {
           'canonical_route_catalog_available': true,
           'canonical_multi_route_entry_available': true,
           'canonical_matching_available': false,
+          'canonical_trip_creation_available': false,
+          'driver_canonical_offers_available': false,
+          'canonical_assignment_status_available': true,
           'maps_available': false,
           'live_tracking_available': false,
           'environment': 'local',
@@ -41,6 +47,9 @@ void main() {
           'canonical_route_catalog_available': 'true',
           'canonical_multi_route_entry_available': true,
           'canonical_matching_available': false,
+          'canonical_trip_creation_available': false,
+          'driver_canonical_offers_available': false,
+          'canonical_assignment_status_available': true,
           'maps_available': false,
           'live_tracking_available': false,
         }),
@@ -235,6 +244,75 @@ void main() {
       );
       expect(storage.bundle, isNull);
     });
+
+    test(
+      'server and invalid-response failures retain a new mutation bundle',
+      () async {
+        for (final error in [
+          const ApiException(
+            ApiErrorType.server,
+            'request_failed',
+            statusCode: 500,
+          ),
+          const ApiException(ApiErrorType.validation, 'invalid_response'),
+        ]) {
+          final storage = FakeCanonicalStorage();
+          final runner = CanonicalMutationRunner(storage: storage);
+          await expectLater(
+            runner.run<void>(
+              operation: 'driver_canonical_offer_accept',
+              scope: 'driver',
+              actorId: 'driver-1',
+              payload: payload('one'),
+              send: (_) async => throw error,
+            ),
+            throwsA(isA<ApiException>()),
+          );
+          expect(storage.bundle, isNotNull);
+          expect(storage.clearCount, 0);
+        }
+      },
+    );
+
+    test(
+      'authorization denial during exact replay preserves unresolved work',
+      () async {
+        final storage = FakeCanonicalStorage();
+        final runner = CanonicalMutationRunner(storage: storage);
+        await expectLater(
+          runner.run<void>(
+            operation: 'driver_canonical_offer_accept',
+            scope: 'driver',
+            actorId: 'driver-1',
+            payload: payload('one'),
+            send: (_) async => throw const ApiException(
+              ApiErrorType.network,
+              'network_unavailable',
+            ),
+          ),
+          throwsA(isA<ApiException>()),
+        );
+        final retained = storage.bundle;
+
+        await expectLater(
+          runner.run<void>(
+            operation: 'driver_canonical_offer_accept',
+            scope: 'driver',
+            actorId: 'driver-1',
+            payload: payload('one'),
+            send: (_) async => throw const ApiException(
+              ApiErrorType.forbidden,
+              'account_unavailable',
+              statusCode: 403,
+            ),
+          ),
+          throwsA(isA<ApiException>()),
+        );
+
+        expect(storage.bundle?.idempotencyKey, retained?.idempotencyKey);
+        expect(storage.clearCount, 0);
+      },
+    );
 
     test('changed payload cannot replace an unresolved operation', () async {
       final storage = FakeCanonicalStorage();

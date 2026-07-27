@@ -9,6 +9,7 @@ import '../../features/auth/presentation/unsupported_role_screen.dart';
 import '../../features/canonical_routes/presentation/driver_availability_screens.dart';
 import '../../features/canonical_routes/presentation/merchant_route_order_screen.dart';
 import '../../features/canonical_routes/presentation/passenger_route_request_screen.dart';
+import '../../features/canonical_assignments/presentation/canonical_assignment_screens.dart';
 import '../../features/driver/presentation/driver_home_screen.dart';
 import '../../features/driver/presentation/driver_match_detail_screen.dart';
 import '../../features/driver/presentation/driver_match_inbox_screen.dart';
@@ -63,6 +64,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const PassengerRouteRequestScreen(),
           ),
           GoRoute(
+            path: 'canonical-assignments',
+            builder: (context, state) =>
+                const CanonicalAssignmentListScreen(role: 'passenger'),
+          ),
+          GoRoute(
+            path: 'canonical-assignments/:id',
+            builder: (context, state) => CanonicalAssignmentDetailScreen(
+              role: 'passenger',
+              assignmentId: state.pathParameters['id']!,
+            ),
+          ),
+          GoRoute(
             path: 'request/:id',
             builder: (context, state) =>
                 RequestDetailScreen(requestId: state.pathParameters['id']!),
@@ -90,6 +103,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'availabilities',
             builder: (context, state) => const DriverAvailabilityListScreen(),
+          ),
+          GoRoute(
+            path: 'canonical-offers',
+            builder: (context, state) => const DriverCanonicalOfferListScreen(),
+          ),
+          GoRoute(
+            path: 'canonical-offers/:id',
+            builder: (context, state) => DriverCanonicalOfferDetailScreen(
+              offerId: state.pathParameters['id']!,
+            ),
           ),
           GoRoute(
             path: 'availability/new',
@@ -128,6 +151,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'routes/order/new',
             builder: (context, state) => const MerchantRouteOrderScreen(),
+          ),
+          GoRoute(
+            path: 'canonical-assignments',
+            builder: (context, state) =>
+                const CanonicalAssignmentListScreen(role: 'merchant'),
+          ),
+          GoRoute(
+            path: 'canonical-assignments/:id',
+            builder: (context, state) => CanonicalAssignmentDetailScreen(
+              role: 'merchant',
+              assignmentId: state.pathParameters['id']!,
+            ),
           ),
           GoRoute(
             path: 'order/:id',

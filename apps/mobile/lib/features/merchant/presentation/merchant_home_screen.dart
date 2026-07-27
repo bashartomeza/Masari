@@ -25,6 +25,12 @@ class MerchantHomeScreen extends ConsumerWidget {
     final canonicalEntry =
         ref.watch(mobileCapabilitiesProvider).value?.multiRouteEntryAvailable ==
         true;
+    final canonicalStatus =
+        ref
+            .watch(mobileCapabilitiesProvider)
+            .value
+            ?.canonicalAssignmentStatusAvailable ==
+        true;
     return Scaffold(
       body: SafeArea(
         child: RefreshIndicator(
@@ -78,6 +84,15 @@ class MerchantHomeScreen extends ConsumerWidget {
                             context.go('/merchant/routes/order/new'),
                         child: Text(l10n.canonicalMerchantOrder),
                       ),
+                      if (canonicalStatus)
+                        OutlinedButton(
+                          key: const ValueKey(
+                            'openMerchantCanonicalAssignments',
+                          ),
+                          onPressed: () =>
+                              context.go('/merchant/canonical-assignments'),
+                          child: Text(l10n.canonicalAssignmentStatus),
+                        ),
                     ],
                   ),
                 ),

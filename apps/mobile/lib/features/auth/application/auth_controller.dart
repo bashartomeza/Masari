@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_error.dart';
+import '../../canonical_assignments/application/canonical_assignment_controller.dart';
 import '../../canonical_routes/application/canonical_route_controller.dart';
 import '../../driver/application/driver_controller.dart';
 import '../../merchant/application/merchant_controller.dart';
@@ -212,6 +213,11 @@ class AuthController extends AsyncNotifier<AuthState> {
     ref.invalidate(mobileCapabilitiesProvider);
     ref.invalidate(canonicalRouteCatalogProvider);
     ref.invalidate(driverAvailabilitiesProvider);
+    ref.invalidate(driverCanonicalOffersProvider);
+    ref.invalidate(driverCanonicalOfferDetailProvider);
+    ref.invalidate(passengerCanonicalAssignmentsProvider);
+    ref.invalidate(merchantCanonicalAssignmentsProvider);
+    ref.invalidate(canonicalAssignmentDetailProvider);
   }
 
   Future<void> _clearOnboardingState() async {

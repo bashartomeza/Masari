@@ -3,7 +3,11 @@ import request from "supertest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createConfig } from "../config.js";
 import { canonicalMatchingSerializers } from "../modules/canonicalMatching.js";
-import { canonicalScoring, createCanonicalMatchingService } from "../services/canonicalMatching.js";
+import {
+  canonicalOfferPagination,
+  canonicalScoring,
+  createCanonicalMatchingService
+} from "../services/canonicalMatching.js";
 
 const prismaMock = vi.hoisted(() => ({
   authSession: { findUnique: vi.fn(), update: vi.fn() }
@@ -42,6 +46,7 @@ const offer = {
   status: "sent_to_driver",
   route_version_id: "version_1",
   attempt_number: 1,
+  created_at: new Date(),
   offered_at: new Date(),
   expires_at: new Date(Date.now() + 300_000),
   driver_route: { departure_at: new Date(), route_version_id: "version_1" },
@@ -65,7 +70,7 @@ const offer = {
 function serviceMock() {
   return {
     assertDriverEligible: vi.fn().mockResolvedValue(undefined),
-    listDriverOffers: vi.fn().mockResolvedValue([offer]),
+    listDriverOffers: vi.fn().mockResolvedValue({ offers: [offer], nextCursor: null }),
     getDriverOffer: vi.fn().mockResolvedValue(offer),
     accept: vi.fn().mockResolvedValue({
       trip: { id: "trip_1", status: "accepted", route_version_id: "version_1" },
@@ -127,11 +132,11 @@ describe("M7C3A canonical matching APIs", () => {
     prismaMock.authSession.update.mockResolvedValue({});
   });
 
-  it("hides the entire assignment surface unless all canonical gates are enabled", async () => {
+  it("hides offer mutation while keeping owner assignment reads available when matching is disabled", async () => {
     const app = createApp(disabled, { canonicalMatchingService: serviceMock() as never });
     await request(app).get("/api/v1/driver/canonical-match-offers").set(auth("driver_1", "driver")).expect(404);
-    await request(app).get("/api/v1/passenger/route-requests").set(auth("passenger_1", "passenger")).expect(404);
-    await request(app).get("/api/v1/merchant/route-orders").set(auth("merchant_1", "merchant")).expect(404);
+    await request(app).get("/api/v1/passenger/route-requests").set(auth("passenger_1", "passenger")).expect(200);
+    await request(app).get("/api/v1/merchant/route-orders").set(auth("merchant_1", "merchant")).expect(200);
   });
 
   it("requires authentication, the driver role, and verified-driver eligibility", async () => {
@@ -142,6 +147,96 @@ describe("M7C3A canonical matching APIs", () => {
     await request(app).get("/api/v1/driver/canonical-match-offers").set(auth("driver_1", "driver")).expect(200);
     expect(service.assertDriverEligible).toHaveBeenCalledWith("driver_1");
     expect(service.listDriverOffers).toHaveBeenCalledWith("driver_1", { limit: 25 });
+  });
+
+  it("returns an opaque next cursor and rejects malformed cursors", async () => {
+    const service = serviceMock();
+    service.listDriverOffers.mockImplementation(async (_driverId, input) => {
+      if (input.cursor) canonicalOfferPagination.decode(input.cursor);
+      return {
+        offers: [offer],
+        nextCursor: canonicalOfferPagination.encode({
+          createdAt: offer.created_at,
+          id: offer.id
+        })
+      };
+    });
+    const app = createApp(enabled, { canonicalMatchingService: service as never });
+    const response = await request(app)
+      .get("/api/v1/driver/canonical-match-offers?limit=1")
+      .set(auth("driver_1", "driver"))
+      .expect(200);
+    expect(response.body.next_cursor).toEqual(expect.any(String));
+    const invalid = await request(app)
+      .get("/api/v1/driver/canonical-match-offers?cursor=%25%25%25")
+      .set(auth("driver_1", "driver"))
+      .expect(400);
+    expect(invalid.body).toEqual(
+      expect.objectContaining({ error: "invalid_cursor" })
+    );
+  });
+
+  it("strictly validates opaque driver-offer cursors", () => {
+    const encoded = canonicalOfferPagination.encode({
+      createdAt: new Date("2026-07-27T10:00:00.000Z"),
+      id: "offer_1"
+    });
+    expect(canonicalOfferPagination.decode(encoded)).toEqual({
+      createdAt: new Date("2026-07-27T10:00:00.000Z"),
+      id: "offer_1"
+    });
+    expect(() => canonicalOfferPagination.decode("%%%")).toThrowError(
+      expect.objectContaining({ statusCode: 400, message: "invalid_cursor" })
+    );
+  });
+
+  it("paginates by created_at and id without duplicates when newer offers arrive", async () => {
+    const sameTime = new Date("2026-07-27T10:00:00.000Z");
+    const rows = [
+      { id: "offer_c", created_at: sameTime },
+      { id: "offer_b", created_at: sameTime },
+      { id: "offer_a", created_at: new Date("2026-07-27T09:00:00.000Z") }
+    ];
+    const findMany = vi.fn(async ({ where, take }: Record<string, any>) => {
+      const boundary = where.OR as
+        | [{ created_at: { lt: Date } }, { created_at: Date; id: { lt: string } }]
+        | undefined;
+      return rows
+        .filter((row) => {
+          if (!boundary) return true;
+          return (
+            row.created_at < boundary[0].created_at.lt ||
+            (row.created_at.getTime() === boundary[1].created_at.getTime() &&
+              row.id < boundary[1].id.lt)
+          );
+        })
+        .sort(
+          (left, right) =>
+            right.created_at.getTime() - left.created_at.getTime() ||
+            right.id.localeCompare(left.id)
+        )
+        .slice(0, take);
+    });
+    const service = createCanonicalMatchingService(
+      { match: { findMany } } as never,
+      enabled
+    );
+
+    const first = await service.listDriverOffers("driver_1", { limit: 2 });
+    expect(first.offers.map(({ id }) => id)).toEqual(["offer_c", "offer_b"]);
+    expect(first.nextCursor).toEqual(expect.any(String));
+    rows.unshift({
+      id: "offer_d",
+      created_at: new Date("2026-07-27T11:00:00.000Z")
+    });
+    const second = await service.listDriverOffers("driver_1", {
+      cursor: first.nextCursor!,
+      limit: 2
+    });
+    expect(second.offers.map(({ id }) => id)).toEqual(["offer_a"]);
+    expect(
+      findMany.mock.calls[0]?.[0].where.driver_route.driver.user_id
+    ).toBe("driver_1");
   });
 
   it("returns bounded driver summaries without score, reservation, phone, or profile data", async () => {
