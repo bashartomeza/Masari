@@ -1,5 +1,12 @@
 # PROJECT_MAP.md
 
+[M7C3B_FLUTTER_CANONICAL_OFFERS_ACTIVE]
+- M7C3B is active on `m7c3b/flutter-canonical-offers-assignment` as a mobile presentation and state-management milestone. Flutter will consume driver-owned canonical offers and passenger/merchant owner assignment status without invoking matching, offer creation, capacity mutation, expiry, reassignment, or Trip lifecycle mutation.
+- Driver offer history will close the M7C3A pagination obligation with an opaque stable `(created_at, id)` keyset cursor. Mobile refresh remains manual or foreground-resume based; no polling, push, WebSocket, Socket.IO, or realtime channel is introduced.
+- Accept/reject will extend the actor-bound encrypted operation bundle with write-before-send, stable-key authentication retry, response-loss/process-death recovery, and delete-after-owner-detail reconciliation. Logout and session termination preserve unresolved encrypted work for same-account recovery.
+- Passenger and merchant status remain owner-only and disclose no pre-accept driver identity. Assigned state exposes only an approved minimum canonical Trip/vehicle summary and truthful no-tracking/no-map/no-ETA wording.
+- One demand per offer and Trip and one canonical Trip per one-off DriverRoute availability remain enforced. M7C3C aggregation, M7D maps/GPS, and M7E live tracking/realtime are not started.
+
 [M7C3A_BACKEND_CANONICAL_MATCHING_CLOSED]
 - M7C3A is merged and closed on `production-readiness` and remains backend-only. M7C3B Flutter offer/assignment UI, M7C3C combined passenger/merchant batching, and M7D/M7E maps, GPS, realtime, pricing, and production dispatch are not started.
 - Forward-only migrations 14 and 15 normalize non-null operational mode across canonical demand, MerchantOrder/Parcel parent-child rows, offers, reservations, and trips. Correction migration 16 adds non-null status ownership keys, demand fingerprints, assignment provenance, same-dispatch pointer foreign keys, and one-off availability uniqueness without changing migrations 1-15.
