@@ -24,6 +24,14 @@ workers from keeping overlapping membership or competing active manifests for on
 Terminal attempts exclude the previous DriverRoute for that demand; released demands can later
 form a different manifest with independently eligible members.
 
+Every shared transaction locks `ServiceRoute` and `ServiceRouteVersion` first. That route-wide
+prefix serializes formation, acceptance, rejection, and expiry before any shared downstream
+lock can form a cycle. Formation then locks its seed demand, selected DriverRoute and driver
+authority, and additional dispatches/demands in stable ID order. Terminal transitions lock
+DriverRoute and driver authority, manifest, MatchOffer, reservation, then stable-ID dispatches
+and demands. MySQL deadlock/serialization errors fully roll back and return a safe retryable
+conflict; no partial manifest, capacity, or assignment mutation survives.
+
 The versions are `canonical_shared_trip_match_v1`, `canonical_shared_manifest_v1`, and
 `canonical_global_capacity_v1`. M7C3A single-demand matching remains the compatibility path when
 the shared gate is false.

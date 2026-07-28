@@ -143,6 +143,26 @@ async function lockRow(tx: Prisma.TransactionClient, table: string, id: string) 
   if (rows.length !== 1) throw new HttpError(409, "canonical_state_changed");
 }
 
+async function lockRouteVersion(tx: Prisma.TransactionClient, routeVersionId: string) {
+  const lookup = await tx.serviceRouteVersion.findUnique({
+    where: { id: routeVersionId },
+    select: { service_route_id: true }
+  });
+  if (!lookup) throw new HttpError(409, "route_version_not_available");
+  await lockRow(tx, "service_routes", lookup.service_route_id);
+  await lockRow(tx, "service_route_versions", routeVersionId);
+}
+
+async function lockDriverAuthority(tx: Prisma.TransactionClient, driverRouteId: string) {
+  const route = await tx.driverRoute.findUnique({
+    where: { id: driverRouteId },
+    select: { driver: { select: { id: true, user_id: true } } }
+  });
+  if (!route) throw new HttpError(409, "candidate_state_changed");
+  await lockRow(tx, "users", route.driver.user_id);
+  await lockRow(tx, "driver_profiles", route.driver.id);
+}
+
 async function lockDispatches(tx: Prisma.TransactionClient, ids: string[]) {
   for (const id of [...ids].sort()) await lockRow(tx, "canonical_demand_dispatches", id);
 }
@@ -688,9 +708,8 @@ export function createCanonicalSharedMatchingService(
             );
             const selected = scored[0];
             if (!selected) return null;
-            await lockRow(tx, "users", selected.candidate.driver.user_id);
-            await lockRow(tx, "driver_profiles", selected.candidate.driver.id);
             await lockRow(tx, "driver_routes", selected.candidate.id);
+            await lockDriverAuthority(tx, selected.candidate.id);
             const availability = await tx.driverRoute.findUnique({
               where: { id: selected.candidate.id },
               include: { driver: { include: { user: true } } }
@@ -1037,6 +1056,18 @@ export function createCanonicalSharedMatchingService(
       try {
         const result = await db.$transaction(async (tx) => {
           const manifestId = owned.manifest_id!;
+          const preliminaryManifest = await tx.canonicalTripManifest.findUniqueOrThrow({
+            where: { id: manifestId }
+          });
+          let routeEligible = true;
+          await requireEligibleOperationalRoute(tx, preliminaryManifest.route_version_id, {
+            lockForUpdate: true
+          }).catch((error) => {
+            if (!(error instanceof HttpError)) throw error;
+            routeEligible = false;
+          });
+          await lockRow(tx, "driver_routes", preliminaryManifest.driver_route_id);
+          await lockDriverAuthority(tx, preliminaryManifest.driver_route_id);
           await lockRow(tx, "canonical_trip_manifests", manifestId);
           const manifestLookup = await tx.canonicalTripManifest.findUniqueOrThrow({
             where: { id: manifestId }
@@ -1064,14 +1095,6 @@ export function createCanonicalSharedMatchingService(
             if (!trip) throw new HttpError(409, "idempotency_replay_unavailable");
             return { trip, replayed: true };
           }
-          let routeEligible = true;
-          await requireEligibleOperationalRoute(tx, manifestLookup.route_version_id, {
-            lockForUpdate: true
-          }).catch((error) => {
-            if (!(error instanceof HttpError)) throw error;
-            routeEligible = false;
-          });
-          await lockRow(tx, "driver_routes", manifestLookup.driver_route_id);
           await lockRow(tx, "matches", offerId);
           await lockRow(tx, "capacity_reservations", manifestLookup.reservation_id!);
           const aggregate = await tx.match.findUniqueOrThrow({
@@ -1301,6 +1324,12 @@ export function createCanonicalSharedMatchingService(
       try {
         return await db.$transaction(async (tx) => {
           const manifestId = owned.manifest_id!;
+          const preliminaryManifest = await tx.canonicalTripManifest.findUniqueOrThrow({
+            where: { id: manifestId }
+          });
+          await lockRouteVersion(tx, preliminaryManifest.route_version_id);
+          await lockRow(tx, "driver_routes", preliminaryManifest.driver_route_id);
+          await lockDriverAuthority(tx, preliminaryManifest.driver_route_id);
           await lockRow(tx, "canonical_trip_manifests", manifestId);
           const manifestLookup = await tx.canonicalTripManifest.findUniqueOrThrow({
             where: { id: manifestId }
@@ -1321,7 +1350,6 @@ export function createCanonicalSharedMatchingService(
             }
             return { offer, replayed: true };
           }
-          await lockRow(tx, "driver_routes", manifestLookup.driver_route_id);
           await lockRow(tx, "matches", offerId);
           await lockRow(tx, "capacity_reservations", manifestLookup.reservation_id!);
           const aggregate = await tx.match.findUniqueOrThrow({
@@ -1405,11 +1433,15 @@ export function createCanonicalSharedMatchingService(
       for (const candidate of candidates) {
         try {
           const changed = await db.$transaction(async (tx) => {
+            const preliminaryManifest = await tx.canonicalTripManifest.findUniqueOrThrow({
+              where: { id: candidate.manifest_id! }
+            });
+            await lockRouteVersion(tx, preliminaryManifest.route_version_id);
+            await lockRow(tx, "driver_routes", preliminaryManifest.driver_route_id);
             await lockRow(tx, "canonical_trip_manifests", candidate.manifest_id!);
             const lookup = await tx.canonicalTripManifest.findUniqueOrThrow({
               where: { id: candidate.manifest_id! }
             });
-            await lockRow(tx, "driver_routes", lookup.driver_route_id);
             await lockRow(tx, "matches", candidate.id);
             await lockRow(tx, "capacity_reservations", lookup.reservation_id!);
             const aggregate = await tx.match.findUniqueOrThrow({
