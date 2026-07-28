@@ -537,8 +537,18 @@ async function main() {
     where: { action: "invitation_created", entity_id: created.invitation.id },
     orderBy: { created_at: "desc" }
   });
-  const createAuditText = JSON.stringify(createAudit.metadata);
-  assert(!createAuditText.includes(privateCampaign) && !createAuditText.includes("970"), "Invitation creation audit retained operator text or phone data");
+  const createAuditMetadata = createAudit.metadata as Record<string, unknown>;
+  const createAuditText = JSON.stringify(createAuditMetadata);
+  assert(
+    JSON.stringify(Object.keys(createAuditMetadata).sort()) ===
+      JSON.stringify(["intended_role", "request_id"]),
+    "Invitation creation audit exceeded its metadata allowlist"
+  );
+  assert(
+    !createAuditText.includes(privateCampaign) &&
+      !createAuditText.includes("+970590000004"),
+    "Invitation creation audit retained operator text or phone data"
+  );
   const listResponse = await fetch(`${api}/api/v1/admin/invitations?campaign=${encodeURIComponent(privateCampaign)}`, { headers: { authorization: `Bearer ${token}` } });
   const listed = await json(listResponse);
   assert(listResponse.ok && Array.isArray(listed.invitations) && listed.invitations.length === 1, "Admin invitation listing failed");
