@@ -107,7 +107,8 @@ ALTER TABLE `capacity_reservations`
   ADD CONSTRAINT `capacity_reservations_type_chk` CHECK (
     (`manifest_id` IS NULL AND (
       (`reservation_type` = 'passenger' AND `seats_reserved` > 0 AND `parcel_units_reserved` = 0) OR
-      (`reservation_type` = 'parcel' AND `seats_reserved` = 0 AND `parcel_units_reserved` > 0)
+      (`reservation_type` = 'parcel' AND `seats_reserved` = 0 AND `parcel_units_reserved` > 0) OR
+      (`reservation_type` = 'combined' AND `seats_reserved` > 0 AND `parcel_units_reserved` > 0)
     )) OR
     (`manifest_id` IS NOT NULL AND `capacity_model` = 'canonical_global_capacity_v1' AND
       `reservation_fingerprint` REGEXP '^[0-9a-f]{64}$' AND
