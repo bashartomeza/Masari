@@ -408,24 +408,6 @@ ALTER TABLE `canonical_demand_dispatches`
     REFERENCES `canonical_trip_manifest_members` (`manifest_id`, `dispatch_id`)
     ON DELETE RESTRICT ON UPDATE RESTRICT;
 
-ALTER TABLE `canonical_trip_manifests`
-  ADD CONSTRAINT `canonical_manifest_active_offer_fkey`
-    FOREIGN KEY (`active_offer_id`, `id`)
-    REFERENCES `matches` (`id`, `active_manifest_key`)
-    ON DELETE RESTRICT ON UPDATE RESTRICT,
-  ADD CONSTRAINT `canonical_manifest_accepted_offer_fkey`
-    FOREIGN KEY (`accepted_offer_id`, `id`)
-    REFERENCES `matches` (`id`, `accepted_manifest_key`)
-    ON DELETE RESTRICT ON UPDATE RESTRICT,
-  ADD CONSTRAINT `canonical_manifest_assigned_trip_fkey`
-    FOREIGN KEY (`assigned_trip_id`, `id`)
-    REFERENCES `trips` (`id`, `manifest_id`)
-    ON DELETE RESTRICT ON UPDATE RESTRICT,
-  ADD CONSTRAINT `canonical_manifest_reservation_fkey`
-    FOREIGN KEY (`reservation_id`, `id`)
-    REFERENCES `capacity_reservations` (`id`, `manifest_id`)
-    ON DELETE RESTRICT ON UPDATE RESTRICT;
-
 CREATE TABLE `canonical_demand_attempts` (
   `id` VARCHAR(191) NOT NULL,
   `dispatch_id` VARCHAR(191) NOT NULL,
@@ -460,4 +442,3 @@ CREATE TABLE `canonical_demand_attempts` (
   ),
   PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
