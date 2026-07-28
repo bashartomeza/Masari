@@ -1176,6 +1176,7 @@ model CanonicalTripManifest {
   created_at              DateTime                @default(now())
   updated_at              DateTime                @updatedAt
   offered_at              DateTime?
+  offered_revision        Int?
   accepted_at             DateTime?
   rejected_at             DateTime?
   expired_at              DateTime?
@@ -1212,6 +1213,7 @@ model CanonicalTripManifestMember {
   passenger_request_id     String?
   merchant_order_id        String?
   member_status            CanonicalManifestMemberStatus @default(active)
+  member_sequence          Int
   passenger_seats          Int
   parcel_units             Int
   pickup_stop_id           String
@@ -1234,6 +1236,7 @@ model CanonicalTripManifestMember {
   route_version_id String
 
   @@unique([manifest_id, dispatch_id], map: "canonical_manifest_membership_key")
+  @@unique([manifest_id, member_sequence], map: "canonical_manifest_member_sequence_key")
   @@unique([id, manifest_id, dispatch_id], map: "canonical_manifest_member_ownership_key")
   @@index([dispatch_id, member_status])
   @@index([manifest_id, member_status])

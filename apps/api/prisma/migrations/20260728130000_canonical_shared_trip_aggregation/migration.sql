@@ -149,6 +149,7 @@ CREATE TABLE `canonical_trip_manifests` (
   `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   `updated_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   `offered_at` DATETIME(3) NULL,
+  `offered_revision` INTEGER NULL,
   `accepted_at` DATETIME(3) NULL,
   `rejected_at` DATETIME(3) NULL,
   `expired_at` DATETIME(3) NULL,
@@ -187,23 +188,24 @@ CREATE TABLE `canonical_trip_manifests` (
     (`passenger_seat_count` > 0 OR `parcel_unit_count` > 0) AND `revision` > 0 AND
     ((`lifecycle_status` = 'building' AND `active_offer_id` IS NULL AND
       `accepted_offer_id` IS NULL AND `assigned_trip_id` IS NULL AND `reservation_id` IS NULL AND
-      `active_availability_key` = `driver_route_id`) OR
+      `active_availability_key` = `driver_route_id` AND `offered_revision` IS NULL) OR
      (`lifecycle_status` = 'offered' AND `active_offer_id` IS NOT NULL AND
       `accepted_offer_id` IS NULL AND `assigned_trip_id` IS NULL AND `reservation_id` IS NOT NULL AND
-      `active_availability_key` = `driver_route_id` AND `offered_at` IS NOT NULL) OR
+      `active_availability_key` = `driver_route_id` AND `offered_at` IS NOT NULL AND
+      `offered_revision` = 2) OR
      (`lifecycle_status` = 'accepted' AND `active_offer_id` IS NULL AND
       `accepted_offer_id` IS NOT NULL AND `assigned_trip_id` IS NOT NULL AND
       `reservation_id` IS NOT NULL AND `active_availability_key` = `driver_route_id` AND
-      `accepted_at` IS NOT NULL) OR
+      `accepted_at` IS NOT NULL AND `offered_revision` = 2) OR
      (`lifecycle_status` = 'rejected' AND `active_offer_id` IS NULL AND
       `accepted_offer_id` IS NULL AND `assigned_trip_id` IS NULL AND
-      `active_availability_key` IS NULL AND `rejected_at` IS NOT NULL) OR
+      `active_availability_key` IS NULL AND `rejected_at` IS NOT NULL AND `offered_revision` = 2) OR
      (`lifecycle_status` = 'expired' AND `active_offer_id` IS NULL AND
       `accepted_offer_id` IS NULL AND `assigned_trip_id` IS NULL AND
-      `active_availability_key` IS NULL AND `expired_at` IS NOT NULL) OR
+      `active_availability_key` IS NULL AND `expired_at` IS NOT NULL AND `offered_revision` = 2) OR
      (`lifecycle_status` = 'dissolved' AND `active_offer_id` IS NULL AND
       `accepted_offer_id` IS NULL AND `assigned_trip_id` IS NULL AND
-      `active_availability_key` IS NULL AND `dissolved_at` IS NOT NULL))
+      `active_availability_key` IS NULL AND `dissolved_at` IS NOT NULL AND `offered_revision` = 2))
   ),
   PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -218,6 +220,7 @@ CREATE TABLE `canonical_trip_manifest_members` (
   `passenger_request_id` VARCHAR(191) NULL,
   `merchant_order_id` VARCHAR(191) NULL,
   `member_status` ENUM('active', 'accepted', 'released', 'invalidated') NOT NULL DEFAULT 'active',
+  `member_sequence` INTEGER NOT NULL,
   `passenger_seats` INTEGER NOT NULL,
   `parcel_units` INTEGER NOT NULL,
   `pickup_stop_id` VARCHAR(191) NOT NULL,
@@ -231,6 +234,7 @@ CREATE TABLE `canonical_trip_manifest_members` (
   `updated_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   UNIQUE INDEX `canonical_manifest_members_active_dispatch_key_key` (`active_dispatch_key`),
   UNIQUE INDEX `canonical_manifest_membership_key` (`manifest_id`, `dispatch_id`),
+  UNIQUE INDEX `canonical_manifest_member_sequence_key` (`manifest_id`, `member_sequence`),
   UNIQUE INDEX `canonical_manifest_member_ownership_key` (`id`, `manifest_id`, `dispatch_id`),
   INDEX `canonical_manifest_member_dispatch_status_idx` (`dispatch_id`, `member_status`),
   INDEX `canonical_manifest_member_manifest_status_idx` (`manifest_id`, `member_status`),
@@ -246,7 +250,7 @@ CREATE TABLE `canonical_trip_manifest_members` (
   CONSTRAINT `canonical_manifest_member_shape_chk` CHECK (
     `operational_mode` = 'canonical_route_v1' AND
     `demand_fingerprint` REGEXP '^[0-9a-f]{64}$' AND
-    `attempt_number` BETWEEN 1 AND 5 AND
+    `member_sequence` BETWEEN 1 AND 20 AND `attempt_number` BETWEEN 1 AND 5 AND
     ((`demand_type` = 'passenger' AND `demand_id` = `passenger_request_id` AND
       `passenger_request_id` IS NOT NULL AND `merchant_order_id` IS NULL AND
       `passenger_seats` > 0 AND `parcel_units` = 0 AND `drop_off_stop_id` IS NOT NULL AND
