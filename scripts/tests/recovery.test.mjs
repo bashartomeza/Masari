@@ -72,7 +72,8 @@ test("release metadata is reproducible with SOURCE_DATE_EPOCH and excludes secre
       "20260722200000_enforce_operational_mode_and_expiry_quarantine",
       "20260726130000_canonical_matching_dispatch",
       "20260726170000_enforce_match_trip_availability_mode",
-      "20260727110000_harden_canonical_assignment_integrity"
+      "20260727110000_harden_canonical_assignment_integrity",
+      "20260728130000_canonical_shared_trip_aggregation"
     ]
   );
   rmSync(directory, { recursive: true, force: true });
