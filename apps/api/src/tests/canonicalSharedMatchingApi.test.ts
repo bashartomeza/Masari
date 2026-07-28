@@ -141,6 +141,14 @@ describe("M7C3C1 shared canonical APIs and gate", () => {
     })).toThrow(ConfigurationError);
     expect(() => createConfig({
       ...environment,
+      APP_ENV: "staging",
+      CORS_ORIGINS: "https://admin.staging.masari.example",
+      APP_RELEASE: "test",
+      REFRESH_TOKEN_PEPPER: "distinct-refresh-pepper-with-thirty-two-characters",
+      TRUST_PROXY: "1"
+    })).toThrow(ConfigurationError);
+    expect(() => createConfig({
+      ...environment,
       CANONICAL_SHARED_TRIPS_ENABLED: "yes"
     })).toThrow(ConfigurationError);
   });
@@ -224,4 +232,3 @@ describe("M7C3C1 shared canonical APIs and gate", () => {
     })).toThrow("canonical_shared_offer_version_mismatch");
   });
 });
-
