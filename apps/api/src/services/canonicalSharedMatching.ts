@@ -1064,10 +1064,12 @@ export function createCanonicalSharedMatchingService(
             if (!trip) throw new HttpError(409, "idempotency_replay_unavailable");
             return { trip, replayed: true };
           }
+          let routeEligible = true;
           await requireEligibleOperationalRoute(tx, manifestLookup.route_version_id, {
             lockForUpdate: true
           }).catch((error) => {
             if (!(error instanceof HttpError)) throw error;
+            routeEligible = false;
           });
           await lockRow(tx, "driver_routes", manifestLookup.driver_route_id);
           await lockRow(tx, "matches", offerId);
@@ -1117,6 +1119,7 @@ export function createCanonicalSharedMatchingService(
             parcelUnits: demands.reduce((sum, item) => sum + item.parcelUnits, 0)
           });
           const invalid =
+            !routeEligible ||
             aggregate.status !== "sent_to_driver" ||
             manifest.lifecycle_status !== "offered" ||
             aggregate.expires_at! <= now ||

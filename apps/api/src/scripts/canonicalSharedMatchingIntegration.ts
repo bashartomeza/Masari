@@ -575,6 +575,50 @@ try {
   check(regrouped.driver_route_id === regroupAvailability.id, "previous candidate excluded");
   check(await prisma.canonicalTripManifest.count({ where: { id: rejected.id } }) === 1, "old manifest retained");
 
+  await availability(fixture, 0, {
+    seats: 4,
+    parcels: 4,
+    departureAt: new Date(departure.getTime() + 15 * 60_000)
+  });
+  await passengerDemand(fixture, 4, 1);
+  const pausedRouteRun = await service.run({ now, requestId: "paused-route-run" });
+  check(pausedRouteRun.offered === 1, "route pause scenario offered");
+  const pausedRouteManifest = await prisma.canonicalTripManifest.findUniqueOrThrow({
+    where: { id: pausedRouteRun.manifestIds[0] },
+    include: { active_offer: true, driver_route: { include: { driver: true } } }
+  });
+  check(Boolean(pausedRouteManifest.driver_route_id), "route pause scenario owns an availability");
+  await prisma.serviceRouteVersion.update({
+    where: { id: fixture.version.id },
+    data: { status: "paused" }
+  });
+  await rejects(
+    () => service.accept(pausedRouteManifest.driver_route.driver.user_id, pausedRouteManifest.active_offer_id!, {
+      id: pausedRouteManifest.driver_route.driver.user_id,
+      idempotencyKey: "paused-route-accept",
+      requestId: "paused-route-accept"
+    }),
+    "paused route invalidates acceptance"
+  );
+  const pausedRouteResult = await prisma.canonicalTripManifest.findUniqueOrThrow({
+    where: { id: pausedRouteManifest.id },
+    include: { reservation: true }
+  });
+  check(pausedRouteResult.lifecycle_status === "dissolved", "paused route dissolves manifest");
+  check(pausedRouteResult.reservation?.status === "released", "paused route releases hold");
+  check(
+    await prisma.trip.count({ where: { manifest_id: pausedRouteManifest.id } }) === 0,
+    "paused route creates no Trip"
+  );
+  await prisma.serviceRouteVersion.update({
+    where: { id: fixture.version.id },
+    data: { status: "published" }
+  });
+  await prisma.canonicalDemandDispatch.updateMany({
+    where: { status: "pending" },
+    data: { status: "unavailable", revision: { increment: 1 } }
+  });
+
   const legacyUser = await prisma.user.create({
     data: {
       id: "m7c3c1_legacy_passenger",
