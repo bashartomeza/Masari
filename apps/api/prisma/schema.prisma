@@ -131,6 +131,7 @@ enum MatchStatus {
   accepted
   rejected
   expired
+  invalidated
 }
 
 enum CanonicalDemandType {
@@ -150,6 +151,29 @@ enum CanonicalRejectReason {
   driver_declined
   schedule_conflict
   capacity_unavailable
+}
+
+enum CanonicalManifestStatus {
+  building
+  offered
+  accepted
+  rejected
+  expired
+  dissolved
+}
+
+enum CanonicalManifestMemberStatus {
+  active
+  accepted
+  released
+  invalidated
+}
+
+enum CanonicalAttemptOutcome {
+  offered
+  rejected
+  expired
+  system_invalidated
 }
 
 enum TripStatus {
@@ -247,6 +271,14 @@ enum AuditAction {
   canonical_offer_reassigned
   canonical_trip_created
   canonical_dispatch_unavailable
+  canonical_manifest_created
+  canonical_manifest_offered
+  canonical_manifest_accepted
+  canonical_manifest_rejected
+  canonical_manifest_expired
+  canonical_manifest_invalidated
+  canonical_manifest_regrouped
+  canonical_shared_trip_created
 }
 
 enum OnboardingRole {
@@ -650,6 +682,8 @@ model DriverRoute {
   canonical_matches Match[] @relation("CanonicalOfferAvailability")
   mode_matches Match[] @relation("MatchAvailabilityMode")
   mode_trips Trip[] @relation("TripAvailabilityMode")
+  canonical_manifests CanonicalTripManifest[]
+  canonical_attempts CanonicalDemandAttempt[]
 
   @@index([corridor_key])
   @@index([route_version_id, availability_status, departure_at])
@@ -764,6 +798,8 @@ model ServiceRouteVersion {
   trips              Trip[]
   capacity_reservations CapacityReservation[]
   canonical_dispatches CanonicalDemandDispatch[]
+  canonical_manifests CanonicalTripManifest[]
+  canonical_manifest_members CanonicalTripManifestMember[]
 
   @@unique([service_route_id, version_number])
   @@unique([service_route_id, id], map: "service_route_versions_route_ownership_key")
@@ -823,6 +859,7 @@ model PassengerRequest {
   matches      Match[]
   trips        Trip[]
   canonical_dispatch CanonicalDemandDispatch?
+  canonical_manifest_members CanonicalTripManifestMember[]
 
   @@index([route_version_id, requested_departure_from])
   @@unique([id, route_version_id], map: "passenger_requests_route_ownership_key")
@@ -854,6 +891,7 @@ model MerchantOrder {
   matches        Match[]
   trips          Trip[]
   canonical_dispatch CanonicalDemandDispatch?
+  canonical_manifest_members CanonicalTripManifestMember[]
 
   @@unique([id, route_version_id], map: "merchant_orders_route_ownership_key")
   @@unique([id, operational_mode], map: "merchant_orders_mode_ownership_key")
@@ -945,8 +983,16 @@ model Match {
   capacity_reservation CapacityReservation? @relation("ReservationMatch")
   offer_reservation CapacityReservation? @relation("OfferReservation", fields: [reservation_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
   dispatch CanonicalDemandDispatch? @relation("DispatchOffers", fields: [dispatch_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  active_for_dispatch CanonicalDemandDispatch? @relation("ActiveDispatchOffer")
+  active_for_dispatches CanonicalDemandDispatch[] @relation("ActiveDispatchOffer")
   canonical_trip Trip? @relation("CanonicalTripOffer")
+  canonical_manifest CanonicalTripManifest? @relation("ManifestOffer", fields: [manifest_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  active_for_manifest CanonicalTripManifest? @relation("ActiveManifestOffer")
+  accepted_for_manifest CanonicalTripManifest? @relation("AcceptedManifestOffer")
+  canonical_attempts CanonicalDemandAttempt[]
+
+  manifest_id String?
+  active_manifest_key String? @unique
+  accepted_manifest_key String? @unique
 
   @@index([route_version_id, status])
   @@index([dispatch_id, status])
@@ -956,6 +1002,9 @@ model Match {
   @@unique([id, operational_mode], map: "matches_mode_ownership_key")
   @@unique([id, active_dispatch_key], map: "matches_active_dispatch_ownership_key")
   @@unique([id, canonical_assignment_key], map: "matches_assignment_ownership_key")
+  @@unique([id, manifest_id], map: "matches_manifest_ownership_key")
+  @@unique([id, active_manifest_key], map: "matches_active_manifest_ownership_key")
+  @@unique([id, accepted_manifest_key], map: "matches_accepted_manifest_ownership_key")
   @@map("matches")
 }
 
@@ -1007,13 +1056,18 @@ model Trip {
   route_version     ServiceRouteVersion? @relation(fields: [route_version_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
   canonical_match Match? @relation("CanonicalTripOffer", fields: [canonical_match_id, canonical_assignment_key], references: [id, canonical_assignment_key], onDelete: Restrict, onUpdate: Restrict)
   canonical_dispatch CanonicalDemandDispatch? @relation("DispatchTrips", fields: [canonical_dispatch_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  assigned_for_dispatch CanonicalDemandDispatch? @relation("AssignedDispatchTrip")
+  assigned_for_dispatches CanonicalDemandDispatch[] @relation("AssignedDispatchTrip")
+  canonical_manifest CanonicalTripManifest? @relation("ManifestTrip", fields: [manifest_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  assigned_for_manifest CanonicalTripManifest? @relation("AssignedManifestTrip")
+
+  manifest_id String? @unique
 
   @@index([driver_id])
   @@index([route_version_id, status])
   @@unique([id, operational_mode], map: "trips_mode_ownership_key")
   @@unique([canonical_match_id, canonical_assignment_key], map: "trips_match_assignment_key")
   @@unique([id, canonical_dispatch_id], map: "trips_dispatch_ownership_key")
+  @@unique([id, manifest_id], map: "trips_manifest_ownership_key")
   @@map("trips")
 }
 
@@ -1042,6 +1096,12 @@ model CapacityReservation {
   route_version ServiceRouteVersion @relation(fields: [route_version_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
   match        Match?              @relation("ReservationMatch", fields: [match_id], references: [id], onDelete: Restrict)
   canonical_offer Match?           @relation("OfferReservation")
+  canonical_manifest CanonicalTripManifest? @relation("ReservationManifest", fields: [manifest_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  pointed_by_manifest CanonicalTripManifest? @relation("ManifestReservationPointer")
+
+  manifest_id String? @unique
+  capacity_model String? @db.VarChar(50)
+  reservation_fingerprint String? @db.Char(64)
 
   @@index([status, expires_at])
   @@index([status, expiry_failure_count, expires_at], map: "capacity_reservations_expiry_retry_idx")
@@ -1058,8 +1118,10 @@ model CanonicalDemandDispatch {
   merchant_order_id     String?                 @unique
   route_version_id      String
   status                CanonicalDispatchStatus @default(pending)
-  active_match_offer_id String?                 @unique
-  assigned_trip_id      String?                 @unique
+  active_match_offer_id String?
+  assigned_trip_id      String?
+  active_manifest_id    String?
+  accepted_manifest_id  String?
   attempt_count         Int                     @default(0)
   revision              Int                     @default(1)
   failure_count         Int                     @default(0)
@@ -1070,17 +1132,134 @@ model CanonicalDemandDispatch {
   passenger_request PassengerRequest? @relation(fields: [passenger_request_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
   merchant_order MerchantOrder? @relation(fields: [merchant_order_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
   route_version ServiceRouteVersion @relation(fields: [route_version_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  active_match_offer Match? @relation("ActiveDispatchOffer", fields: [active_match_offer_id, id], references: [id, active_dispatch_key], onDelete: Restrict, onUpdate: Restrict)
-  assigned_trip Trip? @relation("AssignedDispatchTrip", fields: [assigned_trip_id, id], references: [id, canonical_dispatch_id], onDelete: Restrict, onUpdate: Restrict)
+  active_match_offer Match? @relation("ActiveDispatchOffer", fields: [active_match_offer_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  assigned_trip Trip? @relation("AssignedDispatchTrip", fields: [assigned_trip_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
   offers Match[] @relation("DispatchOffers")
   trips Trip[] @relation("DispatchTrips")
+  active_manifest CanonicalTripManifestMember? @relation("DispatchActiveManifest", fields: [active_manifest_id, id], references: [manifest_id, dispatch_id], onDelete: Restrict, onUpdate: Restrict)
+  accepted_manifest CanonicalTripManifestMember? @relation("DispatchAcceptedManifest", fields: [accepted_manifest_id, id], references: [manifest_id, dispatch_id], onDelete: Restrict, onUpdate: Restrict)
+  manifest_members CanonicalTripManifestMember[] @relation("DispatchManifestMembers")
+  attempts CanonicalDemandAttempt[]
 
   @@index([status, demand_type, created_at])
   @@index([route_version_id, status])
   @@unique([id, route_version_id, operational_mode], map: "canonical_dispatch_route_mode_ownership_key")
   @@unique([active_match_offer_id, id], map: "canonical_dispatch_active_offer_ownership_key")
   @@unique([assigned_trip_id, id], map: "canonical_dispatch_assigned_trip_ownership_key")
+  @@unique([active_manifest_id, id], map: "canonical_dispatch_active_manifest_key")
+  @@unique([accepted_manifest_id, id], map: "canonical_dispatch_accepted_manifest_key")
   @@map("canonical_demand_dispatches")
+}
+
+model CanonicalTripManifest {
+  id                      String                  @id @default(cuid())
+  operational_mode        String                  @default("canonical_route_v1") @db.VarChar(50)
+  match_version           String                  @db.VarChar(50)
+  trip_version            String                  @db.VarChar(50)
+  capacity_model          String                  @db.VarChar(50)
+  route_version_id        String
+  driver_route_id         String
+  lifecycle_status        CanonicalManifestStatus @default(building)
+  member_count            Int
+  passenger_request_count Int
+  passenger_seat_count    Int
+  merchant_order_count    Int
+  parcel_unit_count       Int
+  manifest_fingerprint    String                  @db.Char(64)
+  manifest_schema_version String                  @db.VarChar(50)
+  active_offer_id         String?                 @unique
+  accepted_offer_id       String?                 @unique
+  assigned_trip_id        String?                 @unique
+  reservation_id          String?                 @unique
+  active_availability_key String?                 @unique @db.VarChar(191)
+  revision                Int                     @default(1)
+  created_at              DateTime                @default(now())
+  updated_at              DateTime                @updatedAt
+  offered_at              DateTime?
+  accepted_at             DateTime?
+  rejected_at             DateTime?
+  expired_at              DateTime?
+  dissolved_at            DateTime?
+
+  route_version ServiceRouteVersion @relation(fields: [route_version_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  driver_route DriverRoute @relation(fields: [driver_route_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  members CanonicalTripManifestMember[]
+  active_offer Match? @relation("ActiveManifestOffer", fields: [active_offer_id, id], references: [id, active_manifest_key], onDelete: Restrict, onUpdate: Restrict)
+  accepted_offer Match? @relation("AcceptedManifestOffer", fields: [accepted_offer_id, id], references: [id, accepted_manifest_key], onDelete: Restrict, onUpdate: Restrict)
+  offers Match[] @relation("ManifestOffer")
+  assigned_trip Trip? @relation("AssignedManifestTrip", fields: [assigned_trip_id, id], references: [id, manifest_id], onDelete: Restrict, onUpdate: Restrict)
+  trips Trip[] @relation("ManifestTrip")
+  reservation CapacityReservation? @relation("ManifestReservationPointer", fields: [reservation_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  reservations CapacityReservation[] @relation("ReservationManifest")
+  attempts CanonicalDemandAttempt[]
+
+  @@index([route_version_id, lifecycle_status, created_at])
+  @@index([driver_route_id, lifecycle_status])
+  @@unique([id, route_version_id, driver_route_id, operational_mode], map: "canonical_manifests_route_availability_key")
+  @@unique([active_offer_id, id], map: "canonical_manifest_active_offer_ownership_key")
+  @@unique([accepted_offer_id, id], map: "canonical_manifest_accepted_offer_ownership_key")
+  @@unique([assigned_trip_id, id], map: "canonical_manifest_assigned_trip_ownership_key")
+  @@map("canonical_trip_manifests")
+}
+
+model CanonicalTripManifestMember {
+  id                       String                        @id @default(cuid())
+  manifest_id              String
+  dispatch_id              String
+  operational_mode         String                        @default("canonical_route_v1") @db.VarChar(50)
+  demand_type              CanonicalDemandType
+  demand_id                String
+  passenger_request_id     String?
+  merchant_order_id        String?
+  member_status            CanonicalManifestMemberStatus @default(active)
+  passenger_seats          Int
+  parcel_units             Int
+  pickup_stop_id           String
+  drop_off_stop_id         String?
+  destination_summary_json Json?
+  demand_fingerprint       String                        @db.Char(64)
+  attempt_number           Int
+  active_dispatch_key      String?                       @unique @db.VarChar(191)
+  created_at               DateTime                      @default(now())
+  updated_at               DateTime                      @updatedAt
+
+  manifest CanonicalTripManifest @relation(fields: [manifest_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  dispatch CanonicalDemandDispatch @relation("DispatchManifestMembers", fields: [dispatch_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  passenger_request PassengerRequest? @relation(fields: [passenger_request_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  merchant_order MerchantOrder? @relation(fields: [merchant_order_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  route_version ServiceRouteVersion @relation(fields: [route_version_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  active_for_dispatch CanonicalDemandDispatch? @relation("DispatchActiveManifest")
+  accepted_for_dispatch CanonicalDemandDispatch? @relation("DispatchAcceptedManifest")
+
+  route_version_id String
+
+  @@unique([manifest_id, dispatch_id], map: "canonical_manifest_membership_key")
+  @@unique([id, manifest_id, dispatch_id], map: "canonical_manifest_member_ownership_key")
+  @@index([dispatch_id, member_status])
+  @@index([manifest_id, member_status])
+  @@map("canonical_trip_manifest_members")
+}
+
+model CanonicalDemandAttempt {
+  id               String                  @id @default(cuid())
+  dispatch_id      String
+  driver_route_id  String
+  manifest_id      String
+  match_offer_id   String
+  attempt_number   Int
+  outcome          CanonicalAttemptOutcome @default(offered)
+  outcome_at       DateTime?
+  created_at       DateTime                @default(now())
+
+  dispatch CanonicalDemandDispatch @relation(fields: [dispatch_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  driver_route DriverRoute @relation(fields: [driver_route_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  manifest CanonicalTripManifest @relation(fields: [manifest_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  match_offer Match @relation(fields: [match_offer_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([dispatch_id, driver_route_id], map: "canonical_attempt_candidate_exclusion_key")
+  @@unique([dispatch_id, attempt_number], map: "canonical_attempt_sequence_key")
+  @@index([manifest_id, outcome])
+  @@map("canonical_demand_attempts")
 }
 
 model LocationEvent {

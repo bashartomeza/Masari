@@ -33,6 +33,7 @@ const rawSchema = z.object({
   MULTI_ROUTE_ENTRY_ENABLED: z.string().optional(),
   MULTI_ROUTE_MATCHING_ENABLED: z.string().optional(),
   CANONICAL_TRIP_CREATION_ENABLED: z.string().optional(),
+  CANONICAL_SHARED_TRIPS_ENABLED: z.string().optional(),
   DEMO_RESET_KEY: z.string().min(8).optional(),
   DEMO_PASSENGER_PASSWORD: z.string().min(12).optional(),
   DEMO_DRIVER_PASSWORD: z.string().min(12).optional(),
@@ -130,6 +131,10 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
     "CANONICAL_TRIP_CREATION_ENABLED",
     raw.CANONICAL_TRIP_CREATION_ENABLED
   );
+  const canonicalSharedTripsEnabled = parseBoolean(
+    "CANONICAL_SHARED_TRIPS_ENABLED",
+    raw.CANONICAL_SHARED_TRIPS_ENABLED
+  );
   const invitationsEnabled = parseBoolean("INVITATIONS_ENABLED", raw.INVITATIONS_ENABLED);
   const publicOnboardingEnabled = parseBoolean("PUBLIC_ONBOARDING_ENABLED", raw.PUBLIC_ONBOARDING_ENABLED);
   const testLegalFixturesEnabled = parseBoolean(
@@ -155,6 +160,17 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
   }
   if (canonicalTripCreationEnabled && !multiRouteMatchingEnabled) {
     problems.push("CANONICAL_TRIP_CREATION_ENABLED requires MULTI_ROUTE_MATCHING_ENABLED");
+  }
+  if (canonicalSharedTripsEnabled && productionLike) {
+    problems.push("CANONICAL_SHARED_TRIPS_ENABLED is forbidden in staging and production");
+  }
+  if (
+    canonicalSharedTripsEnabled &&
+    (!multiRouteEntryEnabled || !multiRouteMatchingEnabled || !canonicalTripCreationEnabled)
+  ) {
+    problems.push(
+      "CANONICAL_SHARED_TRIPS_ENABLED requires MULTI_ROUTE_ENTRY_ENABLED, MULTI_ROUTE_MATCHING_ENABLED, and CANONICAL_TRIP_CREATION_ENABLED"
+    );
   }
   if (publicOnboardingEnabled && productionLike) {
     problems.push("PUBLIC_ONBOARDING_ENABLED cannot be enabled in staging or production without an approved provider");
@@ -325,6 +341,7 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
     multiRouteEntryEnabled,
     multiRouteMatchingEnabled,
     canonicalTripCreationEnabled,
+    canonicalSharedTripsEnabled,
     invitationsEnabled,
     publicOnboardingEnabled,
     publicRegistration: publicOnboardingEnabled
