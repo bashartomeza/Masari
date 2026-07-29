@@ -75,13 +75,52 @@ export async function resetDemoData(db: PrismaClient = prisma) {
     await tx.refreshToken.deleteMany();
     await tx.authSession.deleteMany();
     await tx.locationEvent.deleteMany();
+    const resetAt = new Date();
+    await tx.canonicalDemandAttempt.deleteMany();
     await tx.canonicalDemandDispatch.updateMany({
-      data: { status: "pending", active_match_offer_id: null, assigned_trip_id: null }
+      data: {
+        status: "pending",
+        active_match_offer_id: null,
+        assigned_trip_id: null,
+        active_manifest_id: null,
+        accepted_manifest_id: null
+      }
+    });
+    await tx.canonicalTripManifest.updateMany({
+      data: {
+        lifecycle_status: "dissolved",
+        active_offer_id: null,
+        accepted_offer_id: null,
+        assigned_trip_id: null,
+        reservation_id: null,
+        active_availability_key: null,
+        offered_revision: 2,
+        accepted_at: null,
+        rejected_at: null,
+        expired_at: null,
+        dissolved_at: resetAt,
+        revision: { increment: 1 }
+      }
     });
     await tx.trip.deleteMany();
-    await tx.capacityReservation.updateMany({ data: { match_id: null } });
+    await tx.capacityReservation.updateMany({
+      where: { manifest_id: { not: null } },
+      data: {
+        status: "released",
+        released_at: resetAt,
+        release_reason: "test_cleanup",
+        match_id: null,
+        revision: { increment: 1 }
+      }
+    });
+    await tx.capacityReservation.updateMany({
+      where: { manifest_id: null },
+      data: { match_id: null }
+    });
     await tx.match.deleteMany();
     await tx.capacityReservation.deleteMany();
+    await tx.canonicalTripManifestMember.deleteMany();
+    await tx.canonicalTripManifest.deleteMany();
     await tx.canonicalDemandDispatch.deleteMany();
     await tx.comparisonRun.deleteMany();
     await tx.parcelBatch.deleteMany();

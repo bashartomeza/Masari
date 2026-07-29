@@ -398,6 +398,16 @@ async function createOfferForDispatch(
         where: { dispatch_id: dispatch.id, status: { in: ["rejected", "expired"] } },
         select: { driver_route_id: true }
       });
+      const sharedExcluded = await tx.canonicalDemandAttempt.findMany({
+        where: { dispatch_id: dispatch.id },
+        select: { driver_route_id: true }
+      });
+      const excludedDriverRouteIds = [
+        ...new Set([
+          ...excluded.map((item) => item.driver_route_id),
+          ...sharedExcluded.map((item) => item.driver_route_id)
+        ])
+      ];
       const candidates = await tx.driverRoute.findMany({
         where: {
           operational_mode: CANONICAL_MODE,
@@ -408,7 +418,7 @@ async function createOfferForDispatch(
           departure_at: { gt: now, gte: demand.departureFrom, lte: demand.departureUntil },
           remaining_seats: { gte: demand.seats },
           remaining_parcel_capacity: { gte: demand.parcelUnits },
-          id: { notIn: excluded.map((item) => item.driver_route_id) },
+          id: { notIn: excludedDriverRouteIds },
           canonical_matches: {
             none: {
               operational_mode: CANONICAL_MODE,

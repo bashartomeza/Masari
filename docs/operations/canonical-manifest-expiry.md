@@ -17,6 +17,8 @@ reservation, and member dispatches in the canonical order. If still eligible, on
 Two workers may observe the same candidate, but only one terminal transition and restoration
 survive. Poison candidates increment a bounded failure counter without blocking later
 candidates. Generic reservation expiry and shared expiry cannot both restore the same hold.
+The generic selector requires `manifest_id IS NULL`; the shared worker is the sole expiry owner
+for a manifest reservation.
 
 Driver rejection uses the same whole-manifest release semantics with the categorical rejection
 reason. Member drift uses `system_invalidated`, dissolves the manifest, and is never reported as

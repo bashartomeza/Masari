@@ -434,7 +434,7 @@ async function buildSnapshot(
               demand_type: demand.type,
               order_id: demand.id,
               pickup_stop: stop(demand.pickupStopId),
-              destination_stops: demand.destinationStopIds.map(stop),
+              destination_stops: [...demand.destinationStopIds].sort().map(stop),
               parcel_count: demand.parcelUnits,
               member_fingerprint: memberFingerprint(demand)
             }
@@ -643,6 +643,20 @@ export function createCanonicalSharedMatchingService(
               where: { dispatch_id: seed.id },
               select: { driver_route_id: true }
             });
+            const singleExcluded = await tx.match.findMany({
+              where: {
+                dispatch_id: seed.id,
+                canonical_match_version: "canonical_route_match_v1",
+                status: { in: ["rejected", "expired"] }
+              },
+              select: { driver_route_id: true }
+            });
+            const excludedDriverRouteIds = [
+              ...new Set([
+                ...excluded.map((item) => item.driver_route_id),
+                ...singleExcluded.map((item) => item.driver_route_id)
+              ])
+            ];
             const candidates = await tx.driverRoute.findMany({
               where: {
                 operational_mode: CANONICAL_MODE,
@@ -657,7 +671,7 @@ export function createCanonicalSharedMatchingService(
                 },
                 remaining_seats: { gte: seedDemand.passengerSeats },
                 remaining_parcel_capacity: { gte: seedDemand.parcelUnits },
-                id: { notIn: excluded.map((item) => item.driver_route_id) },
+                id: { notIn: excludedDriverRouteIds },
                 canonical_manifests: {
                   none: {
                     lifecycle_status: { in: ["building", "offered", "accepted"] }
@@ -708,8 +722,8 @@ export function createCanonicalSharedMatchingService(
             );
             const selected = scored[0];
             if (!selected) return null;
-            await lockRow(tx, "driver_routes", selected.candidate.id);
             await lockDriverAuthority(tx, selected.candidate.id);
+            await lockRow(tx, "driver_routes", selected.candidate.id);
             const availability = await tx.driverRoute.findUnique({
               where: { id: selected.candidate.id },
               include: { driver: { include: { user: true } } }
@@ -736,7 +750,14 @@ export function createCanonicalSharedMatchingService(
                 attempt_count: { lt: SHARED_LIMITS.maximumAttempts },
                 active_manifest_id: null,
                 accepted_manifest_id: null,
-                attempts: { none: { driver_route_id: availability.id } }
+                attempts: { none: { driver_route_id: availability.id } },
+                offers: {
+                  none: {
+                    driver_route_id: availability.id,
+                    canonical_match_version: "canonical_route_match_v1",
+                    status: { in: ["rejected", "expired"] }
+                  }
+                }
               },
               select: { id: true },
               orderBy: { id: "asc" },
@@ -1044,8 +1065,62 @@ export function createCanonicalSharedMatchingService(
 
     async getDriverOffer(driverUserId: string, offerId: string) {
       requireEnabled();
-      const rows = await this.listDriverOffers(driverUserId, 50);
-      const offer = rows.find((row) => row.id === offerId);
+      const offer = await db.match.findFirst({
+        where: {
+          id: offerId,
+          operational_mode: CANONICAL_MODE,
+          canonical_match_version: SHARED_MATCH_VERSION,
+          driver_route: {
+            driver: {
+              user_id: driverUserId,
+              verified: true,
+              user: { role: "driver", account_status: "active" }
+            }
+          }
+        },
+        include: {
+          driver_route: { select: { departure_at: true } },
+          route_version: {
+            select: {
+              id: true,
+              name_ar: true,
+              name_en: true,
+              service_route: { select: { direction: true } },
+              stops: {
+                orderBy: { sequence: "asc" },
+                select: {
+                  sequence: true,
+                  stop: { select: { id: true, name_ar: true, name_en: true } }
+                }
+              }
+            }
+          },
+          canonical_manifest: {
+            include: {
+              members: {
+                orderBy: { member_sequence: "asc" },
+                select: {
+                  member_sequence: true,
+                  demand_type: true,
+                  passenger_seats: true,
+                  parcel_units: true,
+                  pickup_stop_id: true,
+                  drop_off_stop_id: true,
+                  destination_summary_json: true
+                }
+              },
+              assigned_trip: {
+                select: {
+                  id: true,
+                  status: true,
+                  route_version_id: true,
+                  created_at: true
+                }
+              }
+            }
+          }
+        }
+      });
       if (!offer) throw new HttpError(404, "canonical_shared_offer_not_found");
       return offer;
     },
@@ -1141,14 +1216,62 @@ export function createCanonicalSharedMatchingService(
             passengerSeats: demands.reduce((sum, item) => sum + item.passengerSeats, 0),
             parcelUnits: demands.reduce((sum, item) => sum + item.parcelUnits, 0)
           });
+          const passengerRequestCount = demands.filter(
+            (demand) => demand.type === "passenger"
+          ).length;
+          const passengerSeatCount = demands.reduce(
+            (sum, demand) => sum + demand.passengerSeats,
+            0
+          );
+          const merchantOrderCount = demands.filter(
+            (demand) => demand.type === "merchant_order"
+          ).length;
+          const parcelUnitCount = demands.reduce(
+            (sum, demand) => sum + demand.parcelUnits,
+            0
+          );
           const invalid =
             !routeEligible ||
+            aggregate.canonical_match_version !== SHARED_MATCH_VERSION ||
+            aggregate.operational_mode !== CANONICAL_MODE ||
+            aggregate.manifest_id !== manifest.id ||
+            aggregate.route_version_id !== manifest.route_version_id ||
+            aggregate.driver_route_id !== manifest.driver_route_id ||
+            aggregate.reservation_id !== manifest.reservation_id ||
             aggregate.status !== "sent_to_driver" ||
+            aggregate.active_manifest_key !== manifest.id ||
+            aggregate.accepted_manifest_key !== null ||
             manifest.lifecycle_status !== "offered" ||
+            manifest.match_version !== SHARED_MATCH_VERSION ||
+            manifest.trip_version !== SHARED_TRIP_VERSION ||
+            manifest.capacity_model !== GLOBAL_CAPACITY_VERSION ||
+            manifest.manifest_schema_version !== SHARED_MANIFEST_VERSION ||
+            manifest.active_offer_id !== aggregate.id ||
+            manifest.accepted_offer_id !== null ||
+            manifest.assigned_trip_id !== null ||
+            manifest.active_availability_key !== manifest.driver_route_id ||
+            manifest.member_count !== demands.length ||
+            manifest.passenger_request_count !== passengerRequestCount ||
+            manifest.passenger_seat_count !== passengerSeatCount ||
+            manifest.merchant_order_count !== merchantOrderCount ||
+            manifest.parcel_unit_count !== parcelUnitCount ||
             aggregate.expires_at! <= now ||
             !aggregate.offer_reservation ||
             aggregate.offer_reservation.status !== "held" ||
             aggregate.offer_reservation.manifest_id !== manifest.id ||
+            aggregate.offer_reservation.match_id !== aggregate.id ||
+            aggregate.offer_reservation.driver_route_id !== manifest.driver_route_id ||
+            aggregate.offer_reservation.route_version_id !== manifest.route_version_id ||
+            aggregate.offer_reservation.operational_mode !== CANONICAL_MODE ||
+            aggregate.offer_reservation.capacity_model !== GLOBAL_CAPACITY_VERSION ||
+            aggregate.offer_reservation.seats_reserved !== passengerSeatCount ||
+            aggregate.offer_reservation.parcel_units_reserved !== parcelUnitCount ||
+            aggregate.offer_reservation.reservation_type !==
+              (passengerSeatCount > 0 && parcelUnitCount > 0
+                ? "combined"
+                : passengerSeatCount > 0
+                  ? "passenger"
+                  : "parcel") ||
             aggregate.offer_reservation.reservation_fingerprint !== manifest.manifest_fingerprint ||
             aggregate.driver_route.driver.user_id !== driverUserId ||
             !aggregate.driver_route.driver.verified ||
@@ -1166,6 +1289,28 @@ export function createCanonicalSharedMatchingService(
               demand.routeVersionId !== manifest.route_version_id ||
               aggregate.driver_route.departure_at! < demand.departureFrom ||
               aggregate.driver_route.departure_at! > demand.departureUntil ||
+              manifest.members[index]!.member_status !== "active" ||
+              manifest.members[index]!.active_dispatch_key !== demand.dispatchId ||
+              manifest.members[index]!.member_sequence !== index + 1 ||
+              manifest.members[index]!.dispatch_id !== demand.dispatchId ||
+              manifest.members[index]!.demand_type !== demand.type ||
+              manifest.members[index]!.demand_id !== demand.id ||
+              manifest.members[index]!.passenger_request_id !==
+                (demand.type === "passenger" ? demand.id : null) ||
+              manifest.members[index]!.merchant_order_id !==
+                (demand.type === "merchant_order" ? demand.id : null) ||
+              manifest.members[index]!.passenger_seats !== demand.passengerSeats ||
+              manifest.members[index]!.parcel_units !== demand.parcelUnits ||
+              manifest.members[index]!.pickup_stop_id !== demand.pickupStopId ||
+              manifest.members[index]!.drop_off_stop_id !== demand.dropOffStopId ||
+              manifest.members[index]!.route_version_id !== demand.routeVersionId ||
+              manifest.members[index]!.attempt_number !== demand.attemptNumber - 1 ||
+              canonicalDigest(manifest.members[index]!.destination_summary_json) !==
+                canonicalDigest(
+                  demand.type === "merchant_order"
+                    ? { stop_ids: [...demand.destinationStopIds].sort() }
+                    : null
+                ) ||
               fingerprints[index] !== manifest.members[index]!.demand_fingerprint
             ) ||
             expectedManifestFingerprint !== manifest.manifest_fingerprint;

@@ -2,7 +2,11 @@ import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { resolve, basename } from "node:path";
 import { spawnSync } from "node:child_process";
-import { createMysqlDefaults, loadDatabaseEnvironment } from "./lib/mysql-tools.mjs";
+import {
+  createMysqlDefaults,
+  loadDatabaseEnvironment,
+  normalizeMysqlDump
+} from "./lib/mysql-tools.mjs";
 
 const root = resolve(new URL("../", import.meta.url).pathname.replace(/^\/(\w:)/, "$1"));
 const envPath = resolve(root, process.env.MASARI_ENV_FILE ?? "apps/api/.env");
@@ -22,7 +26,7 @@ try {
     database
   ], { encoding: "buffer", maxBuffer: 1024 * 1024 * 512 });
   if (result.error || result.status !== 0) throw new Error("mysqldump failed; credentials and command output were withheld");
-  writeFileSync(dumpPath, result.stdout, { flag: "wx" });
+  writeFileSync(dumpPath, normalizeMysqlDump(result.stdout), { flag: "wx" });
   const checksum = createHash("sha256").update(readFileSync(dumpPath)).digest("hex");
   writeFileSync(`${dumpPath}.sha256`, `${checksum}  ${basename(dumpPath)}\n`, { flag: "wx" });
   console.log(`Backup created: ${dumpPath}`);

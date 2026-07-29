@@ -9,6 +9,9 @@ const prismaMock = vi.hoisted(() => ({
 }));
 vi.mock("../lib/prisma.js", () => ({ prisma: prismaMock }));
 const { createApp } = await import("../app.js");
+const { createCanonicalSharedMatchingService } = await import(
+  "../services/canonicalSharedMatching.js"
+);
 
 const environment = {
   APP_ENV: "local",
@@ -181,6 +184,26 @@ describe("M7C3C1 shared canonical APIs and gate", () => {
     });
     expect(JSON.stringify(response.body)).not.toMatch(
       /must-not-leak|fingerprint|dispatch|reservation|phone|scoring_breakdown/i
+    );
+  });
+
+  it("looks up an owned offer directly instead of truncating through the list limit", async () => {
+    const findFirst = vi.fn().mockResolvedValue(offer);
+    const service = createCanonicalSharedMatchingService(
+      { match: { findFirst } } as never,
+      createConfig(environment)
+    );
+    await expect(service.getDriverOffer("driver_1", offer.id)).resolves.toBe(offer);
+    expect(findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: offer.id,
+          canonical_match_version: "canonical_shared_trip_match_v1",
+          driver_route: {
+            driver: expect.objectContaining({ user_id: "driver_1" })
+          }
+        })
+      })
     );
   });
 

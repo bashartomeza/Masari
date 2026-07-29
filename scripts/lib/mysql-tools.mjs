@@ -46,3 +46,23 @@ export function databaseUrlFor(url, database) {
   copy.pathname = `/${database}`;
   return copy.toString();
 }
+
+export function normalizeMysqlDump(buffer) {
+  const lines = buffer.toString("utf8").split(/\r?\n/);
+  let customDelimiter = false;
+  const normalized = lines.map((line) => {
+    if (line.trim() === "DELIMITER ;;") {
+      customDelimiter = true;
+      return line;
+    }
+    if (line.trim() === "DELIMITER ;") {
+      customDelimiter = false;
+      return line;
+    }
+    if (customDelimiter && /^\s*\);\s+\*\/;;\s*$/.test(line)) {
+      return line.replace(/\);\s+\*\/;;/, ") */;;");
+    }
+    return line;
+  });
+  return Buffer.from(normalized.join("\n"), "utf8");
+}

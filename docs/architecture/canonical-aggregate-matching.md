@@ -10,8 +10,10 @@ previously attempted availabilities, and applies the existing `canonical_route_m
 departure/capacity/trust/fairness scorer to eligible one-off DriverRoute rows. Stable score
 tie-breaks select one availability. Additional compatible demands are then ordered by:
 
-1. dispatch creation time;
-2. dispatch ID.
+1. requested departure-window end;
+2. dispatch creation time;
+3. demand type;
+4. demand ID.
 
 Members must use the exact same current published route version, fit the selected departure
 window, remain pending and unassigned, pass their passenger/merchant state checks, and fit all
@@ -26,12 +28,14 @@ form a different manifest with independently eligible members.
 
 Every shared transaction locks `ServiceRoute` and `ServiceRouteVersion` first. That route-wide
 prefix serializes formation, acceptance, rejection, and expiry before any shared downstream
-lock can form a cycle. Formation then locks its seed demand, selected DriverRoute and driver
-authority, and additional dispatches/demands in stable ID order. Terminal transitions lock
+lock can form a cycle. Formation then locks its seed demand, driver authority, selected
+DriverRoute, and additional dispatches/demands in stable ID order. This identity-before-
+availability order is shared with the single-demand matcher. Terminal transitions lock
 DriverRoute and driver authority, manifest, MatchOffer, reservation, then stable-ID dispatches
 and demands. MySQL deadlock/serialization errors fully roll back and return a safe retryable
 conflict; no partial manifest, capacity, or assignment mutation survives.
 
 The versions are `canonical_shared_trip_match_v1`, `canonical_shared_manifest_v1`, and
 `canonical_global_capacity_v1`. M7C3A single-demand matching remains the compatibility path when
-the shared gate is false.
+the shared gate is false. Candidate history is shared across both modes: a DriverRoute rejected
+or expired for a demand in either single or aggregate matching is excluded by the other matcher.

@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
-import { safeRestoreDatabaseName } from "../lib/mysql-tools.mjs";
+import { normalizeMysqlDump, safeRestoreDatabaseName } from "../lib/mysql-tools.mjs";
 
 const root = resolve(new URL("../../", import.meta.url).pathname.replace(/^\/(\w:)/, "$1"));
 const node = process.execPath;
@@ -13,6 +13,22 @@ test("isolated restore database naming is fail-closed", () => {
   assert.equal(safeRestoreDatabaseName("masari_restore_rehearsal_20260713"), true);
   for (const unsafe of ["masari", "production", "masari_restore_", "masari_restore_x;DROP DATABASE masari"])
     assert.equal(safeRestoreDatabaseName(unsafe), false);
+});
+
+test("single-statement trigger dumps retain data and normalize only the invalid delimiter", () => {
+  const dump = Buffer.from([
+    "INSERT INTO `example` VALUES ('literal ); */;; remains');",
+    "DELIMITER ;;",
+    "/*!50003 CREATE*/ /*!50003 TRIGGER `guard` BEFORE UPDATE ON `example` FOR EACH ROW SET NEW.`status` = IF(1, NEW.`status`, NULL)",
+    "); */;;",
+    "DELIMITER ;",
+    "INSERT INTO `example` VALUES ('after ); */;; remains');",
+    ""
+  ].join("\n"));
+  const normalized = normalizeMysqlDump(dump).toString("utf8");
+  assert.match(normalized, /\n\) \*\/;;\nDELIMITER ;/);
+  assert.match(normalized, /literal \); \*\/;; remains/);
+  assert.match(normalized, /after \); \*\/;; remains/);
 });
 
 test("backup fails safely when ignored configuration is missing", () => {
@@ -73,7 +89,8 @@ test("release metadata is reproducible with SOURCE_DATE_EPOCH and excludes secre
       "20260726130000_canonical_matching_dispatch",
       "20260726170000_enforce_match_trip_availability_mode",
       "20260727110000_harden_canonical_assignment_integrity",
-      "20260728130000_canonical_shared_trip_aggregation"
+      "20260728130000_canonical_shared_trip_aggregation",
+      "20260729120000_harden_canonical_shared_trip_integrity"
     ]
   );
   rmSync(directory, { recursive: true, force: true });

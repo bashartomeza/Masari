@@ -1,6 +1,9 @@
 import { createConfig } from "../config.js";
 import { prisma } from "../lib/prisma.js";
+import { resetDemoData } from "../modules/demoReset.js";
 import { canonicalSharedSerializers } from "../modules/canonicalSharedMatching.js";
+import { createCapacityReservationService } from "../services/capacityReservations.js";
+import { createCanonicalMatchingService } from "../services/canonicalMatching.js";
 import {
   createCanonicalSharedMatchingService,
   GLOBAL_CAPACITY_VERSION,
@@ -51,6 +54,8 @@ const testConfig = createConfig({
   LOG_LEVEL: "silent"
 });
 const service = createCanonicalSharedMatchingService(prisma, testConfig);
+const capacityReservations = createCapacityReservationService(prisma);
+const singleMatching = createCanonicalMatchingService(prisma, testConfig);
 
 let nextId = 1;
 const id = (prefix: string) => `m7c3c1_${prefix}_${nextId++}`;
@@ -455,6 +460,27 @@ try {
   check((await prisma.merchantOrder.findUniqueOrThrow({ where: { id: orderB.order.id } })).status === "assigned", "merchant B assigned");
   check(await prisma.parcel.count({ where: { order_id: orderA.order.id, status: "assigned" } }) === 2, "merchant A parcels assigned");
   check(await prisma.parcel.count({ where: { order_id: orderB.order.id, status: "assigned" } }) === 2, "merchant B parcels assigned");
+  await rejects(
+    () => prisma.canonicalTripManifest.update({
+      where: { id: acceptedManifest.id },
+      data: { passenger_seat_count: acceptedManifest.passenger_seat_count + 1 }
+    }),
+    "accepted manifest aggregate totals are immutable"
+  );
+  await rejects(
+    () => prisma.canonicalTripManifestMember.update({
+      where: { id: acceptedManifest.members[0]!.id },
+      data: { passenger_seats: acceptedManifest.members[0]!.passenger_seats + 1 }
+    }),
+    "accepted member capacity snapshot is immutable"
+  );
+  await rejects(
+    () => prisma.capacityReservation.update({
+      where: { id: acceptedManifest.reservation!.id },
+      data: { seats_reserved: acceptedManifest.reservation!.seats_reserved + 1 }
+    }),
+    "accepted reservation capacity snapshot is immutable"
+  );
 
   await rejects(
     () => prisma.canonicalDemandDispatch.update({
@@ -497,6 +523,31 @@ try {
   check(await prisma.canonicalDemandAttempt.count({ where: { manifest_id: rejected.id, outcome: "rejected" } }) === 1, "reject outcome once");
   check(await prisma.trip.count({ where: { manifest_id: rejected.id } }) === 0, "reject creates no Trip");
   check((await prisma.canonicalDemandDispatch.findUniqueOrThrow({ where: { id: rejectDemand.dispatch.id } })).attempt_count === 1, "attempt incremented once");
+  await rejects(
+    () => prisma.match.update({
+      where: { id: rejectManifest.active_offer_id! },
+      data: {
+        status: "sent_to_driver",
+        active_manifest_key: rejected.id,
+        active_driver_route_key: rejected.driver_route_id,
+        rejected_at: null,
+        reject_reason: null
+      }
+    }),
+    "terminal shared offer cannot be resurrected"
+  );
+  await rejects(
+    () => prisma.canonicalTripManifest.update({
+      where: { id: rejected.id },
+      data: {
+        lifecycle_status: "offered",
+        active_offer_id: rejectManifest.active_offer_id,
+        active_availability_key: rejected.driver_route_id,
+        rejected_at: null
+      }
+    }),
+    "terminal manifest cannot be resurrected"
+  );
 
   const expiryAvailability = await availability(fixture, 2, { seats: 4, parcels: 5 });
   await merchantDemand(fixture, 2, 3);
@@ -507,6 +558,20 @@ try {
     include: { active_offer: true }
   });
   const expiryAt = new Date(expiryManifest.active_offer!.expires_at!.getTime() + 1);
+  const genericExpiry = await capacityReservations.expireBatch({ now: expiryAt });
+  check(genericExpiry.expired === 0, "generic expiry cannot expire shared reservations");
+  check(
+    (await prisma.capacityReservation.findUniqueOrThrow({
+      where: { id: expiryManifest.reservation_id! }
+    })).status === "held",
+    "shared reservation remains held for shared expiry owner"
+  );
+  check(
+    (await prisma.canonicalTripManifest.findUniqueOrThrow({
+      where: { id: expiryManifest.id }
+    })).lifecycle_status === "offered",
+    "generic expiry leaves shared manifest offered"
+  );
   const expiryResults = await Promise.all([
     service.expire({ now: expiryAt, requestId: "expiry-a" }),
     service.expire({ now: expiryAt, requestId: "expiry-b" })
@@ -619,6 +684,138 @@ try {
     data: { status: "unavailable", revision: { increment: 1 } }
   });
 
+  const singleFirstFrom = new Date("2031-02-10T10:00:00.000Z");
+  const singleFirstUntil = new Date("2031-02-10T10:40:00.000Z");
+  const singleFirstCandidate = await availability(fixture, 0, {
+    departureAt: new Date("2031-02-10T10:20:00.000Z")
+  });
+  const sharedFallbackCandidate = await availability(fixture, 7, {
+    departureAt: new Date("2031-02-10T10:20:00.000Z")
+  });
+  const singleFirstDemand = await passengerDemand(
+    fixture,
+    5,
+    1,
+    singleFirstFrom,
+    singleFirstUntil
+  );
+  const singleFirstRun = await singleMatching.run({
+    routeVersionId: fixture.version.id,
+    demandType: "passenger",
+    now,
+    requestId: "cross-mode-single-first"
+  });
+  check(singleFirstRun.offered === 1, "single mode creates cross-mode history fixture");
+  const singleFirstOffer = await prisma.match.findUniqueOrThrow({
+    where: { id: singleFirstRun.offerIds[0] }
+  });
+  check(singleFirstOffer.driver_route_id === singleFirstCandidate.id, "single mode selects first candidate");
+  await singleMatching.reject(
+    fixture.drivers[0].user.id,
+    singleFirstOffer.id,
+    "driver_declined",
+    {
+      id: fixture.drivers[0].user.id,
+      idempotencyKey: "cross-mode-single-reject",
+      requestId: "cross-mode-single-reject"
+    }
+  );
+  const sharedAfterSingle = await service.run({
+    routeVersionId: fixture.version.id,
+    now,
+    requestId: "cross-mode-shared-after-single",
+    throwOnFailure: true
+  });
+  check(sharedAfterSingle.offered === 1, "shared mode regroups single-rejected demand");
+  const sharedAfterSingleManifest = await prisma.canonicalTripManifest.findUniqueOrThrow({
+    where: { id: sharedAfterSingle.manifestIds[0] },
+    include: { active_offer: true }
+  });
+  check(
+    sharedAfterSingleManifest.driver_route_id === sharedFallbackCandidate.id,
+    "shared mode excludes the terminal single-mode candidate"
+  );
+  await service.reject(
+    fixture.drivers[7].user.id,
+    sharedAfterSingleManifest.active_offer_id!,
+    "driver_declined",
+    {
+      id: fixture.drivers[7].user.id,
+      idempotencyKey: "cross-mode-shared-cleanup",
+      requestId: "cross-mode-shared-cleanup"
+    }
+  );
+  await prisma.canonicalDemandDispatch.update({
+    where: { id: singleFirstDemand.dispatch.id },
+    data: { status: "unavailable", revision: { increment: 1 } }
+  });
+
+  const sharedFirstFrom = new Date("2031-02-10T10:41:00.000Z");
+  const sharedFirstUntil = new Date("2031-02-10T11:00:00.000Z");
+  const sharedFirstCandidate = await availability(fixture, 1, {
+    departureAt: new Date("2031-02-10T10:50:00.000Z")
+  });
+  const singleFallbackCandidate = await availability(fixture, 6, {
+    departureAt: new Date("2031-02-10T10:50:00.000Z")
+  });
+  const sharedFirstDemand = await passengerDemand(
+    fixture,
+    6,
+    1,
+    sharedFirstFrom,
+    sharedFirstUntil
+  );
+  const sharedFirstRun = await service.run({
+    routeVersionId: fixture.version.id,
+    now,
+    requestId: "cross-mode-shared-first",
+    throwOnFailure: true
+  });
+  check(sharedFirstRun.offered === 1, "shared mode creates cross-mode history fixture");
+  const sharedFirstManifest = await prisma.canonicalTripManifest.findUniqueOrThrow({
+    where: { id: sharedFirstRun.manifestIds[0] },
+    include: { active_offer: true }
+  });
+  check(sharedFirstManifest.driver_route_id === sharedFirstCandidate.id, "shared mode selects first candidate");
+  await service.reject(
+    fixture.drivers[1].user.id,
+    sharedFirstManifest.active_offer_id!,
+    "driver_declined",
+    {
+      id: fixture.drivers[1].user.id,
+      idempotencyKey: "cross-mode-shared-reject",
+      requestId: "cross-mode-shared-reject"
+    }
+  );
+  const singleAfterShared = await singleMatching.run({
+    routeVersionId: fixture.version.id,
+    demandType: "passenger",
+    now,
+    requestId: "cross-mode-single-after-shared"
+  });
+  check(singleAfterShared.offered === 1, "single mode regroups shared-rejected demand");
+  const singleAfterSharedOffer = await prisma.match.findUniqueOrThrow({
+    where: { id: singleAfterShared.offerIds[0] }
+  });
+  check(
+    singleAfterSharedOffer.driver_route_id === singleFallbackCandidate.id,
+    "single mode excludes the terminal shared-mode candidate"
+  );
+  await singleMatching.reject(
+    fixture.drivers[6].user.id,
+    singleAfterSharedOffer.id,
+    "driver_declined",
+    {
+      id: fixture.drivers[6].user.id,
+      idempotencyKey: "cross-mode-single-cleanup",
+      requestId: "cross-mode-single-cleanup"
+    }
+  );
+  await prisma.canonicalDemandDispatch.update({
+    where: { id: sharedFirstDemand.dispatch.id },
+    data: { status: "unavailable", revision: { increment: 1 } }
+  });
+
   const legacyUser = await prisma.user.create({
     data: {
       id: "m7c3c1_legacy_passenger",
@@ -655,7 +852,36 @@ try {
     "restrictive foreign keys preserve accepted manifest history"
   );
 
-  check(assertions >= 102, `at least 102 persistent assertions executed; got ${assertions}`);
+  const ownershipConstraints = await prisma.$queryRaw<Array<{ constraint_name: string }>>`
+    SELECT CONSTRAINT_NAME AS constraint_name
+    FROM information_schema.REFERENTIAL_CONSTRAINTS
+    WHERE CONSTRAINT_SCHEMA = DATABASE()
+      AND CONSTRAINT_NAME IN (
+        'matches_manifest_reservation_fkey',
+        'capacity_reservations_match_manifest_fkey',
+        'canonical_manifest_reservation_ownership_fkey'
+      )
+  `;
+  check(ownershipConstraints.length === 3, "all aggregate ownership foreign keys installed");
+  const manifestOfferIndexes = await prisma.$queryRaw<Array<{ index_name: string }>>`
+    SELECT DISTINCT INDEX_NAME AS index_name
+    FROM information_schema.STATISTICS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'matches'
+      AND INDEX_NAME = 'matches_manifest_id_key'
+      AND NON_UNIQUE = 0
+  `;
+  check(manifestOfferIndexes.length === 1, "one-offer-per-manifest unique index installed");
+
+  await resetDemoData(prisma);
+  await resetDemoData(prisma);
+  check(await prisma.canonicalDemandAttempt.count() === 0, "repeated demo reset clears shared attempts");
+  check(await prisma.canonicalTripManifestMember.count() === 0, "repeated demo reset clears shared members");
+  check(await prisma.canonicalTripManifest.count() === 0, "repeated demo reset clears shared manifests");
+  check(await prisma.match.count({ where: { canonical_match_version: SHARED_MATCH_VERSION } }) === 0, "repeated demo reset clears shared offers");
+  check(await prisma.trip.count({ where: { canonical_trip_version: SHARED_TRIP_VERSION } }) === 0, "repeated demo reset clears shared Trips");
+
+  check(assertions === 140, `exactly 141 persistent assertions including this count check; got ${assertions + 1}`);
   console.log(`M7C3C1 shared-trip integration passed with ${assertions} assertions.`);
 } finally {
   await prisma.$disconnect();

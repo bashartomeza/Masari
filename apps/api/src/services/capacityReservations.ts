@@ -345,6 +345,7 @@ export function createCapacityReservationService(db: PrismaClient = prisma) {
       const candidates = await db.capacityReservation.findMany({
         where: {
           status: "held",
+          manifest_id: null,
           expiry_failure_count: { lt: 3 },
           expires_at: { lte: now },
           OR: [

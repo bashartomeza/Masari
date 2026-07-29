@@ -990,7 +990,7 @@ model Match {
   accepted_for_manifest CanonicalTripManifest? @relation("AcceptedManifestOffer")
   canonical_attempts CanonicalDemandAttempt[]
 
-  manifest_id String?
+  manifest_id String? @unique
   active_manifest_key String? @unique
   accepted_manifest_key String? @unique
 
@@ -1107,6 +1107,7 @@ model CapacityReservation {
   @@index([status, expiry_failure_count, expires_at], map: "capacity_reservations_expiry_retry_idx")
   @@index([driver_route_id, status])
   @@unique([id, driver_route_id, route_version_id, operational_mode], map: "capacity_reservations_offer_ownership_key")
+  @@unique([id, manifest_id], map: "capacity_reservations_manifest_ownership_key")
   @@map("capacity_reservations")
 }
 
