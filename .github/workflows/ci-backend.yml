@@ -68,6 +68,12 @@ jobs:
       - run: npm ci
       - run: npm run prisma:validate
       - run: npm run prisma:generate
+      - name: Allow reviewed integrity-trigger creation
+        env:
+          MYSQL_PWD: ci-only-root-password
+        run: |
+          mysql --protocol=tcp --host=127.0.0.1 --port=3306 --user=root \
+            --execute="SET GLOBAL log_bin_trust_function_creators = 1;"
       - name: Deploy migrations from empty database
         run: npm run db:migrate
       - name: Confirm migration deploy is idempotent
@@ -78,3 +84,31 @@ jobs:
       - run: npm run build
       - name: Real MySQL deterministic and trusted-session integration smoke
         run: npm run test:integration:mysql
+      - name: Real MySQL canonical single-demand integration
+        env:
+          MYSQL_PWD: ci-only-root-password
+          DATABASE_URL: mysql://masari_ci:ci-only-password@127.0.0.1:3306/masari_canonical_matching_ci
+          APP_ENV: test
+          MULTI_ROUTE_ENTRY_ENABLED: "true"
+          MULTI_ROUTE_MATCHING_ENABLED: "true"
+          CANONICAL_TRIP_CREATION_ENABLED: "true"
+        run: |
+          mysql --protocol=tcp --host=127.0.0.1 --port=3306 --user=root \
+            --execute="CREATE DATABASE masari_canonical_matching_ci CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; GRANT ALL PRIVILEGES ON masari_canonical_matching_ci.* TO 'masari_ci'@'%';"
+          npm run db:migrate
+          npm run test:integration:canonical-matching
+      - name: Real MySQL canonical shared-trip integration
+        env:
+          MYSQL_PWD: ci-only-root-password
+          DATABASE_URL: mysql://masari_ci:ci-only-password@127.0.0.1:3306/masari_canonical_shared_ci
+          APP_ENV: demo
+          ENABLE_DEMO_FEATURES: "true"
+          MULTI_ROUTE_ENTRY_ENABLED: "true"
+          MULTI_ROUTE_MATCHING_ENABLED: "true"
+          CANONICAL_TRIP_CREATION_ENABLED: "true"
+          CANONICAL_SHARED_TRIPS_ENABLED: "true"
+        run: |
+          mysql --protocol=tcp --host=127.0.0.1 --port=3306 --user=root \
+            --execute="CREATE DATABASE masari_canonical_shared_ci CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; GRANT ALL PRIVILEGES ON masari_canonical_shared_ci.* TO 'masari_ci'@'%';"
+          npm run db:migrate
+          npm run test:integration:canonical-shared
