@@ -11,6 +11,10 @@ This branch runs Masari on MySQL while preserving the PostgreSQL release at tag 
 - Database name: `masari`.
 - Required character set: `utf8mb4`.
 - Validated collation: `utf8mb4_0900_ai_ci` at database level; Prisma-created tables use `utf8mb4_unicode_ci`.
+- Migration 18 installs integrity triggers. On hosts with binary logging enabled, the
+  database administrator must enable `log_bin_trust_function_creators=1` (or grant
+  an equivalent reviewed capability) before `prisma migrate deploy`; the application
+  database user does not require `SUPER`.
 
 The database must be empty and dedicated to Masari before the first migration. Do not point this branch at an existing non-empty database without a separate reviewed data-migration plan.
 

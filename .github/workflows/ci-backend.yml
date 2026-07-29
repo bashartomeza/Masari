@@ -68,6 +68,12 @@ jobs:
       - run: npm ci
       - run: npm run prisma:validate
       - run: npm run prisma:generate
+      - name: Allow reviewed integrity-trigger creation
+        env:
+          MYSQL_PWD: ci-only-root-password
+        run: |
+          mysql --protocol=tcp --host=127.0.0.1 --port=3306 --user=root \
+            --execute="SET GLOBAL log_bin_trust_function_creators = 1;"
       - name: Deploy migrations from empty database
         run: npm run db:migrate
       - name: Confirm migration deploy is idempotent
