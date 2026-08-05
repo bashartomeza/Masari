@@ -1,5 +1,11 @@
 # PROJECT_MAP.md
 
+[M7H1_POST_INTEGRATION_HARDENING_ACTIVE]
+- M7H1 is active on `hardening/post-integration-correctness` from approved `production-readiness` baseline `cee7162e3875d817b0aad6f700366796546400bf`. It is limited to permanent actor-switch trust-score regression coverage, a persistent real-MySQL reset-gate matrix, exact passenger request/Trip association, and response-loss-safe legacy online state.
+- The approved designs bind trust-score publication to the current actor, use exact legacy `passenger_request_id` or canonical dispatch/shared provenance for Trip presentation, and replace blind online toggling with explicit desired state plus the existing idempotency and actor-bound secure-operation infrastructure.
+- No Prisma schema or migration change is planned; all 18 migrations, both frozen tags, and M7C3 single/shared matching, capacity, reservation, offer, manifest, and Trip invariants remain unchanged.
+- Flutter web support, passenger parcel-capacity metadata minimization, asset/font cleanup, and unrelated documentation remain deferred. M7D maps/GPS/location work and M7E realtime/ETA/pricing/payment/dispatch work have not started.
+
 [M7C3C2_FLUTTER_SHARED_TRIP_PRESENTATION_CLOSED]
 - M7C3C2 is merged and formally closed on `production-readiness`. Approved feature head `229eea460e4663175781d3d8f822902ddfae1848` is preserved under PR #13 merge commit `5bc75752ff2f2b88805279e27002c99e73b6f73c`; all implementation, test, documentation, security-refresh, and independent-review correction commits remain visible.
 - All 18 forward-only MySQL migrations and the Prisma schema remain unchanged. Empty deployment, repeat no-op deployment, current migration status, normalized migration-17 checksum `5ea77b6a40bfcbd2be1ba1076eb30951b85f5e6dd34f6037b3265a835f847c90`, migration-18 checksum `b27a28b17c6c090fad8520b97bde8c02463fb02f0195f2cb6736117f64af167c`, and all five migration-18 integrity triggers were reverified on isolated MySQL 8.0.46.
