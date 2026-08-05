@@ -55,11 +55,17 @@ try {
   const owner = await prisma.user.findUniqueOrThrow({
     where: { phone: DEMO_ACCOUNTS.passenger.phone },
   });
-  const other = await prisma.user.create({
-    data: {
+  const other = await prisma.user.upsert({
+    where: { phone: "+970599990071" },
+    create: {
       name: "M7H1 other passenger",
       phone: "+970599990071",
       password_hash: "synthetic-not-a-login-secret",
+      role: "passenger",
+      account_status: "active",
+    },
+    update: {
+      name: "M7H1 other passenger",
       role: "passenger",
       account_status: "active",
     },
