@@ -15,7 +15,6 @@ import '../../canonical_routes/application/canonical_route_controller.dart';
 import '../../security/presentation/security_actions.dart';
 import '../../security/presentation/session_status_banner.dart';
 import '../application/driver_controller.dart';
-import '../data/driver_repository.dart';
 import '../data/driver_stats_source.dart';
 import '../domain/driver_home_stats.dart';
 import 'driver_ui.dart';
@@ -187,32 +186,15 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
     return l10n.greetingEvening(who);
   }
 
-  /// Going online creates a corridor route; going offline deactivates it.
-  ///
-  /// Both are real API calls, so failures surface inline and the dashboard is
-  /// reloaded to show whatever the server actually decided.
+  /// Reconciles an explicit desired state through the response-loss-safe
+  /// legacy operation slot.
   Future<void> _toggleOnline(AppLocalizations l10n, bool value) async {
-    final current = ref.read(driverDashboardProvider).value?.currentRoute;
-
     setState(() {
       _busy = true;
       _error = null;
     });
     try {
-      final repository = ref.read(driverRepositoryProvider);
-      if (value) {
-        if (current == null) {
-          // Seats and capacity are chosen on the route screen; going online
-          // from here uses the smallest viable offer rather than guessing.
-          await repository.createRoute(
-            seatsAvailable: 1,
-            parcelCapacityAvailable: 0,
-          );
-        }
-      } else if (current != null && current.canDeactivate) {
-        await repository.deactivateRoute(current.id);
-      }
-      await ref.read(driverDashboardProvider.notifier).refresh();
+      await ref.read(legacyDriverOnlineControllerProvider).setOnline(value);
     } catch (error) {
       if (mounted) setState(() => _error = driverErrorLabel(l10n, error));
       await ref.read(driverDashboardProvider.notifier).refresh();

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -7,9 +9,12 @@ import 'package:masari_mobile/core/api/api_client.dart';
 import 'package:masari_mobile/core/api/api_error.dart';
 import 'package:masari_mobile/core/config/app_config.dart';
 import 'package:masari_mobile/features/auth/application/auth_controller.dart';
+import 'package:masari_mobile/features/auth/application/auth_actor_binding.dart';
 import 'package:masari_mobile/features/auth/data/session_coordinator.dart';
 import 'package:masari_mobile/features/auth/data/token_storage.dart';
 import 'package:masari_mobile/features/auth/domain/auth_models.dart';
+import 'package:masari_mobile/features/canonical_routes/application/canonical_route_controller.dart';
+import 'package:masari_mobile/features/canonical_routes/data/canonical_operation_storage.dart';
 import 'package:masari_mobile/features/driver/application/driver_controller.dart';
 import 'package:masari_mobile/features/driver/data/driver_models.dart';
 import 'package:masari_mobile/features/driver/data/driver_repository.dart';
@@ -103,6 +108,148 @@ void main() {
           .read(driverRouteControllerProvider.notifier)
           .deactivate('route_1'),
       throwsStateError,
+    );
+  });
+
+  group('legacy online-state secure recovery', () {
+    test(
+      'persists before send, reconciles authoritative state, then clears',
+      () async {
+        final fake = _FakeDriverRepository();
+        final storage = _MemoryCanonicalStorage();
+        fake.onOnlineSend = () => expect(storage.bundle, isNotNull);
+        final container = await _onlineContainer(fake, storage);
+        addTearDown(container.dispose);
+
+        final state = await container
+            .read(legacyDriverOnlineControllerProvider)
+            .setOnline(true);
+
+        expect(state.currentRoute?.isOperational, isTrue);
+        expect(fake.onlineCalls, 1);
+        expect(storage.saveCount, 1);
+        expect(storage.clearCount, 1);
+        expect(storage.bundle, isNull);
+      },
+    );
+
+    test('rapid taps are fenced and cannot create a second key', () async {
+      final fake = _FakeDriverRepository()..onlineBarrier = Completer<void>();
+      final storage = _MemoryCanonicalStorage();
+      final container = await _onlineContainer(fake, storage);
+      addTearDown(container.dispose);
+      final controller = container.read(legacyDriverOnlineControllerProvider);
+
+      final first = controller.setOnline(true);
+      while (fake.onlineCalls == 0) {
+        await Future<void>.delayed(Duration.zero);
+      }
+      await expectLater(controller.setOnline(true), throwsStateError);
+      fake.onlineBarrier!.complete();
+      await first;
+
+      expect(fake.onlineCalls, 1);
+      expect(fake.observedKeys.toSet(), hasLength(1));
+    });
+
+    test(
+      'timeout retains the same desired state and key for recovery',
+      () async {
+        final fake = _FakeDriverRepository()..timeoutOnlineOnce = true;
+        final storage = _MemoryCanonicalStorage();
+        final container = await _onlineContainer(fake, storage);
+        addTearDown(container.dispose);
+        final controller = container.read(legacyDriverOnlineControllerProvider);
+
+        await expectLater(
+          controller.setOnline(true),
+          throwsA(isA<ApiException>()),
+        );
+        final retained = storage.bundle!;
+        expect(retained.operation, legacyDriverOnlineOperation);
+        expect(retained.payload['online'], isTrue);
+        await controller.setOnline(true);
+
+        expect(fake.observedKeys, [
+          retained.idempotencyKey,
+          retained.idempotencyKey,
+        ]);
+        expect(storage.bundle, isNull);
+      },
+    );
+
+    test('secure-save failure sends no request', () async {
+      final fake = _FakeDriverRepository();
+      final storage = _MemoryCanonicalStorage(
+        saveError: StateError('secure save failed'),
+      );
+      final container = await _onlineContainer(fake, storage);
+      addTearDown(container.dispose);
+
+      await expectLater(
+        container.read(legacyDriverOnlineControllerProvider).setOnline(true),
+        throwsStateError,
+      );
+      expect(fake.onlineCalls, 0);
+    });
+
+    test('global unresolved-operation slot cannot be overwritten', () async {
+      final fake = _FakeDriverRepository();
+      final existing = CanonicalOperationBundle.create(
+        operation: 'passenger_route_request_create',
+        scope: 'passenger',
+        actorId: 'driver_1',
+        payload: const {'route_version_id': 'version_1'},
+      );
+      final storage = _MemoryCanonicalStorage()..bundle = existing;
+      final container = await _onlineContainer(fake, storage);
+      addTearDown(container.dispose);
+
+      await expectLater(
+        container.read(legacyDriverOnlineControllerProvider).setOnline(true),
+        throwsA(
+          isA<CanonicalOperationBlocked>().having(
+            (error) => error.code,
+            'code',
+            'canonical_recovery_unresolved',
+          ),
+        ),
+      );
+      expect(fake.onlineCalls, 0);
+      expect(storage.bundle?.idempotencyKey, existing.idempotencyKey);
+    });
+
+    test(
+      'another actor cannot inspect or replay the retained bundle',
+      () async {
+        final fake = _FakeDriverRepository();
+        final existing = CanonicalOperationBundle.create(
+          operation: legacyDriverOnlineOperation,
+          scope: 'legacy_driver_online_state',
+          actorId: 'driver_2',
+          payload: const {
+            'route_version_id': 'legacy_driver_online_state',
+            'online': true,
+            'expected_route_id': null,
+          },
+        );
+        final storage = _MemoryCanonicalStorage()..bundle = existing;
+        final container = await _onlineContainer(fake, storage);
+        addTearDown(container.dispose);
+
+        await expectLater(
+          container.read(legacyDriverOnlineControllerProvider).setOnline(true),
+          throwsA(
+            isA<CanonicalOperationBlocked>().having(
+              (error) => error.code,
+              'code',
+              'canonical_recovery_other_account',
+            ),
+          ),
+        );
+        expect(fake.onlineCalls, 0);
+        expect(storage.bundle?.actorId, 'driver_2');
+      },
     );
   });
 
@@ -275,6 +422,11 @@ class _FakeDriverRepository extends DriverRepository {
   int? lastSeats;
   int? lastParcels;
   String? lastMatchStatus;
+  int onlineCalls = 0;
+  bool timeoutOnlineOnce = false;
+  Completer<void>? onlineBarrier;
+  void Function()? onOnlineSend;
+  final List<String> observedKeys = [];
 
   @override
   Future<List<DriverRoute>> listRoutes() async {
@@ -331,6 +483,40 @@ class _FakeDriverRepository extends DriverRepository {
   }
 
   @override
+  Future<LegacyDriverOnlineResult> setLegacyOnlineState({
+    required bool online,
+    required String idempotencyKey,
+    String? expectedRouteId,
+    Future<void> Function()? beforeRetry,
+  }) async {
+    onlineCalls += 1;
+    observedKeys.add(idempotencyKey);
+    onOnlineSend?.call();
+    await onlineBarrier?.future;
+    if (timeoutOnlineOnce) {
+      timeoutOnlineOnce = false;
+      throw const ApiException(ApiErrorType.timeout, 'request_timeout');
+    }
+    await beforeRetry?.call();
+    if (online) {
+      routes = [_route(), ...routes.where((route) => route.id != 'route_1')];
+    } else {
+      routes = routes
+          .map(
+            (route) => route.id == expectedRouteId
+                ? _route(status: 'inactive')
+                : route,
+          )
+          .toList();
+    }
+    return LegacyDriverOnlineResult(
+      online: online,
+      routeId: expectedRouteId ?? 'route_1',
+      replayed: onlineCalls > 1,
+    );
+  }
+
+  @override
   Future<DriverMatch> matchDetail(String id) async => matches.first;
 
   @override
@@ -356,6 +542,61 @@ class _FakeDriverRepository extends DriverRepository {
     sequence: 0,
     recordedAt: _fixedTime,
   );
+}
+
+Future<ProviderContainer> _onlineContainer(
+  _FakeDriverRepository fake,
+  _MemoryCanonicalStorage storage,
+) async {
+  final container = ProviderContainer(
+    overrides: [
+      driverRepositoryProvider.overrideWithValue(fake),
+      canonicalOperationStorageProvider.overrideWithValue(storage),
+      authControllerProvider.overrideWith(_AuthenticatedDriverController.new),
+    ],
+  );
+  await container.read(authControllerProvider.future);
+  container.read(authenticatedActorBindingProvider).bind('driver_1');
+  await container.read(driverDashboardProvider.future);
+  return container;
+}
+
+class _AuthenticatedDriverController extends AuthController {
+  @override
+  Future<AuthState> build() async => const AuthState.authenticated(
+    AuthUser(
+      id: 'driver_1',
+      name: 'Driver',
+      phone: '+970590000002',
+      role: UserRole.driver,
+      demoAccount: false,
+    ),
+  );
+}
+
+class _MemoryCanonicalStorage implements CanonicalOperationStorage {
+  _MemoryCanonicalStorage({this.saveError});
+
+  CanonicalOperationBundle? bundle;
+  final Object? saveError;
+  int saveCount = 0;
+  int clearCount = 0;
+
+  @override
+  Future<CanonicalOperationBundle?> read() async => bundle;
+
+  @override
+  Future<void> save(CanonicalOperationBundle value) async {
+    saveCount += 1;
+    if (saveError case final error?) throw error;
+    bundle = value;
+  }
+
+  @override
+  Future<void> clear() async {
+    clearCount += 1;
+    bundle = null;
+  }
 }
 
 final _fixedTime = DateTime.utc(2026, 7, 13, 8);

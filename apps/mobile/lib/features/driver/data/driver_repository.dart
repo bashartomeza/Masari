@@ -80,6 +80,35 @@ class DriverRepository {
     return DriverRoute.fromJson(json['route'] as Map<String, dynamic>);
   }
 
+  Future<LegacyDriverOnlineResult> setLegacyOnlineState({
+    required bool online,
+    required String idempotencyKey,
+    String? expectedRouteId,
+    Future<void> Function()? beforeRetry,
+  }) async {
+    final body = <String, dynamic>{'online': online};
+    if (expectedRouteId != null) {
+      body['expected_route_id'] = expectedRouteId;
+    }
+    final json = await apiClient.putJson(
+      '/driver/online-state',
+      body: body,
+      headers: {'Idempotency-Key': idempotencyKey},
+      beforeRetry: beforeRetry,
+    );
+    final resultOnline = json['online'];
+    final routeId = json['route_id'];
+    final replayed = json['replayed'];
+    if (resultOnline is! bool || routeId is! String || replayed is! bool) {
+      throw const FormatException('Invalid legacy online-state response');
+    }
+    return LegacyDriverOnlineResult(
+      online: resultOnline,
+      routeId: routeId,
+      replayed: replayed,
+    );
+  }
+
   Future<List<DriverMatch>> listMatches({String? status}) async {
     final suffix = status == null
         ? ''
@@ -160,4 +189,16 @@ class DriverRepository {
         .map(DriverRoute.fromJson)
         .toList();
   }
+}
+
+class LegacyDriverOnlineResult {
+  const LegacyDriverOnlineResult({
+    required this.online,
+    required this.routeId,
+    required this.replayed,
+  });
+
+  final bool online;
+  final String routeId;
+  final bool replayed;
 }
