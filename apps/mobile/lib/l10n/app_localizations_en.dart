@@ -1134,6 +1134,315 @@ class AppLocalizationsEn extends AppLocalizations {
   String get routeStops => 'Route stops';
 
   @override
+  String get navNewRequest => 'New request';
+
+  @override
+  String get navHome => 'Home';
+
+  @override
+  String get navAccount => 'Account';
+
+  @override
+  String get navTrips => 'My trips';
+
+  @override
+  String greetingMorning(String name) {
+    return 'Good morning, $name';
+  }
+
+  @override
+  String greetingAfternoon(String name) {
+    return 'Good afternoon, $name';
+  }
+
+  @override
+  String greetingEvening(String name) {
+    return 'Good evening, $name';
+  }
+
+  @override
+  String get whereToGo => 'Where do you want to go?';
+
+  @override
+  String get smartSearch => 'Smart search';
+
+  @override
+  String get destinationSearchHint => 'e.g. from PPU to Bethlehem';
+
+  @override
+  String get quickDestinations => 'Quick destinations';
+
+  @override
+  String availableTripsTo(String destination) {
+    return 'Available trips to $destination';
+  }
+
+  @override
+  String get searchForTrip => 'Search for a trip';
+
+  @override
+  String get perPassenger => 'per passenger';
+
+  @override
+  String get departure => 'Departure';
+
+  @override
+  String get bookSeat => 'Book';
+
+  @override
+  String get noAvailableTrips => 'No available trips right now';
+
+  @override
+  String get noAvailableTripsBody =>
+      'Create a request and Masari will match you with a driver on the corridor.';
+
+  @override
+  String seatsRemaining(int count) {
+    return '$count seats available';
+  }
+
+  @override
+  String completedTripsCount(int count) {
+    return '$count trips';
+  }
+
+  @override
+  String get notifications => 'Notifications';
+
+  @override
+  String get noNotifications => 'No notifications yet.';
+
+  @override
+  String get sampleDataNotice =>
+      'Sample data for demonstration only, not from the server.';
+
+  @override
+  String get driverOnline => 'Online';
+
+  @override
+  String get driverOffline => 'Offline';
+
+  @override
+  String get trustPoints => 'Trust points';
+
+  @override
+  String get trustExcellent => 'Excellent';
+
+  @override
+  String get trustGood => 'Good';
+
+  @override
+  String get trustFair => 'Fair';
+
+  @override
+  String get trustWeak => 'Weak';
+
+  @override
+  String get trustScoreUnavailable => 'Not available yet';
+
+  @override
+  String get todayEarnings => 'Today\'s earnings';
+
+  @override
+  String get earningsUnavailable => 'Not available';
+
+  @override
+  String completedTripsToday(int count) {
+    return '$count completed trips';
+  }
+
+  @override
+  String get activateYourRoute => 'Activate your route';
+
+  @override
+  String get activateRouteHint =>
+      'Set your destination to receive requests along your way';
+
+  @override
+  String get mapNoLocation => 'No location data yet.';
+
+  @override
+  String get batchSavings => 'Consolidation savings';
+
+  @override
+  String get batchSavingsCaption => 'Saved by consolidating shipments';
+
+  @override
+  String distanceSavedKm(String km) {
+    return '$km km';
+  }
+
+  @override
+  String get noSavingsYet => 'No savings yet';
+
+  @override
+  String get inDelivery => 'In delivery';
+
+  @override
+  String activeShipmentsCount(int count) {
+    return '$count active shipments';
+  }
+
+  @override
+  String get createShipment => 'Create a new shipment';
+
+  @override
+  String get smartBatchingTitle => 'Smart consolidation suggestions';
+
+  @override
+  String batchSuggestionTitle(int count, String destination) {
+    return '$count parcels to $destination';
+  }
+
+  @override
+  String get batchSuggestionBody =>
+      'These can be consolidated into one batch on the corridor.';
+
+  @override
+  String get mergeAndSend => 'Consolidate and send';
+
+  @override
+  String get noBatchSuggestions => 'No orders are ready to consolidate.';
+
+  @override
+  String get liveTracking => 'Live tracking';
+
+  @override
+  String get recentOrders => 'Recent orders';
+
+  @override
+  String orderReference(String reference) {
+    return 'Order #$reference';
+  }
+
+  @override
+  String get navRequests => 'Requests';
+
+  @override
+  String get navMyTrip => 'My trip';
+
+  @override
+  String get navPerformance => 'Earnings';
+
+  @override
+  String get navNotifications => 'Alerts';
+
+  @override
+  String get navMapAlerts => 'Map';
+
+  @override
+  String get navShipments => 'Shipments';
+
+  @override
+  String get navReports => 'Reports';
+
+  @override
+  String get myTrips => 'My trips';
+
+  @override
+  String get tripsActiveSection => 'Active trip';
+
+  @override
+  String get tripsUpcomingSection => 'Upcoming trips';
+
+  @override
+  String get tripsPastSection => 'Past trips';
+
+  @override
+  String get tripsCancelledSection => 'Cancelled trips';
+
+  @override
+  String get noTripsYet => 'No trips yet';
+
+  @override
+  String get noTripsYetBody =>
+      'Your trips will appear here once you create your first request.';
+
+  @override
+  String get tripHistoryFailed => 'Could not load your trip history.';
+
+  @override
+  String get mapsUnavailable => 'Map unavailable';
+
+  @override
+  String get mapsUnavailableBody =>
+      'Map services are not enabled in this build, so no live position can be shown.';
+
+  @override
+  String get incidentReports => 'Reports';
+
+  @override
+  String get incidentReportingUnavailable => 'Incident reporting unavailable';
+
+  @override
+  String get incidentReportingUnavailableBody =>
+      'There is no backend to receive incident reports yet, so nothing would be submitted from here.';
+
+  @override
+  String get notificationsUnavailableBody =>
+      'There is no notification service in this build. Updates appear inside the trip screen.';
+
+  @override
+  String get performanceTitle => 'Earnings and performance';
+
+  @override
+  String get earningsNotTracked => 'Earnings are not tracked';
+
+  @override
+  String get earningsNotTrackedBody =>
+      'The database holds no fare or pricing data, so no real earnings figure can be shown.';
+
+  @override
+  String get completedTripsTotal => 'Completed trips in total';
+
+  @override
+  String get acceptanceRateUnavailable => 'Acceptance rate unavailable';
+
+  @override
+  String destinationCount(int count) {
+    return '$count destinations';
+  }
+
+  @override
+  String get shipmentsTitle => 'Shipments';
+
+  @override
+  String get noShipments => 'No shipments';
+
+  @override
+  String get noShipmentsBody => 'Create a shipment and it will appear here.';
+
+  @override
+  String get shipmentsFailed => 'Could not load your shipments.';
+
+  @override
+  String get reportsUnavailable => 'Reports unavailable';
+
+  @override
+  String get reportsUnavailableBody =>
+      'There is no backend for generating or exporting PDF or Excel reports.';
+
+  @override
+  String get accountProfile => 'Profile';
+
+  @override
+  String get accountSupport => 'Support';
+
+  @override
+  String get supportUnavailable => 'In-app support unavailable';
+
+  @override
+  String get supportUnavailableBody =>
+      'No support channel is connected to the backend in this build.';
+
+  @override
+  String get accountSettings => 'Settings';
+
+  @override
+  String get featureNotBackedNotice =>
+      'This section is not backed by the API yet.';
+
+  @override
   String get offers => 'Offers';
 
   @override

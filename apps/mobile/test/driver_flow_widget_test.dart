@@ -10,6 +10,7 @@ import 'package:http/testing.dart';
 import 'package:masari_mobile/app.dart';
 import 'package:masari_mobile/core/api/api_client.dart';
 import 'package:masari_mobile/core/config/app_config.dart';
+import 'package:masari_mobile/core/widgets/masari_section.dart';
 import 'package:masari_mobile/features/auth/data/token_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -21,18 +22,24 @@ void main() {
   ) async {
     await _pumpApp(tester, handler: _DriverHandler().call);
 
-    expect(find.text('لوحة السائق'), findsOneWidget);
+    expect(find.byKey(const ValueKey('driverHome')), findsOneWidget);
     expect(find.textContaining('Demo Driver'), findsOneWidget);
+    // This driver has an active route, so the main action reads "view".
+    expect(find.text('عرض المسار'), findsOneWidget);
     expect(
-      Directionality.of(tester.element(find.text('لوحة السائق'))),
+      Directionality.of(
+        tester.element(find.byKey(const ValueKey('driverHome'))),
+      ),
       TextDirection.rtl,
     );
 
     await tester.tap(find.text('English'));
     await tester.pumpAndSettle();
-    expect(find.text('Driver dashboard'), findsOneWidget);
+    expect(find.text('View route'), findsOneWidget);
     expect(
-      Directionality.of(tester.element(find.text('Driver dashboard'))),
+      Directionality.of(
+        tester.element(find.byKey(const ValueKey('driverHome'))),
+      ),
       TextDirection.ltr,
     );
   });
@@ -41,7 +48,7 @@ void main() {
     tester,
   ) async {
     await _pumpApp(tester, handler: _DriverHandler(routesEmpty: true).call);
-    GoRouter.of(tester.element(find.text('لوحة السائق'))).go('/driver/route');
+    GoRouter.of(tester.element(find.byKey(const ValueKey('driverHome')))).go('/driver/route');
     await tester.pumpAndSettle();
 
     expect(
@@ -59,7 +66,7 @@ void main() {
     tester,
   ) async {
     await _pumpApp(tester, handler: _DriverHandler().call);
-    GoRouter.of(tester.element(find.text('لوحة السائق'))).go('/driver/matches');
+    GoRouter.of(tester.element(find.byKey(const ValueKey('driverHome')))).go('/driver/matches');
     await tester.pumpAndSettle();
 
     expect(find.text('طلب مسافر'), findsOneWidget);
@@ -85,7 +92,7 @@ void main() {
       handler: _DriverHandler(acceptResponse: accept).call,
     );
     GoRouter.of(
-      tester.element(find.text('لوحة السائق')),
+      tester.element(find.byKey(const ValueKey('driverHome'))),
     ).go('/driver/match/match_1');
     await tester.pumpAndSettle();
 
@@ -123,7 +130,7 @@ void main() {
     final handler = _DriverHandler();
     await _pumpApp(tester, handler: handler.call);
     GoRouter.of(
-      tester.element(find.text('لوحة السائق')),
+      tester.element(find.byKey(const ValueKey('driverHome'))),
     ).go('/driver/trip/trip_1');
     await tester.pumpAndSettle();
 
@@ -140,7 +147,16 @@ void main() {
     );
     await tester.tap(find.byKey(const ValueKey('simulateStepButton')));
     await tester.pumpAndSettle();
-    expect(find.textContaining('التسلسل: 1'), findsOneWidget);
+
+    // The label and its value are separate Texts in a DetailRow, so the
+    // assertion pairs them rather than matching one interpolated string.
+    expect(
+      find.descendant(
+        of: find.widgetWithText(DetailRow, 'التسلسل'),
+        matching: find.text('1'),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('production driver trip hides tracking simulation controls', (
@@ -152,7 +168,7 @@ void main() {
       config: productionTestAppConfig,
     );
     GoRouter.of(
-      tester.element(find.text('لوحة السائق')),
+      tester.element(find.byKey(const ValueKey('driverHome'))),
     ).go('/driver/trip/trip_1');
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('simulateStepButton')), findsNothing);
@@ -162,9 +178,11 @@ void main() {
 
   testWidgets('passenger cannot access driver routes', (tester) async {
     await _pumpApp(tester, handler: _roleHandler('passenger'));
-    GoRouter.of(tester.element(find.text('لوحة المسافر'))).go('/driver/route');
+    GoRouter.of(
+      tester.element(find.byKey(const ValueKey('passengerHome'))),
+    ).go('/driver/route');
     await tester.pumpAndSettle();
-    expect(find.text('لوحة المسافر'), findsOneWidget);
+    expect(find.byKey(const ValueKey('passengerHome')), findsOneWidget);
     expect(find.text('تفاصيل المسار'), findsNothing);
   });
 

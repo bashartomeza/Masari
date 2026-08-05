@@ -74,7 +74,26 @@ describe("demo reset", () => {
       parcel: { deleteMany: vi.fn(), create: vi.fn() },
       merchantOrder: { deleteMany: vi.fn(), create: vi.fn().mockResolvedValue({ id: "order_1" }) },
       passengerRequest: { deleteMany: vi.fn(), create: vi.fn() },
-      driverRoute: { deleteMany: vi.fn(), create: vi.fn() },
+      driverRoute: {
+        deleteMany: vi.fn(),
+        // Legacy corridor route, then the two canonical availabilities.
+        create: vi
+          .fn()
+          .mockResolvedValueOnce({ id: "legacy_route_1" })
+          .mockResolvedValueOnce({ id: "legacy_route_2" })
+          .mockResolvedValueOnce({
+            id: "canonical_primary",
+            availability_status: "draft",
+            availability_revision: 1,
+            departure_at: new Date()
+          })
+          .mockResolvedValueOnce({
+            id: "canonical_alternate",
+            availability_status: "active",
+            availability_revision: 1,
+            departure_at: new Date()
+          })
+      },
       driverProfile: {
         deleteMany: vi.fn(),
         create: vi.fn().mockResolvedValueOnce({ id: "profile_1" }).mockResolvedValueOnce({ id: "profile_2" })

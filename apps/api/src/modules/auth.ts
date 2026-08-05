@@ -350,7 +350,17 @@ authRouter.get("/me", requireAuth, async (req: AuthenticatedRequest, res, next) 
   try {
     const user = await prisma.user.findUnique({ where: { id: req.user!.id } });
     if (!user) throw new HttpError(404, "user_not_found");
-    res.json({ user: publicUser(user) });
+    // A driver's own trust score and vehicle capacity previously had no
+    // endpoint at all, so the app filled those cards with invented numbers.
+    // They are plain DriverProfile columns; the owner may read their own.
+    const driverProfile =
+      user.role === "driver"
+        ? await prisma.driverProfile.findUnique({
+            where: { user_id: user.id },
+            select: { vehicle_type: true, seats_total: true, parcel_capacity: true, verified: true, trust_score: true }
+          })
+        : null;
+    res.json({ user: publicUser(user), ...(driverProfile ? { driver_profile: driverProfile } : {}) });
   } catch (error) {
     next(error);
   }

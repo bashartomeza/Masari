@@ -803,7 +803,7 @@ abstract class AppLocalizations {
   /// No description provided for @deactivateRoute.
   ///
   /// In ar, this message translates to:
-  /// **'إلغاء تفعيل المسار'**
+  /// **'إيقاف المسار'**
   String get deactivateRoute;
 
   /// No description provided for @routeActivated.
@@ -2239,6 +2239,552 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'محطات المسار'**
   String get routeStops;
+
+  /// No description provided for @navNewRequest.
+  ///
+  /// In ar, this message translates to:
+  /// **'طلب جديد'**
+  String get navNewRequest;
+
+  /// No description provided for @navHome.
+  ///
+  /// In ar, this message translates to:
+  /// **'الرئيسية'**
+  String get navHome;
+
+  /// No description provided for @navAccount.
+  ///
+  /// In ar, this message translates to:
+  /// **'الحساب'**
+  String get navAccount;
+
+  /// No description provided for @navTrips.
+  ///
+  /// In ar, this message translates to:
+  /// **'رحلاتي'**
+  String get navTrips;
+
+  /// No description provided for @greetingMorning.
+  ///
+  /// In ar, this message translates to:
+  /// **'صباح الخير، {name}'**
+  String greetingMorning(String name);
+
+  /// No description provided for @greetingAfternoon.
+  ///
+  /// In ar, this message translates to:
+  /// **'مساء الخير، {name}'**
+  String greetingAfternoon(String name);
+
+  /// No description provided for @greetingEvening.
+  ///
+  /// In ar, this message translates to:
+  /// **'مساء الخير، {name}'**
+  String greetingEvening(String name);
+
+  /// No description provided for @whereToGo.
+  ///
+  /// In ar, this message translates to:
+  /// **'إلى أين تريد الذهاب؟'**
+  String get whereToGo;
+
+  /// No description provided for @smartSearch.
+  ///
+  /// In ar, this message translates to:
+  /// **'بحث ذكي'**
+  String get smartSearch;
+
+  /// No description provided for @destinationSearchHint.
+  ///
+  /// In ar, this message translates to:
+  /// **'مثال: من البوليتكنك إلى بيت لحم'**
+  String get destinationSearchHint;
+
+  /// No description provided for @quickDestinations.
+  ///
+  /// In ar, this message translates to:
+  /// **'الوجهات السريعة'**
+  String get quickDestinations;
+
+  /// No description provided for @availableTripsTo.
+  ///
+  /// In ar, this message translates to:
+  /// **'رحلات متاحة إلى {destination}'**
+  String availableTripsTo(String destination);
+
+  /// No description provided for @searchForTrip.
+  ///
+  /// In ar, this message translates to:
+  /// **'ابحث عن رحلة'**
+  String get searchForTrip;
+
+  /// No description provided for @perPassenger.
+  ///
+  /// In ar, this message translates to:
+  /// **'للراكب'**
+  String get perPassenger;
+
+  /// No description provided for @departure.
+  ///
+  /// In ar, this message translates to:
+  /// **'المغادرة'**
+  String get departure;
+
+  /// No description provided for @bookSeat.
+  ///
+  /// In ar, this message translates to:
+  /// **'احجز'**
+  String get bookSeat;
+
+  /// No description provided for @noAvailableTrips.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد رحلات متاحة حالياً'**
+  String get noAvailableTrips;
+
+  /// No description provided for @noAvailableTripsBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'أنشئ طلباً وسيقوم مساري بمطابقتك مع سائق على المسار.'**
+  String get noAvailableTripsBody;
+
+  /// No description provided for @seatsRemaining.
+  ///
+  /// In ar, this message translates to:
+  /// **'{count} مقاعد متاحة'**
+  String seatsRemaining(int count);
+
+  /// No description provided for @completedTripsCount.
+  ///
+  /// In ar, this message translates to:
+  /// **'{count} رحلة'**
+  String completedTripsCount(int count);
+
+  /// No description provided for @notifications.
+  ///
+  /// In ar, this message translates to:
+  /// **'الإشعارات'**
+  String get notifications;
+
+  /// No description provided for @noNotifications.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد إشعارات بعد.'**
+  String get noNotifications;
+
+  /// No description provided for @sampleDataNotice.
+  ///
+  /// In ar, this message translates to:
+  /// **'بيانات تجريبية للعرض فقط، غير مرتبطة بالخادم.'**
+  String get sampleDataNotice;
+
+  /// No description provided for @driverOnline.
+  ///
+  /// In ar, this message translates to:
+  /// **'متصل'**
+  String get driverOnline;
+
+  /// No description provided for @driverOffline.
+  ///
+  /// In ar, this message translates to:
+  /// **'غير متصل'**
+  String get driverOffline;
+
+  /// No description provided for @trustPoints.
+  ///
+  /// In ar, this message translates to:
+  /// **'نقاط الثقة'**
+  String get trustPoints;
+
+  /// No description provided for @trustExcellent.
+  ///
+  /// In ar, this message translates to:
+  /// **'ممتاز'**
+  String get trustExcellent;
+
+  /// No description provided for @trustGood.
+  ///
+  /// In ar, this message translates to:
+  /// **'جيد'**
+  String get trustGood;
+
+  /// No description provided for @trustFair.
+  ///
+  /// In ar, this message translates to:
+  /// **'مقبول'**
+  String get trustFair;
+
+  /// No description provided for @trustWeak.
+  ///
+  /// In ar, this message translates to:
+  /// **'ضعيف'**
+  String get trustWeak;
+
+  /// No description provided for @trustScoreUnavailable.
+  ///
+  /// In ar, this message translates to:
+  /// **'غير متاح بعد'**
+  String get trustScoreUnavailable;
+
+  /// No description provided for @todayEarnings.
+  ///
+  /// In ar, this message translates to:
+  /// **'أرباح اليوم'**
+  String get todayEarnings;
+
+  /// No description provided for @earningsUnavailable.
+  ///
+  /// In ar, this message translates to:
+  /// **'غير متاحة'**
+  String get earningsUnavailable;
+
+  /// No description provided for @completedTripsToday.
+  ///
+  /// In ar, this message translates to:
+  /// **'{count} رحلات مكتملة'**
+  String completedTripsToday(int count);
+
+  /// No description provided for @activateYourRoute.
+  ///
+  /// In ar, this message translates to:
+  /// **'فعّل مسارك'**
+  String get activateYourRoute;
+
+  /// No description provided for @activateRouteHint.
+  ///
+  /// In ar, this message translates to:
+  /// **'قم بتحديد وجهتك لاستقبال الطلبات على طريقك'**
+  String get activateRouteHint;
+
+  /// No description provided for @mapNoLocation.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد بيانات موقع بعد.'**
+  String get mapNoLocation;
+
+  /// No description provided for @batchSavings.
+  ///
+  /// In ar, this message translates to:
+  /// **'توفير التجميع'**
+  String get batchSavings;
+
+  /// No description provided for @batchSavingsCaption.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم توفيرها عبر دمج الشحنات'**
+  String get batchSavingsCaption;
+
+  /// No description provided for @distanceSavedKm.
+  ///
+  /// In ar, this message translates to:
+  /// **'{km} كم'**
+  String distanceSavedKm(String km);
+
+  /// No description provided for @noSavingsYet.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد توفير بعد'**
+  String get noSavingsYet;
+
+  /// No description provided for @inDelivery.
+  ///
+  /// In ar, this message translates to:
+  /// **'قيد التوصيل'**
+  String get inDelivery;
+
+  /// No description provided for @activeShipmentsCount.
+  ///
+  /// In ar, this message translates to:
+  /// **'{count} شحنات نشطة'**
+  String activeShipmentsCount(int count);
+
+  /// No description provided for @createShipment.
+  ///
+  /// In ar, this message translates to:
+  /// **'إنشاء شحنة جديدة'**
+  String get createShipment;
+
+  /// No description provided for @smartBatchingTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'توصيات التجميع الذكية'**
+  String get smartBatchingTitle;
+
+  /// No description provided for @batchSuggestionTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'{count} طرود إلى {destination}'**
+  String batchSuggestionTitle(int count, String destination);
+
+  /// No description provided for @batchSuggestionBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكن دمجها في دفعة واحدة على المسار.'**
+  String get batchSuggestionBody;
+
+  /// No description provided for @mergeAndSend.
+  ///
+  /// In ar, this message translates to:
+  /// **'دمج وإرسال'**
+  String get mergeAndSend;
+
+  /// No description provided for @noBatchSuggestions.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد طلبات جاهزة للتجميع.'**
+  String get noBatchSuggestions;
+
+  /// No description provided for @liveTracking.
+  ///
+  /// In ar, this message translates to:
+  /// **'التتبع المباشر'**
+  String get liveTracking;
+
+  /// No description provided for @recentOrders.
+  ///
+  /// In ar, this message translates to:
+  /// **'الطلبات الأخيرة'**
+  String get recentOrders;
+
+  /// No description provided for @orderReference.
+  ///
+  /// In ar, this message translates to:
+  /// **'طلب #{reference}'**
+  String orderReference(String reference);
+
+  /// No description provided for @navRequests.
+  ///
+  /// In ar, this message translates to:
+  /// **'الطلبات'**
+  String get navRequests;
+
+  /// No description provided for @navMyTrip.
+  ///
+  /// In ar, this message translates to:
+  /// **'رحلتي'**
+  String get navMyTrip;
+
+  /// No description provided for @navPerformance.
+  ///
+  /// In ar, this message translates to:
+  /// **'الأرباح والأداء'**
+  String get navPerformance;
+
+  /// No description provided for @navNotifications.
+  ///
+  /// In ar, this message translates to:
+  /// **'الإشعارات'**
+  String get navNotifications;
+
+  /// No description provided for @navMapAlerts.
+  ///
+  /// In ar, this message translates to:
+  /// **'الخرائط والبلاغات'**
+  String get navMapAlerts;
+
+  /// No description provided for @navShipments.
+  ///
+  /// In ar, this message translates to:
+  /// **'الشحنات'**
+  String get navShipments;
+
+  /// No description provided for @navReports.
+  ///
+  /// In ar, this message translates to:
+  /// **'التقارير'**
+  String get navReports;
+
+  /// No description provided for @myTrips.
+  ///
+  /// In ar, this message translates to:
+  /// **'رحلاتي'**
+  String get myTrips;
+
+  /// No description provided for @tripsActiveSection.
+  ///
+  /// In ar, this message translates to:
+  /// **'الرحلة النشطة'**
+  String get tripsActiveSection;
+
+  /// No description provided for @tripsUpcomingSection.
+  ///
+  /// In ar, this message translates to:
+  /// **'الرحلات القادمة'**
+  String get tripsUpcomingSection;
+
+  /// No description provided for @tripsPastSection.
+  ///
+  /// In ar, this message translates to:
+  /// **'الرحلات السابقة'**
+  String get tripsPastSection;
+
+  /// No description provided for @tripsCancelledSection.
+  ///
+  /// In ar, this message translates to:
+  /// **'الرحلات الملغاة'**
+  String get tripsCancelledSection;
+
+  /// No description provided for @noTripsYet.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد رحلات بعد'**
+  String get noTripsYet;
+
+  /// No description provided for @noTripsYetBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'ستظهر رحلاتك هنا بعد إنشاء أول طلب.'**
+  String get noTripsYetBody;
+
+  /// No description provided for @tripHistoryFailed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل سجل الرحلات.'**
+  String get tripHistoryFailed;
+
+  /// No description provided for @mapsUnavailable.
+  ///
+  /// In ar, this message translates to:
+  /// **'الخريطة غير متاحة'**
+  String get mapsUnavailable;
+
+  /// No description provided for @mapsUnavailableBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يتم تفعيل خدمة الخرائط في هذه النسخة، لذلك لا يمكن عرض موقع مباشر.'**
+  String get mapsUnavailableBody;
+
+  /// No description provided for @incidentReports.
+  ///
+  /// In ar, this message translates to:
+  /// **'البلاغات'**
+  String get incidentReports;
+
+  /// No description provided for @incidentReportingUnavailable.
+  ///
+  /// In ar, this message translates to:
+  /// **'الإبلاغ عن حادث غير متاح'**
+  String get incidentReportingUnavailable;
+
+  /// No description provided for @incidentReportingUnavailableBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد حتى الآن نظام خلفي لاستقبال البلاغات، ولن يتم إرسال أي بلاغ من هنا.'**
+  String get incidentReportingUnavailableBody;
+
+  /// No description provided for @notificationsUnavailableBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد نظام إشعارات في هذه النسخة. ستصلك التحديثات داخل شاشة الرحلة.'**
+  String get notificationsUnavailableBody;
+
+  /// No description provided for @performanceTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'الأرباح والأداء'**
+  String get performanceTitle;
+
+  /// No description provided for @earningsNotTracked.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يتم احتساب الأرباح'**
+  String get earningsNotTracked;
+
+  /// No description provided for @earningsNotTrackedBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا تحتوي قاعدة البيانات على أي بيانات أسعار أو أجرة، لذلك لا يمكن عرض رقم أرباح حقيقي.'**
+  String get earningsNotTrackedBody;
+
+  /// No description provided for @completedTripsTotal.
+  ///
+  /// In ar, this message translates to:
+  /// **'إجمالي الرحلات المكتملة'**
+  String get completedTripsTotal;
+
+  /// No description provided for @acceptanceRateUnavailable.
+  ///
+  /// In ar, this message translates to:
+  /// **'نسبة القبول غير متاحة'**
+  String get acceptanceRateUnavailable;
+
+  /// No description provided for @destinationCount.
+  ///
+  /// In ar, this message translates to:
+  /// **'{count} وجهات'**
+  String destinationCount(int count);
+
+  /// No description provided for @shipmentsTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'الشحنات'**
+  String get shipmentsTitle;
+
+  /// No description provided for @noShipments.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد شحنات'**
+  String get noShipments;
+
+  /// No description provided for @noShipmentsBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'أنشئ شحنة جديدة لتظهر هنا.'**
+  String get noShipmentsBody;
+
+  /// No description provided for @shipmentsFailed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل الشحنات.'**
+  String get shipmentsFailed;
+
+  /// No description provided for @reportsUnavailable.
+  ///
+  /// In ar, this message translates to:
+  /// **'التقارير غير متاحة'**
+  String get reportsUnavailable;
+
+  /// No description provided for @reportsUnavailableBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد نظام خلفي لتوليد التقارير أو تصديرها بصيغة PDF أو Excel.'**
+  String get reportsUnavailableBody;
+
+  /// No description provided for @accountProfile.
+  ///
+  /// In ar, this message translates to:
+  /// **'الملف الشخصي'**
+  String get accountProfile;
+
+  /// No description provided for @accountSupport.
+  ///
+  /// In ar, this message translates to:
+  /// **'الدعم'**
+  String get accountSupport;
+
+  /// No description provided for @supportUnavailable.
+  ///
+  /// In ar, this message translates to:
+  /// **'الدعم داخل التطبيق غير متاح'**
+  String get supportUnavailable;
+
+  /// No description provided for @supportUnavailableBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد قناة دعم متصلة بالنظام الخلفي في هذه النسخة.'**
+  String get supportUnavailableBody;
+
+  /// No description provided for @accountSettings.
+  ///
+  /// In ar, this message translates to:
+  /// **'الإعدادات'**
+  String get accountSettings;
+
+  /// No description provided for @featureNotBackedNotice.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا القسم غير مدعوم من النظام الخلفي بعد.'**
+  String get featureNotBackedNotice;
 
   /// No description provided for @offers.
   ///

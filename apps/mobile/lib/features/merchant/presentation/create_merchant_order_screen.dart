@@ -30,6 +30,11 @@ class _CreateMerchantOrderScreenState
     final parcels = ref.watch(merchantOrderDraftProvider);
     final draft = ref.read(merchantOrderDraftProvider.notifier);
     return Scaffold(
+      // Keyed like the other merchant screens so route-guard tests can assert
+      // on the screen itself. Its title reuses `createOrder`, which is the same
+      // Arabic string as the passenger's `createRequest` CTA, so matching on
+      // text cannot tell the two screens apart.
+      key: const ValueKey('merchantCreateOrder'),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(AppTokens.spaceLarge),

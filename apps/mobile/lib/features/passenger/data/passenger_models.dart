@@ -59,6 +59,54 @@ class PickupPreset {
   final double lng;
 }
 
+/// An active driver availability a passenger could still book.
+///
+/// Mirrors `GET /passenger/available-departures`. The API deliberately exposes
+/// only the driver's display name, vehicle type and trust score — there is no
+/// fare, rating or completed-trip count in the schema, so those stay absent
+/// rather than being invented here.
+class AvailableDeparture {
+  const AvailableDeparture({
+    required this.id,
+    required this.routeVersionId,
+    required this.originLabel,
+    required this.destinationLabel,
+    required this.departureAt,
+    required this.remainingSeats,
+    required this.driverName,
+    this.vehicleType,
+    this.trustScore,
+  });
+
+  final String id;
+  final String routeVersionId;
+  final String originLabel;
+  final String destinationLabel;
+  final DateTime departureAt;
+  final int remainingSeats;
+  final String driverName;
+  final String? vehicleType;
+  final int? trustScore;
+
+  factory AvailableDeparture.fromJson(Map<String, dynamic> json) {
+    final driver = json['driver'];
+    final driverMap = driver is Map
+        ? driver.map((key, value) => MapEntry(key.toString(), value))
+        : const <String, dynamic>{};
+    return AvailableDeparture(
+      id: _string(json, 'id'),
+      routeVersionId: _string(json, 'route_version_id'),
+      originLabel: _string(json, 'origin_label'),
+      destinationLabel: _string(json, 'destination_label'),
+      departureAt: DateTime.parse(_string(json, 'departure_at')).toLocal(),
+      remainingSeats: _int(json, 'remaining_seats'),
+      driverName: driverMap['name'] as String? ?? '',
+      vehicleType: driverMap['vehicle_type'] as String?,
+      trustScore: (driverMap['trust_score'] as num?)?.toInt(),
+    );
+  }
+}
+
 const lockedPickupPresets = [
   PickupPreset(key: 'ppu', label: 'PPU Main Gate', lat: 31.55, lng: 35.1),
   PickupPreset(

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:masari_mobile/l10n/app_localizations.dart';
 
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/map_placeholder.dart';
 import '../../../core/presentation/localized_labels.dart';
 import '../../../core/widgets/language_switch.dart';
 import '../../../core/widgets/masari_card.dart';
@@ -92,24 +93,25 @@ class _PassengerTripScreenState extends ConsumerState<PassengerTripScreen>
                       l10n.latestLocation,
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
-                    if (data.location == null)
-                      Text(l10n.noLocationYet)
-                    else ...[
-                      if (data.locationIsStale) Text(l10n.locationIsStale),
-                      Directionality(
-                        textDirection: TextDirection.ltr,
-                        child: Text('${l10n.latitude}: ${data.location!.lat}'),
-                      ),
-                      Directionality(
-                        textDirection: TextDirection.ltr,
-                        child: Text('${l10n.longitude}: ${data.location!.lng}'),
-                      ),
+                    const SizedBox(height: AppTokens.spaceSmall),
+                    // Reserves the live map's footprint and renders the fix the
+                    // API already reports. Swapping in a real map layer later
+                    // is a change inside MapPlaceholder, not here.
+                    MapPlaceholder(
+                      emptyLabel: l10n.noLocationYet,
+                      latitude: data.location?.lat.toString(),
+                      longitude: data.location?.lng.toString(),
+                      caption: data.location == null
+                          ? null
+                          : '${l10n.recordedTime}: ${data.location!.recordedAt}',
+                      staleLabel: l10n.locationIsStale,
+                      isStale: data.locationIsStale,
+                    ),
+                    if (data.location != null) ...[
+                      const SizedBox(height: AppTokens.spaceSmall),
                       Text('${l10n.sequence}: ${data.location!.sequence}'),
                       Text(
                         '${l10n.source}: ${localizedLocationSource(l10n, data.location!.source)}',
-                      ),
-                      Text(
-                        '${l10n.recordedTime}: ${data.location!.recordedAt}',
                       ),
                     ],
                     const SizedBox(height: AppTokens.spaceMedium),

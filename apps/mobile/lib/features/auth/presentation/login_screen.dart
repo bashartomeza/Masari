@@ -8,6 +8,7 @@ import '../../../core/api/api_error.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/theme/semantic_colors.dart';
 import '../../../core/widgets/language_switch.dart';
 import '../../../core/widgets/masari_card.dart';
 import '../../onboarding/application/onboarding_controller.dart';
@@ -68,23 +69,46 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Scaffold(
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.all(AppTokens.spaceLarge),
+          padding: const EdgeInsets.all(AppTokens.spaceMedium),
           children: [
             const Align(
               alignment: AlignmentDirectional.centerEnd,
               child: LanguageSwitch(),
             ),
-            const SizedBox(height: AppTokens.spaceLarge),
+            const SizedBox(height: AppTokens.spaceMedium),
+            // Brand mark: the app title carries the identity on this screen,
+            // so it is given display weight rather than a headline.
+            Center(
+              child: Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: AppTheme.primary,
+                  borderRadius: BorderRadius.circular(AppTokens.radiusLarge),
+                ),
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.alt_route,
+                  color: AppTheme.onPrimary,
+                  size: 32,
+                ),
+              ),
+            ),
+            const SizedBox(height: AppTokens.spaceMedium),
             Text(
               l10n.appTitle,
-              style: Theme.of(
-                context,
-              ).textTheme.headlineLarge?.copyWith(color: AppTheme.deepGreen),
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                color: AppTheme.primary,
+              ),
             ),
-            const SizedBox(height: AppTokens.spaceSmall),
+            const SizedBox(height: AppTokens.spaceExtraSmall),
             Text(
               l10n.signInWelcome,
-              style: Theme.of(context).textTheme.titleLarge,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: AppTheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: AppTokens.spaceLarge),
             MasariCard(
@@ -183,14 +207,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             if (demoAccounts.isNotEmpty) ...[
               const SizedBox(height: AppTokens.spaceMedium),
               MasariCard(
+                background: AppTheme.surfaceContainerLow,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(
                       l10n.demoAccounts,
-                      style: Theme.of(context).textTheme.titleLarge,
+                      style: Theme.of(context).textTheme.titleMedium,
                     ),
-                    const SizedBox(height: AppTokens.spaceSmall),
+                    const SizedBox(height: AppTokens.gutterMobile),
                     for (final account in demoAccounts)
                       Padding(
                         padding: const EdgeInsets.only(
@@ -199,7 +224,32 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         child: OutlinedButton(
                           key: ValueKey('demo-${account.labelKey}'),
                           onPressed: loading ? null : () => _fillDemo(account),
-                          child: Text(_demoLabel(l10n, account)),
+                          style: OutlinedButton.styleFrom(
+                            alignment: AlignmentDirectional.centerStart,
+                            side: const BorderSide(
+                              color: AppTheme.outlineVariant,
+                            ),
+                            foregroundColor: AppTheme.onSurface,
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                _demoIcon(account.labelKey),
+                                size: 20,
+                                color: SemanticColors.forRole(
+                                  account.labelKey,
+                                ),
+                              ),
+                              const SizedBox(width: AppTokens.gutterMobile),
+                              Expanded(
+                                child: Text(
+                                  _demoLabel(l10n, account),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                   ],
@@ -249,6 +299,15 @@ bool _isRestorableOnboardingStage(OnboardingStage stage) => switch (stage) {
   OnboardingStage.approvedSignIn ||
   OnboardingStage.retryableFailure => true,
   _ => false,
+};
+
+/// Role glyph for a demo shortcut, matching the role indicators used across
+/// the app (person / car / storefront).
+IconData _demoIcon(String labelKey) => switch (labelKey) {
+  'passenger' => Icons.person_outline,
+  'driver' => Icons.directions_car_outlined,
+  'merchant' => Icons.storefront_outlined,
+  _ => Icons.account_circle_outlined,
 };
 
 String _demoLabel(AppLocalizations l10n, DemoAccount account) {

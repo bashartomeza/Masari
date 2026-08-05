@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:masari_mobile/l10n/app_localizations.dart';
 
 import '../../../core/i18n/locale_controller.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/language_switch.dart';
 import '../../../core/widgets/masari_card.dart';
@@ -174,32 +175,34 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
   Widget _roleStep(BuildContext context, OnboardingState state) {
     final l10n = AppLocalizations.of(context);
     final roles = state.config?.registrationRoles ?? const <OnboardingRole>[];
-    return MasariCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            l10n.selectAccountType,
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: AppTokens.spaceMedium),
-          for (final role in roles)
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppTokens.spaceSmall),
-              child: OutlinedButton(
-                key: ValueKey('onboarding-role-${role.apiValue}'),
-                onPressed: state.busy
-                    ? null
-                    : () => ref
-                          .read(onboardingControllerProvider.notifier)
-                          .chooseRole(role),
-                child: Text(
-                  '${_roleLabel(l10n, role)} — ${_roleHelp(l10n, role)}',
-                ),
-              ),
+    // Selection cards rather than plain buttons, matching the role-selection
+    // reference. Tapping still commits the role immediately — the underlying
+    // flow advances on choose, and that behaviour is left untouched.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          l10n.selectAccountType,
+          style: Theme.of(context).textTheme.headlineSmall,
+        ),
+        const SizedBox(height: AppTokens.spaceMedium),
+        for (final role in roles)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppTokens.gutterMobile),
+            child: _RoleOptionCard(
+              key: ValueKey('onboarding-role-${role.apiValue}'),
+              label: _roleLabel(l10n, role),
+              help: _roleHelp(l10n, role),
+              icon: _roleIcon(role),
+              selected: state.selectedRole == role,
+              onTap: state.busy
+                  ? null
+                  : () => ref
+                        .read(onboardingControllerProvider.notifier)
+                        .chooseRole(role),
             ),
-        ],
-      ),
+          ),
+      ],
     );
   }
 
@@ -660,6 +663,87 @@ class _ErrorBox extends StatelessWidget {
           _safeError(l10n, code),
           style: TextStyle(color: Theme.of(context).colorScheme.error),
         ),
+      ),
+    );
+  }
+}
+
+IconData _roleIcon(OnboardingRole role) => switch (role) {
+  OnboardingRole.passenger => Icons.person_outline,
+  OnboardingRole.driver => Icons.directions_car_outlined,
+  OnboardingRole.merchant => Icons.storefront_outlined,
+};
+
+/// A selectable account-type card.
+///
+/// Under Arabic the icon sits on the right (start) and the selection tick on
+/// the left (end); both flip automatically for English because the row is laid
+/// out in logical, not physical, order.
+class _RoleOptionCard extends StatelessWidget {
+  const _RoleOptionCard({
+    required this.label,
+    required this.help,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+    super.key,
+  });
+
+  final String label;
+  final String help;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return MasariCard(
+      onTap: onTap,
+      level: selected ? MasariCardLevel.floating : MasariCardLevel.card,
+      background: selected
+          ? AppTheme.surfaceContainerLow
+          : AppTheme.surfaceContainerLowest,
+      border: BorderSide(
+        color: selected ? AppTheme.primary : AppTheme.outlineVariant,
+        width: selected ? 2 : 1,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: AppTokens.minTouchTarget,
+            height: AppTokens.minTouchTarget,
+            decoration: BoxDecoration(
+              color: AppTheme.secondaryContainer,
+              borderRadius: BorderRadius.circular(AppTokens.radiusFull),
+            ),
+            child: Icon(icon, color: AppTheme.primary, size: 22),
+          ),
+          const SizedBox(width: AppTokens.spaceMedium),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: theme.textTheme.titleMedium),
+                Text(
+                  help,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: AppTheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppTokens.spaceSmall),
+          Icon(
+            selected
+                ? Icons.check_circle_outline
+                : Icons.radio_button_unchecked,
+            color: selected ? AppTheme.primary : AppTheme.outlineVariant,
+            size: 22,
+          ),
+        ],
       ),
     );
   }

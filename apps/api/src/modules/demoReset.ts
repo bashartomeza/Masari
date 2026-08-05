@@ -27,6 +27,43 @@ export const DEMO_ACCOUNTS = {
   admin: { name: "Demo Admin", phone: "+970590000005" }
 } as const;
 
+export const CANONICAL_MODE = "canonical_route_v1";
+
+/**
+ * Anchors every seeded timestamp to the moment of the reset.
+ *
+ * The seed used to hardcode calendar dates, which silently rotted: the
+ * canonical matcher only considers availabilities with `departure_at > now`,
+ * so a fixed date meant the demo stopped matching the day it passed. Anchoring
+ * to the next whole hour keeps the data deterministic in shape (always :00,
+ * always the same offsets) while always being in the future.
+ */
+export function demoSchedule(now: Date = new Date()) {
+  const base = new Date(now);
+  base.setUTCMinutes(0, 0, 0);
+  base.setUTCHours(base.getUTCHours() + 1);
+  const at = (hoursFromBase: number) => new Date(base.getTime() + hoursFromBase * 3_600_000);
+  return {
+    /**
+     * The legacy corridor route. Kept distinct from [primaryDeparture] because
+     * `driver_routes_one_off_departure_key` is unique on
+     * (driver_id, route_version_id, departure_at) and driver 1 owns both rows.
+     */
+    legacyDeparture: at(2),
+    legacyWindowEnd: at(2.5),
+    /** The canonical availability the driver activates during the demo. */
+    primaryDeparture: at(4),
+    primaryWindowEnd: at(4.5),
+    /** Deliberately outside the passenger's demo window so ranking stays deterministic. */
+    alternateDeparture: at(20),
+    alternateWindowEnd: at(20.5),
+    /** The window the demo passenger asks for; brackets the primary departure only. */
+    passengerFrom: at(3.5),
+    passengerUntil: at(5),
+    routePublishedAt: new Date(base.getTime() - 30 * 86_400_000)
+  };
+}
+
 async function hashPassword(password: string) {
   return bcrypt.hash(password, 10);
 }
@@ -53,6 +90,7 @@ export async function resetDemoData(db: PrismaClient = prisma) {
   if (!config.demoFeaturesEnabled || !demoConfig) {
     throw new HttpError(404, "not_found");
   }
+  const schedule = demoSchedule();
   return db.$transaction(async (tx) => {
     const onboardedUsers = await tx.onboardingAttempt.findMany({
       where: { completed_user_id: { not: null } },
@@ -258,7 +296,7 @@ export async function resetDemoData(db: PrismaClient = prisma) {
         geometry_status: "available",
         created_by_user_id: admin.id,
         published_by_user_id: admin.id,
-        published_at: new Date("2026-07-02T00:00:00.000Z")
+        published_at: schedule.routePublishedAt
       }
     });
     await tx.routeVersionStop.createMany({
@@ -311,8 +349,8 @@ export async function resetDemoData(db: PrismaClient = prisma) {
         seats_available: 2,
         parcel_capacity_available: 5,
         route_version_id: routeVersion.id,
-        departure_at: new Date("2026-07-02T09:00:00.000Z"),
-        availability_window_end: new Date("2026-07-02T09:30:00.000Z"),
+        departure_at: schedule.legacyDeparture,
+        availability_window_end: schedule.legacyWindowEnd,
         total_seats: 3,
         remaining_seats: 2,
         total_parcel_capacity: 5,
@@ -339,6 +377,64 @@ export async function resetDemoData(db: PrismaClient = prisma) {
       }
     });
 
+    // Canonical availabilities: the records the canonical matcher actually
+    // queries (`operational_mode` + `canonical_availability_version` both set).
+    // The legacy driver_routes above are invisible to it by design, so without
+    // these the demand pipeline has nothing to rank.
+    const canonicalAvailabilityBase = {
+      route_version_id: routeVersion.id,
+      canonical_availability_version: CANONICAL_MODE,
+      operational_mode: CANONICAL_MODE,
+      origin_label: originStop.name_en,
+      origin_lat: originStop.latitude,
+      origin_lng: originStop.longitude,
+      destination_label: destinationStop.name_en,
+      destination_lat: destinationStop.latitude,
+      destination_lng: destinationStop.longitude,
+      corridor_key: serviceRoute.route_key
+    } as const;
+
+    // Left in `draft` on purpose: the driver activates it from the app during
+    // the demo, so step 2 exercises the real activation transition instead of
+    // being pre-done by the seed.
+    const primaryAvailability = await tx.driverRoute.create({
+      data: {
+        ...canonicalAvailabilityBase,
+        driver_id: driver1.id,
+        seats_available: 3,
+        parcel_capacity_available: 5,
+        total_seats: 3,
+        remaining_seats: 3,
+        total_parcel_capacity: 5,
+        remaining_parcel_capacity: 5,
+        departure_at: schedule.primaryDeparture,
+        availability_window_end: schedule.primaryWindowEnd,
+        availability_status: "draft",
+        status: "inactive"
+      }
+    });
+
+    // Already active, but departing outside the demo passenger's window. It
+    // proves the matcher genuinely filters on departure time rather than just
+    // picking the only row, and keeps the ranking deterministic.
+    const alternateAvailability = await tx.driverRoute.create({
+      data: {
+        ...canonicalAvailabilityBase,
+        driver_id: driver2.id,
+        seats_available: 2,
+        parcel_capacity_available: 8,
+        total_seats: 2,
+        remaining_seats: 2,
+        total_parcel_capacity: 8,
+        remaining_parcel_capacity: 8,
+        departure_at: schedule.alternateDeparture,
+        availability_window_end: schedule.alternateWindowEnd,
+        availability_status: "active",
+        status: "active",
+        activated_at: new Date()
+      }
+    });
+
     await tx.passengerRequest.create({
       data: {
         passenger_id: passenger.id,
@@ -348,7 +444,7 @@ export async function resetDemoData(db: PrismaClient = prisma) {
         destination_label: "Bethlehem Center",
         destination_lat: "31.705400",
         destination_lng: "35.202400",
-        preferred_time: new Date("2026-07-02T09:00:00.000Z"),
+        preferred_time: schedule.legacyDeparture,
         passenger_count: 1,
         status: "pending",
         source: "seed"
@@ -432,7 +528,30 @@ export async function resetDemoData(db: PrismaClient = prisma) {
         admin: admin.phone
       },
       parcels: parcelDestinations.length,
-      scenarios: 3
+      scenarios: 3,
+      route_version_id: routeVersion.id,
+      stops: {
+        origin: originStop.id,
+        passenger_pickup: passengerPickupStop.id,
+        destination: destinationStop.id
+      },
+      canonical_availabilities: {
+        primary: {
+          id: primaryAvailability.id,
+          status: primaryAvailability.availability_status,
+          revision: primaryAvailability.availability_revision,
+          departure_at: primaryAvailability.departure_at
+        },
+        alternate: {
+          id: alternateAvailability.id,
+          status: alternateAvailability.availability_status,
+          departure_at: alternateAvailability.departure_at
+        }
+      },
+      passenger_window: {
+        from: schedule.passengerFrom,
+        until: schedule.passengerUntil
+      }
     };
   });
 }

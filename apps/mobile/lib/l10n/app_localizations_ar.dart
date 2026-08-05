@@ -371,7 +371,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get activateRoute => 'تفعيل المسار';
 
   @override
-  String get deactivateRoute => 'إلغاء تفعيل المسار';
+  String get deactivateRoute => 'إيقاف المسار';
 
   @override
   String get routeActivated => 'تم تفعيل المسار';
@@ -1124,6 +1124,312 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get routeStops => 'محطات المسار';
+
+  @override
+  String get navNewRequest => 'طلب جديد';
+
+  @override
+  String get navHome => 'الرئيسية';
+
+  @override
+  String get navAccount => 'الحساب';
+
+  @override
+  String get navTrips => 'رحلاتي';
+
+  @override
+  String greetingMorning(String name) {
+    return 'صباح الخير، $name';
+  }
+
+  @override
+  String greetingAfternoon(String name) {
+    return 'مساء الخير، $name';
+  }
+
+  @override
+  String greetingEvening(String name) {
+    return 'مساء الخير، $name';
+  }
+
+  @override
+  String get whereToGo => 'إلى أين تريد الذهاب؟';
+
+  @override
+  String get smartSearch => 'بحث ذكي';
+
+  @override
+  String get destinationSearchHint => 'مثال: من البوليتكنك إلى بيت لحم';
+
+  @override
+  String get quickDestinations => 'الوجهات السريعة';
+
+  @override
+  String availableTripsTo(String destination) {
+    return 'رحلات متاحة إلى $destination';
+  }
+
+  @override
+  String get searchForTrip => 'ابحث عن رحلة';
+
+  @override
+  String get perPassenger => 'للراكب';
+
+  @override
+  String get departure => 'المغادرة';
+
+  @override
+  String get bookSeat => 'احجز';
+
+  @override
+  String get noAvailableTrips => 'لا توجد رحلات متاحة حالياً';
+
+  @override
+  String get noAvailableTripsBody =>
+      'أنشئ طلباً وسيقوم مساري بمطابقتك مع سائق على المسار.';
+
+  @override
+  String seatsRemaining(int count) {
+    return '$count مقاعد متاحة';
+  }
+
+  @override
+  String completedTripsCount(int count) {
+    return '$count رحلة';
+  }
+
+  @override
+  String get notifications => 'الإشعارات';
+
+  @override
+  String get noNotifications => 'لا توجد إشعارات بعد.';
+
+  @override
+  String get sampleDataNotice =>
+      'بيانات تجريبية للعرض فقط، غير مرتبطة بالخادم.';
+
+  @override
+  String get driverOnline => 'متصل';
+
+  @override
+  String get driverOffline => 'غير متصل';
+
+  @override
+  String get trustPoints => 'نقاط الثقة';
+
+  @override
+  String get trustExcellent => 'ممتاز';
+
+  @override
+  String get trustGood => 'جيد';
+
+  @override
+  String get trustFair => 'مقبول';
+
+  @override
+  String get trustWeak => 'ضعيف';
+
+  @override
+  String get trustScoreUnavailable => 'غير متاح بعد';
+
+  @override
+  String get todayEarnings => 'أرباح اليوم';
+
+  @override
+  String get earningsUnavailable => 'غير متاحة';
+
+  @override
+  String completedTripsToday(int count) {
+    return '$count رحلات مكتملة';
+  }
+
+  @override
+  String get activateYourRoute => 'فعّل مسارك';
+
+  @override
+  String get activateRouteHint => 'قم بتحديد وجهتك لاستقبال الطلبات على طريقك';
+
+  @override
+  String get mapNoLocation => 'لا توجد بيانات موقع بعد.';
+
+  @override
+  String get batchSavings => 'توفير التجميع';
+
+  @override
+  String get batchSavingsCaption => 'تم توفيرها عبر دمج الشحنات';
+
+  @override
+  String distanceSavedKm(String km) {
+    return '$km كم';
+  }
+
+  @override
+  String get noSavingsYet => 'لا يوجد توفير بعد';
+
+  @override
+  String get inDelivery => 'قيد التوصيل';
+
+  @override
+  String activeShipmentsCount(int count) {
+    return '$count شحنات نشطة';
+  }
+
+  @override
+  String get createShipment => 'إنشاء شحنة جديدة';
+
+  @override
+  String get smartBatchingTitle => 'توصيات التجميع الذكية';
+
+  @override
+  String batchSuggestionTitle(int count, String destination) {
+    return '$count طرود إلى $destination';
+  }
+
+  @override
+  String get batchSuggestionBody => 'يمكن دمجها في دفعة واحدة على المسار.';
+
+  @override
+  String get mergeAndSend => 'دمج وإرسال';
+
+  @override
+  String get noBatchSuggestions => 'لا توجد طلبات جاهزة للتجميع.';
+
+  @override
+  String get liveTracking => 'التتبع المباشر';
+
+  @override
+  String get recentOrders => 'الطلبات الأخيرة';
+
+  @override
+  String orderReference(String reference) {
+    return 'طلب #$reference';
+  }
+
+  @override
+  String get navRequests => 'الطلبات';
+
+  @override
+  String get navMyTrip => 'رحلتي';
+
+  @override
+  String get navPerformance => 'الأرباح والأداء';
+
+  @override
+  String get navNotifications => 'الإشعارات';
+
+  @override
+  String get navMapAlerts => 'الخرائط والبلاغات';
+
+  @override
+  String get navShipments => 'الشحنات';
+
+  @override
+  String get navReports => 'التقارير';
+
+  @override
+  String get myTrips => 'رحلاتي';
+
+  @override
+  String get tripsActiveSection => 'الرحلة النشطة';
+
+  @override
+  String get tripsUpcomingSection => 'الرحلات القادمة';
+
+  @override
+  String get tripsPastSection => 'الرحلات السابقة';
+
+  @override
+  String get tripsCancelledSection => 'الرحلات الملغاة';
+
+  @override
+  String get noTripsYet => 'لا توجد رحلات بعد';
+
+  @override
+  String get noTripsYetBody => 'ستظهر رحلاتك هنا بعد إنشاء أول طلب.';
+
+  @override
+  String get tripHistoryFailed => 'تعذّر تحميل سجل الرحلات.';
+
+  @override
+  String get mapsUnavailable => 'الخريطة غير متاحة';
+
+  @override
+  String get mapsUnavailableBody =>
+      'لم يتم تفعيل خدمة الخرائط في هذه النسخة، لذلك لا يمكن عرض موقع مباشر.';
+
+  @override
+  String get incidentReports => 'البلاغات';
+
+  @override
+  String get incidentReportingUnavailable => 'الإبلاغ عن حادث غير متاح';
+
+  @override
+  String get incidentReportingUnavailableBody =>
+      'لا يوجد حتى الآن نظام خلفي لاستقبال البلاغات، ولن يتم إرسال أي بلاغ من هنا.';
+
+  @override
+  String get notificationsUnavailableBody =>
+      'لا يوجد نظام إشعارات في هذه النسخة. ستصلك التحديثات داخل شاشة الرحلة.';
+
+  @override
+  String get performanceTitle => 'الأرباح والأداء';
+
+  @override
+  String get earningsNotTracked => 'لا يتم احتساب الأرباح';
+
+  @override
+  String get earningsNotTrackedBody =>
+      'لا تحتوي قاعدة البيانات على أي بيانات أسعار أو أجرة، لذلك لا يمكن عرض رقم أرباح حقيقي.';
+
+  @override
+  String get completedTripsTotal => 'إجمالي الرحلات المكتملة';
+
+  @override
+  String get acceptanceRateUnavailable => 'نسبة القبول غير متاحة';
+
+  @override
+  String destinationCount(int count) {
+    return '$count وجهات';
+  }
+
+  @override
+  String get shipmentsTitle => 'الشحنات';
+
+  @override
+  String get noShipments => 'لا توجد شحنات';
+
+  @override
+  String get noShipmentsBody => 'أنشئ شحنة جديدة لتظهر هنا.';
+
+  @override
+  String get shipmentsFailed => 'تعذّر تحميل الشحنات.';
+
+  @override
+  String get reportsUnavailable => 'التقارير غير متاحة';
+
+  @override
+  String get reportsUnavailableBody =>
+      'لا يوجد نظام خلفي لتوليد التقارير أو تصديرها بصيغة PDF أو Excel.';
+
+  @override
+  String get accountProfile => 'الملف الشخصي';
+
+  @override
+  String get accountSupport => 'الدعم';
+
+  @override
+  String get supportUnavailable => 'الدعم داخل التطبيق غير متاح';
+
+  @override
+  String get supportUnavailableBody =>
+      'لا توجد قناة دعم متصلة بالنظام الخلفي في هذه النسخة.';
+
+  @override
+  String get accountSettings => 'الإعدادات';
+
+  @override
+  String get featureNotBackedNotice =>
+      'هذا القسم غير مدعوم من النظام الخلفي بعد.';
 
   @override
   String get offers => 'العروض';

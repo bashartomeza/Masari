@@ -378,6 +378,191 @@
   "assignmentCancelledBody": "تم إلغاء هذا الطلب.",
   "leaveRejectionWarning": "لم يتم إرسال سبب الرفض المحدد. هل تريد مغادرة الشاشة؟",
   "routeStops": "محطات المسار",
+  "navNewRequest": "طلب جديد",
+  "navHome": "الرئيسية",
+  "navAccount": "الحساب",
+  "navTrips": "رحلاتي",
+  "greetingMorning": "صباح الخير، {name}",
+  "@greetingMorning": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "greetingAfternoon": "مساء الخير، {name}",
+  "@greetingAfternoon": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "greetingEvening": "مساء الخير، {name}",
+  "@greetingEvening": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "whereToGo": "إلى أين تريد الذهاب؟",
+  "smartSearch": "بحث ذكي",
+  "destinationSearchHint": "مثال: من البوليتكنك إلى بيت لحم",
+  "quickDestinations": "الوجهات السريعة",
+  "availableTripsTo": "رحلات متاحة إلى {destination}",
+  "@availableTripsTo": {
+    "placeholders": {
+      "destination": {
+        "type": "String"
+      }
+    }
+  },
+  "searchForTrip": "ابحث عن رحلة",
+  "perPassenger": "للراكب",
+  "departure": "المغادرة",
+  "bookSeat": "احجز",
+  "noAvailableTrips": "لا توجد رحلات متاحة حالياً",
+  "noAvailableTripsBody": "أنشئ طلباً وسيقوم مساري بمطابقتك مع سائق على المسار.",
+  "seatsRemaining": "{count} مقاعد متاحة",
+  "@seatsRemaining": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "completedTripsCount": "{count} رحلة",
+  "@completedTripsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "notifications": "الإشعارات",
+  "noNotifications": "لا توجد إشعارات بعد.",
+  "sampleDataNotice": "بيانات تجريبية للعرض فقط، غير مرتبطة بالخادم.",
+  "driverOnline": "متصل",
+  "driverOffline": "غير متصل",
+  "trustPoints": "نقاط الثقة",
+  "trustExcellent": "ممتاز",
+  "trustGood": "جيد",
+  "trustFair": "مقبول",
+  "trustWeak": "ضعيف",
+  "trustScoreUnavailable": "غير متاح بعد",
+  "todayEarnings": "أرباح اليوم",
+  "earningsUnavailable": "غير متاحة",
+  "completedTripsToday": "{count} رحلات مكتملة",
+  "@completedTripsToday": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "activateYourRoute": "فعّل مسارك",
+  "activateRouteHint": "قم بتحديد وجهتك لاستقبال الطلبات على طريقك",
+  "deactivateRoute": "إيقاف المسار",
+  "mapNoLocation": "لا توجد بيانات موقع بعد.",
+  "batchSavings": "توفير التجميع",
+  "batchSavingsCaption": "تم توفيرها عبر دمج الشحنات",
+  "distanceSavedKm": "{km} كم",
+  "@distanceSavedKm": {
+    "placeholders": {
+      "km": {
+        "type": "String"
+      }
+    }
+  },
+  "noSavingsYet": "لا يوجد توفير بعد",
+  "inDelivery": "قيد التوصيل",
+  "activeShipmentsCount": "{count} شحنات نشطة",
+  "@activeShipmentsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "createShipment": "إنشاء شحنة جديدة",
+  "smartBatchingTitle": "توصيات التجميع الذكية",
+  "batchSuggestionTitle": "{count} طرود إلى {destination}",
+  "@batchSuggestionTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "destination": {
+        "type": "String"
+      }
+    }
+  },
+  "batchSuggestionBody": "يمكن دمجها في دفعة واحدة على المسار.",
+  "mergeAndSend": "دمج وإرسال",
+  "noBatchSuggestions": "لا توجد طلبات جاهزة للتجميع.",
+  "liveTracking": "التتبع المباشر",
+  "recentOrders": "الطلبات الأخيرة",
+  "orderReference": "طلب #{reference}",
+  "@orderReference": {
+    "placeholders": {
+      "reference": {
+        "type": "String"
+      }
+    }
+  },
+
+  "navRequests": "الطلبات",
+  "navMyTrip": "رحلتي",
+  "navPerformance": "الأرباح والأداء",
+  "navNotifications": "الإشعارات",
+  "navMapAlerts": "الخرائط والبلاغات",
+  "navShipments": "الشحنات",
+  "navReports": "التقارير",
+
+  "myTrips": "رحلاتي",
+  "tripsActiveSection": "الرحلة النشطة",
+  "tripsUpcomingSection": "الرحلات القادمة",
+  "tripsPastSection": "الرحلات السابقة",
+  "tripsCancelledSection": "الرحلات الملغاة",
+  "noTripsYet": "لا توجد رحلات بعد",
+  "noTripsYetBody": "ستظهر رحلاتك هنا بعد إنشاء أول طلب.",
+  "tripHistoryFailed": "تعذّر تحميل سجل الرحلات.",
+
+  "mapsUnavailable": "الخريطة غير متاحة",
+  "mapsUnavailableBody": "لم يتم تفعيل خدمة الخرائط في هذه النسخة، لذلك لا يمكن عرض موقع مباشر.",
+  "incidentReports": "البلاغات",
+  "incidentReportingUnavailable": "الإبلاغ عن حادث غير متاح",
+  "incidentReportingUnavailableBody": "لا يوجد حتى الآن نظام خلفي لاستقبال البلاغات، ولن يتم إرسال أي بلاغ من هنا.",
+  "notificationsUnavailableBody": "لا يوجد نظام إشعارات في هذه النسخة. ستصلك التحديثات داخل شاشة الرحلة.",
+
+  "performanceTitle": "الأرباح والأداء",
+  "earningsNotTracked": "لا يتم احتساب الأرباح",
+  "earningsNotTrackedBody": "لا تحتوي قاعدة البيانات على أي بيانات أسعار أو أجرة، لذلك لا يمكن عرض رقم أرباح حقيقي.",
+  "completedTripsTotal": "إجمالي الرحلات المكتملة",
+  "acceptanceRateUnavailable": "نسبة القبول غير متاحة",
+
+  "destinationCount": "{count} وجهات",
+  "@destinationCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "shipmentsTitle": "الشحنات",
+  "noShipments": "لا توجد شحنات",
+  "noShipmentsBody": "أنشئ شحنة جديدة لتظهر هنا.",
+  "shipmentsFailed": "تعذّر تحميل الشحنات.",
+  "reportsUnavailable": "التقارير غير متاحة",
+  "reportsUnavailableBody": "لا يوجد نظام خلفي لتوليد التقارير أو تصديرها بصيغة PDF أو Excel.",
+
+  "accountProfile": "الملف الشخصي",
+  "accountSupport": "الدعم",
+  "supportUnavailable": "الدعم داخل التطبيق غير متاح",
+  "supportUnavailableBody": "لا توجد قناة دعم متصلة بالنظام الخلفي في هذه النسخة.",
+  "accountSettings": "الإعدادات",
+  "featureNotBackedNotice": "هذا القسم غير مدعوم من النظام الخلفي بعد.",
   "offers": "العروض",
   "individualOffers": "العروض الفردية",
   "sharedOffers": "عروض الرحلات المشتركة",

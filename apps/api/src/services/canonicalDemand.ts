@@ -72,8 +72,58 @@ export type CanonicalMerchantInput = {
   parcels: Array<{ destinationStopId: string; size: "S" | "M" | "L"; priority: "low" | "normal" | "high" }>;
 };
 
+export type AvailableDepartureQuery = {
+  routeVersionId?: string;
+  departureFrom?: Date;
+  departureUntil?: Date;
+  seats?: number;
+  limit?: number;
+};
+
 export function createCanonicalDemandService(db: PrismaClient = prisma) {
   return {
+    /**
+     * Active driver availabilities a passenger could still be matched to.
+     *
+     * Exists because there was no passenger-facing view of driver supply at
+     * all — `/driver/availabilities` is `requireRole("driver")`, so the app had
+     * nothing real to show and fell back to sample cards. The filters mirror
+     * the candidate query in `canonicalMatching.createOfferForDispatch` so what
+     * a passenger sees is what the matcher would actually consider; the only
+     * intentional difference is that this is read-only and holds no capacity.
+     */
+    async listAvailableDepartures(query: AvailableDepartureQuery = {}) {
+      const now = new Date();
+      const limit = Math.min(Math.max(query.limit ?? 25, 1), 50);
+      const availabilities = await db.driverRoute.findMany({
+        where: {
+          operational_mode: CANONICAL_ENTRY_VERSION,
+          canonical_availability_version: CANONICAL_ENTRY_VERSION,
+          status: "active",
+          availability_status: "active",
+          ...(query.routeVersionId ? { route_version_id: query.routeVersionId } : { route_version_id: { not: null } }),
+          departure_at: {
+            gt: now,
+            ...(query.departureFrom ? { gte: query.departureFrom } : {}),
+            ...(query.departureUntil ? { lte: query.departureUntil } : {})
+          },
+          remaining_seats: { gte: query.seats ?? 1 },
+          // An availability already holding or committed to a canonical offer
+          // is not bookable, so it must not be advertised.
+          canonical_matches: { none: { operational_mode: CANONICAL_ENTRY_VERSION, status: { in: ["sent_to_driver", "accepted"] } } },
+          trips: { none: { operational_mode: CANONICAL_ENTRY_VERSION } },
+          driver: { verified: true, user: { role: "driver", account_status: "active" } }
+        },
+        include: {
+          driver: { include: { user: { select: { name: true } } } },
+          route_version: { include: { service_route: true, stops: { include: { stop: true }, orderBy: { sequence: "asc" } } } }
+        },
+        orderBy: [{ departure_at: "asc" }, { id: "asc" }],
+        take: limit
+      });
+      return availabilities;
+    },
+
     async createPassengerRequest(input: CanonicalPassengerInput, actor: Actor) {
       if (!Number.isInteger(input.passengerCount) || input.passengerCount < 1 || input.passengerCount > CANONICAL_ENTRY_LIMITS.maximumPassengerCount) {
         throw new HttpError(400, "invalid_passenger_count");
