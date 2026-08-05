@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../auth/application/auth_actor_binding.dart';
 import '../application/driver_controller.dart';
 import '../domain/driver_home_stats.dart';
 import 'driver_repository.dart';
@@ -10,7 +11,10 @@ import 'driver_repository.dart';
 /// column anywhere, so there is nothing to derive earnings from. The card
 /// renders its explicit "not available" state instead of a fabricated figure.
 final driverHomeStatsProvider = Provider<AsyncValue<DriverHomeStats>>((ref) {
-  final trustScore = ref.watch(driverTrustScoreProvider);
+  final actorId = ref.watch(authenticatedActorBindingProvider).actorId;
+  final trustScore = actorId == null
+      ? const AsyncData<int?>(null)
+      : ref.watch(driverTrustScoreProvider(actorId));
 
   return ref.watch(driverDashboardProvider).whenData((state) {
     final now = DateTime.now();

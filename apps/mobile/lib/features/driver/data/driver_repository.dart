@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../auth/application/auth_actor_binding.dart';
 import '../../auth/data/authenticated_api_client.dart';
 import '../../trips/data/trip_models.dart';
 import 'driver_models.dart';
@@ -15,8 +16,19 @@ final driverRepositoryProvider = Provider<DriverRepository>((ref) {
 /// The signed-in driver's own trust score. This actor-private cache must be
 /// invalidated with the rest of the authenticated providers on every terminal
 /// session transition.
-final driverTrustScoreProvider = FutureProvider<int?>((ref) async {
-  return ref.watch(driverRepositoryProvider).ownTrustScore();
+final driverTrustScoreProvider = FutureProvider.family<int?, String>((
+  ref,
+  actorId,
+) async {
+  final binding = ref.watch(authenticatedActorBindingProvider);
+  if (binding.actorId != actorId) return null;
+  try {
+    final score = await ref.watch(driverRepositoryProvider).ownTrustScore();
+    return binding.actorId == actorId ? score : null;
+  } catch (error, stackTrace) {
+    if (binding.actorId != actorId) return null;
+    Error.throwWithStackTrace(error, stackTrace);
+  }
 });
 
 class DriverRepository {
