@@ -84,6 +84,8 @@ jobs:
       - run: npm run build
       - name: Real MySQL deterministic and trusted-session integration smoke
         run: npm run test:integration:mysql
+      - name: Real MySQL persistent demo-reset gate matrix
+        run: npm run test:integration:reset-matrix
       - name: Real MySQL canonical single-demand integration
         env:
           MYSQL_PWD: ci-only-root-password

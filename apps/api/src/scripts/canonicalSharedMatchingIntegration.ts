@@ -880,8 +880,12 @@ try {
   check(await prisma.canonicalTripManifest.count() === 0, "repeated demo reset clears shared manifests");
   check(await prisma.match.count({ where: { canonical_match_version: SHARED_MATCH_VERSION } }) === 0, "repeated demo reset clears shared offers");
   check(await prisma.trip.count({ where: { canonical_trip_version: SHARED_TRIP_VERSION } }) === 0, "repeated demo reset clears shared Trips");
+  check(await prisma.driverRoute.count({ where: { operational_mode: "legacy", canonical_availability_version: null } }) === 2, "shared cleanup preserves two legacy route fixtures");
+  check(await prisma.driverRoute.count({ where: { operational_mode: mode, canonical_availability_version: mode } }) === 2, "shared cleanup recreates two canonical availabilities behind full gates");
+  check(await prisma.passengerRequest.count({ where: { operational_mode: mode } }) === 0, "shared cleanup leaves no canonical passenger requests");
+  check(await prisma.merchantOrder.count({ where: { operational_mode: mode } }) === 0, "shared cleanup leaves no canonical merchant orders");
 
-  check(assertions === 140, `exactly 141 persistent assertions including this count check; got ${assertions + 1}`);
+  check(assertions === 144, `exactly 145 persistent assertions including this count check; got ${assertions + 1}`);
   console.log(`M7C3C1 shared-trip integration passed with ${assertions} assertions.`);
 } finally {
   await prisma.$disconnect();
