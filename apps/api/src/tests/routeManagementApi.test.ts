@@ -203,6 +203,9 @@ describe("M7B route management APIs", () => {
       canonical_trip_creation_available: false,
       driver_canonical_offers_available: false,
       canonical_assignment_status_available: true,
+      canonical_shared_trip_presentation_available: false,
+      canonical_shared_driver_offers_available: false,
+      canonical_shared_assignment_status_available: false,
       maps_available: false,
       live_tracking_available: false
     });

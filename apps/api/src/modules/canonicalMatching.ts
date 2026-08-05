@@ -84,6 +84,17 @@ function tripResponse(trip: Record<string, any> | null | undefined) {
   return {
     id: trip.id,
     status: trip.status,
+    ...(typeof trip.canonical_trip_version === "string"
+      ? {
+          trip_version: trip.canonical_trip_version,
+          shared_trip:
+            trip.canonical_trip_version === "canonical_shared_trip_v1"
+              ? true
+              : trip.canonical_trip_version === "canonical_route_trip_v1"
+                ? false
+                : null
+        }
+      : {}),
     route_version_id: trip.route_version_id,
     departure_at: trip.driver_route?.departure_at,
     vehicle_type: trip.driver_route?.driver?.vehicle_type,
@@ -91,9 +102,14 @@ function tripResponse(trip: Record<string, any> | null | undefined) {
   };
 }
 
-function statusResponse(resource: Record<string, any>) {
+function statusResponse(resource: Record<string, any>, sharedPresentationAvailable = true) {
   const dispatch = resource.canonical_dispatch;
-  const trip = dispatch?.assigned_trip;
+  const assignedTrip = dispatch?.assigned_trip;
+  const trip =
+    assignedTrip?.canonical_trip_version === "canonical_shared_trip_v1" &&
+    !sharedPresentationAvailable
+      ? null
+      : assignedTrip;
   return {
     id: resource.id,
     status: resource.status,
@@ -206,7 +222,7 @@ export function createCanonicalMatchingRouter(
     try {
       const query = page.parse(req.query);
       const resources = await service.passengerStatus(req.user!.id, undefined, query.limit);
-      res.json({ requests: resources.map((resource) => statusResponse(resource)), server_now: new Date(), request_id: req.requestId });
+      res.json({ requests: resources.map((resource) => statusResponse(resource, appConfig.canonicalSharedTripMobileEnabled)), server_now: new Date(), request_id: req.requestId });
     } catch (error) { next(error); }
   });
 
@@ -214,7 +230,7 @@ export function createCanonicalMatchingRouter(
     try {
       const resources = await service.passengerStatus(req.user!.id, id.parse(req.params.id), 1);
       if (!resources[0]) throw new HttpError(404, "canonical_route_request_not_found");
-      res.json({ request: statusResponse(resources[0]), server_now: new Date(), request_id: req.requestId });
+      res.json({ request: statusResponse(resources[0], appConfig.canonicalSharedTripMobileEnabled), server_now: new Date(), request_id: req.requestId });
     } catch (error) { next(error); }
   });
 
@@ -222,7 +238,7 @@ export function createCanonicalMatchingRouter(
     try {
       const query = page.parse(req.query);
       const resources = await service.merchantStatus(req.user!.id, undefined, query.limit);
-      res.json({ orders: resources.map((resource) => statusResponse(resource)), server_now: new Date(), request_id: req.requestId });
+      res.json({ orders: resources.map((resource) => statusResponse(resource, appConfig.canonicalSharedTripMobileEnabled)), server_now: new Date(), request_id: req.requestId });
     } catch (error) { next(error); }
   });
 
@@ -230,7 +246,7 @@ export function createCanonicalMatchingRouter(
     try {
       const resources = await service.merchantStatus(req.user!.id, id.parse(req.params.id), 1);
       if (!resources[0]) throw new HttpError(404, "canonical_route_order_not_found");
-      res.json({ order: statusResponse(resources[0]), server_now: new Date(), request_id: req.requestId });
+      res.json({ order: statusResponse(resources[0], appConfig.canonicalSharedTripMobileEnabled), server_now: new Date(), request_id: req.requestId });
     } catch (error) { next(error); }
   });
   return router;

@@ -11,7 +11,10 @@ import {
 } from "../services/canonicalSharedMatching.js";
 
 const id = z.string().min(1).max(191);
-const page = z.strictObject({ limit: z.coerce.number().int().min(1).max(50).default(25) });
+const page = z.strictObject({
+  cursor: z.string().min(1).max(512).optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(25)
+});
 const rejectBody = z.strictObject({ reason: z.nativeEnum(CanonicalRejectReason) });
 const key = z.string().min(8).max(128).regex(/^[A-Za-z0-9._:-]+$/);
 
@@ -26,6 +29,12 @@ function aggregateOfferResponse(offer: Record<string, any>) {
     throw new HttpError(409, "canonical_shared_offer_version_mismatch");
   }
   const manifest = offer.canonical_manifest;
+  const composition =
+    manifest.passenger_request_count > 0 && manifest.merchant_order_count > 0
+      ? "mixed"
+      : manifest.passenger_request_count > 0
+        ? "passenger_only"
+        : "merchant_only";
   const stopEvents = new Map<string, {
     stop_id: string;
     passenger_pickups: number;
@@ -55,16 +64,21 @@ function aggregateOfferResponse(offer: Record<string, any>) {
       for (const stopId of destinations) event(stopId).parcel_destinations += 1;
     }
   }
-  const stopSequence = new Map(
+  const routeStops = new Map(
     (offer.route_version?.stops ?? []).map((membership: Record<string, any>) => [
       membership.stop?.id,
-      membership.sequence
+      {
+        sequence: membership.sequence,
+        name_ar: membership.stop?.name_ar,
+        name_en: membership.stop?.name_en
+      }
     ])
   );
   return {
     id: offer.id,
     offer_version: offer.canonical_match_version,
     status: offer.status === "sent_to_driver" ? "offered" : offer.status,
+    composition,
     route_version_id: offer.route_version_id,
     route: offer.route_version
       ? {
@@ -91,17 +105,23 @@ function aggregateOfferResponse(offer: Record<string, any>) {
     passenger_seat_count: manifest.passenger_seat_count,
     merchant_order_count: manifest.merchant_order_count,
     parcel_unit_count: manifest.parcel_unit_count,
-    stop_events: [...stopEvents.values()].sort(
-      (left, right) =>
-        Number(stopSequence.get(left.stop_id) ?? Number.MAX_SAFE_INTEGER) -
-          Number(stopSequence.get(right.stop_id) ?? Number.MAX_SAFE_INTEGER) ||
-        left.stop_id.localeCompare(right.stop_id)
-    ),
+    stop_events: [...stopEvents.values()]
+      .map((value) => {
+        const stop = routeStops.get(value.stop_id) as
+          | { sequence: number; name_ar: string; name_en: string }
+          | undefined;
+        if (!stop) throw new HttpError(409, "canonical_shared_offer_stop_mismatch");
+        return { ...value, ...stop };
+      })
+      .sort((left, right) => left.sequence - right.sequence || left.stop_id.localeCompare(right.stop_id)),
     trip: manifest.assigned_trip
       ? {
           id: manifest.assigned_trip.id,
           status: manifest.assigned_trip.status,
+          trip_version: manifest.assigned_trip.canonical_trip_version,
           route_version_id: manifest.assigned_trip.route_version_id,
+          departure_at: manifest.assigned_trip.driver_route?.departure_at,
+          vehicle_type: manifest.assigned_trip.driver_route?.driver?.vehicle_type,
           created_at: manifest.assigned_trip.created_at
         }
       : null,
@@ -114,32 +134,31 @@ export function createCanonicalSharedMatchingRouter(
   service: CanonicalSharedMatchingService = canonicalSharedMatchingService
 ) {
   const router = Router();
-  if (!appConfig.canonicalSharedTripsEnabled) {
-    router.use("/driver/canonical-shared-match-offers", notFoundHandler);
+  const paths = [
+    "/driver/canonical-shared-offers",
+    "/driver/canonical-shared-match-offers"
+  ] as const;
+  if (!appConfig.canonicalSharedTripMobileEnabled) {
+    for (const path of paths) router.use(path, notFoundHandler);
     return router;
   }
-  router.get(
-    "/driver/canonical-shared-match-offers",
-    requireAuth,
-    requireRole("driver"),
-    async (req: AuthenticatedRequest, res, next) => {
+  for (const path of paths) {
+    router.get(path, requireAuth, requireRole("driver"), async (req: AuthenticatedRequest, res, next) => {
       try {
         const query = page.parse(req.query);
-        const offers = await service.listDriverOffers(req.user!.id, query.limit);
+        await service.assertDriverEligible(req.user!.id);
+        const result = await service.listDriverOfferPage(req.user!.id, query);
         res.json({
-          offers: offers.map(aggregateOfferResponse),
+          offers: result.offers.map(aggregateOfferResponse),
+          next_cursor: result.nextCursor,
           server_now: new Date(),
           request_id: req.requestId
         });
       } catch (error) { next(error); }
-    }
-  );
-  router.get(
-    "/driver/canonical-shared-match-offers/:id",
-    requireAuth,
-    requireRole("driver"),
-    async (req: AuthenticatedRequest, res, next) => {
+    });
+    router.get(`${path}/:id`, requireAuth, requireRole("driver"), async (req: AuthenticatedRequest, res, next) => {
       try {
+        await service.assertDriverEligible(req.user!.id);
         const offer = await service.getDriverOffer(req.user!.id, id.parse(req.params.id));
         res.json({
           offer: aggregateOfferResponse(offer),
@@ -147,14 +166,10 @@ export function createCanonicalSharedMatchingRouter(
           request_id: req.requestId
         });
       } catch (error) { next(error); }
-    }
-  );
-  router.post(
-    "/driver/canonical-shared-match-offers/:id/accept",
-    requireAuth,
-    requireRole("driver"),
-    async (req: AuthenticatedRequest, res, next) => {
+    });
+    router.post(`${path}/:id/accept`, requireAuth, requireRole("driver"), async (req: AuthenticatedRequest, res, next) => {
       try {
+        await service.assertDriverEligible(req.user!.id);
         const offerId = id.parse(req.params.id);
         const result = await service.accept(req.user!.id, offerId, {
           id: req.user!.id,
@@ -167,6 +182,7 @@ export function createCanonicalSharedMatchingRouter(
           trip: {
             id: result.trip.id,
             status: result.trip.status,
+            trip_version: result.trip.canonical_trip_version,
             route_version_id: result.trip.route_version_id
           },
           replayed: result.replayed,
@@ -174,14 +190,10 @@ export function createCanonicalSharedMatchingRouter(
           request_id: req.requestId
         });
       } catch (error) { next(error); }
-    }
-  );
-  router.post(
-    "/driver/canonical-shared-match-offers/:id/reject",
-    requireAuth,
-    requireRole("driver"),
-    async (req: AuthenticatedRequest, res, next) => {
+    });
+    router.post(`${path}/:id/reject`, requireAuth, requireRole("driver"), async (req: AuthenticatedRequest, res, next) => {
       try {
+        await service.assertDriverEligible(req.user!.id);
         const offerId = id.parse(req.params.id);
         const body = rejectBody.parse(req.body);
         const result = await service.reject(req.user!.id, offerId, body.reason, {
@@ -197,8 +209,8 @@ export function createCanonicalSharedMatchingRouter(
           request_id: req.requestId
         });
       } catch (error) { next(error); }
-    }
-  );
+    });
+  }
   return router;
 }
 

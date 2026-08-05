@@ -32,6 +32,37 @@ export const SHARED_LIMITS = {
   maximumSnapshotBytes: 65_536
 } as const;
 
+type SharedDriverOfferCursor = { createdAt: Date; id: string };
+
+function encodeSharedDriverOfferCursor(value: SharedDriverOfferCursor) {
+  return Buffer.from(
+    JSON.stringify({ v: 1, created_at: value.createdAt.toISOString(), id: value.id }),
+    "utf8"
+  ).toString("base64url");
+}
+
+function decodeSharedDriverOfferCursor(value: string): SharedDriverOfferCursor {
+  try {
+    if (value.length > 512 || !/^[A-Za-z0-9_-]+$/.test(value)) throw new Error("invalid");
+    const parsed = JSON.parse(Buffer.from(value, "base64url").toString("utf8")) as Record<string, unknown>;
+    if (
+      Object.keys(parsed).length !== 3 ||
+      parsed.v !== 1 ||
+      typeof parsed.created_at !== "string" ||
+      typeof parsed.id !== "string" ||
+      parsed.id.length < 1 ||
+      parsed.id.length > 191
+    ) throw new Error("invalid");
+    const createdAt = new Date(parsed.created_at);
+    if (!Number.isFinite(createdAt.getTime()) || createdAt.toISOString() !== parsed.created_at) {
+      throw new Error("invalid");
+    }
+    return { createdAt, id: parsed.id };
+  } catch {
+    throw new HttpError(400, "invalid_cursor");
+  }
+}
+
 type Actor = { id: string; requestId?: string; idempotencyKey: string };
 type Demand = {
   dispatchId: string;
@@ -588,6 +619,19 @@ export function createCanonicalSharedMatchingService(
   }
 
   return {
+    async assertDriverEligible(driverUserId: string) {
+      requireEnabled();
+      const profile = await db.driverProfile.findFirst({
+        where: {
+          user_id: driverUserId,
+          verified: true,
+          user: { role: "driver", account_status: "active" }
+        },
+        select: { id: true }
+      });
+      if (!profile) throw new HttpError(403, "verified_driver_required");
+    },
+
     async run(input: {
       routeVersionId?: string;
       limit?: number;
@@ -1002,9 +1046,14 @@ export function createCanonicalSharedMatchingService(
       return result;
     },
 
-    async listDriverOffers(driverUserId: string, limit = 25) {
+    async listDriverOfferPage(
+      driverUserId: string,
+      input: { cursor?: string; limit?: number } = {}
+    ) {
       requireEnabled();
-      return db.match.findMany({
+      const limit = Math.min(Math.max(input.limit ?? 25, 1), 50);
+      const cursor = input.cursor ? decodeSharedDriverOfferCursor(input.cursor) : undefined;
+      const rows = await db.match.findMany({
         where: {
           operational_mode: CANONICAL_MODE,
           canonical_match_version: SHARED_MATCH_VERSION,
@@ -1014,7 +1063,15 @@ export function createCanonicalSharedMatchingService(
               verified: true,
               user: { role: "driver", account_status: "active" }
             }
-          }
+          },
+          ...(cursor
+            ? {
+                OR: [
+                  { created_at: { lt: cursor.createdAt } },
+                  { created_at: cursor.createdAt, id: { lt: cursor.id } }
+                ]
+              }
+            : {})
         },
         include: {
           driver_route: { select: { departure_at: true } },
@@ -1052,15 +1109,36 @@ export function createCanonicalSharedMatchingService(
                   id: true,
                   status: true,
                   route_version_id: true,
-                  created_at: true
+                  canonical_trip_version: true,
+                  created_at: true,
+                  driver_route: {
+                    select: {
+                      departure_at: true,
+                      driver: { select: { vehicle_type: true } }
+                    }
+                  }
                 }
               }
             }
           }
         },
         orderBy: [{ created_at: "desc" }, { id: "desc" }],
-        take: Math.min(Math.max(limit, 1), 50)
+        take: limit + 1
       });
+      const offers = rows.slice(0, limit);
+      const last = offers.at(-1);
+      return {
+        offers,
+        nextCursor:
+          rows.length > limit && last
+            ? encodeSharedDriverOfferCursor({ createdAt: last.created_at, id: last.id })
+            : null
+      };
+    },
+
+    async listDriverOffers(driverUserId: string, limit = 25) {
+      const page = await this.listDriverOfferPage(driverUserId, { limit });
+      return page.offers;
     },
 
     async getDriverOffer(driverUserId: string, offerId: string) {
@@ -1114,7 +1192,14 @@ export function createCanonicalSharedMatchingService(
                   id: true,
                   status: true,
                   route_version_id: true,
-                  created_at: true
+                  canonical_trip_version: true,
+                  created_at: true,
+                  driver_route: {
+                    select: {
+                      departure_at: true,
+                      driver: { select: { vehicle_type: true } }
+                    }
+                  }
                 }
               }
             }
@@ -1645,4 +1730,8 @@ export const canonicalSharedMatchingService = createCanonicalSharedMatchingServi
 export const canonicalSharedFingerprints = {
   member: memberFingerprint,
   manifest: manifestFingerprint
+};
+export const canonicalSharedOfferPagination = {
+  encode: encodeSharedDriverOfferCursor,
+  decode: decodeSharedDriverOfferCursor
 };
