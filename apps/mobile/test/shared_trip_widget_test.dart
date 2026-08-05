@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -47,6 +49,12 @@ void main() {
     expect(find.textContaining('مقاعد الركاب: 3'), findsOneWidget);
     expect(find.textContaining('طرود: 4'), findsOneWidget);
     expect(find.textContaining(sentinel), findsNothing);
+    final offerSemantics = tester
+        .getSemantics(
+          find.bySemanticsLabel(RegExp('طلبات الركاب: 2.*الطرود: 4')),
+        )
+        .getSemanticsData();
+    expect(offerSemantics.hasAction(SemanticsAction.tap), isTrue);
     expect(
       tester
           .widget<Directionality>(find.byType(Directionality).first)
@@ -97,6 +105,15 @@ void main() {
     );
     expect(find.text('Accept entire shared trip'), findsOneWidget);
     expect(find.text('Reject entire shared trip'), findsOneWidget);
+    final acceptSemantics = find.bySemanticsLabel('Accept entire shared trip');
+    expect(acceptSemantics, findsOneWidget);
+    expect(
+      tester
+          .getSemantics(acceptSemantics)
+          .getSemanticsData()
+          .hasAction(SemanticsAction.tap),
+      isTrue,
+    );
     expect(find.textContaining('This screen is not live'), findsOneWidget);
     expect(find.textContaining('Start trip'), findsNothing);
     expect(find.textContaining('ETA'), findsNothing);

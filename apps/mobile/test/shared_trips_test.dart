@@ -102,6 +102,59 @@ void main() {
         () => SharedDriverOffer.fromJson(wrongTrip),
         throwsFormatException,
       );
+      final wrongRoute = sharedOfferJson(status: 'accepted', withTrip: true);
+      (wrongRoute['trip'] as Map<String, dynamic>)['route_version_id'] =
+          'version_2';
+      expect(
+        () => SharedDriverOffer.fromJson(wrongRoute),
+        throwsFormatException,
+      );
+    });
+
+    test('aggregate composition and stop totals must reconcile', () {
+      expect(
+        () => SharedDriverOffer.fromJson(
+          sharedOfferJson(
+            composition: 'passenger_only',
+            passengerSeats: 0,
+            merchantOrders: 0,
+            parcelUnits: 0,
+          ),
+        ),
+        throwsFormatException,
+      );
+      expect(
+        () => SharedDriverOffer.fromJson(
+          sharedOfferJson(
+            composition: 'merchant_only',
+            passengerRequests: 0,
+            passengerSeats: 0,
+            parcelUnits: 0,
+          ),
+        ),
+        throwsFormatException,
+      );
+      final inconsistent = sharedOfferJson();
+      (inconsistent['stop_events'] as List<dynamic>)[1]['parcel_destinations'] =
+          3;
+      expect(
+        () => SharedDriverOffer.fromJson(inconsistent),
+        throwsFormatException,
+      );
+      final emptyEvent = sharedOfferJson();
+      (emptyEvent['stop_events'] as List<dynamic>).add(
+        stopEventJson(sequence: 3),
+      );
+      expect(
+        () => SharedDriverOffer.fromJson(emptyEvent),
+        throwsFormatException,
+      );
+      final wrongStop = sharedOfferJson();
+      (wrongStop['stop_events'] as List<dynamic>)[0]['name_en'] = 'Private';
+      expect(
+        () => SharedDriverOffer.fromJson(wrongStop),
+        throwsFormatException,
+      );
     });
 
     test('missing shared capabilities default false and malformed fails', () {
@@ -360,6 +413,41 @@ void main() {
       expect(storage.bundle, isNull);
     });
 
+    test(
+      'recovery reconciles an already committed accept without resending',
+      () async {
+        final storage = MemoryOperationStorage()
+          ..bundle = CanonicalOperationBundle.create(
+            operation: 'canonical_shared_offer_accept_v1',
+            scope: 'driver',
+            actorId: 'driver_1',
+            payload: sharedAcceptPayload,
+          );
+        final repository = FakeSharedRepository([
+          Future.value(sharedEnvelope()),
+          Future.value(sharedEnvelope(status: 'accepted', withTrip: true)),
+        ]);
+        final container = sharedContainer(
+          repository: repository,
+          storage: storage,
+        );
+        addTearDown(container.dispose);
+        await container.read(authControllerProvider.future);
+        final provider = sharedDriverOfferDetailProvider('shared_1');
+        await container.read(provider.future);
+
+        await container.read(provider.notifier).recover();
+
+        expect(repository.acceptCalls, 0);
+        expect(storage.bundle, isNull);
+        expect(
+          container.read(provider).value?.offer.status,
+          SharedOfferStatus.accepted,
+        );
+        expect(container.read(provider).value?.recoveryPending, isFalse);
+      },
+    );
+
     test('terminal mutation fences an older offered refresh', () async {
       final stale = Completer<SharedOfferEnvelope>();
       final repository = FakeSharedRepository([
@@ -483,7 +571,6 @@ Map<String, dynamic> stopEventJson({
   int parcelPickups = 0,
   int parcelDestinations = 0,
 }) => {
-  'stop_id': 'stop_$sequence',
   'name_ar': sequence == 1 ? 'الخليل' : 'بيت لحم',
   'name_en': sequence == 1 ? 'Hebron' : 'Bethlehem',
   'sequence': sequence,

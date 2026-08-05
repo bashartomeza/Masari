@@ -1255,6 +1255,10 @@ class AppLocalizationsAr extends AppLocalizations {
       'عروض الرحلات المشتركة غير متاحة في هذه البيئة.';
 
   @override
+  String get sharedAssignmentUnavailable =>
+      'تفاصيل إسناد الرحلة المشتركة غير متاحة في هذه البيئة.';
+
+  @override
   String get notLiveNotice =>
       'هذه الشاشة ليست مباشرة. استخدم التحديث للتحقق من المستجدات.';
 }

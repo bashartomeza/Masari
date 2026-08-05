@@ -207,9 +207,10 @@ describe("M7C3C1 shared canonical APIs and gate", () => {
     });
     expect(response.body.next_cursor).toBe("next-page");
     expect(response.body.offers[0].stop_events).toEqual([
-      expect.objectContaining({ stop_id: "stop_1", sequence: 1, passenger_pickups: 2, parcel_pickups: 2 }),
-      expect.objectContaining({ stop_id: "stop_2", sequence: 2, passenger_drop_offs: 2, parcel_destinations: 2 })
+      expect.objectContaining({ sequence: 1, passenger_pickups: 2, parcel_pickups: 2 }),
+      expect.objectContaining({ sequence: 2, passenger_drop_offs: 2, parcel_destinations: 2 })
     ]);
+    expect(response.body.offers[0].stop_events[0]).not.toHaveProperty("stop_id");
     expect(JSON.stringify(response.body)).not.toMatch(
       /must-not-leak|fingerprint|dispatch|reservation|phone|scoring_breakdown/i
     );
@@ -319,8 +320,11 @@ describe("M7C3C1 shared canonical APIs and gate", () => {
       trip_version: "canonical_shared_trip_v1",
       shared_trip: true
     });
+    expect(enabled.assignment_trip_version).toBe("canonical_shared_trip_v1");
     expect(JSON.stringify(enabled)).not.toMatch(/must-not-leak|manifest|member|phone/i);
     expect(canonicalMatchingSerializers.statusResponse(resource, false).trip).toBeNull();
+    expect(canonicalMatchingSerializers.statusResponse(resource, false).assignment_trip_version)
+      .toBe("canonical_shared_trip_v1");
   });
 
   it("binds accept and reject to driver, offer, and idempotency key", async () => {

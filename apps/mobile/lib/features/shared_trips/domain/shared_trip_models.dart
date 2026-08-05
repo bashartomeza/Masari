@@ -9,7 +9,6 @@ enum SharedTripComposition { passengerOnly, merchantOnly, mixed }
 
 class SharedStopEvent {
   const SharedStopEvent({
-    required this.stopId,
     required this.nameAr,
     required this.nameEn,
     required this.sequence,
@@ -19,7 +18,6 @@ class SharedStopEvent {
     required this.parcelDestinations,
   });
 
-  final String stopId;
   final String nameAr;
   final String nameEn;
   final int sequence;
@@ -39,7 +37,6 @@ class SharedStopEvent {
       throw const FormatException('Invalid shared stop event');
     }
     return SharedStopEvent(
-      stopId: _string(json, 'stop_id'),
       nameAr: _string(json, 'name_ar'),
       nameEn: _string(json, 'name_en'),
       sequence: _positiveInteger(json, 'sequence'),
@@ -158,9 +155,30 @@ class SharedDriverOffer {
     final events = rawEvents
         .map((value) => SharedStopEvent.fromJson(_map(value)))
         .toList(growable: false);
+    if (events.isEmpty || events.length > route.stops.length) {
+      throw const FormatException('Invalid shared stop events');
+    }
     for (var index = 1; index < events.length; index++) {
       if (events[index - 1].sequence >= events[index].sequence) {
         throw const FormatException('Invalid shared stop event order');
+      }
+    }
+    for (final event in events) {
+      final routeStops = route.stops.where(
+        (stop) => stop.sequence == event.sequence,
+      );
+      if (routeStops.length != 1) {
+        throw const FormatException('Unknown shared stop event');
+      }
+      final stop = routeStops.single;
+      if (stop.nameAr != event.nameAr || stop.nameEn != event.nameEn) {
+        throw const FormatException('Mismatched shared stop event');
+      }
+      if (event.passengerPickups == 0 &&
+          event.passengerDropoffs == 0 &&
+          event.parcelPickups == 0 &&
+          event.parcelDestinations == 0) {
+        throw const FormatException('Empty shared stop event');
       }
     }
     final passengerRequests = _integer(json, 'passenger_request_count');
@@ -177,14 +195,45 @@ class SharedDriverOffer {
     }
     final compositionValid = switch (composition) {
       SharedTripComposition.passengerOnly =>
-        passengerRequests > 0 && merchantOrders == 0,
+        passengerRequests > 0 &&
+            passengerSeats > 0 &&
+            merchantOrders == 0 &&
+            parcelUnits == 0,
       SharedTripComposition.merchantOnly =>
-        passengerRequests == 0 && merchantOrders > 0,
+        passengerRequests == 0 &&
+            passengerSeats == 0 &&
+            merchantOrders > 0 &&
+            parcelUnits > 0,
       SharedTripComposition.mixed =>
-        passengerRequests > 0 && merchantOrders > 0,
+        passengerRequests > 0 &&
+            passengerSeats > 0 &&
+            merchantOrders > 0 &&
+            parcelUnits > 0,
     };
     if (!compositionValid) {
       throw const FormatException('Invalid shared composition counts');
+    }
+    final passengerPickups = events.fold<int>(
+      0,
+      (total, event) => total + event.passengerPickups,
+    );
+    final passengerDropoffs = events.fold<int>(
+      0,
+      (total, event) => total + event.passengerDropoffs,
+    );
+    final parcelPickups = events.fold<int>(
+      0,
+      (total, event) => total + event.parcelPickups,
+    );
+    final parcelDestinations = events.fold<int>(
+      0,
+      (total, event) => total + event.parcelDestinations,
+    );
+    if (passengerPickups != passengerSeats ||
+        passengerDropoffs != passengerSeats ||
+        parcelPickups != parcelUnits ||
+        parcelDestinations != parcelUnits) {
+      throw const FormatException('Inconsistent shared stop event totals');
     }
     final rawReason = _optionalString(json, 'reject_reason');
     final reason = rawReason == null
@@ -203,11 +252,15 @@ class SharedDriverOffer {
     if (status != SharedOfferStatus.accepted && trip != null) {
       throw const FormatException('Terminal shared offer has unexpected Trip');
     }
+    final routeVersionId = _string(json, 'route_version_id');
+    if (trip != null && trip.routeVersionId != routeVersionId) {
+      throw const FormatException('Shared Trip route mismatch');
+    }
     return SharedDriverOffer(
       id: _string(json, 'id'),
       status: status,
       composition: composition,
-      routeVersionId: _string(json, 'route_version_id'),
+      routeVersionId: routeVersionId,
       route: route,
       departureAt: _date(json, 'departure_at'),
       offeredAt: _date(json, 'offered_at'),

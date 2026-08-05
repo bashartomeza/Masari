@@ -2474,6 +2474,12 @@ abstract class AppLocalizations {
   /// **'عروض الرحلات المشتركة غير متاحة في هذه البيئة.'**
   String get sharedFeatureUnavailable;
 
+  /// No description provided for @sharedAssignmentUnavailable.
+  ///
+  /// In ar, this message translates to:
+  /// **'تفاصيل إسناد الرحلة المشتركة غير متاحة في هذه البيئة.'**
+  String get sharedAssignmentUnavailable;
+
   /// No description provided for @notLiveNotice.
   ///
   /// In ar, this message translates to:

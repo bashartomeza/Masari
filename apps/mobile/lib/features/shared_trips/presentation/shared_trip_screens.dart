@@ -150,6 +150,7 @@ class _SharedOfferCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    void openOffer() => context.go('/driver/shared-offers/${offer.id}');
     final summary = [
       _routeName(context, offer.route),
       _compositionLabel(l10n, offer.composition),
@@ -163,8 +164,9 @@ class _SharedOfferCard extends StatelessWidget {
       button: true,
       excludeSemantics: true,
       label: summary,
+      onTap: openOffer,
       child: MasariCard(
-        onTap: () => context.go('/driver/shared-offers/${offer.id}'),
+        onTap: openOffer,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -221,7 +223,6 @@ class _DriverSharedOfferDetailScreenState
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _startTimer();
   }
 
   @override
@@ -239,7 +240,14 @@ class _DriverSharedOfferDetailScreenState
       _displayTimer = null;
       return;
     }
-    _startTimer();
+    if (ref
+            .read(sharedDriverOfferDetailProvider(widget.offerId))
+            .value
+            ?.offer
+            .status ==
+        SharedOfferStatus.offered) {
+      _startTimer();
+    }
     ref
         .read(sharedDriverOfferDetailProvider(widget.offerId).notifier)
         .refresh();
@@ -250,6 +258,11 @@ class _DriverSharedOfferDetailScreenState
     _displayTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() {});
     });
+  }
+
+  void _stopTimer() {
+    _displayTimer?.cancel();
+    _displayTimer = null;
   }
 
   Future<bool> _confirmLeave({required bool ambiguous}) async {
@@ -301,6 +314,13 @@ class _DriverSharedOfferDetailScreenState
       );
     }
     final detail = ref.watch(sharedDriverOfferDetailProvider(widget.offerId));
+    ref.listen(sharedDriverOfferDetailProvider(widget.offerId), (_, next) {
+      if (next.value?.offer.status == SharedOfferStatus.offered) {
+        _startTimer();
+      } else {
+        _stopTimer();
+      }
+    });
     final ambiguous = detail.value?.recoveryPending == true;
     return PopScope(
       canPop: !_dirty && !ambiguous,
@@ -333,6 +353,39 @@ class _DriverSharedOfferDetailScreenState
                 ? l10n.actionDisabledUncertain
                 : offer.expiredAt(serverNow)
                 ? l10n.actionDisabledExpired
+                : null;
+            final VoidCallback? acceptAction = actionable && !state.mutating
+                ? () => _confirmAndRun(
+                    _decisionConfirmation(
+                      l10n,
+                      l10n.confirmAcceptSharedTrip,
+                      offer,
+                    ),
+                    () => ref
+                        .read(
+                          sharedDriverOfferDetailProvider(
+                            widget.offerId,
+                          ).notifier,
+                        )
+                        .accept(),
+                  )
+                : null;
+            final VoidCallback? rejectAction =
+                actionable && !state.mutating && _reason != null
+                ? () => _confirmAndRun(
+                    _decisionConfirmation(
+                      l10n,
+                      l10n.confirmRejectSharedTrip,
+                      offer,
+                    ),
+                    () => ref
+                        .read(
+                          sharedDriverOfferDetailProvider(
+                            widget.offerId,
+                          ).notifier,
+                        )
+                        .reject(_reason!),
+                  )
                 : null;
             return RefreshIndicator(
               onRefresh: () => ref
@@ -384,24 +437,12 @@ class _DriverSharedOfferDetailScreenState
                           ? l10n.acceptEntireSharedTrip
                           : disabledReason,
                       button: true,
+                      enabled: acceptAction != null,
+                      excludeSemantics: true,
+                      onTap: acceptAction,
                       child: FilledButton(
                         key: const ValueKey('acceptSharedOffer'),
-                        onPressed: actionable && !state.mutating
-                            ? () => _confirmAndRun(
-                                _decisionConfirmation(
-                                  l10n,
-                                  l10n.confirmAcceptSharedTrip,
-                                  offer,
-                                ),
-                                () => ref
-                                    .read(
-                                      sharedDriverOfferDetailProvider(
-                                        widget.offerId,
-                                      ).notifier,
-                                    )
-                                    .accept(),
-                              )
-                            : null,
+                        onPressed: acceptAction,
                         child: Text(l10n.acceptEntireSharedTrip),
                       ),
                     ),
@@ -427,25 +468,12 @@ class _DriverSharedOfferDetailScreenState
                           ? l10n.rejectEntireSharedTrip
                           : disabledReason ?? l10n.rejectReason,
                       button: true,
+                      enabled: rejectAction != null,
+                      excludeSemantics: true,
+                      onTap: rejectAction,
                       child: OutlinedButton(
                         key: const ValueKey('rejectSharedOffer'),
-                        onPressed:
-                            actionable && !state.mutating && _reason != null
-                            ? () => _confirmAndRun(
-                                _decisionConfirmation(
-                                  l10n,
-                                  l10n.confirmRejectSharedTrip,
-                                  offer,
-                                ),
-                                () => ref
-                                    .read(
-                                      sharedDriverOfferDetailProvider(
-                                        widget.offerId,
-                                      ).notifier,
-                                    )
-                                    .reject(_reason!),
-                              )
-                            : null,
+                        onPressed: rejectAction,
                         child: Text(l10n.rejectEntireSharedTrip),
                       ),
                     ),

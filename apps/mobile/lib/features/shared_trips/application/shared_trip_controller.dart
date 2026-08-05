@@ -263,6 +263,20 @@ class SharedDriverOfferDetailNotifier
     try {
       final fresh = await _freshOffer();
       if (!fresh.offer.actionableAt(fresh.serverNow)) {
+        final pending = await _pendingForActor(actorId);
+        if (pending != null && _terminalResultMatches(pending, fresh.offer)) {
+          await ref
+              .read(canonicalMutationRunnerProvider)
+              .acknowledge(actorId: actorId, operation: pending.operation);
+          state = AsyncData(
+            SharedOfferDetailState(
+              offer: fresh.offer,
+              clock: ServerClock.sample(fresh.serverNow),
+              recoveryPending: false,
+            ),
+          );
+          return;
+        }
         state = AsyncData(
           SharedOfferDetailState(
             offer: fresh.offer,

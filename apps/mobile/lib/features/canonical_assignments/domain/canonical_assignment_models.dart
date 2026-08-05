@@ -19,6 +19,8 @@ enum CanonicalRejectReason {
   final String apiValue;
 }
 
+const canonicalRouteMatchVersion = 'canonical_route_match_v1';
+
 enum CanonicalTripVersion { single, shared }
 
 enum CanonicalTripStatus { accepted, unsupported }
@@ -223,6 +225,9 @@ class CanonicalDriverOffer {
   bool get actionable => status == CanonicalOfferStatus.offered;
 
   factory CanonicalDriverOffer.fromJson(Map<String, dynamic> json) {
+    if (_string(json, 'offer_version') != canonicalRouteMatchVersion) {
+      throw const FormatException('Unsupported canonical offer version');
+    }
     final status = CanonicalOfferStatus.values
         .where((value) => value.name == _string(json, 'status'))
         .firstOrNull;
@@ -289,6 +294,7 @@ class CanonicalAssignment {
     required this.departureFrom,
     required this.departureUntil,
     required this.status,
+    required this.tripVersion,
     required this.trip,
     required this.passengerCount,
     required this.parcelCount,
@@ -305,6 +311,7 @@ class CanonicalAssignment {
   final DateTime departureFrom;
   final DateTime departureUntil;
   final CanonicalAssignmentStatus status;
+  final CanonicalTripVersion? tripVersion;
   final CanonicalTripSummary? trip;
   final int? passengerCount;
   final int? parcelCount;
@@ -319,6 +326,15 @@ class CanonicalAssignment {
     if (status == null) {
       throw const FormatException('Invalid canonical assignment status');
     }
+    final tripVersion = switch (_optionalString(
+      json,
+      'assignment_trip_version',
+    )) {
+      null => null,
+      'canonical_route_trip_v1' => CanonicalTripVersion.single,
+      'canonical_shared_trip_v1' => CanonicalTripVersion.shared,
+      _ => throw const FormatException('Unsupported assignment Trip version'),
+    };
     final rawDestinations = json['destination_stop_ids'];
     return CanonicalAssignment(
       id: _string(json, 'id'),
@@ -329,6 +345,7 @@ class CanonicalAssignment {
       departureFrom: _date(json, 'requested_departure_from'),
       departureUntil: _date(json, 'requested_departure_until'),
       status: status,
+      tripVersion: tripVersion,
       trip: _trip(json),
       passengerCount: _optionalInteger(json, 'passenger_count'),
       parcelCount: _optionalInteger(json, 'parcel_count'),

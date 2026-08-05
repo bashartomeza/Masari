@@ -4,7 +4,7 @@ The shared-offer API serializes an ordered aggregate stop timeline. Flutter rend
 
 Each event contains only:
 
-- public stop ID and bilingual public stop name;
+- bilingual public stop name;
 - canonical route sequence;
 - passenger pickup count;
 - passenger drop-off count;

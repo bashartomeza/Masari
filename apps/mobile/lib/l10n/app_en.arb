@@ -417,5 +417,6 @@
   "actionDisabledExpired": "Action unavailable because this offer has expired.",
   "actionDisabledUncertain": "Action unavailable until the previous operation is reconciled.",
   "sharedFeatureUnavailable": "Shared-trip offers are not available in this environment.",
+  "sharedAssignmentUnavailable": "Shared-trip assignment details are not available in this environment.",
   "notLiveNotice": "This screen is not live. Use Refresh to check for updates."
 }

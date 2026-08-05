@@ -560,6 +560,11 @@ class _CanonicalAssignmentListScreenState
                 for (final item in items) ...[
                   _AssignmentCard(
                     assignment: item,
+                    sharedPresentationAvailable:
+                        capabilities
+                            .value
+                            ?.canonicalSharedAssignmentStatusAvailable ==
+                        true,
                     onTap: () => context.go(
                       '/${widget.role}/canonical-assignments/${item.id}',
                     ),
@@ -579,14 +584,30 @@ class _CanonicalAssignmentListScreenState
 }
 
 class _AssignmentCard extends StatelessWidget {
-  const _AssignmentCard({required this.assignment, required this.onTap});
+  const _AssignmentCard({
+    required this.assignment,
+    required this.sharedPresentationAvailable,
+    required this.onTap,
+  });
 
   final CanonicalAssignment assignment;
+  final bool sharedPresentationAvailable;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    if (assignment.tripVersion == CanonicalTripVersion.shared &&
+        !sharedPresentationAvailable) {
+      return Semantics(
+        button: true,
+        label: l10n.sharedAssignmentUnavailable,
+        child: MasariCard(
+          onTap: onTap,
+          child: Text(l10n.sharedAssignmentUnavailable),
+        ),
+      );
+    }
     final status = canonicalAssignmentStatusLabel(l10n, assignment.status);
     return Semantics(
       button: true,
@@ -683,24 +704,31 @@ class _CanonicalAssignmentDetailScreenState
               .read(canonicalAssignmentDetailProvider(_target).notifier)
               .refresh(),
         ),
-        data: (envelope) => RefreshIndicator(
-          onRefresh: () => ref
-              .read(canonicalAssignmentDetailProvider(_target).notifier)
-              .refresh(),
-          child: ListView(
-            padding: const EdgeInsets.all(AppTokens.spaceLarge),
-            children: [
-              _AssignmentSummary(assignment: envelope.assignment),
-              const SizedBox(height: AppTokens.spaceMedium),
-              OutlinedButton(
-                onPressed: () => ref
+        data: (envelope) =>
+            envelope.assignment.tripVersion == CanonicalTripVersion.shared &&
+                capabilities.value?.canonicalSharedAssignmentStatusAvailable !=
+                    true
+            ? _UnavailablePanel(message: l10n.sharedAssignmentUnavailable)
+            : RefreshIndicator(
+                onRefresh: () => ref
                     .read(canonicalAssignmentDetailProvider(_target).notifier)
                     .refresh(),
-                child: Text(l10n.refresh),
+                child: ListView(
+                  padding: const EdgeInsets.all(AppTokens.spaceLarge),
+                  children: [
+                    _AssignmentSummary(assignment: envelope.assignment),
+                    const SizedBox(height: AppTokens.spaceMedium),
+                    OutlinedButton(
+                      onPressed: () => ref
+                          .read(
+                            canonicalAssignmentDetailProvider(_target).notifier,
+                          )
+                          .refresh(),
+                      child: Text(l10n.refresh),
+                    ),
+                  ],
+                ),
               ),
-            ],
-          ),
-        ),
       ),
     );
   }

@@ -139,6 +139,26 @@ void main() {
         throwsFormatException,
       );
     });
+
+    test('single offers require the exact single-demand version', () {
+      final shared = offerJson()
+        ..['offer_version'] = 'canonical_shared_trip_match_v1';
+      final unknown = offerJson()..['offer_version'] = 'future_match_v2';
+      final missing = offerJson()..remove('offer_version');
+
+      expect(
+        () => CanonicalDriverOffer.fromJson(shared),
+        throwsFormatException,
+      );
+      expect(
+        () => CanonicalDriverOffer.fromJson(unknown),
+        throwsFormatException,
+      );
+      expect(
+        () => CanonicalDriverOffer.fromJson(missing),
+        throwsFormatException,
+      );
+    });
   });
 
   group('M7C3B offer response-loss recovery', () {
@@ -434,6 +454,7 @@ Map<String, dynamic> offerJson({
   String? rejectReason,
 }) => {
   'id': 'offer_1',
+  'offer_version': canonicalRouteMatchVersion,
   'status': status,
   'demand_type': 'passenger',
   'route_version_id': 'version_1',
@@ -473,6 +494,9 @@ Map<String, dynamic> assignmentJson({
   'dispatch_status': 'assigned',
   'offer_pending': false,
   'assigned': true,
+  'assignment_trip_version': shared
+      ? 'canonical_shared_trip_v1'
+      : 'canonical_route_trip_v1',
   'passenger_count': merchant ? null : 2,
   'trip': tripJson(shared: shared),
   'created_at': '2026-07-27T09:50:00.000Z',

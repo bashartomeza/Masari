@@ -1263,6 +1263,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Shared-trip offers are not available in this environment.';
 
   @override
+  String get sharedAssignmentUnavailable =>
+      'Shared-trip assignment details are not available in this environment.';
+
+  @override
   String get notLiveNotice =>
       'This screen is not live. Use Refresh to check for updates.';
 }

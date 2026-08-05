@@ -5,6 +5,7 @@ import { CanonicalRejectReason } from "../generated/prisma/enums.js";
 import { requireAuth, requireRole, type AuthenticatedRequest } from "../middleware/auth.js";
 import { HttpError, notFoundHandler } from "../middleware/error.js";
 import {
+  CANONICAL_MATCH_VERSION,
   canonicalMatchingService,
   type CanonicalMatchingService
 } from "../services/canonicalMatching.js";
@@ -24,10 +25,14 @@ function requireKey(req: AuthenticatedRequest) {
 }
 
 function offerResponse(offer: Record<string, any>) {
+  if (offer.canonical_match_version !== CANONICAL_MATCH_VERSION) {
+    throw new HttpError(409, "canonical_offer_version_mismatch");
+  }
   const passenger = offer.passenger_request;
   const merchant = offer.merchant_order;
   return {
     id: offer.id,
+    offer_version: offer.canonical_match_version,
     status:
       offer.status === "sent_to_driver"
         ? "offered"
@@ -122,6 +127,10 @@ function statusResponse(resource: Record<string, any>, sharedPresentationAvailab
     dispatch_status: dispatch?.status ?? "pending",
     offer_pending: dispatch?.status === "offered",
     assigned: dispatch?.status === "assigned",
+    assignment_trip_version:
+      typeof assignedTrip?.canonical_trip_version === "string"
+        ? assignedTrip.canonical_trip_version
+        : null,
     passenger_count: resource.passenger_count,
     trip: tripResponse(trip),
     created_at: resource.canonical_created_at ?? resource.created_at,

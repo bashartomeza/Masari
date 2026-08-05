@@ -128,6 +128,39 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('disabled shared assignment uses a dedicated unavailable state', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _testApp(
+        locale: const Locale('en'),
+        client: _client((request) async {
+          if (request.url.path.endsWith('/capabilities')) {
+            return _response(capabilitiesJson());
+          }
+          return _response({
+            'request': assignmentJson(shared: true),
+            'server_now': '2026-07-27T10:00:00.000Z',
+          });
+        }),
+        home: const CanonicalAssignmentDetailScreen(
+          role: 'passenger',
+          assignmentId: 'request_1',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(
+        'Shared-trip assignment details are not available in this environment.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Assigned'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('unknown Trip and vehicle enums use safe localized wording', (
     tester,
   ) async {

@@ -111,9 +111,10 @@ function aggregateOfferResponse(offer: Record<string, any>) {
           | { sequence: number; name_ar: string; name_en: string }
           | undefined;
         if (!stop) throw new HttpError(409, "canonical_shared_offer_stop_mismatch");
-        return { ...value, ...stop };
+        const { stop_id: _stopId, ...counts } = value;
+        return { ...counts, ...stop };
       })
-      .sort((left, right) => left.sequence - right.sequence || left.stop_id.localeCompare(right.stop_id)),
+      .sort((left, right) => left.sequence - right.sequence),
     trip: manifest.assigned_trip
       ? {
           id: manifest.assigned_trip.id,
