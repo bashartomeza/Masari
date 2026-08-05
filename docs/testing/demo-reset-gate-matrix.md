@@ -7,3 +7,5 @@ The persistent cases cover all canonical entry/matching/Trip-creation combinatio
 The expected legacy result is always two legacy `DriverRoute` fixtures. Canonical availabilities remain zero unless entry, matching, and Trip creation are all enabled; the full dispatch configuration produces four total route rows and exactly two canonical availabilities. The shared backend gate does not depend on the mobile presentation gate and does not alter those fixture counts.
 
 Restrictive-FK cleanup remains ordered through attempts, dispatch pointers, manifests, Trips, reservations, offers, members, and demands. Repeated reset must produce the same normalized fixture rows and counts. Invalid or production-like configuration must fail before database mutation.
+
+The implemented matrix passes 45 persistent-state assertions. The pre-existing shared harness adds four final-state assertions and now passes 145 total: shared manifests and Trips are cleared, two legacy routes remain, two canonical availabilities are recreated only behind the full three-gate dependency, and no canonical passenger or merchant demand remains.

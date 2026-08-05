@@ -6,4 +6,13 @@ Required evidence includes all 18 migrations from empty, repeat deployment no-op
 
 Workspace, Admin, Flutter, debug APK, production-like APK, security, audit-policy, artifact, and value-aware log scans remain required. Demo preflight must remain `22/22`; deterministic metrics must remain score `0.9317`, sequence `2`, trips `1` versus `6`, distance `21.53` versus `129.19`, cost `43.06` versus `258.38`, and winner `masari`.
 
-No evidence is recorded as passed until it is executed on the final feature head.
+Current local feature-head evidence:
+
+- workspace: 217 API, 54 Admin, 240 Flutter, and nine tooling tests;
+- MySQL: 18 migrations from empty, repeat no-op/current status, five migration-18 triggers, reset matrix 45, passenger association 12, legacy online recovery 21, M7C1 79, M7C3A 98, M7C3C1 145, and public onboarding 76;
+- trusted sessions, onboarding foundation, route lifecycle, restrictive cleanup, and checksum-backed backup/isolated restore passed;
+- production-configured Admin and production-like release APK builds and scans passed;
+- API 36 installed the configured demo APK and rendered Arabic/RTL by default;
+- preflight passed `22/22`, and deterministic smoke retained every approved value.
+
+GitHub's Admin, Backend/MySQL, Mobile, and Security checks remain required on the final pushed draft-PR head. Local evidence is not a substitute for those exact-head checks.
