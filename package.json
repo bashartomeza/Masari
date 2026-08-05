@@ -39,6 +39,7 @@
     "test:integration:canonical-shared": "npm run test:integration:canonical-shared -w @masari/api",
     "test:integration:reset-matrix": "npm run test:integration:reset-matrix -w @masari/api",
     "test:integration:legacy-online": "npm run test:integration:legacy-online -w @masari/api",
+    "test:integration:passenger-trip-association": "npm run test:integration:passenger-trip-association -w @masari/api",
     "test:tooling": "node --test scripts/tests/*.test.mjs",
     "mysql:backup": "node scripts/mysql-backup.mjs",
     "mysql:restore:verify": "node scripts/mysql-restore-verify.mjs",
