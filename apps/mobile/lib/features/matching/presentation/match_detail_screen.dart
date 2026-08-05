@@ -68,10 +68,7 @@ class MatchDetailScreen extends ConsumerWidget {
                           ),
                         ),
                         const SizedBox(width: AppTokens.gutterMobile),
-                        MatchScore(
-                          score: match.score,
-                          label: l10n.matchScore,
-                        ),
+                        MatchScore(score: match.score, label: l10n.matchScore),
                       ],
                     ),
                   ],

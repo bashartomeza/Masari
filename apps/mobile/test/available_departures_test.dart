@@ -42,28 +42,34 @@ void main() {
     expect(offer.isSample, isFalse);
   });
 
-  test('a disabled canonical entry reads as "nothing to show", not an error', () async {
-    final repo = PassengerRepository(
-      apiClient: _client(
-        (request) async => http.Response('{"error":"not_found"}', 404),
-      ),
-    );
+  test(
+    'a disabled canonical entry reads as "nothing to show", not an error',
+    () async {
+      final repo = PassengerRepository(
+        apiClient: _client(
+          (request) async => http.Response('{"error":"not_found"}', 404),
+        ),
+      );
 
-    expect(await ApiTripOfferSource(repo).availableOffers(), isEmpty);
-  });
+      expect(await ApiTripOfferSource(repo).availableOffers(), isEmpty);
+    },
+  );
 
-  test('a real failure still surfaces so the screen can offer a retry', () async {
-    final repo = PassengerRepository(
-      apiClient: _client(
-        (request) async => http.Response('{"error":"server_error"}', 500),
-      ),
-    );
+  test(
+    'a real failure still surfaces so the screen can offer a retry',
+    () async {
+      final repo = PassengerRepository(
+        apiClient: _client(
+          (request) async => http.Response('{"error":"server_error"}', 500),
+        ),
+      );
 
-    expect(
-      () => ApiTripOfferSource(repo).availableOffers(),
-      throwsA(isA<ApiException>()),
-    );
-  });
+      expect(
+        () => ApiTripOfferSource(repo).availableOffers(),
+        throwsA(isA<ApiException>()),
+      );
+    },
+  );
 }
 
 AuthenticatedApiClient _client(

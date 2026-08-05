@@ -18,7 +18,9 @@ String operationFingerprint(String value) {
   if (bytes.isEmpty) {
     // With no bytes the native loop never applies the mask, so the offset basis
     // survives as a *signed* 64-bit value (negative). Mirror that exactly.
-    return (_offsetBasis - (BigInt.one << 64)).toRadixString(16).padLeft(16, '0');
+    return (_offsetBasis - (BigInt.one << 64))
+        .toRadixString(16)
+        .padLeft(16, '0');
   }
   var hash = _offsetBasis;
   for (final unit in bytes) {

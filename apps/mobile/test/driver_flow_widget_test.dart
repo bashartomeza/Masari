@@ -48,7 +48,9 @@ void main() {
     tester,
   ) async {
     await _pumpApp(tester, handler: _DriverHandler(routesEmpty: true).call);
-    GoRouter.of(tester.element(find.byKey(const ValueKey('driverHome')))).go('/driver/route');
+    GoRouter.of(
+      tester.element(find.byKey(const ValueKey('driverHome'))),
+    ).go('/driver/route');
     await tester.pumpAndSettle();
 
     expect(
@@ -66,7 +68,9 @@ void main() {
     tester,
   ) async {
     await _pumpApp(tester, handler: _DriverHandler().call);
-    GoRouter.of(tester.element(find.byKey(const ValueKey('driverHome')))).go('/driver/matches');
+    GoRouter.of(
+      tester.element(find.byKey(const ValueKey('driverHome'))),
+    ).go('/driver/matches');
     await tester.pumpAndSettle();
 
     expect(find.text('طلب مسافر'), findsOneWidget);

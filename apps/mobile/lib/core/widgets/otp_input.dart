@@ -142,7 +142,10 @@ class _OtpBox extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppTheme.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(AppTokens.radiusDefault),
-        border: Border.all(color: borderColor, width: active || hasError ? 2 : 1),
+        border: Border.all(
+          color: borderColor,
+          width: active || hasError ? 2 : 1,
+        ),
       ),
       child: Text(
         digit ?? '',

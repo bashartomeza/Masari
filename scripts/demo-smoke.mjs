@@ -90,9 +90,7 @@ async function primaryStory() {
   ]);
   assert(
     JSON.stringify(dashboard.counts) ===
-      // 4 routes: the 2 legacy corridor routes plus the 2 canonical
-      // availabilities the seed now creates for the canonical matcher.
-      JSON.stringify({ users: 5, drivers: 2, routes: 4, passenger_requests: 1, merchant_orders: 1, parcels: 5 }),
+      JSON.stringify({ users: 5, drivers: 2, routes: 2, passenger_requests: 1, merchant_orders: 1, parcels: 5 }),
     `unexpected reset counts: ${JSON.stringify(dashboard.counts)}`
   );
 

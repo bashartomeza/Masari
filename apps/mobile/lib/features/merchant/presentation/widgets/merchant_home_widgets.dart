@@ -26,7 +26,8 @@ class SavingsHeroCard extends StatelessWidget {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context);
     final money = stats.moneySavedLabel;
-    final headline = money ??
+    final headline =
+        money ??
         (stats.distanceSavedKm > 0
             ? l10n.distanceSavedKm(stats.distanceSavedKm.toStringAsFixed(2))
             : l10n.noSavingsYet);
@@ -217,7 +218,10 @@ class OrderTimelineRow extends StatelessWidget {
     final tone = statusToneFor(order.status);
     final destination = order.parcels.isEmpty
         ? null
-        : merchantDestinationLabel(context, order.parcels.first.destinationLabel);
+        : merchantDestinationLabel(
+            context,
+            order.parcels.first.destinationLabel,
+          );
 
     return IntrinsicHeight(
       child: Row(
@@ -239,10 +243,7 @@ class OrderTimelineRow extends StatelessWidget {
                 ),
                 if (!isLast)
                   Expanded(
-                    child: Container(
-                      width: 2,
-                      color: AppTheme.outlineVariant,
-                    ),
+                    child: Container(width: 2, color: AppTheme.outlineVariant),
                   ),
               ],
             ),

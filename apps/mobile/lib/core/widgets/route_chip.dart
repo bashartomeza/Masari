@@ -45,9 +45,7 @@ class RouteChip extends StatelessWidget {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppTokens.spaceSmall,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: AppTokens.spaceSmall),
           child: Icon(
             isRtl ? Icons.arrow_back : Icons.arrow_forward,
             size: 16,

@@ -28,7 +28,9 @@ void main() {
     );
     expect(find.byKey(const ValueKey('merchantHome')), findsOneWidget);
     expect(
-      Directionality.of(tester.element(find.byKey(const ValueKey('merchantHome')))),
+      Directionality.of(
+        tester.element(find.byKey(const ValueKey('merchantHome'))),
+      ),
       TextDirection.rtl,
     );
 
@@ -135,7 +137,9 @@ void main() {
     tester,
   ) async {
     await _pumpMerchant(tester, _MerchantHandler());
-    final router = GoRouter.of(tester.element(find.byKey(const ValueKey('merchantHome'))));
+    final router = GoRouter.of(
+      tester.element(find.byKey(const ValueKey('merchantHome'))),
+    );
     router.go('/driver/route');
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('merchantHome')), findsOneWidget);

@@ -144,16 +144,16 @@ class _Connector extends StatelessWidget {
               color: color,
               shape: BoxShape.circle,
               border: isCurrent
-                  ? Border.all(
-                      color: SemanticColors.actionBright,
-                      width: 3,
-                    )
+                  ? Border.all(color: SemanticColors.actionBright, width: 3)
                   : null,
             ),
           ),
           if (drawTail)
             Expanded(
-              child: Container(width: 2, color: tailColor.withValues(alpha: 0.4)),
+              child: Container(
+                width: 2,
+                color: tailColor.withValues(alpha: 0.4),
+              ),
             ),
         ],
       ),

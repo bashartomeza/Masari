@@ -98,9 +98,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             Text(
               l10n.appTitle,
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                color: AppTheme.primary,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.displayMedium?.copyWith(color: AppTheme.primary),
             ),
             const SizedBox(height: AppTokens.spaceExtraSmall),
             Text(
@@ -236,9 +236,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               Icon(
                                 _demoIcon(account.labelKey),
                                 size: 20,
-                                color: SemanticColors.forRole(
-                                  account.labelKey,
-                                ),
+                                color: SemanticColors.forRole(account.labelKey),
                               ),
                               const SizedBox(width: AppTokens.gutterMobile),
                               Expanded(

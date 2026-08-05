@@ -66,9 +66,7 @@ class MapPlaceholder extends StatelessWidget {
         child: Stack(
           children: [
             // A neutral grid suggesting a map surface without imitating one.
-            Positioned.fill(
-              child: CustomPaint(painter: _GridPainter()),
-            ),
+            Positioned.fill(child: CustomPaint(painter: _GridPainter())),
             Positioned.fill(
               child: Padding(
                 padding: const EdgeInsets.all(AppTokens.spaceMedium),
@@ -78,9 +76,7 @@ class MapPlaceholder extends StatelessWidget {
                     Icon(
                       _hasFix ? Icons.place_outlined : Icons.map_outlined,
                       size: 32,
-                      color: _hasFix
-                          ? SemanticColors.driver
-                          : AppTheme.outline,
+                      color: _hasFix ? SemanticColors.driver : AppTheme.outline,
                     ),
                     const SizedBox(height: AppTokens.spaceSmall),
                     if (_hasFix) ...[

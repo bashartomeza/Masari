@@ -137,7 +137,9 @@ class MatchResultCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               if (from != null && to != null)
-                Expanded(child: RouteChip(from: from!, to: to!, compact: true))
+                Expanded(
+                  child: RouteChip(from: from!, to: to!, compact: true),
+                )
               else
                 const Spacer(),
               const SizedBox(width: AppTokens.gutterMobile),
@@ -253,9 +255,9 @@ class ExplanationNote extends StatelessWidget {
           Expanded(
             child: Text(
               message,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppTheme.onSurfaceVariant,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppTheme.onSurfaceVariant),
             ),
           ),
         ],

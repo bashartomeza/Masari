@@ -30,7 +30,8 @@ class PassengerHistoryState {
   /// Open requests whose preferred time has already arrived, newest first.
   List<PassengerRequest> get active => _sorted(
     requests.where(
-      (request) => _openStatuses.contains(request.status) && !_isUpcoming(request),
+      (request) =>
+          _openStatuses.contains(request.status) && !_isUpcoming(request),
     ),
   );
 
@@ -40,8 +41,7 @@ class PassengerHistoryState {
   /// from `preferred_time` rather than invented as a status. The two buckets
   /// are mutually exclusive — a request must appear in exactly one, or the same
   /// trip is listed twice on the screen.
-  List<PassengerRequest> get upcoming =>
-      _sorted(requests.where(_isUpcoming));
+  List<PassengerRequest> get upcoming => _sorted(requests.where(_isUpcoming));
 
   static bool _isUpcoming(PassengerRequest request) =>
       _openStatuses.contains(request.status) &&
