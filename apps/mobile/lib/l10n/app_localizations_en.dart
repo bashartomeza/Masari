@@ -1132,4 +1132,141 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get routeStops => 'Route stops';
+
+  @override
+  String get offers => 'Offers';
+
+  @override
+  String get individualOffers => 'Individual offers';
+
+  @override
+  String get sharedOffers => 'Shared-trip offers';
+
+  @override
+  String get sharedOffersBody =>
+      'Review grouped route offers. Status changes only when you refresh.';
+
+  @override
+  String get noSharedOffers => 'No shared-trip offers are available.';
+
+  @override
+  String get sharedTrip => 'Shared trip';
+
+  @override
+  String get sharedOfferDetails => 'Shared offer details';
+
+  @override
+  String get compositionPassengerOnly => 'Passenger-only';
+
+  @override
+  String get compositionMerchantOnly => 'Merchant-only';
+
+  @override
+  String get compositionMixed => 'Mixed trip';
+
+  @override
+  String get passengerRequests => 'Passenger requests';
+
+  @override
+  String get passengerSeats => 'Passenger seats';
+
+  @override
+  String get merchantOrders => 'Merchant orders';
+
+  @override
+  String get parcels => 'Parcels';
+
+  @override
+  String get entireGroup => 'Entire group';
+
+  @override
+  String get acceptEntireSharedTrip => 'Accept entire shared trip';
+
+  @override
+  String get rejectEntireSharedTrip => 'Reject entire shared trip';
+
+  @override
+  String get confirmAcceptSharedTrip =>
+      'Accept all grouped requests and orders together as one shared trip?';
+
+  @override
+  String get confirmRejectSharedTrip =>
+      'Reject this entire group and release all grouped requests and orders?';
+
+  @override
+  String get sharedGroupDecisionNotice =>
+      'Accept or reject applies to the entire group.';
+
+  @override
+  String get sharedAcceptedNotice =>
+      'One shared trip was assigned. The trip has not started.';
+
+  @override
+  String get sharedRejectedNotice => 'The complete shared offer was rejected.';
+
+  @override
+  String get sharedInvalidatedNotice =>
+      'This shared offer is no longer valid. Refresh for current status.';
+
+  @override
+  String get sharedCapacityNotice =>
+      'These totals are reserved for the complete route. Remaining capacity is not offered again for this departure, and segment-level reuse is not enabled.';
+
+  @override
+  String get stopEventTimeline => 'Shared stop events';
+
+  @override
+  String get passengerPickups => 'Passengers board';
+
+  @override
+  String get passengerDropoffs => 'Passengers exit';
+
+  @override
+  String get parcelPickups => 'Parcels picked up';
+
+  @override
+  String get parcelDestinations => 'Parcel destinations';
+
+  @override
+  String get sharedAssignmentIndicator => 'Assigned to a shared trip';
+
+  @override
+  String get sharedAssignmentPrivacyNotice =>
+      'Only your own request or order is shown. Other trip members are private.';
+
+  @override
+  String get statusUnsupported => 'Status unavailable';
+
+  @override
+  String get unsupportedDataNotice =>
+      'This status is not supported by this app version. Refresh or contact support.';
+
+  @override
+  String get vehicleSedan => 'Sedan';
+
+  @override
+  String get vehicleVan => 'Van';
+
+  @override
+  String get vehicleUnavailable => 'Vehicle type unavailable';
+
+  @override
+  String get actionDisabledExpired =>
+      'Action unavailable because this offer has expired.';
+
+  @override
+  String get actionDisabledUncertain =>
+      'Action unavailable until the previous operation is reconciled.';
+
+  @override
+  String get sharedFeatureUnavailable =>
+      'Shared-trip offers are not available in this environment.';
+
+  @override
+  String get sharedAssignmentUnavailable =>
+      'Shared-trip assignment details are not available in this environment.';
+
+  @override
+  String get notLiveNotice =>
+      'This screen is not live. Use Refresh to check for updates.';
 }

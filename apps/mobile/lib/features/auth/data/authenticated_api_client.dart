@@ -32,10 +32,12 @@ class AuthenticatedApiClient {
     String path, {
     required Map<String, dynamic> body,
     Map<String, String> headers = const {},
+    Future<void> Function()? beforeRetry,
   }) {
     return sessionCoordinator.sendAuthenticated(
       (token) =>
           apiClient.postJson(path, body: body, token: token, headers: headers),
+      beforeRetry: beforeRetry,
     );
   }
 

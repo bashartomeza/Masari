@@ -34,6 +34,7 @@ const rawSchema = z.object({
   MULTI_ROUTE_MATCHING_ENABLED: z.string().optional(),
   CANONICAL_TRIP_CREATION_ENABLED: z.string().optional(),
   CANONICAL_SHARED_TRIPS_ENABLED: z.string().optional(),
+  CANONICAL_SHARED_TRIP_MOBILE_ENABLED: z.string().optional(),
   DEMO_RESET_KEY: z.string().min(8).optional(),
   DEMO_PASSENGER_PASSWORD: z.string().min(12).optional(),
   DEMO_DRIVER_PASSWORD: z.string().min(12).optional(),
@@ -135,6 +136,10 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
     "CANONICAL_SHARED_TRIPS_ENABLED",
     raw.CANONICAL_SHARED_TRIPS_ENABLED
   );
+  const canonicalSharedTripMobileEnabled = parseBoolean(
+    "CANONICAL_SHARED_TRIP_MOBILE_ENABLED",
+    raw.CANONICAL_SHARED_TRIP_MOBILE_ENABLED
+  );
   const invitationsEnabled = parseBoolean("INVITATIONS_ENABLED", raw.INVITATIONS_ENABLED);
   const publicOnboardingEnabled = parseBoolean("PUBLIC_ONBOARDING_ENABLED", raw.PUBLIC_ONBOARDING_ENABLED);
   const testLegalFixturesEnabled = parseBoolean(
@@ -170,6 +175,20 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
   ) {
     problems.push(
       "CANONICAL_SHARED_TRIPS_ENABLED requires MULTI_ROUTE_ENTRY_ENABLED, MULTI_ROUTE_MATCHING_ENABLED, and CANONICAL_TRIP_CREATION_ENABLED"
+    );
+  }
+  if (canonicalSharedTripMobileEnabled && productionLike) {
+    problems.push("CANONICAL_SHARED_TRIP_MOBILE_ENABLED is forbidden in staging and production");
+  }
+  if (
+    canonicalSharedTripMobileEnabled &&
+    (!multiRouteEntryEnabled ||
+      !multiRouteMatchingEnabled ||
+      !canonicalTripCreationEnabled ||
+      !canonicalSharedTripsEnabled)
+  ) {
+    problems.push(
+      "CANONICAL_SHARED_TRIP_MOBILE_ENABLED requires MULTI_ROUTE_ENTRY_ENABLED, MULTI_ROUTE_MATCHING_ENABLED, CANONICAL_TRIP_CREATION_ENABLED, and CANONICAL_SHARED_TRIPS_ENABLED"
     );
   }
   if (publicOnboardingEnabled && productionLike) {
@@ -342,6 +361,7 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
     multiRouteMatchingEnabled,
     canonicalTripCreationEnabled,
     canonicalSharedTripsEnabled,
+    canonicalSharedTripMobileEnabled,
     invitationsEnabled,
     publicOnboardingEnabled,
     publicRegistration: publicOnboardingEnabled

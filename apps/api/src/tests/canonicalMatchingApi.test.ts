@@ -43,6 +43,7 @@ function auth(id: string, role: Role) {
 
 const offer = {
   id: "offer_1",
+  canonical_match_version: "canonical_route_match_v1",
   status: "sent_to_driver",
   route_version_id: "version_1",
   attempt_number: 1,
@@ -324,8 +325,20 @@ describe("M7C3A canonical matching APIs", () => {
 
   it("serializers remain explicit allowlists", () => {
     const summary = canonicalMatchingSerializers.offerResponse(offer);
+    expect(summary.offer_version).toBe("canonical_route_match_v1");
     expect(summary).not.toHaveProperty("reservation_id");
     expect(summary).not.toHaveProperty("scoring_breakdown");
+  });
+
+  it("rejects shared and unknown versions in the single-offer serializer", () => {
+    expect(() => canonicalMatchingSerializers.offerResponse({
+      ...offer,
+      canonical_match_version: "canonical_shared_trip_match_v1"
+    })).toThrow("canonical_offer_version_mismatch");
+    expect(() => canonicalMatchingSerializers.offerResponse({
+      ...offer,
+      canonical_match_version: "future_match_v2"
+    })).toThrow("canonical_offer_version_mismatch");
   });
 
   it("does not expose database integrity keys through driver offer serializers", () => {

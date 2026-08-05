@@ -28,6 +28,7 @@ import '../../features/passenger/presentation/create_request_screen.dart';
 import '../../features/passenger/presentation/passenger_home_screen.dart';
 import '../../features/passenger/presentation/request_detail_screen.dart';
 import '../../features/security/presentation/session_management_screen.dart';
+import '../../features/shared_trips/presentation/shared_trip_screens.dart';
 import '../../features/trips/presentation/passenger_trip_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -111,6 +112,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'canonical-offers/:id',
             builder: (context, state) => DriverCanonicalOfferDetailScreen(
+              offerId: state.pathParameters['id']!,
+            ),
+          ),
+          GoRoute(
+            path: 'shared-offers',
+            builder: (context, state) => const DriverSharedOfferListScreen(),
+          ),
+          GoRoute(
+            path: 'shared-offers/:id',
+            builder: (context, state) => DriverSharedOfferDetailScreen(
               offerId: state.pathParameters['id']!,
             ),
           ),
