@@ -155,8 +155,9 @@ class AuthSessionCoordinator {
   }
 
   Future<Map<String, dynamic>> sendAuthenticated(
-    Future<Map<String, dynamic>> Function(String accessToken) request,
-  ) async {
+    Future<Map<String, dynamic>> Function(String accessToken) request, {
+    Future<void> Function()? beforeRetry,
+  }) async {
     var bundle = await _bundleForRequest();
     try {
       return await request(bundle.accessToken);
@@ -170,6 +171,7 @@ class AuthSessionCoordinator {
           bundle = await refresh();
         }
         if (!identical(_bundle, bundle)) throw _authStateChanged;
+        await beforeRetry?.call();
         try {
           return await request(bundle.accessToken);
         } on ApiException catch (retryError) {

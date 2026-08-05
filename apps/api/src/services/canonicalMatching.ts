@@ -1245,7 +1245,7 @@ export function createCanonicalMatchingService(db: PrismaClient = prisma, appCon
               }
             }
           },
-          canonical_dispatch: { include: { assigned_trip: { select: { id: true, status: true, route_version_id: true, created_at: true, driver_route: { select: { departure_at: true, driver: { select: { vehicle_type: true } } } } } } } }
+          canonical_dispatch: { include: { assigned_trip: { select: { id: true, status: true, canonical_trip_version: true, route_version_id: true, created_at: true, driver_route: { select: { departure_at: true, driver: { select: { vehicle_type: true } } } } } } } }
         },
         orderBy: [{ created_at: "desc" }, { id: "desc" }],
         take: Math.min(Math.max(limit, 1), 50)
@@ -1273,7 +1273,7 @@ export function createCanonicalMatchingService(db: PrismaClient = prisma, appCon
               }
             }
           },
-          canonical_dispatch: { include: { assigned_trip: { select: { id: true, status: true, route_version_id: true, created_at: true, driver_route: { select: { departure_at: true, driver: { select: { vehicle_type: true } } } } } } } }
+          canonical_dispatch: { include: { assigned_trip: { select: { id: true, status: true, canonical_trip_version: true, route_version_id: true, created_at: true, driver_route: { select: { departure_at: true, driver: { select: { vehicle_type: true } } } } } } } }
         },
         orderBy: [{ created_at: "desc" }, { id: "desc" }],
         take: Math.min(Math.max(limit, 1), 50)

@@ -23,6 +23,9 @@ class MobileCapabilities {
     required this.canonicalTripCreationAvailable,
     required this.driverCanonicalOffersAvailable,
     required this.canonicalAssignmentStatusAvailable,
+    this.canonicalSharedTripPresentationAvailable = false,
+    this.canonicalSharedDriverOffersAvailable = false,
+    this.canonicalSharedAssignmentStatusAvailable = false,
     required this.mapsAvailable,
     required this.liveTrackingAvailable,
   });
@@ -33,6 +36,9 @@ class MobileCapabilities {
   final bool canonicalTripCreationAvailable;
   final bool driverCanonicalOffersAvailable;
   final bool canonicalAssignmentStatusAvailable;
+  final bool canonicalSharedTripPresentationAvailable;
+  final bool canonicalSharedDriverOffersAvailable;
+  final bool canonicalSharedAssignmentStatusAvailable;
   final bool mapsAvailable;
   final bool liveTrackingAvailable;
 
@@ -44,6 +50,9 @@ class MobileCapabilities {
       'canonical_trip_creation_available',
       'driver_canonical_offers_available',
       'canonical_assignment_status_available',
+      'canonical_shared_trip_presentation_available',
+      'canonical_shared_driver_offers_available',
+      'canonical_shared_assignment_status_available',
       'maps_available',
       'live_tracking_available',
     });
@@ -65,6 +74,18 @@ class MobileCapabilities {
       canonicalAssignmentStatusAvailable: _bool(
         json,
         'canonical_assignment_status_available',
+      ),
+      canonicalSharedTripPresentationAvailable: _optionalBool(
+        json,
+        'canonical_shared_trip_presentation_available',
+      ),
+      canonicalSharedDriverOffersAvailable: _optionalBool(
+        json,
+        'canonical_shared_driver_offers_available',
+      ),
+      canonicalSharedAssignmentStatusAvailable: _optionalBool(
+        json,
+        'canonical_shared_assignment_status_available',
       ),
       mapsAvailable: _bool(json, 'maps_available'),
       liveTrackingAvailable: _bool(json, 'live_tracking_available'),
@@ -411,6 +432,11 @@ bool _bool(Map<String, dynamic> json, String key) {
   final value = json[key];
   if (value is bool) return value;
   throw FormatException('Invalid $key');
+}
+
+bool _optionalBool(Map<String, dynamic> json, String key) {
+  if (!json.containsKey(key)) return false;
+  return _bool(json, key);
 }
 
 int _integer(Map<String, dynamic> json, String key) {

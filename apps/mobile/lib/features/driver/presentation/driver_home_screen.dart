@@ -42,6 +42,8 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
     final canonicalEntry = capabilities?.multiRouteEntryAvailable == true;
     final canonicalOffers =
         capabilities?.driverCanonicalOffersAvailable == true;
+    final sharedOffers =
+        capabilities?.canonicalSharedDriverOffersAvailable == true;
 
     final route = dashboard.value?.currentRoute;
     final isOnline = route?.isOperational ?? false;
@@ -146,6 +148,19 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                                     context.go('/driver/canonical-offers'),
                               )
                             : null,
+                      ),
+                    ),
+                  ],
+
+                  if (sharedOffers) ...[
+                    const SizedBox(height: AppTokens.spaceMedium),
+                    MasariInfoCard(
+                      title: l10n.sharedOffers,
+                      icon: Icons.groups_outlined,
+                      primaryAction: CardAction(
+                        key: const ValueKey('openSharedDriverOffers'),
+                        label: l10n.sharedOffers,
+                        onPressed: () => context.go('/driver/shared-offers'),
                       ),
                     ),
                   ],

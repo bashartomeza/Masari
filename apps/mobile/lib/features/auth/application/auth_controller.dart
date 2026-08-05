@@ -10,6 +10,7 @@ import '../../onboarding/data/onboarding_storage.dart';
 import '../../passenger/application/passenger_controller.dart';
 import '../../passenger/application/passenger_history_controller.dart';
 import '../../security/data/session_repository.dart';
+import '../../shared_trips/application/shared_trip_controller.dart';
 import '../../trips/application/passenger_trip_controller.dart';
 import '../data/auth_repository.dart';
 import '../data/session_coordinator.dart';
@@ -219,6 +220,8 @@ class AuthController extends AsyncNotifier<AuthState> {
     ref.invalidate(driverAvailabilitiesProvider);
     ref.invalidate(driverCanonicalOffersProvider);
     ref.invalidate(driverCanonicalOfferDetailProvider);
+    ref.invalidate(sharedDriverOffersProvider);
+    ref.invalidate(sharedDriverOfferDetailProvider);
     ref.invalidate(passengerCanonicalAssignmentsProvider);
     ref.invalidate(merchantCanonicalAssignmentsProvider);
     ref.invalidate(canonicalAssignmentDetailProvider);

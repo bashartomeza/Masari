@@ -1430,4 +1430,141 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get featureNotBackedNotice =>
       'هذا القسم غير مدعوم من النظام الخلفي بعد.';
+
+  @override
+  String get offers => 'العروض';
+
+  @override
+  String get individualOffers => 'العروض الفردية';
+
+  @override
+  String get sharedOffers => 'عروض الرحلات المشتركة';
+
+  @override
+  String get sharedOffersBody =>
+      'راجع عروض المسار المجمّعة. تتغير الحالة فقط عند التحديث.';
+
+  @override
+  String get noSharedOffers => 'لا توجد عروض رحلات مشتركة حالياً.';
+
+  @override
+  String get sharedTrip => 'رحلة مشتركة';
+
+  @override
+  String get sharedOfferDetails => 'تفاصيل العرض المشترك';
+
+  @override
+  String get compositionPassengerOnly => 'ركاب فقط';
+
+  @override
+  String get compositionMerchantOnly => 'طرود فقط';
+
+  @override
+  String get compositionMixed => 'رحلة مختلطة';
+
+  @override
+  String get passengerRequests => 'طلبات الركاب';
+
+  @override
+  String get passengerSeats => 'مقاعد الركاب';
+
+  @override
+  String get merchantOrders => 'طلبات التجار';
+
+  @override
+  String get parcels => 'الطرود';
+
+  @override
+  String get entireGroup => 'المجموعة كاملة';
+
+  @override
+  String get acceptEntireSharedTrip => 'قبول الرحلة المشتركة كاملة';
+
+  @override
+  String get rejectEntireSharedTrip => 'رفض الرحلة المشتركة كاملة';
+
+  @override
+  String get confirmAcceptSharedTrip =>
+      'هل تريد قبول جميع طلبات الركاب والتجار المجمّعة معاً في رحلة مشتركة واحدة؟';
+
+  @override
+  String get confirmRejectSharedTrip =>
+      'هل تريد رفض المجموعة كاملة وتحرير جميع الطلبات المجمّعة؟';
+
+  @override
+  String get sharedGroupDecisionNotice =>
+      'ينطبق القبول أو الرفض على المجموعة كاملة.';
+
+  @override
+  String get sharedAcceptedNotice =>
+      'تم إسناد رحلة مشتركة واحدة. لم تبدأ الرحلة.';
+
+  @override
+  String get sharedRejectedNotice => 'تم رفض العرض المشترك كاملاً.';
+
+  @override
+  String get sharedInvalidatedNotice =>
+      'لم يعد هذا العرض المشترك صالحاً. حدّث الشاشة لمعرفة الحالة الحالية.';
+
+  @override
+  String get sharedCapacityNotice =>
+      'هذه المجاميع محجوزة للمسار كاملاً. لا تُعرض السعة المتبقية مجدداً لهذا الانطلاق، وإعادة استخدام السعة بين المحطات غير مفعلة.';
+
+  @override
+  String get stopEventTimeline => 'أحداث المحطات المشتركة';
+
+  @override
+  String get passengerPickups => 'ركاب يصعدون';
+
+  @override
+  String get passengerDropoffs => 'ركاب ينزلون';
+
+  @override
+  String get parcelPickups => 'طرود تُستلم';
+
+  @override
+  String get parcelDestinations => 'وجهات الطرود';
+
+  @override
+  String get sharedAssignmentIndicator => 'مُسند إلى رحلة مشتركة';
+
+  @override
+  String get sharedAssignmentPrivacyNotice =>
+      'يظهر طلبك فقط. معلومات أعضاء الرحلة الآخرين خاصة.';
+
+  @override
+  String get statusUnsupported => 'الحالة غير متاحة';
+
+  @override
+  String get unsupportedDataNotice =>
+      'هذه الحالة غير مدعومة في إصدار التطبيق الحالي. حدّث الشاشة أو تواصل مع الدعم.';
+
+  @override
+  String get vehicleSedan => 'سيارة سيدان';
+
+  @override
+  String get vehicleVan => 'مركبة فان';
+
+  @override
+  String get vehicleUnavailable => 'نوع المركبة غير متاح';
+
+  @override
+  String get actionDisabledExpired =>
+      'الإجراء غير متاح لأن صلاحية العرض انتهت.';
+
+  @override
+  String get actionDisabledUncertain =>
+      'الإجراء غير متاح حتى تتم مطابقة نتيجة العملية السابقة.';
+
+  @override
+  String get sharedFeatureUnavailable =>
+      'عروض الرحلات المشتركة غير متاحة في هذه البيئة.';
+
+  @override
+  String get sharedAssignmentUnavailable =>
+      'تفاصيل إسناد الرحلة المشتركة غير متاحة في هذه البيئة.';
+
+  @override
+  String get notLiveNotice =>
+      'هذه الشاشة ليست مباشرة. استخدم التحديث للتحقق من المستجدات.';
 }
