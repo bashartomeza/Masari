@@ -12,6 +12,7 @@
     "test:integration:canonical-matching": "node dist/scripts/canonicalMatchingIntegration.js",
     "test:integration:canonical-shared": "node dist/scripts/canonicalSharedMatchingIntegration.js",
     "test:integration:reset-matrix": "node dist/scripts/demoResetGateIntegration.js",
+    "test:integration:legacy-online": "node dist/scripts/legacyOnlineStateIntegration.js",
     "canonical:match": "node dist/scripts/canonicalMatchingCommand.js",
     "canonical:shared": "node dist/scripts/canonicalSharedMatchingCommand.js",
     "prisma:generate": "prisma generate",

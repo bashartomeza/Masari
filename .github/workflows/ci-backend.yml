@@ -86,6 +86,8 @@ jobs:
         run: npm run test:integration:mysql
       - name: Real MySQL persistent demo-reset gate matrix
         run: npm run test:integration:reset-matrix
+      - name: Real MySQL legacy online-state response-loss recovery
+        run: npm run test:integration:legacy-online
       - name: Real MySQL canonical single-demand integration
         env:
           MYSQL_PWD: ci-only-root-password
