@@ -31,6 +31,12 @@ class DriverHomeScreen extends ConsumerWidget {
             .value
             ?.driverCanonicalOffersAvailable ==
         true;
+    final sharedOffers =
+        ref
+            .watch(mobileCapabilitiesProvider)
+            .value
+            ?.canonicalSharedDriverOffersAvailable ==
+        true;
     return Scaffold(
       body: SafeArea(
         child: RefreshIndicator(
@@ -90,6 +96,12 @@ class DriverHomeScreen extends ConsumerWidget {
                           onPressed: () =>
                               context.go('/driver/canonical-offers'),
                           child: Text(l10n.canonicalDriverOffers),
+                        ),
+                      if (sharedOffers)
+                        OutlinedButton(
+                          key: const ValueKey('openSharedDriverOffers'),
+                          onPressed: () => context.go('/driver/shared-offers'),
+                          child: Text(l10n.sharedOffers),
                         ),
                     ],
                   ),

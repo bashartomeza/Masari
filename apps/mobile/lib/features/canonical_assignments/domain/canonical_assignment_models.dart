@@ -19,6 +19,25 @@ enum CanonicalRejectReason {
   final String apiValue;
 }
 
+enum CanonicalTripVersion { single, shared }
+
+enum CanonicalTripStatus { accepted, unsupported }
+
+enum CanonicalVehicleType { sedan, van, unsupported }
+
+CanonicalTripStatus canonicalTripStatusFromApi(String value) => switch (value) {
+  'accepted' => CanonicalTripStatus.accepted,
+  _ => CanonicalTripStatus.unsupported,
+};
+
+CanonicalVehicleType? canonicalVehicleTypeFromApi(String? value) =>
+    switch (value) {
+      null => null,
+      'sedan' => CanonicalVehicleType.sedan,
+      'van' => CanonicalVehicleType.van,
+      _ => CanonicalVehicleType.unsupported,
+    };
+
 class CanonicalRouteStopSummary {
   const CanonicalRouteStopSummary({
     required this.id,
@@ -81,6 +100,7 @@ class CanonicalRouteSummary {
 class CanonicalTripSummary {
   const CanonicalTripSummary({
     required this.id,
+    required this.version,
     required this.status,
     required this.routeVersionId,
     required this.departureAt,
@@ -89,19 +109,32 @@ class CanonicalTripSummary {
   });
 
   final String id;
-  final String status;
+  final CanonicalTripVersion version;
+  final CanonicalTripStatus status;
   final String routeVersionId;
   final DateTime? departureAt;
-  final String? vehicleType;
+  final CanonicalVehicleType? vehicleType;
   final DateTime? createdAt;
 
   factory CanonicalTripSummary.fromJson(Map<String, dynamic> json) {
+    final version = switch (_string(json, 'trip_version')) {
+      'canonical_route_trip_v1' => CanonicalTripVersion.single,
+      'canonical_shared_trip_v1' => CanonicalTripVersion.shared,
+      _ => throw const FormatException('Unsupported canonical Trip version'),
+    };
+    final shared = json['shared_trip'];
+    if (shared is! bool || shared != (version == CanonicalTripVersion.shared)) {
+      throw const FormatException('Invalid canonical Trip discriminator');
+    }
     return CanonicalTripSummary(
       id: _string(json, 'id'),
-      status: _string(json, 'status'),
+      version: version,
+      status: canonicalTripStatusFromApi(_string(json, 'status')),
       routeVersionId: _string(json, 'route_version_id'),
       departureAt: _optionalDate(json, 'departure_at'),
-      vehicleType: _optionalString(json, 'vehicle_type'),
+      vehicleType: canonicalVehicleTypeFromApi(
+        _optionalString(json, 'vehicle_type'),
+      ),
       createdAt: _optionalDate(json, 'created_at'),
     );
   }

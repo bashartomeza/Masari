@@ -2239,6 +2239,246 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'محطات المسار'**
   String get routeStops;
+
+  /// No description provided for @offers.
+  ///
+  /// In ar, this message translates to:
+  /// **'العروض'**
+  String get offers;
+
+  /// No description provided for @individualOffers.
+  ///
+  /// In ar, this message translates to:
+  /// **'العروض الفردية'**
+  String get individualOffers;
+
+  /// No description provided for @sharedOffers.
+  ///
+  /// In ar, this message translates to:
+  /// **'عروض الرحلات المشتركة'**
+  String get sharedOffers;
+
+  /// No description provided for @sharedOffersBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'راجع عروض المسار المجمّعة. تتغير الحالة فقط عند التحديث.'**
+  String get sharedOffersBody;
+
+  /// No description provided for @noSharedOffers.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد عروض رحلات مشتركة حالياً.'**
+  String get noSharedOffers;
+
+  /// No description provided for @sharedTrip.
+  ///
+  /// In ar, this message translates to:
+  /// **'رحلة مشتركة'**
+  String get sharedTrip;
+
+  /// No description provided for @sharedOfferDetails.
+  ///
+  /// In ar, this message translates to:
+  /// **'تفاصيل العرض المشترك'**
+  String get sharedOfferDetails;
+
+  /// No description provided for @compositionPassengerOnly.
+  ///
+  /// In ar, this message translates to:
+  /// **'ركاب فقط'**
+  String get compositionPassengerOnly;
+
+  /// No description provided for @compositionMerchantOnly.
+  ///
+  /// In ar, this message translates to:
+  /// **'طرود فقط'**
+  String get compositionMerchantOnly;
+
+  /// No description provided for @compositionMixed.
+  ///
+  /// In ar, this message translates to:
+  /// **'رحلة مختلطة'**
+  String get compositionMixed;
+
+  /// No description provided for @passengerRequests.
+  ///
+  /// In ar, this message translates to:
+  /// **'طلبات الركاب'**
+  String get passengerRequests;
+
+  /// No description provided for @passengerSeats.
+  ///
+  /// In ar, this message translates to:
+  /// **'مقاعد الركاب'**
+  String get passengerSeats;
+
+  /// No description provided for @merchantOrders.
+  ///
+  /// In ar, this message translates to:
+  /// **'طلبات التجار'**
+  String get merchantOrders;
+
+  /// No description provided for @parcels.
+  ///
+  /// In ar, this message translates to:
+  /// **'الطرود'**
+  String get parcels;
+
+  /// No description provided for @entireGroup.
+  ///
+  /// In ar, this message translates to:
+  /// **'المجموعة كاملة'**
+  String get entireGroup;
+
+  /// No description provided for @acceptEntireSharedTrip.
+  ///
+  /// In ar, this message translates to:
+  /// **'قبول الرحلة المشتركة كاملة'**
+  String get acceptEntireSharedTrip;
+
+  /// No description provided for @rejectEntireSharedTrip.
+  ///
+  /// In ar, this message translates to:
+  /// **'رفض الرحلة المشتركة كاملة'**
+  String get rejectEntireSharedTrip;
+
+  /// No description provided for @confirmAcceptSharedTrip.
+  ///
+  /// In ar, this message translates to:
+  /// **'هل تريد قبول جميع طلبات الركاب والتجار المجمّعة معاً في رحلة مشتركة واحدة؟'**
+  String get confirmAcceptSharedTrip;
+
+  /// No description provided for @confirmRejectSharedTrip.
+  ///
+  /// In ar, this message translates to:
+  /// **'هل تريد رفض المجموعة كاملة وتحرير جميع الطلبات المجمّعة؟'**
+  String get confirmRejectSharedTrip;
+
+  /// No description provided for @sharedGroupDecisionNotice.
+  ///
+  /// In ar, this message translates to:
+  /// **'ينطبق القبول أو الرفض على المجموعة كاملة.'**
+  String get sharedGroupDecisionNotice;
+
+  /// No description provided for @sharedAcceptedNotice.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إسناد رحلة مشتركة واحدة. لم تبدأ الرحلة.'**
+  String get sharedAcceptedNotice;
+
+  /// No description provided for @sharedRejectedNotice.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم رفض العرض المشترك كاملاً.'**
+  String get sharedRejectedNotice;
+
+  /// No description provided for @sharedInvalidatedNotice.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يعد هذا العرض المشترك صالحاً. حدّث الشاشة لمعرفة الحالة الحالية.'**
+  String get sharedInvalidatedNotice;
+
+  /// No description provided for @sharedCapacityNotice.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذه المجاميع محجوزة للمسار كاملاً. لا تُعرض السعة المتبقية مجدداً لهذا الانطلاق، وإعادة استخدام السعة بين المحطات غير مفعلة.'**
+  String get sharedCapacityNotice;
+
+  /// No description provided for @stopEventTimeline.
+  ///
+  /// In ar, this message translates to:
+  /// **'أحداث المحطات المشتركة'**
+  String get stopEventTimeline;
+
+  /// No description provided for @passengerPickups.
+  ///
+  /// In ar, this message translates to:
+  /// **'ركاب يصعدون'**
+  String get passengerPickups;
+
+  /// No description provided for @passengerDropoffs.
+  ///
+  /// In ar, this message translates to:
+  /// **'ركاب ينزلون'**
+  String get passengerDropoffs;
+
+  /// No description provided for @parcelPickups.
+  ///
+  /// In ar, this message translates to:
+  /// **'طرود تُستلم'**
+  String get parcelPickups;
+
+  /// No description provided for @parcelDestinations.
+  ///
+  /// In ar, this message translates to:
+  /// **'وجهات الطرود'**
+  String get parcelDestinations;
+
+  /// No description provided for @sharedAssignmentIndicator.
+  ///
+  /// In ar, this message translates to:
+  /// **'مُسند إلى رحلة مشتركة'**
+  String get sharedAssignmentIndicator;
+
+  /// No description provided for @sharedAssignmentPrivacyNotice.
+  ///
+  /// In ar, this message translates to:
+  /// **'يظهر طلبك فقط. معلومات أعضاء الرحلة الآخرين خاصة.'**
+  String get sharedAssignmentPrivacyNotice;
+
+  /// No description provided for @statusUnsupported.
+  ///
+  /// In ar, this message translates to:
+  /// **'الحالة غير متاحة'**
+  String get statusUnsupported;
+
+  /// No description provided for @unsupportedDataNotice.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذه الحالة غير مدعومة في إصدار التطبيق الحالي. حدّث الشاشة أو تواصل مع الدعم.'**
+  String get unsupportedDataNotice;
+
+  /// No description provided for @vehicleSedan.
+  ///
+  /// In ar, this message translates to:
+  /// **'سيارة سيدان'**
+  String get vehicleSedan;
+
+  /// No description provided for @vehicleVan.
+  ///
+  /// In ar, this message translates to:
+  /// **'مركبة فان'**
+  String get vehicleVan;
+
+  /// No description provided for @vehicleUnavailable.
+  ///
+  /// In ar, this message translates to:
+  /// **'نوع المركبة غير متاح'**
+  String get vehicleUnavailable;
+
+  /// No description provided for @actionDisabledExpired.
+  ///
+  /// In ar, this message translates to:
+  /// **'الإجراء غير متاح لأن صلاحية العرض انتهت.'**
+  String get actionDisabledExpired;
+
+  /// No description provided for @actionDisabledUncertain.
+  ///
+  /// In ar, this message translates to:
+  /// **'الإجراء غير متاح حتى تتم مطابقة نتيجة العملية السابقة.'**
+  String get actionDisabledUncertain;
+
+  /// No description provided for @sharedFeatureUnavailable.
+  ///
+  /// In ar, this message translates to:
+  /// **'عروض الرحلات المشتركة غير متاحة في هذه البيئة.'**
+  String get sharedFeatureUnavailable;
+
+  /// No description provided for @notLiveNotice.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذه الشاشة ليست مباشرة. استخدم التحديث للتحقق من المستجدات.'**
+  String get notLiveNotice;
 }
 
 class _AppLocalizationsDelegate

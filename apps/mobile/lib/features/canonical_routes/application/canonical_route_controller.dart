@@ -270,6 +270,7 @@ class CanonicalOperationBlocked implements Exception {
 }
 
 bool _ambiguous(Object error) {
+  if (error is FormatException) return true;
   if (error is! ApiException) return false;
   return error.type == ApiErrorType.network ||
       error.type == ApiErrorType.timeout ||
