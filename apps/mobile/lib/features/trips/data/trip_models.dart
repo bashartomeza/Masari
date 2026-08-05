@@ -4,12 +4,14 @@ class PassengerTrip {
     required this.status,
     required this.createdAt,
     required this.routeLabel,
+    this.passengerRequestId,
   });
 
   final String id;
   final String status;
   final DateTime createdAt;
   final String routeLabel;
+  final String? passengerRequestId;
 
   factory PassengerTrip.fromJson(Map<String, dynamic> json) {
     final route = json['driver_route'] as Map<String, dynamic>?;
@@ -21,6 +23,7 @@ class PassengerTrip {
       status: _string(json, 'status'),
       createdAt: DateTime.parse(_string(json, 'created_at')).toLocal(),
       routeLabel: routeLabel,
+      passengerRequestId: json['passenger_request_id'] as String?,
     );
   }
 }

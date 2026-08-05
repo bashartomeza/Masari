@@ -59,12 +59,14 @@ class PassengerHistoryState {
 
   bool get isEmpty => requests.isEmpty && trips.isEmpty;
 
-  /// The trip connected to a request, when one exists.
-  ///
-  /// `GET /trips` does not expose `passenger_request_id`, so a trip can only be
-  /// matched to the passenger's current work — which is enough for the one
-  /// active row that offers an "open trip" action.
-  PassengerTrip? get activeTrip => trips.isEmpty ? null : trips.first;
+  /// The Trip connected to this exact request by persisted relational
+  /// provenance. Owner-level ordering must never be used as association.
+  PassengerTrip? tripForRequest(String requestId) {
+    for (final trip in trips) {
+      if (trip.passengerRequestId == requestId) return trip;
+    }
+    return null;
+  }
 
   static List<PassengerRequest> _sorted(Iterable<PassengerRequest> items) {
     final list = items.toList()

@@ -10,6 +10,7 @@ import '../../../core/widgets/masari_section.dart';
 import '../../../core/widgets/route_chip.dart';
 import '../../../core/widgets/state_views.dart';
 import '../../canonical_routes/application/canonical_route_controller.dart';
+import '../../trips/data/trip_models.dart';
 import '../application/passenger_history_controller.dart';
 import '../data/passenger_models.dart';
 import 'passenger_home_screen.dart' show passengerStatusLabel;
@@ -87,17 +88,23 @@ class PassengerTripsScreen extends ConsumerWidget {
                   _Bucket(
                     title: l10n.tripsActiveSection,
                     requests: state.active,
-                    activeTripId: state.activeTrip?.id,
+                    tripForRequest: state.tripForRequest,
                     emphasis: true,
                   ),
                   _Bucket(
                     title: l10n.tripsUpcomingSection,
                     requests: state.upcoming,
+                    tripForRequest: state.tripForRequest,
                   ),
-                  _Bucket(title: l10n.tripsPastSection, requests: state.past),
+                  _Bucket(
+                    title: l10n.tripsPastSection,
+                    requests: state.past,
+                    tripForRequest: state.tripForRequest,
+                  ),
                   _Bucket(
                     title: l10n.tripsCancelledSection,
                     requests: state.cancelled,
+                    tripForRequest: state.tripForRequest,
                   ),
                 ],
 
@@ -140,13 +147,13 @@ class _Bucket extends StatelessWidget {
   const _Bucket({
     required this.title,
     required this.requests,
-    this.activeTripId,
+    required this.tripForRequest,
     this.emphasis = false,
   });
 
   final String title;
   final List<PassengerRequest> requests;
-  final String? activeTripId;
+  final PassengerTrip? Function(String requestId) tripForRequest;
   final bool emphasis;
 
   @override
@@ -163,10 +170,7 @@ class _Bucket extends StatelessWidget {
               if (index > 0) const SizedBox(height: AppTokens.spaceMedium),
               _RequestCard(
                 request: request,
-                // Only the newest active request can own the live trip: the
-                // trips endpoint carries no request id to match on, so
-                // attaching it to more than one row would be a guess.
-                tripId: emphasis && index == 0 ? activeTripId : null,
+                tripId: tripForRequest(request.id)?.id,
                 emphasis: emphasis && index == 0,
               ),
             ],

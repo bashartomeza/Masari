@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:masari_mobile/features/passenger/application/passenger_history_controller.dart';
 import 'package:masari_mobile/features/passenger/data/passenger_models.dart';
+import 'package:masari_mobile/features/trips/data/trip_models.dart';
 
 /// The "My trips" tab renders one section per bucket, so the bucketing has to
 /// be a partition: anything counted twice is a trip the passenger sees twice.
@@ -120,5 +121,41 @@ void main() {
     );
 
     expect(state.past.map((r) => r.id), ['newer', 'older']);
+  });
+
+  test('each same-owner request resolves only its exact persisted Trip', () {
+    PassengerTrip trip(String id, String requestId, DateTime createdAt) =>
+        PassengerTrip(
+          id: id,
+          status: 'accepted',
+          createdAt: createdAt,
+          routeLabel: 'Hebron -> Bethlehem',
+          passengerRequestId: requestId,
+        );
+
+    final state = PassengerHistoryState(
+      requests: [
+        request(id: 'request_a', status: 'accepted'),
+        request(id: 'request_b', status: 'accepted'),
+        request(id: 'unassigned', status: 'pending'),
+        request(id: 'cancelled', status: 'cancelled'),
+      ],
+      trips: [
+        trip('trip_b', 'request_b', DateTime(2026, 8, 6, 12)),
+        trip('trip_a', 'request_a', DateTime(2026, 8, 6, 10)),
+      ],
+    );
+
+    expect(state.tripForRequest('request_a')?.id, 'trip_a');
+    expect(state.tripForRequest('request_b')?.id, 'trip_b');
+    expect(state.tripForRequest('unassigned'), isNull);
+    expect(state.tripForRequest('cancelled'), isNull);
+
+    final reversed = PassengerHistoryState(
+      requests: state.requests.reversed.toList(),
+      trips: state.trips.reversed.toList(),
+    );
+    expect(reversed.tripForRequest('request_a')?.id, 'trip_a');
+    expect(reversed.tripForRequest('request_b')?.id, 'trip_b');
   });
 }
