@@ -29,7 +29,20 @@ return {
   login: (phone: string, password: string) => apiRequest<LoginResponse>("/auth/login", { method: "POST", body: { phone, password } }),
   me: (token: string) => apiRequest<MeResponse>("/me", { token }),
   dashboard: (token: string) => apiRequest<DashboardResponse>("/admin/dashboard", { token }),
-  drivers: (token: string) => apiRequest<{ drivers: Array<{ id: string; user?: User; routes?: DriverRoute[] }> }>("/admin/drivers", { token }),
+  drivers: (token: string) => apiRequest<{ drivers: DriverProfile[] }>("/admin/drivers", { token }),
+  /**
+   * Suspend, disable or reactivate an account.
+   *
+   * The API requires a reason of at least three characters for anything other
+   * than `active`, revokes every session the account holds, and writes an audit
+   * event — so this is the one genuinely destructive control in the console.
+   */
+  updateUserStatus: (token: string, id: string, status: AccountStatus, reason?: string) =>
+    apiRequest<{ user: AdminUser }>(`/admin/users/${id}/status`, {
+      method: "PATCH",
+      token,
+      body: reason ? { status, reason } : { status }
+    }),
   requests: (token: string) => apiRequest<{ requests: PassengerRequest[] }>("/admin/requests", { token }),
   orders: (token: string) => apiRequest<{ orders: MerchantOrder[] }>("/admin/orders", { token }),
   routes: (token: string) => apiRequest<{ routes: DriverRoute[] }>("/admin/routes", { token }),
@@ -93,6 +106,40 @@ export function createDemoApiClient(apiBaseUrl: string, clientOptions: ApiClient
 }
 
 export type User = { id: string; name: string; phone: string; role: string };
+
+/** The three values `PATCH /admin/users/:id/status` accepts. */
+export type AccountStatus = "active" | "suspended" | "disabled";
+
+/**
+ * A user as the admin endpoints serialise it — the `safeUserSelect` shape,
+ * which deliberately omits the password hash and security version.
+ */
+export type AdminUser = User & {
+  account_status: AccountStatus;
+  status_reason: string | null;
+  status_updated_at: string;
+  last_login_at: string | null;
+  demo_account: boolean;
+  created_at: string;
+};
+
+/**
+ * A driver profile from `GET /admin/drivers`.
+ *
+ * `verified` is stored on the row but no endpoint writes it, so the console can
+ * report the flag and must not offer to change it.
+ */
+export type DriverProfile = {
+  id: string;
+  vehicle_type: string;
+  seats_total: number;
+  parcel_capacity: number;
+  verified: boolean;
+  trust_score: number;
+  created_at: string;
+  user?: AdminUser;
+  routes?: DriverRoute[];
+};
 export type LoginResponse = { token: string; user: User };
 export type MeResponse = { user: User };
 

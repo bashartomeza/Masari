@@ -3,9 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:masari_mobile/l10n/app_localizations.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/language_switch.dart';
-import '../../../core/widgets/masari_card.dart';
+import '../../../core/widgets/masari_section.dart';
+import '../../../core/widgets/match_widgets.dart';
+import '../../../core/widgets/route_chip.dart';
+import '../../../core/widgets/state_views.dart';
 import '../application/driver_controller.dart';
 import '../data/driver_models.dart';
 import 'driver_ui.dart';
@@ -27,99 +31,168 @@ class _DriverMatchDetailScreenState
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final detail = ref.watch(driverMatchDetailProvider(widget.matchId));
+
     return Scaffold(
+      appBar: AppBar(
+        title: Text(l10n.matchResult),
+        actions: const [
+          LanguageSwitch(),
+          SizedBox(width: AppTokens.spaceSmall),
+        ],
+      ),
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(AppTokens.spaceLarge),
-          children: [
-            const Align(
-              alignment: AlignmentDirectional.centerEnd,
-              child: LanguageSwitch(),
-            ),
-            Text(
-              l10n.matchResult,
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            const SizedBox(height: AppTokens.spaceLarge),
-            detail.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (error, _) => FilledButton(
-                onPressed: () => ref
-                    .read(driverMatchDetailProvider(widget.matchId).notifier)
-                    .refresh(),
-                child: Text(l10n.retry),
-              ),
-              data: (match) => _detailCard(l10n, match),
-            ),
-          ],
+        top: false,
+        bottom: false,
+        child: detail.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, _) => ErrorStateView(
+            title: driverErrorLabel(l10n, error),
+            retryLabel: l10n.retry,
+            onRetry: () => ref
+                .read(driverMatchDetailProvider(widget.matchId).notifier)
+                .refresh(),
+          ),
+          data: (match) => _content(l10n, match),
         ),
+      ),
+      // The decision is the point of this screen, so its actions are pinned
+      // to the bottom rather than buried under the scoring detail.
+      bottomNavigationBar: detail.maybeWhen(
+        data: (match) => match.canRespond ? _decisionBar(l10n) : null,
+        orElse: () => null,
       ),
     );
   }
 
-  Widget _detailCard(AppLocalizations l10n, DriverMatch match) {
-    return MasariCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          technicalText(match.id, selectable: true),
-          Text('${l10n.requestType}: ${matchTypeLabel(l10n, match)}'),
-          Text('${l10n.pickup}: ${match.pickupLabel}'),
-          Text('${l10n.destination}: ${match.destinationLabel}'),
-          if (match.passengerRequest != null)
-            Text(
-              '${l10n.passengerCount}: ${match.passengerRequest!.passengerCount}',
-            ),
-          if (match.merchantOrder != null)
-            Text('${l10n.parcelCount}: ${match.merchantOrder!.parcelCount}'),
-          if (match.parcelBatch != null) ...[
-            Text('${l10n.parcelBatch}: ${match.parcelBatch!.id}'),
-            Text(
-              '${l10n.estimatedDistanceSaved}: ${match.parcelBatch!.estimatedDistanceSaved.toStringAsFixed(2)} km',
-            ),
-          ],
-          Text('${l10n.matchScore}: ${percent(match.score)}'),
-          Text(
-            '${l10n.currentStatus}: ${driverStatusLabel(l10n, match.status)}',
+  Widget _content(AppLocalizations l10n, DriverMatch match) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(
+        AppTokens.marginMobile,
+        AppTokens.spaceMedium,
+        AppTokens.marginMobile,
+        AppTokens.spaceExtraLarge,
+      ),
+      children: [
+        MasariInfoCard(
+          title: matchTypeLabel(l10n, match),
+          statusLabel: driverStatusLabel(l10n, match.status),
+          statusTone: statusToneFor(match.status),
+          body: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: RouteChip(
+                      from: match.pickupLabel,
+                      to: match.destinationLabel,
+                    ),
+                  ),
+                  const SizedBox(width: AppTokens.gutterMobile),
+                  MatchScore(score: match.score, label: l10n.matchScore),
+                ],
+              ),
+              const Divider(height: AppTokens.spaceLarge),
+              if (match.passengerRequest != null)
+                DetailRow(
+                  label: l10n.passengerCount,
+                  value: '${match.passengerRequest!.passengerCount}',
+                  icon: Icons.person_outline,
+                ),
+              if (match.merchantOrder != null)
+                DetailRow(
+                  label: l10n.parcelCount,
+                  value: '${match.merchantOrder!.parcelCount}',
+                  icon: Icons.widgets_outlined,
+                ),
+              if (match.parcelBatch != null)
+                DetailRow(
+                  label: l10n.estimatedDistanceSaved,
+                  value:
+                      '${match.parcelBatch!.estimatedDistanceSaved.toStringAsFixed(2)} km',
+                  icon: Icons.eco_outlined,
+                ),
+            ],
           ),
+        ),
+        const SizedBox(height: AppTokens.spaceLarge),
+
+        MasariSection(
+          title: l10n.scoringBreakdown,
+          titleKey: const ValueKey('driverScoringBreakdown'),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ScoreBreakdownList(
+                factors: [
+                  (
+                    label: l10n.corridorOverlap,
+                    value: match.breakdown.corridorOverlap,
+                  ),
+                  (
+                    label: l10n.pickupDistance,
+                    value: match.breakdown.pickupDistanceScore,
+                  ),
+                  (label: l10n.timingFit, value: match.breakdown.timingFit),
+                  (label: l10n.trustScore, value: match.breakdown.trustScore),
+                  (label: l10n.capacityFit, value: match.breakdown.capacityFit),
+                ],
+              ),
+              ExplanationNote(message: l10n.routeMatchExplanation),
+            ],
+          ),
+        ),
+
+        if (_error != null) ...[
           const SizedBox(height: AppTokens.spaceMedium),
-          Text(
-            l10n.scoringBreakdown,
-            key: const ValueKey('driverScoringBreakdown'),
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          Text(
-            '${l10n.corridorOverlap}: ${percent(match.breakdown.corridorOverlap)}',
-          ),
-          Text(
-            '${l10n.pickupDistance}: ${percent(match.breakdown.pickupDistanceScore)}',
-          ),
-          Text('${l10n.timingFit}: ${percent(match.breakdown.timingFit)}'),
-          Text('${l10n.trustScore}: ${percent(match.breakdown.trustScore)}'),
-          Text('${l10n.capacityFit}: ${percent(match.breakdown.capacityFit)}'),
-          const SizedBox(height: AppTokens.spaceMedium),
-          Text('${l10n.matchExplanation}: ${l10n.routeMatchExplanation}'),
-          if (_error != null) ...[
-            const SizedBox(height: AppTokens.spaceMedium),
-            Text(
-              _error!,
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
-            ),
-          ],
-          if (match.canRespond) ...[
-            const SizedBox(height: AppTokens.spaceLarge),
-            FilledButton(
-              key: const ValueKey('acceptMatchButton'),
-              onPressed: _busy ? null : _accept,
-              child: Text(l10n.acceptMatch),
-            ),
-            OutlinedButton(
-              key: const ValueKey('rejectMatchButton'),
-              onPressed: _busy ? null : _reject,
-              child: Text(l10n.rejectMatch),
-            ),
-          ],
+          OfflineBanner(message: _error!, tone: BannerTone.error),
         ],
+
+        // The reference stays selectable for support, but sits last and muted:
+        // it is the least useful thing on the screen to a driver deciding.
+        const SizedBox(height: AppTokens.spaceLarge),
+        DefaultTextStyle.merge(
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: AppTheme.onSurfaceVariant,
+          ),
+          textAlign: TextAlign.center,
+          child: technicalText(match.id, selectable: true),
+        ),
+      ],
+    );
+  }
+
+  /// Accept and reject, pinned above the navigation bar.
+  Widget _decisionBar(AppLocalizations l10n) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppTheme.surfaceContainerLowest,
+        border: Border(top: BorderSide(color: AppTheme.outlineVariant)),
+      ),
+      // No SafeArea here: this bar sits inside the shell, above the app's
+      // navigation bar, which already clears the system inset.
+      child: Padding(
+        padding: const EdgeInsets.all(AppTokens.spaceMedium),
+        child: Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                key: const ValueKey('rejectMatchButton'),
+                onPressed: _busy ? null : _reject,
+                child: Text(l10n.rejectMatch),
+              ),
+            ),
+            const SizedBox(width: AppTokens.gutterMobile),
+            Expanded(
+              flex: 2,
+              child: FilledButton(
+                key: const ValueKey('acceptMatchButton'),
+                onPressed: _busy ? null : _accept,
+                child: Text(l10n.acceptMatch),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

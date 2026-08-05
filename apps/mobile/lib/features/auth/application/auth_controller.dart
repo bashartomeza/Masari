@@ -8,6 +8,7 @@ import '../../merchant/application/merchant_controller.dart';
 import '../../onboarding/application/onboarding_controller.dart';
 import '../../onboarding/data/onboarding_storage.dart';
 import '../../passenger/application/passenger_controller.dart';
+import '../../passenger/application/passenger_history_controller.dart';
 import '../../security/data/session_repository.dart';
 import '../../trips/application/passenger_trip_controller.dart';
 import '../data/auth_repository.dart';
@@ -197,6 +198,9 @@ class AuthController extends AsyncNotifier<AuthState> {
 
   void _invalidateAuthenticatedWork() {
     ref.invalidate(passengerDashboardProvider);
+    // The trip history outlives a single dashboard load, so it has to be
+    // dropped here too or the next account inherits the previous one's trips.
+    ref.invalidate(passengerHistoryProvider);
     ref.invalidate(passengerRequestDetailProvider);
     ref.invalidate(passengerTripControllerProvider);
     ref.invalidate(driverDashboardProvider);

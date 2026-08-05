@@ -187,7 +187,7 @@ void main() {
       handler: _passengerHandler,
     );
 
-    expect(find.text('لوحة المسافر'), findsOneWidget);
+    expect(find.byKey(const ValueKey('passengerHome')), findsOneWidget);
     expect(find.textContaining('Demo Passenger'), findsOneWidget);
   });
 
@@ -220,7 +220,7 @@ void main() {
       handler: _meHandler('merchant'),
     );
 
-    expect(find.text('لوحة التاجر'), findsOneWidget);
+    expect(find.byKey(const ValueKey('merchantHome')), findsOneWidget);
     expect(find.textContaining('Demo Merchant'), findsOneWidget);
   });
 
@@ -232,12 +232,14 @@ void main() {
     );
 
     GoRouter.of(
-      tester.element(find.text('لوحة المسافر')),
+      tester.element(find.byKey(const ValueKey('passengerHome'))),
     ).go('/merchant/order/new');
     await tester.pumpAndSettle();
 
-    expect(find.text('لوحة المسافر'), findsOneWidget);
-    expect(find.text('إنشاء طلب'), findsNothing);
+    expect(find.byKey(const ValueKey('passengerHome')), findsOneWidget);
+    // Asserted on the screen key, not its title: `createOrder` and the
+    // passenger's own `createRequest` CTA are both "إنشاء طلب" in Arabic.
+    expect(find.byKey(const ValueKey('merchantCreateOrder')), findsNothing);
   });
 
   testWidgets('driver cannot navigate to merchant screens', (tester) async {

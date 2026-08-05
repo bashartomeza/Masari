@@ -77,6 +77,57 @@ function merchantResponse(resource: Record<string, unknown>) {
   };
 }
 
+const availableDepartureQuery = z.strictObject({
+  route_version_id: z.string().min(1).max(191).optional(),
+  departure_from: dateTime.optional(),
+  departure_until: dateTime.optional(),
+  seats: z.coerce.number().int().min(1).max(8).optional(),
+  limit: z.coerce.number().int().min(1).max(50).optional()
+});
+
+/**
+ * Driver supply as a passenger may see it.
+ *
+ * Identity is limited to the driver's display name, vehicle type and trust
+ * score — the fields the passenger needs to choose a ride. Phone number and
+ * every other account attribute stay server-side.
+ */
+function availableDepartureResponse(availability: Record<string, any>) {
+  const version = availability.route_version;
+  return {
+    id: availability.id,
+    route_version_id: availability.route_version_id,
+    route: version
+      ? {
+          id: version.id,
+          name_ar: version.name_ar,
+          name_en: version.name_en,
+          direction: version.service_route?.direction,
+          stops: (version.stops ?? []).map((membership: Record<string, any>) => ({
+            id: membership.stop?.id,
+            name_ar: membership.stop?.name_ar,
+            name_en: membership.stop?.name_en,
+            sequence: membership.sequence,
+            passenger_pickup: membership.passenger_pickup,
+            passenger_dropoff: membership.passenger_dropoff
+          }))
+        }
+      : null,
+    origin_label: availability.origin_label,
+    destination_label: availability.destination_label,
+    departure_at: availability.departure_at,
+    availability_window_end: availability.availability_window_end,
+    remaining_seats: availability.remaining_seats,
+    remaining_parcel_capacity: availability.remaining_parcel_capacity,
+    driver: {
+      name: availability.driver?.user?.name,
+      vehicle_type: availability.driver?.vehicle_type,
+      trust_score: availability.driver?.trust_score,
+      verified: availability.driver?.verified
+    }
+  };
+}
+
 export function createCanonicalDemandRouter(
   appConfig: AppConfig,
   service: CanonicalDemandService = canonicalDemandService
@@ -84,9 +135,37 @@ export function createCanonicalDemandRouter(
   const router = Router();
   if (!appConfig.multiRouteEntryEnabled) {
     router.use("/passenger/route-requests", notFoundHandler);
+    router.use("/passenger/available-departures", notFoundHandler);
     router.use("/merchant/route-orders", notFoundHandler);
     return router;
   }
+
+  router.get(
+    "/passenger/available-departures",
+    requireAuth,
+    requireRole("passenger"),
+    async (req: AuthenticatedRequest, res, next) => {
+      try {
+        const query = availableDepartureQuery.parse(req.query);
+        const availabilities = await service.listAvailableDepartures({
+          routeVersionId: query.route_version_id,
+          departureFrom: query.departure_from,
+          departureUntil: query.departure_until,
+          seats: query.seats,
+          limit: query.limit
+        });
+        res.json({
+          departures: availabilities.map((availability) =>
+            availableDepartureResponse(availability as unknown as Record<string, any>)
+          ),
+          server_now: new Date(),
+          request_id: req.requestId
+        });
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
 
   router.post(
     "/passenger/route-requests",

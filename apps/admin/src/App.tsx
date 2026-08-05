@@ -1,17 +1,29 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import type { ReactNode } from "react";
-import { createApiClient, createDemoApiClient, type BatchResponse, type Comparison, type DashboardResponse, type DriverRoute, type LocationEvent, type MatchRunResponse, type MerchantOrder, type PassengerRequest, type Trip, type User } from "./api";
+import { createApiClient, createDemoApiClient, type AccountStatus, type BatchResponse, type Comparison, type DashboardResponse, type DriverProfile, type DriverRoute, type LocationEvent, type MatchRunResponse, type MerchantOrder, type PassengerRequest, type Trip, type User } from "./api";
 import { demoUiEnabled, getAdminBuildConfig, routeManagementUiEnabled, type AdminBuildConfig } from "./config";
 import { useLocale } from "./i18n/LocaleContext";
 import type { TranslationKey } from "./i18n/translations";
 import { ADMIN_TOKEN_KEY, clearAdminSession, createAdminSessionExpiryHandler, isAdminSessionEndError, type TokenStorage } from "./session";
 import { RouteManagement } from "./features/routes/RouteManagement";
+import { OverviewDashboard, deriveAlerts, type OverviewData } from "./features/overview/OverviewDashboard";
+import { RequestsBoard } from "./features/requests/RequestsBoard";
+import { MatchingWorkspace } from "./features/matching/MatchingWorkspace";
+import { BatchingWorkspace } from "./features/batching/BatchingWorkspace";
+import { TripsTracking } from "./features/trips/TripsTracking";
+import { ComparisonPanel } from "./features/comparison/ComparisonPanel";
+import { SettingsPanel } from "./features/settings/SettingsPanel";
+import { DriverDirectory } from "./features/verification/DriverDirectory";
+import { UsersDirectory } from "./features/users/UsersDirectory";
+import { DemoControl } from "./features/demo/DemoControl";
+import { ModuleUnavailable } from "./features/placeholder/ModuleUnavailable";
+import { isModuleAvailable, resolveActiveModule, visibleNavItems, type ModuleId } from "./navigation";
+import { AppShell, Button, Icon, Notice, SideNav, TopBar } from "./ui";
 
 export { ADMIN_TOKEN_KEY, clearAdminSession } from "./session";
 
 const tripFlow = ["accepted", "pickup_started", "picked_up", "in_transit", "delivered", "completed"];
 
-type Notice = { type: "success" | "error"; message: string } | null;
+type NoticeState = { type: "success" | "error"; message: string } | null;
 type DemoStep = { key: TranslationKey; statusValue?: string };
 
 function getErrorMessage(error: unknown, t: (key: TranslationKey) => string) {
@@ -19,22 +31,6 @@ function getErrorMessage(error: unknown, t: (key: TranslationKey) => string) {
   if (error.message === "Failed to fetch") return t("failedToFetch");
   if (error.message === "forbidden" || error.message === "unauthorized") return t("unauthorized");
   return error.message || t("unexpectedError");
-}
-
-function Badge({ children }: { children: ReactNode }) {
-  return <span className="badge">{children}</span>;
-}
-
-function Section({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
-  return (
-    <section className="panel">
-      <div className="panel-header">
-        <h2>{title}</h2>
-        {action}
-      </div>
-      {children}
-    </section>
-  );
 }
 
 export function App({
@@ -46,7 +42,7 @@ export function App({
   sessionStore?: TokenStorage;
   legacyStore?: TokenStorage;
 } = {}) {
-  const { direction, locale, toggleLocale, t, status, source, number, dateTime } = useLocale();
+  const { direction, locale, toggleLocale, t, status } = useLocale();
   const demoEnabled = demoUiEnabled(config, __MASARI_DEMO_BUILD__);
   const routeManagementEnabled = routeManagementUiEnabled(config);
   const [token, setToken] = useState(() => {
@@ -58,9 +54,10 @@ export function App({
   const [password, setPassword] = useState(demoEnabled ? config.demo?.adminPassword ?? "" : "");
   const [resetKey, setResetKey] = useState(demoEnabled ? config.demo?.resetKey ?? "" : "");
   const [busy, setBusy] = useState<string | null>(null);
-  const [notice, setNotice] = useState<Notice>(null);
+  const [notice, setNotice] = useState<NoticeState>(null);
 
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
+  const [drivers, setDrivers] = useState<DriverProfile[]>([]);
   const [routes, setRoutes] = useState<DriverRoute[]>([]);
   const [requests, setRequests] = useState<PassengerRequest[]>([]);
   const [orders, setOrders] = useState<MerchantOrder[]>([]);
@@ -72,11 +69,17 @@ export function App({
   const [latestLocation, setLatestLocation] = useState<LocationEvent | null>(null);
   const [locationTrail, setLocationTrail] = useState<LocationEvent[]>([]);
   const [demoSteps, setDemoSteps] = useState<DemoStep[]>([]);
-  const [activeModule, setActiveModule] = useState<"overview" | "routes">("overview");
+  const [activeModule, setActiveModule] = useState<ModuleId>("overview");
+  const [search, setSearch] = useState("");
+
+  const flags = { demoEnabled, routeManagementEnabled };
+  const navItems = visibleNavItems(flags);
+  const currentModule = resolveActiveModule(activeModule, flags);
 
   function clearAuthenticatedData() {
     setAdmin(null);
     setDashboard(null);
+    setDrivers([]);
     setRoutes([]);
     setRequests([]);
     setOrders([]);
@@ -131,10 +134,6 @@ export function App({
     estimatedDeviationKm: "estimatedDeviationKm"
   };
 
-  function LanguageSwitch() {
-    return <button className="language-switch" type="button" onClick={() => { setNotice(null); toggleLocale(); }}>{t("languageSwitch")}</button>;
-  }
-
   async function runAction<T>(label: string, action: () => Promise<T>, success?: string) {
     setBusy(label);
     setNotice(null);
@@ -153,19 +152,38 @@ export function App({
 
   async function refreshOverview(currentToken = token) {
     if (!currentToken) return;
-    const [dashboardData, routesData, requestsData, ordersData, tripsData] = await Promise.all([
+    const [dashboardData, driversData, routesData, requestsData, ordersData, tripsData] = await Promise.all([
       api.dashboard(currentToken),
+      api.drivers(currentToken),
       api.routes(currentToken),
       api.requests(currentToken),
       api.orders(currentToken),
       api.trips(currentToken)
     ]);
     setDashboard(dashboardData);
+    setDrivers(driversData.drivers);
     setRoutes(routesData.routes);
     setRequests(requestsData.requests);
     setOrders(ordersData.orders);
     setTrips(tripsData.trips);
     setActiveTrip((current) => current ?? tripsData.trips[0] ?? null);
+  }
+
+  /**
+   * Suspend, disable or reactivate an account.
+   *
+   * The full overview is reloaded afterwards rather than the row being patched
+   * locally: the API revokes the target's sessions and may reject the change
+   * (the last active admin cannot be suspended), so the console shows what the
+   * server actually decided.
+   */
+  async function updateUserStatus(userId: string, status: AccountStatus, reason?: string) {
+    const result = await runAction(
+      "user-status",
+      () => api.updateUserStatus(token, userId, status, reason),
+      t("accountStatusUpdated")
+    );
+    if (result) await refreshOverview();
   }
 
   async function refreshData() {
@@ -367,156 +385,230 @@ export function App({
     return (
       <main className="login-shell" dir={direction} lang={locale}>
         <form className="login-card" onSubmit={login}>
-          <div className="top-actions"><LanguageSwitch /></div>
-          <p className="eyebrow">{t("appName")}</p>
+          <div className="login-card__actions">
+            <Button variant="ghost" size="sm" icon="language" onClick={() => { setNotice(null); toggleLocale(); }}>
+              {t("languageSwitch")}
+            </Button>
+          </div>
+          <div className="login-card__brand">
+            <span className="sidenav__logo">
+              <Icon name="local_shipping" size={22} />
+            </span>
+            <div>
+              <p className="sidenav__brand-name">{t("brandName")}</p>
+              <p className="sidenav__brand-subtitle">{t("appName")}</p>
+            </div>
+          </div>
           <h1>{t("loginHeading")}</h1>
-          <p>{t("loginDescription", { apiBaseUrl: config.apiBaseUrl })}</p>
-          {demoEnabled && <p className="credential-hint technical">{t("demoCredentials")}</p>}
-          <label>{t("adminPhone")}<input className="technical" value={phone} onChange={(event) => setPhone(event.target.value)} /></label>
-          <label>{t("password")}<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} /></label>
-          <button disabled={busy === "login"}>{busy === "login" ? t("signingIn") : t("signIn")}</button>
-          {notice && <div className={`notice ${notice.type}`}>{notice.message}</div>}
+          <p className="login-card__description">{t("loginDescription", { apiBaseUrl: config.apiBaseUrl })}</p>
+          {demoEnabled && <p className="login-card__hint technical">{t("demoCredentials")}</p>}
+          <label className="field">{t("adminPhone")}<input className="technical" value={phone} onChange={(event) => setPhone(event.target.value)} /></label>
+          <label className="field">{t("password")}<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} /></label>
+          <button className="btn btn--primary" disabled={busy === "login"}>{busy === "login" ? t("signingIn") : t("signIn")}</button>
+          {notice && <Notice kind={notice.type}>{notice.message}</Notice>}
         </form>
       </main>
     );
   }
 
+  const overviewData: OverviewData = { dashboard, routes, requests, orders, trips };
+  const alerts = deriveAlerts(overviewData);
+  const alertCount = alerts.unmatchedRequests + alerts.unverifiedDriverRoutes + alerts.unbatchedOrders;
+  const activeNavItem = navItems.find((item) => item.id === currentModule);
+  const moduleTitle = activeNavItem ? t(activeNavItem.labelKey) : t("navOverview");
+
+  function renderModule() {
+    switch (currentModule) {
+      case "overview":
+        return (
+          <>
+            {demoEnabled && demoApi && (
+              <DemoControl
+                resetKey={resetKey}
+                onResetKeyChange={setResetKey}
+                steps={demoSteps.map((step) => t(step.key, step.statusValue ? { status: status(step.statusValue) } : {}))}
+                canAct={canAct}
+                busy={busy}
+                onReset={() => void resetDemo()}
+                onRefresh={() => void refreshData()}
+                onRunFullDemo={() => void runFullDemoSequence()}
+              />
+            )}
+            <OverviewDashboard
+              data={overviewData}
+              search={search}
+              busy={Boolean(busy)}
+              onRefresh={() => void refreshData()}
+            />
+          </>
+        );
+
+      case "requests":
+        return <RequestsBoard requests={requests} orders={orders} search={search} />;
+
+      case "matching":
+        return isModuleAvailable("matching", flags) ? (
+          <MatchingWorkspace
+            request={selectedRequest}
+            order={selectedOrder}
+            matchResult={matchResult}
+            canAct={canAct}
+            busy={busy === "match"}
+            onRunMatch={() => void runMatch()}
+            onAccept={() => void acceptMatch()}
+            onReject={() => void rejectMatch()}
+            scoreLabel={(key) => t(scoringLabels[key] ?? "score")}
+          />
+        ) : (
+          <ModuleUnavailable icon="alt_route" reason="demo-only" />
+        );
+
+      case "batching":
+        return isModuleAvailable("batching", flags) ? (
+          <BatchingWorkspace
+            order={selectedOrder}
+            batchResult={batchResult}
+            canAct={canAct}
+            onCreateBatch={() => void runBatch()}
+          />
+        ) : (
+          <ModuleUnavailable icon="inventory_2" reason="demo-only" />
+        );
+
+      case "trips":
+        return (
+          <TripsTracking
+            trips={trips}
+            activeTrip={activeTrip}
+            tripFlow={tripFlow}
+            nextTripStatus={nextTripStatus}
+            latestLocation={latestLocation}
+            locationTrail={locationTrail}
+            search={search}
+            canAct={canAct}
+            demoEnabled={demoEnabled && Boolean(demoApi)}
+            onSelectTrip={setActiveTrip}
+            onRefreshTrips={() => void refreshTripData()}
+            onMoveTrip={(next) => void moveTrip(next)}
+            onSimulateStep={() => void simulateStep()}
+            onReadLatest={() => void readLatestLocation()}
+            onResetSimulation={() => void resetSimulation()}
+          />
+        );
+
+      case "routes":
+        return routeManagementEnabled ? (
+          <RouteManagement api={api} token={token} locale={locale} />
+        ) : (
+          <ModuleUnavailable icon="edit_road" reason="no-api" />
+        );
+
+      case "comparison":
+        return isModuleAvailable("comparison", flags) ? (
+          <ComparisonPanel comparison={comparison} canAct={canAct} onRunComparison={() => void runComparison()} />
+        ) : (
+          <ModuleUnavailable icon="analytics" reason="demo-only" />
+        );
+
+      case "settings":
+        return <SettingsPanel config={config} admin={admin} />;
+
+      case "users":
+        return <UsersDirectory drivers={drivers} requests={requests} orders={orders} search={search} />;
+
+      case "verification":
+        return (
+          <DriverDirectory
+            drivers={drivers}
+            search={search}
+            busy={Boolean(busy)}
+            onUpdateStatus={(userId, status, reason) => void updateUserStatus(userId, status, reason)}
+          />
+        );
+
+      case "incidents":
+        return <ModuleUnavailable icon="report" reason="no-api" />;
+
+      case "safety":
+        return <ModuleUnavailable icon="emergency" reason="no-api" />;
+
+      case "aiReview":
+        return <ModuleUnavailable icon="psychology" reason="no-api" />;
+
+      case "reports":
+        return <ModuleUnavailable icon="assessment" reason="no-api" />;
+
+      default:
+        return null;
+    }
+  }
+
+  const moduleDescription: Partial<Record<ModuleId, string>> = {
+    overview: t("overviewDescription"),
+    requests: t("requestsDescription"),
+    matching: t("matchingDescription"),
+    batching: t("batchingDescription"),
+    trips: t("tripsDescription"),
+    comparison: t("comparisonDescription"),
+    users: t("usersDescription"),
+    verification: t("verificationDescription"),
+    settings: t("settingsDescription")
+  };
+
   return (
-    <main className="app-shell" dir={direction} lang={locale}>
-      <header className="hero">
-        <div>
-          <p className="eyebrow">{t("masariConsole")}</p>
-          <h1>{t("corridorLabel")}</h1>
-          <p>{t("heroDescription")}</p>
-        </div>
-        <div className="session-card">
-          <strong>{admin?.name ?? "Admin"}</strong>
-          <span className="technical">{admin?.phone}</span>
-          <LanguageSwitch />
-          <button onClick={() => { clearAdminSession(sessionStore, legacyStore); sessionExpiry.reset(); clearAuthenticatedData(); setNotice(null); setToken(""); }} disabled={Boolean(busy)}>{t("logout")}</button>
-        </div>
-      </header>
-
-      <nav className="admin-navigation" aria-label={locale === "ar" ? "التنقل الإداري" : "Admin navigation"}>
-        <button className={activeModule === "overview" ? "is-active" : ""} type="button" onClick={() => setActiveModule("overview")}>
-          {locale === "ar" ? (demoEnabled ? "عرض النظام" : "نظرة عامة") : (demoEnabled ? "Demo console" : "Overview")}
-        </button>
-        {routeManagementEnabled && <button className={activeModule === "routes" ? "is-active" : ""} type="button" onClick={() => setActiveModule("routes")}>
-          {locale === "ar" ? "إدارة المسارات" : "Route management"}
-        </button>}
-      </nav>
-
-      {notice && <div className={`notice ${notice.type}`}>{notice.message}</div>}
-
-      {activeModule === "routes" && routeManagementEnabled
-        ? <RouteManagement api={api} token={token} locale={locale} />
-        : <div className="grid">
-        {demoEnabled && <Section title={t("demoControl")} action={<button onClick={runFullDemoSequence} disabled={!canAct}>{t("runFullDemo")}</button>}>
-          <div className="control-row">
-            <label>{t("resetKey")}<input className="technical" value={resetKey} onChange={(event) => setResetKey(event.target.value)} /></label>
-            <button onClick={resetDemo} disabled={!canAct}>{busy === "reset" ? t("resetting") : t("resetDemo")}</button>
-            <button onClick={refreshData} disabled={!canAct}>{t("refreshData")}</button>
-          </div>
-          <p className="muted">{t("resetExplanation")}</p>
-          {demoSteps.length > 0 && <ol className="demo-steps">{demoSteps.map((step, index) => <li key={`${step.key}-${index}`}>{t(step.key, step.statusValue ? { status: status(step.statusValue) } : {})}</li>)}</ol>}
-        </Section>}
-
-        <Section title={t("systemOverview")}>
-          <div className="metric-grid">
-            <div><strong>{dashboard ? number(dashboard.counts.users) : "-"}</strong><span>{t("users")}</span></div>
-            <div><strong>{dashboard ? number(dashboard.counts.routes) : "-"}</strong><span>{t("routes")}</span></div>
-            <div><strong>{dashboard ? number(dashboard.counts.passenger_requests) : "-"}</strong><span>{t("passengerRequests")}</span></div>
-            <div><strong>{dashboard ? number(dashboard.counts.merchant_orders) : "-"}</strong><span>{t("merchantOrders")}</span></div>
-            <div><strong>{dashboard ? number(dashboard.counts.parcels) : "-"}</strong><span>{t("parcels")}</span></div>
-            <div><strong>{number(trips.length)}</strong><span>{t("trips")}</span></div>
-          </div>
-          <div className="mini-list">
-            <h3>{t("seededData")}</h3>
-            <p>{t("activeCorridor")}: {t("corridorLabel")}</p>
-            <p>{t("route")}: {selectedRoute ? `${selectedRoute.origin_label} -> ${selectedRoute.destination_label}` : t("noData")} <Badge>{selectedRoute ? status(selectedRoute.status) : t("missing")}</Badge></p>
-            <p>{t("request")}: {selectedRequest?.pickup_label ?? t("noData")} <Badge>{selectedRequest ? status(selectedRequest.status) : t("missing")}</Badge></p>
-            <p>{t("order")}: {selectedOrder?.pickup_label ?? t("noData")} <Badge>{selectedOrder ? status(selectedOrder.status) : t("missing")}</Badge> {number(selectedOrder?.parcels?.length ?? 0)} {t("parcels")}</p>
-          </div>
-        </Section>
-
-        {demoEnabled && <>
-        <Section title={t("matching")} action={<button onClick={runMatch} disabled={!canAct}>{t("runMatch")}</button>}>
-          {matchResult ? (
-            <div className="result-card">
-              <p><strong>{t("match")}:</strong> <span className="technical">{matchResult.match.id}</span> <Badge>{status(matchResult.match.status)}</Badge></p>
-              <p><strong>{t("selectedDriver")}:</strong> <span className="technical">{matchResult.match.driver_route?.driver_id ?? t("driverRoute")}</span></p>
-              <p><strong>{t("driverRoute")}:</strong> <span className="technical">{matchResult.match.driver_route_id}</span></p>
-              <p><strong>{t("finalScore")}:</strong> {number(matchResult.scoringBreakdown.finalScore)}</p>
-              <p><strong>{t("explanation")}:</strong> {t("matchDemoExplanation")}</p>
-              <div className="breakdown">
-                {Object.entries(matchResult.scoringBreakdown).map(([key, value]) => (
-                  <span key={key}>{t(scoringLabels[key] ?? "score")}: {number(value)}</span>
-                ))}
-              </div>
-            </div>
-          ) : <p className="muted">{t("runMatchingEmpty")}</p>}
-        </Section>
-
-        <Section title={t("parcelBatch")} action={<button onClick={runBatch} disabled={!canAct}>{t("createBatch")}</button>}>
-          {batchResult ? (
-            <div className="result-card">
-              <p><strong>{t("batch")}:</strong> <span className="technical">{batchResult.batch.id}</span> <Badge>{status(batchResult.batch.status)}</Badge></p>
-              <p><strong>{t("numberOfParcels")}:</strong> {number(batchResult.batch.merchant_order?.parcels?.length ?? selectedOrder?.parcels?.length ?? 0)}</p>
-              <p><strong>{t("estimatedDistanceSaved")}:</strong> {number(batchResult.batch.estimated_distance_saved)} km</p>
-              <p><strong>{t("batchExplanation")}:</strong> {t("batchDemoExplanation")}</p>
-            </div>
-          ) : <p className="muted">{t("createBatchEmpty")}</p>}
-        </Section>
-
-        <Section title={t("comparison")} action={<button onClick={runComparison} disabled={!canAct}>{t("runComparison")}</button>}>
-          {comparison ? (
-            <table>
-              <thead><tr><th>{t("metric")}</th><th>{t("masari")}</th><th>{t("nearestDriver")}</th></tr></thead>
-              <tbody>
-                <tr><td>{t("trips")}</td><td>{number(comparison.masari_trips)}</td><td>{number(comparison.nearest_driver_trips)}</td></tr>
-                <tr><td>{t("estimatedDistance")}</td><td>{number(comparison.masari_estimated_distance)}</td><td>{number(comparison.nearest_estimated_distance)}</td></tr>
-                <tr><td>{t("estimatedCost")}</td><td>{number(comparison.masari_estimated_cost)}</td><td>{number(comparison.nearest_estimated_cost)}</td></tr>
-                <tr><td>{t("parcelBatchingBenefit")}</td><td colSpan={2}>{t("comparisonBenefitDemo")}</td></tr>
-                <tr><td>{t("driverUtilization")}</td><td>{number(comparison.driver_utilization)}</td><td>{t("baselineSeparateTrips")}</td></tr>
-                <tr><td>{t("winner")}</td><td colSpan={2}><Badge>{comparison.winner === "masari" ? t("masari") : t("nearestDriver")}</Badge></td></tr>
-              </tbody>
-            </table>
-          ) : <p className="muted">{t("runComparisonEmpty")}</p>}
-        </Section>
-
-        <Section title={t("tripFlow")} action={<button onClick={acceptMatch} disabled={!canAct || !matchResult}>{t("acceptMatch")}</button>}>
-          <div className="control-row">
-            <button onClick={rejectMatch} disabled={!canAct || !matchResult}>{t("rejectMatch")}</button>
-            <button onClick={refreshTripData} disabled={!canAct}>{t("refreshTrips")}</button>
-          </div>
-          {activeTrip ? (
-            <div className="result-card">
-              <p><strong>{t("currentTrip")}:</strong> <span className="technical">{activeTrip.id}</span> <Badge>{status(activeTrip.status)}</Badge></p>
-              <p><strong>{t("currentStatus")}:</strong> {status(activeTrip.status)}</p>
-              <div className="status-rail">{tripFlow.map((flowStatus) => <span className={tripFlow.indexOf(flowStatus) <= tripFlow.indexOf(activeTrip.status) ? "done" : ""} key={flowStatus}>{status(flowStatus)}</span>)}</div>
-              {nextTripStatus ? <button onClick={() => moveTrip(nextTripStatus)} disabled={!canAct}>{t("moveTo", { status: status(nextTripStatus) })}</button> : <p className="muted">{t("tripLifecycleComplete")}</p>}
-            </div>
-          ) : <p className="muted">{t("acceptMatchEmpty")}</p>}
-        </Section>
-
-        <Section title={t("trackingSimulation")}>
-          <div className="control-row">
-            <button onClick={simulateStep} disabled={!canAct || !activeTrip}>{t("simulateStep")}</button>
-            <button onClick={readLatestLocation} disabled={!canAct || !activeTrip}>{t("readLatest")}</button>
-            <button onClick={resetSimulation} disabled={!canAct || !activeTrip}>{t("resetSimulation")}</button>
-          </div>
-          {latestLocation ? (
-            <div className="result-card location-card">
-              <p><strong>{t("latitude")} / {t("longitude")}:</strong> <span className="technical">{latestLocation.lat}, {latestLocation.lng}</span></p>
-              <p><strong>{t("sequence")}:</strong> {number(latestLocation.sequence)}</p>
-              <p><strong>{t("source")}:</strong> {source(latestLocation.source)}</p>
-              <p><strong>{t("recordedTime")}:</strong> {dateTime(latestLocation.recorded_at)}</p>
-            </div>
-          ) : <p className="muted">{t("simulateEmpty")}</p>}
-          <div className="trail">{locationTrail.map((location) => <span className="technical" key={location.id}>#{number(location.sequence)} {location.lat},{location.lng}</span>)}</div>
-        </Section>
-        </>}
-      </div>}
-    </main>
+    <div dir={direction} lang={locale}>
+      <AppShell
+        sidenav={
+          <SideNav
+            items={navItems}
+            active={currentModule}
+            onSelect={(id) => { setActiveModule(id); setNotice(null); }}
+            labels={{
+              brand: t("brandName"),
+              subtitle: t("adminConsoleSubtitle"),
+              navigation: t("navigationLabel"),
+              label: (item) => t(item.labelKey)
+            }}
+            footer={
+              <>
+                <Button variant="ghost" icon="account_circle" onClick={() => setActiveModule("settings")}>
+                  {t("navProfile")}
+                </Button>
+                <Button variant="ghost" icon="language" onClick={() => { setNotice(null); toggleLocale(); }}>
+                  {t("languageSwitch")}
+                </Button>
+                <Button
+                  variant="ghost"
+                  icon="logout"
+                  className="btn--signout"
+                  disabled={Boolean(busy)}
+                  onClick={() => { clearAdminSession(sessionStore, legacyStore); sessionExpiry.reset(); clearAuthenticatedData(); setNotice(null); setToken(""); }}
+                >
+                  {t("logout")}
+                </Button>
+              </>
+            }
+          />
+        }
+        topbar={
+          <TopBar
+            title={moduleTitle}
+            search={search}
+            onSearch={setSearch}
+            searchPlaceholder={t("searchPlaceholder")}
+            searchLabel={t("searchLabel")}
+            helpLabel={t("helpLabel")}
+            notificationsLabel={t("notificationsLabel")}
+            alertCount={alertCount}
+            user={{ name: admin?.name ?? "Admin", detail: admin?.phone ?? "" }}
+          />
+        }
+      >
+        {/* The module title already sits in the top bar, so the canvas shows only its description. */}
+        {moduleDescription[currentModule] && <p className="muted">{moduleDescription[currentModule]}</p>}
+        {notice && <Notice kind={notice.type}>{notice.message}</Notice>}
+        {renderModule()}
+      </AppShell>
+    </div>
   );
 }

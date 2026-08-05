@@ -10,6 +10,7 @@ import type {
   ServiceRouteVersion,
   createApiClient
 } from "../../api";
+import { Button, Card, CardHeader, EmptyState, Notice, Skeleton, StatusBadge } from "../../ui";
 
 type Api = ReturnType<typeof createApiClient>;
 type Locale = "ar" | "en";
@@ -589,109 +590,177 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
 
   const statusText = (value: string) => text[value as keyof typeof text] ?? value;
 
-  return (
-    <section className="route-workspace" aria-labelledby="route-management-title">
-      <header className="route-workspace__header">
-        <div>
-          <p className="eyebrow">M7B</p>
-          <h2 id="route-management-title">{text.title}</h2>
-          <p>{text.subtitle}</p>
-        </div>
-        <span className="route-chip route-chip--safe">{text.geometryPending}</span>
-      </header>
+  const disabledUnlessDraft = selectedVersion ? selectedVersion.status !== "draft" : false;
 
-      {message && <div role="status" className={`notice ${message.kind}`}>{message.text}</div>}
+  return (
+    <section className="stack" aria-labelledby="route-management-title">
+      <div className="split">
+        <h2 id="route-management-title" className="page-header__title">{text.title}</h2>
+        <StatusBadge tone="warning">{text.geometryPending}</StatusBadge>
+      </div>
+      <p className="muted">{text.subtitle}</p>
+
+      {message && <Notice kind={message.kind}>{message.text}</Notice>}
 
       <div className="route-layout">
         <aside className="route-sidebar" aria-label={text.routes}>
-          <form className="route-filter" onSubmit={(event) => { event.preventDefault(); void loadCatalog(1); }}>
-            <label>{text.search}<input value={search} onChange={(event) => setSearch(event.target.value)} /></label>
-            <label>{text.status}<select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="">—</option><option value="active">{text.active}</option><option value="retired">{text.retired}</option></select></label>
-            <button type="submit" disabled={Boolean(busy)}>{text.search}</button>
-          </form>
+          <Card>
+            <form className="stack stack--tight" onSubmit={(event) => { event.preventDefault(); void loadCatalog(1); }}>
+              <label className="field">{text.search}<input value={search} onChange={(event) => setSearch(event.target.value)} /></label>
+              <label className="field">{text.status}<select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="">—</option><option value="active">{text.active}</option><option value="retired">{text.retired}</option></select></label>
+              <Button type="submit" variant="primary" icon="search" disabled={Boolean(busy)}>{text.search}</Button>
+            </form>
+          </Card>
 
-          {view === "loading" && <p className="route-state" aria-live="polite">{text.loading}</p>}
-          {view === "error" && <div className="route-state"><p>{text.error}</p><button onClick={() => void loadCatalog(page)} disabled={Boolean(busy)}>{text.retry}</button></div>}
-          {view === "empty" && <p className="route-state">{text.empty}</p>}
-          {view === "ready" && <div className="route-catalog">{routes.map((route) => (
-            <button
-              type="button"
-              className={selectedRoute?.id === route.id ? "route-catalog__item is-selected" : "route-catalog__item"}
-              key={route.id}
-              onClick={() => void loadRoute(route.id)}
-              disabled={Boolean(busy)}
-            >
-              <strong>{locale === "ar" ? route.current_version?.name_ar ?? route.route_key : route.current_version?.name_en ?? route.route_key}</strong>
-              <span>{route.route_key}</span>
-              <small>{statusText(route.status)} · {text[route.direction]}</small>
-            </button>
-          ))}</div>}
-          <div className="route-pagination"><span>{text.pagination} {page} · {total}</span><button type="button" disabled={page <= 1 || Boolean(busy)} onClick={() => void loadCatalog(page - 1)}>‹</button><button type="button" disabled={page * 25 >= total || Boolean(busy)} onClick={() => void loadCatalog(page + 1)}>›</button></div>
+          <Card>
+            {view === "loading" && <div aria-live="polite"><p className="muted">{text.loading}</p><Skeleton /></div>}
+            {view === "error" && <EmptyState compact icon="warning" title={text.error} action={<Button variant="outline" icon="refresh" onClick={() => void loadCatalog(page)} disabled={Boolean(busy)}>{text.retry}</Button>} />}
+            {view === "empty" && <EmptyState compact icon="edit_road" title={text.empty} />}
+            {view === "ready" && <div className="route-catalog">{routes.map((route) => (
+              <button
+                type="button"
+                className={selectedRoute?.id === route.id ? "route-catalog__item is-selected" : "route-catalog__item"}
+                key={route.id}
+                onClick={() => void loadRoute(route.id)}
+                disabled={Boolean(busy)}
+              >
+                <strong>{locale === "ar" ? route.current_version?.name_ar ?? route.route_key : route.current_version?.name_en ?? route.route_key}</strong>
+                <span>{route.route_key}</span>
+                <small>{statusText(route.status)} · {text[route.direction]}</small>
+              </button>
+            ))}</div>}
+            <div className="route-pagination">
+              <span>{text.pagination} {page} · {total}</span>
+              <div className="button-row">
+                <Button variant="outline" size="sm" disabled={page <= 1 || Boolean(busy)} onClick={() => void loadCatalog(page - 1)}>‹</Button>
+                <Button variant="outline" size="sm" disabled={page * 25 >= total || Boolean(busy)} onClick={() => void loadCatalog(page + 1)}>›</Button>
+              </div>
+            </div>
+          </Card>
         </aside>
 
-        <div className="route-main">
-          <details className="route-card">
-            <summary>{text.createRoute}</summary>
-            <form className="route-form route-form--grid" onSubmit={submitRoute}>
-              <label>{text.routeKey}<input required value={routeDraft.route_key} onChange={(event) => setRouteDraft({ ...routeDraft, route_key: event.target.value })} /></label>
-              <label>{text.groupKey}<input required value={routeDraft.route_group_key} onChange={(event) => setRouteDraft({ ...routeDraft, route_group_key: event.target.value })} /></label>
-              <label>{text.region}<input required value={routeDraft.service_region_key} onChange={(event) => setRouteDraft({ ...routeDraft, service_region_key: event.target.value })} /></label>
-              <label>{text.direction}<select value={routeDraft.direction} onChange={(event) => setRouteDraft({ ...routeDraft, direction: event.target.value as RouteIdentityDraft["direction"] })}><option value="outbound">{text.outbound}</option><option value="inbound">{text.inbound}</option><option value="loop">{text.loop}</option></select></label>
-              <button disabled={Boolean(busy)}>{text.create}</button>
-            </form>
-          </details>
-
-          <label className="route-card route-action-reason">{text.reason}<input value={actionReason} maxLength={500} onChange={(event) => setActionReason(event.target.value)} disabled={Boolean(busy)} /></label>
-          {!selectedRoute ? <div className="route-card route-state">{text.chooseRoute}</div> : <>
-            <article className="route-card route-identity">
-              <div><span className="route-chip">{selectedRoute.route_key}</span><h3>{selectedRoute.current_version ? (locale === "ar" ? selectedRoute.current_version.name_ar : selectedRoute.current_version.name_en) : selectedRoute.route_key}</h3><p>{selectedRoute.service_region_key} · {text[selectedRoute.direction]}</p></div>
-              <div className="route-actions"><span className={`route-chip route-status--${selectedRoute.status}`}>{statusText(selectedRoute.status)}</span><button className="button-danger" type="button" onClick={() => void retireRoute()} disabled={Boolean(busy)}>{text.retireRoute}</button></div>
-            </article>
-
-            <article className="route-card">
-              <div className="route-card__heading"><h3>{text.versions}</h3><button type="button" onClick={() => selectVersion(null)} disabled={Boolean(busy)}>{text.newVersion}</button></div>
-              <div className="version-tabs">{selectedRoute.versions?.map((version) => <button type="button" key={version.id} className={selectedVersion?.id === version.id ? "is-selected" : ""} onClick={() => selectVersion(version)} disabled={Boolean(busy)}>v{version.version_number} · {statusText(version.status)}</button>)}</div>
-              <form className="route-form route-form--grid" onSubmit={submitVersion}>
-                <label>{text.nameAr}<input dir="rtl" required value={versionDraft.name_ar} onChange={(event) => setVersionDraft({ ...versionDraft, name_ar: event.target.value })} disabled={selectedVersion ? selectedVersion.status !== "draft" : false} /></label>
-                <label>{text.nameEn}<input dir="ltr" required value={versionDraft.name_en} onChange={(event) => setVersionDraft({ ...versionDraft, name_en: event.target.value })} disabled={selectedVersion ? selectedVersion.status !== "draft" : false} /></label>
-                <label>{text.descriptionAr}<textarea dir="rtl" value={versionDraft.description_ar ?? ""} onChange={(event) => setVersionDraft({ ...versionDraft, description_ar: event.target.value })} disabled={selectedVersion ? selectedVersion.status !== "draft" : false} /></label>
-                <label>{text.descriptionEn}<textarea dir="ltr" value={versionDraft.description_en ?? ""} onChange={(event) => setVersionDraft({ ...versionDraft, description_en: event.target.value })} disabled={selectedVersion ? selectedVersion.status !== "draft" : false} /></label>
-                <label>{text.activeFrom}<input type="datetime-local" value={versionDraft.active_from ?? ""} onChange={(event) => setVersionDraft({ ...versionDraft, active_from: event.target.value })} disabled={selectedVersion ? selectedVersion.status !== "draft" : false} /></label>
-                <label>{text.activeUntil}<input type="datetime-local" value={versionDraft.active_until ?? ""} onChange={(event) => setVersionDraft({ ...versionDraft, active_until: event.target.value })} disabled={selectedVersion ? selectedVersion.status !== "draft" : false} /></label>
-                {(!selectedVersion || selectedVersion.status === "draft") && <button disabled={Boolean(busy)}>{selectedVersion ? text.saveDraft : text.createDraft}</button>}
+        <div className="stack">
+          <Card>
+            <details className="disclosure">
+              <summary>{text.createRoute}</summary>
+              <form className="field-grid" onSubmit={submitRoute}>
+                <label className="field">{text.routeKey}<input required value={routeDraft.route_key} onChange={(event) => setRouteDraft({ ...routeDraft, route_key: event.target.value })} /></label>
+                <label className="field">{text.groupKey}<input required value={routeDraft.route_group_key} onChange={(event) => setRouteDraft({ ...routeDraft, route_group_key: event.target.value })} /></label>
+                <label className="field">{text.region}<input required value={routeDraft.service_region_key} onChange={(event) => setRouteDraft({ ...routeDraft, service_region_key: event.target.value })} /></label>
+                <label className="field">{text.direction}<select value={routeDraft.direction} onChange={(event) => setRouteDraft({ ...routeDraft, direction: event.target.value as RouteIdentityDraft["direction"] })}><option value="outbound">{text.outbound}</option><option value="inbound">{text.inbound}</option><option value="loop">{text.loop}</option></select></label>
+                <Button type="submit" icon="add" disabled={Boolean(busy)}>{text.create}</Button>
               </form>
-              {selectedVersion && <div className="route-lifecycle"><span className={`route-chip route-status--${selectedVersion.status}`}>{statusText(selectedVersion.status)}</span><span className={`route-chip ${selectedVersion.geometry.ready ? "route-chip--safe" : "route-chip--pending"}`}>{selectedVersion.geometry.ready ? text.geometryReady : text.geometryPending}</span>{actions.includes("clone") && <button type="button" onClick={() => void cloneVersion()} disabled={Boolean(busy)}>{text.clone}</button>}{actions.includes("publish") && <button type="button" onClick={() => void versionAction("publish")} disabled={Boolean(busy)}>{text.publish}</button>}{actions.includes("pause") && <button type="button" onClick={() => void versionAction("pause")} disabled={Boolean(busy)}>{text.pause}</button>}{actions.includes("resume") && <button type="button" onClick={() => void versionAction("resume")} disabled={Boolean(busy)}>{text.resume}</button>}{actions.includes("retire") && <button className="button-danger" type="button" onClick={() => void versionAction("retire")} disabled={Boolean(busy)}>{text.retire}</button>}</div>}
-            </article>
+            </details>
+          </Card>
 
-            {selectedVersion?.status === "draft" && <article className="route-card">
-              <h3>{text.orderedStops}</h3>
-              <div className="route-add-stop"><select aria-label={text.addStop} value={stopToAdd} onChange={(event) => setStopToAdd(event.target.value)} disabled={Boolean(busy)}><option value="">{text.addStop}</option>{activeStops.filter((stop) => !memberships.some((membership) => membership.stop_id === stop.id)).map((stop) => <option value={stop.id} key={stop.id}>{locale === "ar" ? stop.name_ar : stop.name_en}</option>)}</select><button type="button" onClick={addExistingStop} disabled={!stopToAdd || Boolean(busy)}>{text.addStop}</button></div>
-              {memberships.length === 0 && <p className="route-state">{text.noStops}</p>}
+          <Card>
+            <label className="field">{text.reason}<input value={actionReason} maxLength={500} onChange={(event) => setActionReason(event.target.value)} disabled={Boolean(busy)} /></label>
+          </Card>
+
+          {!selectedRoute ? <Card><EmptyState icon="edit_road" title={text.chooseRoute} /></Card> : <>
+            <Card>
+              <div className="split">
+                <div>
+                  <StatusBadge tone="neutral">{selectedRoute.route_key}</StatusBadge>
+                  <h3 className="card__title">{selectedRoute.current_version ? (locale === "ar" ? selectedRoute.current_version.name_ar : selectedRoute.current_version.name_en) : selectedRoute.route_key}</h3>
+                  <p className="muted">{selectedRoute.service_region_key} · {text[selectedRoute.direction]}</p>
+                </div>
+                <div className="button-row">
+                  <StatusBadge status={selectedRoute.status}>{statusText(selectedRoute.status)}</StatusBadge>
+                  <Button variant="destructive" icon="close" onClick={() => void retireRoute()} disabled={Boolean(busy)}>{text.retireRoute}</Button>
+                </div>
+              </div>
+            </Card>
+
+            <Card>
+              <CardHeader
+                title={text.versions}
+                action={<Button variant="secondary" icon="add" onClick={() => selectVersion(null)} disabled={Boolean(busy)}>{text.newVersion}</Button>}
+              />
+              <div className="version-tabs">{selectedRoute.versions?.map((version) => (
+                <Button
+                  key={version.id}
+                  variant="outline"
+                  size="sm"
+                  className={selectedVersion?.id === version.id ? "is-selected" : undefined}
+                  onClick={() => selectVersion(version)}
+                  disabled={Boolean(busy)}
+                >
+                  {`v${version.version_number} · ${statusText(version.status)}`}
+                </Button>
+              ))}</div>
+              <form className="field-grid" onSubmit={submitVersion}>
+                <label className="field">{text.nameAr}<input dir="rtl" required value={versionDraft.name_ar} onChange={(event) => setVersionDraft({ ...versionDraft, name_ar: event.target.value })} disabled={disabledUnlessDraft} /></label>
+                <label className="field">{text.nameEn}<input dir="ltr" required value={versionDraft.name_en} onChange={(event) => setVersionDraft({ ...versionDraft, name_en: event.target.value })} disabled={disabledUnlessDraft} /></label>
+                <label className="field">{text.descriptionAr}<textarea dir="rtl" value={versionDraft.description_ar ?? ""} onChange={(event) => setVersionDraft({ ...versionDraft, description_ar: event.target.value })} disabled={disabledUnlessDraft} /></label>
+                <label className="field">{text.descriptionEn}<textarea dir="ltr" value={versionDraft.description_en ?? ""} onChange={(event) => setVersionDraft({ ...versionDraft, description_en: event.target.value })} disabled={disabledUnlessDraft} /></label>
+                <label className="field">{text.activeFrom}<input type="datetime-local" value={versionDraft.active_from ?? ""} onChange={(event) => setVersionDraft({ ...versionDraft, active_from: event.target.value })} disabled={disabledUnlessDraft} /></label>
+                <label className="field">{text.activeUntil}<input type="datetime-local" value={versionDraft.active_until ?? ""} onChange={(event) => setVersionDraft({ ...versionDraft, active_until: event.target.value })} disabled={disabledUnlessDraft} /></label>
+                {(!selectedVersion || selectedVersion.status === "draft") && <Button type="submit" icon="check" disabled={Boolean(busy)}>{selectedVersion ? text.saveDraft : text.createDraft}</Button>}
+              </form>
+              {selectedVersion && <div className="route-lifecycle">
+                <StatusBadge status={selectedVersion.status}>{statusText(selectedVersion.status)}</StatusBadge>
+                <StatusBadge tone={selectedVersion.geometry.ready ? "success" : "warning"}>{selectedVersion.geometry.ready ? text.geometryReady : text.geometryPending}</StatusBadge>
+                {actions.includes("clone") && <Button variant="outline" size="sm" onClick={() => void cloneVersion()} disabled={Boolean(busy)}>{text.clone}</Button>}
+                {actions.includes("publish") && <Button variant="action" size="sm" icon="check" onClick={() => void versionAction("publish")} disabled={Boolean(busy)}>{text.publish}</Button>}
+                {actions.includes("pause") && <Button variant="outline" size="sm" onClick={() => void versionAction("pause")} disabled={Boolean(busy)}>{text.pause}</Button>}
+                {actions.includes("resume") && <Button variant="secondary" size="sm" onClick={() => void versionAction("resume")} disabled={Boolean(busy)}>{text.resume}</Button>}
+                {actions.includes("retire") && <Button variant="destructive" size="sm" onClick={() => void versionAction("retire")} disabled={Boolean(busy)}>{text.retire}</Button>}
+              </div>}
+            </Card>
+
+            {selectedVersion?.status === "draft" && <Card>
+              <CardHeader title={text.orderedStops} />
+              <div className="button-row">
+                <select className="input" aria-label={text.addStop} value={stopToAdd} onChange={(event) => setStopToAdd(event.target.value)} disabled={Boolean(busy)}>
+                  <option value="">{text.addStop}</option>
+                  {activeStops.filter((stop) => !memberships.some((membership) => membership.stop_id === stop.id)).map((stop) => <option value={stop.id} key={stop.id}>{locale === "ar" ? stop.name_ar : stop.name_en}</option>)}
+                </select>
+                <Button variant="secondary" icon="add" onClick={addExistingStop} disabled={!stopToAdd || Boolean(busy)}>{text.addStop}</Button>
+              </div>
+              {memberships.length === 0 && <EmptyState compact icon="location_on" title={text.noStops} />}
               <ol className="stop-editor">{memberships.map((membership, index) => {
                 const stop = stops.find((item) => item.id === membership.stop_id);
                 return <li key={membership.stop_id}>
-                  <div className="stop-editor__title"><span className="route-chip">{index + 1}</span><strong>{stop ? (locale === "ar" ? stop.name_ar : stop.name_en) : membership.stop_id}</strong><div><button aria-label={reorderControlLabel(text.moveUp, index)} type="button" disabled={index === 0 || Boolean(busy)} onClick={() => setMemberships(moveRouteStop(memberships, index, -1))}>↑</button><button aria-label={reorderControlLabel(text.moveDown, index)} type="button" disabled={index === memberships.length - 1 || Boolean(busy)} onClick={() => setMemberships(moveRouteStop(memberships, index, 1))}>↓</button><button aria-label={reorderControlLabel(text.remove, index)} className="button-danger" type="button" disabled={Boolean(busy)} onClick={() => setMemberships(memberships.filter((_, current) => current !== index).map((item, current) => ({ ...item, sequence: current + 1 })))}>×</button></div></div>
+                  <div className="stop-editor__title">
+                    <StatusBadge tone="info">{index + 1}</StatusBadge>
+                    <strong>{stop ? (locale === "ar" ? stop.name_ar : stop.name_en) : membership.stop_id}</strong>
+                    <div className="button-row">
+                      <Button variant="outline" size="sm" aria-label={reorderControlLabel(text.moveUp, index)} disabled={index === 0 || Boolean(busy)} onClick={() => setMemberships(moveRouteStop(memberships, index, -1))}>↑</Button>
+                      <Button variant="outline" size="sm" aria-label={reorderControlLabel(text.moveDown, index)} disabled={index === memberships.length - 1 || Boolean(busy)} onClick={() => setMemberships(moveRouteStop(memberships, index, 1))}>↓</Button>
+                      <Button variant="destructive" size="sm" aria-label={reorderControlLabel(text.remove, index)} disabled={Boolean(busy)} onClick={() => setMemberships(memberships.filter((_, current) => current !== index).map((item, current) => ({ ...item, sequence: current + 1 })))}>×</Button>
+                    </div>
+                  </div>
                   <div className="permission-grid">{(["passenger_pickup_allowed", "passenger_dropoff_allowed", "parcel_pickup_allowed", "parcel_dropoff_allowed"] as Permission[]).map((permission) => <label key={permission}><input type="checkbox" checked={membership[permission]} disabled={Boolean(busy)} onChange={() => setMemberships(toggleRouteStopPermission(memberships, index, permission))} />{permission === "passenger_pickup_allowed" ? text.passengerPickup : permission === "passenger_dropoff_allowed" ? text.passengerDropoff : permission === "parcel_pickup_allowed" ? text.parcelPickup : text.parcelDropoff}</label>)}</div>
                 </li>;
               })}</ol>
-              <button type="button" onClick={() => void saveStops()} disabled={memberships.length < 2 || Boolean(busy)}>{text.saveOrder}</button>
-            </article>}
+              <Button icon="check" onClick={() => void saveStops()} disabled={memberships.length < 2 || Boolean(busy)}>{text.saveOrder}</Button>
+            </Card>}
           </>}
 
-          <details className="route-card">
-            <summary>{text.createStop}</summary>
-            <p>{text.stopHelp}</p>
-            <form className="route-form route-form--grid" onSubmit={submitStop}>
-              <label>{text.stopKey}<input required value={stopDraft.stop_key} onChange={(event) => setStopDraft({ ...stopDraft, stop_key: event.target.value })} /></label>
-              <label>{text.region}<input required value={stopDraft.service_region_key} onChange={(event) => setStopDraft({ ...stopDraft, service_region_key: event.target.value })} /></label>
-              <label>{text.nameAr}<input dir="rtl" required value={stopDraft.name_ar} onChange={(event) => setStopDraft({ ...stopDraft, name_ar: event.target.value })} /></label>
-              <label>{text.nameEn}<input dir="ltr" required value={stopDraft.name_en} onChange={(event) => setStopDraft({ ...stopDraft, name_en: event.target.value })} /></label>
-              <label>{text.latitude}<input type="number" step="0.000001" min="-90" max="90" required value={stopDraft.latitude} onChange={(event) => setStopDraft({ ...stopDraft, latitude: Number(event.target.value) })} /></label>
-              <label>{text.longitude}<input type="number" step="0.000001" min="-180" max="180" required value={stopDraft.longitude} onChange={(event) => setStopDraft({ ...stopDraft, longitude: Number(event.target.value) })} /></label>
-              <button disabled={Boolean(busy)}>{text.createStop}</button>
-            </form>
-            <div className="stop-catalog">{stops.map((stop) => <div key={stop.id}><div><strong>{locale === "ar" ? stop.name_ar : stop.name_en}</strong><span>{stop.stop_key} · {stop.latitude.toFixed(6)}, {stop.longitude.toFixed(6)}</span></div><span className={`route-chip route-status--${stop.status}`}>{statusText(stop.status)}</span>{stop.status === "active" && <button type="button" className="button-danger" onClick={() => void retireStop(stop)} disabled={Boolean(busy)}>{text.retire}</button>}</div>)}</div>
-          </details>
+          <Card>
+            <details className="disclosure">
+              <summary>{text.createStop}</summary>
+              <p className="muted">{text.stopHelp}</p>
+              <form className="field-grid" onSubmit={submitStop}>
+                <label className="field">{text.stopKey}<input required value={stopDraft.stop_key} onChange={(event) => setStopDraft({ ...stopDraft, stop_key: event.target.value })} /></label>
+                <label className="field">{text.region}<input required value={stopDraft.service_region_key} onChange={(event) => setStopDraft({ ...stopDraft, service_region_key: event.target.value })} /></label>
+                <label className="field">{text.nameAr}<input dir="rtl" required value={stopDraft.name_ar} onChange={(event) => setStopDraft({ ...stopDraft, name_ar: event.target.value })} /></label>
+                <label className="field">{text.nameEn}<input dir="ltr" required value={stopDraft.name_en} onChange={(event) => setStopDraft({ ...stopDraft, name_en: event.target.value })} /></label>
+                <label className="field">{text.latitude}<input type="number" step="0.000001" min="-90" max="90" required value={stopDraft.latitude} onChange={(event) => setStopDraft({ ...stopDraft, latitude: Number(event.target.value) })} /></label>
+                <label className="field">{text.longitude}<input type="number" step="0.000001" min="-180" max="180" required value={stopDraft.longitude} onChange={(event) => setStopDraft({ ...stopDraft, longitude: Number(event.target.value) })} /></label>
+                <Button type="submit" icon="add" disabled={Boolean(busy)}>{text.createStop}</Button>
+              </form>
+              <div className="stop-catalog">{stops.map((stop) => <div key={stop.id}>
+                <div>
+                  <strong>{locale === "ar" ? stop.name_ar : stop.name_en}</strong>
+                  <span>{stop.stop_key} · {stop.latitude.toFixed(6)}, {stop.longitude.toFixed(6)}</span>
+                </div>
+                <StatusBadge status={stop.status}>{statusText(stop.status)}</StatusBadge>
+                {stop.status === "active" && <Button variant="destructive" size="sm" onClick={() => void retireStop(stop)} disabled={Boolean(busy)}>{text.retire}</Button>}
+              </div>)}</div>
+            </details>
+          </Card>
         </div>
       </div>
     </section>

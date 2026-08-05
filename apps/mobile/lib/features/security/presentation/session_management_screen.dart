@@ -4,7 +4,9 @@ import 'package:masari_mobile/l10n/app_localizations.dart';
 
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/language_switch.dart';
-import '../../../core/widgets/masari_card.dart';
+import '../../../core/widgets/masari_section.dart';
+import '../../../core/widgets/state_views.dart';
+import '../../../core/widgets/status_chip.dart';
 import '../../auth/domain/auth_models.dart';
 import '../application/session_controller.dart';
 import 'security_actions.dart';
@@ -27,76 +29,99 @@ class _SessionManagementScreenState
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final sessions = ref.watch(sessionControllerProvider);
+
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.securityAndSessions)),
+      appBar: AppBar(
+        title: Text(l10n.securityAndSessions),
+        actions: const [
+          LanguageSwitch(),
+          SizedBox(width: AppTokens.spaceSmall),
+        ],
+      ),
       body: SafeArea(
+        top: false,
+        bottom: false,
         child: RefreshIndicator(
           onRefresh: () =>
               ref.read(sessionControllerProvider.notifier).refresh(),
           child: ListView(
-            padding: const EdgeInsets.all(AppTokens.spaceLarge),
+            padding: const EdgeInsets.fromLTRB(
+              AppTokens.marginMobile,
+              AppTokens.spaceMedium,
+              AppTokens.marginMobile,
+              AppTokens.spaceExtraLarge,
+            ),
             children: [
-              const Align(
-                alignment: AlignmentDirectional.centerEnd,
-                child: LanguageSwitch(),
-              ),
-              const SizedBox(height: AppTokens.spaceMedium),
               const SessionStatusBanner(),
               if (_actionFailed) ...[
                 const SizedBox(height: AppTokens.spaceMedium),
-                Text(
-                  l10n.sessionActionFailed,
+                OfflineBanner(
                   key: const ValueKey('sessionActionError'),
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                  message: l10n.sessionActionFailed,
+                  tone: BannerTone.error,
+                  icon: Icons.error_outline,
                 ),
               ],
-              const SizedBox(height: AppTokens.spaceMedium),
-              Text(
-                l10n.activeSessions,
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              const SizedBox(height: AppTokens.spaceMedium),
-              sessions.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (error, stackTrace) => MasariCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+              const SizedBox(height: AppTokens.spaceLarge),
+
+              MasariSection(
+                title: l10n.activeSessions,
+                child: sessions.when(
+                  loading: () => const Column(
                     children: [
-                      Text(l10n.sessionActionFailed),
-                      FilledButton(
-                        onPressed: _busy
-                            ? null
-                            : () => ref
-                                  .read(sessionControllerProvider.notifier)
-                                  .refresh(),
-                        child: Text(l10n.retry),
-                      ),
+                      LoadingSkeleton.card(),
+                      SizedBox(height: AppTokens.spaceMedium),
+                      LoadingSkeleton.card(),
                     ],
                   ),
-                ),
-                data: (items) => items.isEmpty
-                    ? MasariCard(child: Text(l10n.noActiveSessions))
-                    : Column(
-                        children: [
-                          for (final session in items) ...[
-                            _SessionCard(
-                              session: session,
-                              busy: _busy,
-                              onRevoke: () => _confirmRevoke(session),
-                            ),
-                            const SizedBox(height: AppTokens.spaceMedium),
+                  error: (error, stackTrace) => ErrorStateView(
+                    title: l10n.sessionActionFailed,
+                    retryLabel: l10n.retry,
+                    onRetry: _busy
+                        ? null
+                        : () => ref
+                              .read(sessionControllerProvider.notifier)
+                              .refresh(),
+                  ),
+                  data: (items) => items.isEmpty
+                      ? EmptyState(
+                          title: l10n.noActiveSessions,
+                          icon: Icons.devices_outlined,
+                        )
+                      : Column(
+                          children: [
+                            for (final session in items) ...[
+                              _SessionCard(
+                                session: session,
+                                busy: _busy,
+                                onRevoke: () => _confirmRevoke(session),
+                              ),
+                              const SizedBox(height: AppTokens.spaceMedium),
+                            ],
                           ],
-                        ],
-                      ),
+                        ),
+                ),
               ),
-              OutlinedButton(
+
+              // Destructive actions are grouped away from the session list so
+              // "sign out everywhere" is never a mis-tap on a single session.
+              const SizedBox(height: AppTokens.spaceLarge),
+              const Divider(),
+              const SizedBox(height: AppTokens.spaceMedium),
+              OutlinedButton.icon(
                 key: const ValueKey('logoutCurrentSession'),
                 onPressed: _busy ? null : _confirmLogout,
-                child: Text(l10n.logout),
+                icon: const Icon(Icons.logout),
+                label: Text(l10n.logout),
               ),
-              FilledButton(
+              const SizedBox(height: AppTokens.spaceSmall),
+              TextButton(
                 key: const ValueKey('logoutAllSessions'),
                 onPressed: _busy ? null : _confirmLogoutAll,
+                style: TextButton.styleFrom(
+                  foregroundColor: Theme.of(context).colorScheme.error,
+                  minimumSize: const Size.fromHeight(AppTokens.minTouchTarget),
+                ),
                 child: Text(l10n.logoutAllDevices),
               ),
             ],
@@ -168,6 +193,11 @@ class _SessionManagementScreenState
   }
 }
 
+/// One signed-in device.
+///
+/// The device is the subject, so it leads; the timestamps are supporting
+/// detail. Revoking is a text action rather than a filled button — it is a
+/// per-row option, not the screen's purpose.
 class _SessionCard extends StatelessWidget {
   const _SessionCard({
     required this.session,
@@ -190,51 +220,69 @@ class _SessionCard extends StatelessWidget {
       'admin' => l10n.adminSession,
       _ => l10n.otherDevice,
     };
-    return MasariCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+
+    return MasariInfoCard(
+      title: label,
+      subtitle: client,
+      icon: session.clientType == 'mobile'
+          ? Icons.smartphone_outlined
+          : Icons.desktop_windows_outlined,
+      // A revoked session is the more important state to surface, so it wins
+      // over the "current device" marker when both apply.
+      statusLabel: session.revoked
+          ? l10n.sessionRevoked
+          : (session.isCurrent ? l10n.currentDevice : null),
+      statusTone: session.revoked ? StatusTone.error : StatusTone.success,
+      body: Column(
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  label,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ),
-              if (session.isCurrent) Chip(label: Text(l10n.currentDevice)),
-            ],
+          DetailRow(
+            label: l10n.lastActive,
+            value: _formatDateTime(context, session.lastUsedAt),
+            icon: Icons.schedule_outlined,
           ),
-          Text(client),
-          Text(
-            '${l10n.created}: ${_formatDateTime(context, session.createdAt)}',
+          DetailRow(
+            label: l10n.created,
+            value: _formatDateTime(context, session.createdAt),
+            icon: Icons.event_outlined,
           ),
-          Text(
-            '${l10n.lastActive}: ${_formatDateTime(context, session.lastUsedAt)}',
+          DetailRow(
+            label: l10n.expires,
+            value: _formatDateTime(context, session.expiresAt),
+            icon: Icons.event_busy_outlined,
           ),
-          Text(
-            '${l10n.expires}: ${_formatDateTime(context, session.expiresAt)}',
-          ),
-          if (session.revoked)
-            Text(l10n.sessionRevoked)
-          else
-            OutlinedButton(
+        ],
+      ),
+      secondaryAction: session.revoked
+          ? null
+          // Kept a TextButton: a widget test distinguishes this control from
+          // the confirmation dialog's FilledButton by type.
+          : TextButton(
               key: ValueKey(
                 session.isCurrent ? 'revokeCurrentSession' : 'revokeSession',
               ),
               onPressed: busy ? null : onRevoke,
+              style: TextButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.error,
+              ),
               child: Text(
                 session.isCurrent ? l10n.revokeThisDevice : l10n.revokeSession,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-        ],
-      ),
     );
   }
 }
 
+/// A compact numeric date plus the time.
+///
+/// `formatMediumDate` prefixes the weekday in Arabic, which made the value long
+/// enough to wrap — and because the time is a left-to-right run inside
+/// right-to-left text, the wrap orphaned its "م" on a line of its own. The
+/// weekday carries no meaning for a session list, so it is dropped.
 String _formatDateTime(BuildContext context, DateTime value) {
   final material = MaterialLocalizations.of(context);
   final local = value.toLocal();
-  return '${material.formatMediumDate(local)} ${material.formatTimeOfDay(TimeOfDay.fromDateTime(local))}';
+  return '${material.formatCompactDate(local)} '
+      '${material.formatTimeOfDay(TimeOfDay.fromDateTime(local))}';
 }

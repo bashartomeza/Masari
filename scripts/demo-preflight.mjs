@@ -96,7 +96,7 @@ await checkHttp("API readiness", `${apiBaseUrl}/api/v1/health/ready`, async (res
 });
 await checkHttp("admin console", adminUrl, async (response) => {
   const body = await response.text();
-  return body.includes("<title>Masari Demo Console</title>") ? undefined : "is not the Masari admin console";
+  return body.includes("<title>Masari Admin Console</title>") ? undefined : "is not the Masari admin console";
 });
 
 const adminExample = readFileSync(resolve(root, "apps/admin/.env.example"), "utf8");

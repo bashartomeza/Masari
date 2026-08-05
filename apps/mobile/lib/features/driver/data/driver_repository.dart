@@ -22,6 +22,18 @@ class DriverRepository {
     return _routes(json);
   }
 
+  /// This driver's own trust score (0..100), or null when unavailable.
+  ///
+  /// `/me` returns `driver_profile` only for drivers, so a missing block is a
+  /// legitimate "no score" rather than a failure.
+  Future<int?> ownTrustScore() async {
+    final json = await apiClient.getJson('/me');
+    final profile = json['driver_profile'];
+    if (profile is! Map) return null;
+    final value = profile['trust_score'];
+    return value is num ? value.toInt() : null;
+  }
+
   Future<List<DriverRoute>> activeRoutes() async {
     final json = await apiClient.getJson('/driver/routes/active');
     return _routes(json);

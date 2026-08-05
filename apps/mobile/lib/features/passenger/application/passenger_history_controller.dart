@@ -1,0 +1,94 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../trips/data/trip_models.dart';
+import '../../trips/data/trip_repository.dart';
+import '../data/passenger_models.dart';
+import '../data/passenger_repository.dart';
+
+/// The passenger's full request history, bucketed the way the "My trips" flow
+/// asks for it.
+///
+/// Built from `GET /passenger/requests` (every request, not just the open one)
+/// joined with `GET /trips`. Both endpoints already existed; the request list
+/// simply had no screen behind it until now.
+class PassengerHistoryState {
+  const PassengerHistoryState({required this.requests, required this.trips});
+
+  final List<PassengerRequest> requests;
+  final List<PassengerTrip> trips;
+
+  /// Statuses that mean the system is still working on the request.
+  static const _openStatuses = {
+    'pending',
+    'matched',
+    'accepted',
+    'pickup_started',
+    'picked_up',
+    'in_transit',
+  };
+
+  /// Open requests whose preferred time has already arrived, newest first.
+  List<PassengerRequest> get active => _sorted(
+    requests.where(
+      (request) => _openStatuses.contains(request.status) && !_isUpcoming(request),
+    ),
+  );
+
+  /// Open requests whose preferred time is still ahead.
+  ///
+  /// The schema has no separate "scheduled" state, so "upcoming" is derived
+  /// from `preferred_time` rather than invented as a status. The two buckets
+  /// are mutually exclusive — a request must appear in exactly one, or the same
+  /// trip is listed twice on the screen.
+  List<PassengerRequest> get upcoming =>
+      _sorted(requests.where(_isUpcoming));
+
+  static bool _isUpcoming(PassengerRequest request) =>
+      _openStatuses.contains(request.status) &&
+      request.preferredTime.isAfter(DateTime.now());
+
+  List<PassengerRequest> get past => _sorted(
+    requests.where(
+      (request) =>
+          request.status == 'delivered' || request.status == 'completed',
+    ),
+  );
+
+  List<PassengerRequest> get cancelled =>
+      _sorted(requests.where((request) => request.status == 'cancelled'));
+
+  bool get isEmpty => requests.isEmpty && trips.isEmpty;
+
+  /// The trip connected to a request, when one exists.
+  ///
+  /// `GET /trips` does not expose `passenger_request_id`, so a trip can only be
+  /// matched to the passenger's current work — which is enough for the one
+  /// active row that offers an "open trip" action.
+  PassengerTrip? get activeTrip => trips.isEmpty ? null : trips.first;
+
+  static List<PassengerRequest> _sorted(Iterable<PassengerRequest> items) {
+    final list = items.toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return List.unmodifiable(list);
+  }
+}
+
+final passengerHistoryProvider =
+    AsyncNotifierProvider<PassengerHistoryController, PassengerHistoryState>(
+      PassengerHistoryController.new,
+    );
+
+class PassengerHistoryController extends AsyncNotifier<PassengerHistoryState> {
+  @override
+  Future<PassengerHistoryState> build() => _load();
+
+  Future<void> refresh() async {
+    state = await AsyncValue.guard(_load);
+  }
+
+  Future<PassengerHistoryState> _load() async {
+    final requests = await ref.read(passengerRepositoryProvider).listRequests();
+    final trips = await ref.read(tripRepositoryProvider).listTrips();
+    return PassengerHistoryState(requests: requests, trips: trips);
+  }
+}

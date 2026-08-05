@@ -3,209 +3,310 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:masari_mobile/l10n/app_localizations.dart';
 
+import '../../../core/presentation/localized_labels.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/language_switch.dart';
-import '../../../core/widgets/masari_card.dart';
+import '../../../core/widgets/map_placeholder.dart';
+import '../../../core/widgets/masari_section.dart';
+import '../../../core/widgets/state_views.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../canonical_routes/application/canonical_route_controller.dart';
 import '../../security/presentation/security_actions.dart';
 import '../../security/presentation/session_status_banner.dart';
 import '../application/driver_controller.dart';
+import '../data/driver_repository.dart';
+import '../data/driver_stats_source.dart';
+import '../domain/driver_home_stats.dart';
 import 'driver_ui.dart';
+import 'widgets/driver_home_widgets.dart';
 
-class DriverHomeScreen extends ConsumerWidget {
+class DriverHomeScreen extends ConsumerStatefulWidget {
   const DriverHomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DriverHomeScreen> createState() => _DriverHomeScreenState();
+}
+
+class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
+  bool _busy = false;
+  String? _error;
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final user = ref.watch(authControllerProvider).value?.user;
     final dashboard = ref.watch(driverDashboardProvider);
-    final canonicalEntry =
-        ref.watch(mobileCapabilitiesProvider).value?.multiRouteEntryAvailable ==
-        true;
+    final stats = ref.watch(driverHomeStatsProvider);
+    final capabilities = ref.watch(mobileCapabilitiesProvider).value;
+    final canonicalEntry = capabilities?.multiRouteEntryAvailable == true;
     final canonicalOffers =
-        ref
-            .watch(mobileCapabilitiesProvider)
-            .value
-            ?.driverCanonicalOffersAvailable ==
-        true;
-    return Scaffold(
-      body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: () => ref.read(driverDashboardProvider.notifier).refresh(),
-          child: ListView(
-            padding: const EdgeInsets.all(AppTokens.spaceLarge),
-            children: [
-              const Align(
-                alignment: AlignmentDirectional.centerEnd,
-                child: LanguageSwitch(),
-              ),
-              const SizedBox(height: AppTokens.spaceLarge),
-              Text(
-                l10n.appTitle,
-                style: Theme.of(
-                  context,
-                ).textTheme.headlineLarge?.copyWith(color: AppTheme.deepGreen),
-              ),
-              Text(
-                l10n.driverDashboard,
-                key: const ValueKey('driverDashboardTitle'),
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: AppTokens.spaceLarge),
-              MasariCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('${l10n.currentUser}: ${user?.name ?? ''}'),
-                    Text('${l10n.role}: ${l10n.driver}'),
-                    const SizedBox(height: AppTokens.spaceSmall),
-                    Text(l10n.lockedCorridor),
-                  ],
+        capabilities?.driverCanonicalOffersAvailable == true;
+
+    final route = dashboard.value?.currentRoute;
+    final isOnline = route?.isOperational ?? false;
+
+    return Column(
+      key: const ValueKey('driverHome'),
+      children: [
+        Expanded(
+          child: SafeArea(
+            bottom: false,
+            child: RefreshIndicator(
+              onRefresh: () =>
+                  ref.read(driverDashboardProvider.notifier).refresh(),
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(
+                  AppTokens.marginMobile,
+                  AppTokens.spaceSmall,
+                  AppTokens.marginMobile,
+                  AppTokens.spaceLarge,
                 ),
-              ),
-              const SizedBox(height: AppTokens.spaceMedium),
-              const SessionStatusBanner(),
-              const SizedBox(height: AppTokens.spaceMedium),
-              if (canonicalEntry) ...[
-                MasariCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text(
-                        l10n.canonicalRoutes,
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                      Text(l10n.canonicalRoutesBody),
-                      FilledButton(
-                        key: const ValueKey('openCanonicalAvailabilities'),
-                        onPressed: () => context.go('/driver/availabilities'),
-                        child: Text(l10n.driverAvailabilities),
-                      ),
-                      if (canonicalOffers)
-                        OutlinedButton(
-                          key: const ValueKey('openCanonicalDriverOffers'),
-                          onPressed: () =>
-                              context.go('/driver/canonical-offers'),
-                          child: Text(l10n.canonicalDriverOffers),
+                children: [
+                  DriverTopBar(title: l10n.appTitle, name: user?.name),
+                  const SizedBox(height: AppTokens.spaceMedium),
+
+                  DriverStatusCard(
+                    greeting: _greeting(l10n, user?.name),
+                    // Keeps the role visible alongside the operating area.
+                    subtitle:
+                        '${l10n.driver} • '
+                        '${localizedCorridorPlace(context, 'Hebron / PPU / Bab Al-Zawiya')}',
+                    isOnline: isOnline,
+                    busy: _busy || dashboard.isLoading,
+                    onChanged: (value) => _toggleOnline(l10n, value),
+                  ),
+
+                  if (_error != null) ...[
+                    const SizedBox(height: AppTokens.spaceMedium),
+                    OfflineBanner(message: _error!, tone: BannerTone.error),
+                  ],
+
+                  const SizedBox(height: AppTokens.spaceMedium),
+                  const SessionStatusBanner(),
+                  const SizedBox(height: AppTokens.spaceMedium),
+
+                  _StatsRow(stats: stats),
+
+                  const SizedBox(height: AppTokens.spaceLarge),
+                  FilledButton.icon(
+                    key: const ValueKey('openDriverRoute'),
+                    onPressed: () => context.go('/driver/route'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppTheme.tertiaryContainer,
+                      foregroundColor: AppTheme.onPrimary,
+                      minimumSize: const Size.fromHeight(64),
+                    ),
+                    icon: const Icon(Icons.route_outlined),
+                    label: Text(
+                      isOnline ? l10n.viewRoute : l10n.activateYourRoute,
+                    ),
+                  ),
+                  const SizedBox(height: AppTokens.spaceSmall),
+                  Text(
+                    l10n.activateRouteHint,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppTheme.onSurfaceVariant,
+                    ),
+                  ),
+
+                  const SizedBox(height: AppTokens.spaceMedium),
+                  // Never fakes a position: with no coordinates it renders an
+                  // explicit empty state instead of a decorative map.
+                  MapPlaceholder(
+                    emptyLabel: l10n.mapNoLocation,
+                    height: 190,
+                  ),
+
+                  const SizedBox(height: AppTokens.spaceLarge),
+                  _InboxSection(dashboard: dashboard),
+
+                  if (canonicalEntry) ...[
+                    const SizedBox(height: AppTokens.spaceLarge),
+                    MasariSection(
+                      title: l10n.canonicalRoutes,
+                      child: MasariInfoCard(
+                        title: l10n.driverAvailabilities,
+                        subtitle: l10n.canonicalRoutesBody,
+                        icon: Icons.alt_route_outlined,
+                        primaryAction: CardAction(
+                          key: const ValueKey('openCanonicalAvailabilities'),
+                          label: l10n.driverAvailabilities,
+                          onPressed: () => context.go('/driver/availabilities'),
                         ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: AppTokens.spaceMedium),
-              ],
-              dashboard.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (error, _) => MasariCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text(driverErrorLabel(l10n, error)),
-                      FilledButton(
-                        onPressed: () => ref
-                            .read(driverDashboardProvider.notifier)
-                            .refresh(),
-                        child: Text(l10n.retry),
-                      ),
-                    ],
-                  ),
-                ),
-                data: (state) => Column(
-                  children: [
-                    MasariCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Text(
-                            l10n.activeRoute,
-                            style: Theme.of(context).textTheme.titleLarge,
-                          ),
-                          const SizedBox(height: AppTokens.spaceSmall),
-                          if (state.currentRoute == null)
-                            Text(l10n.noActiveRoute)
-                          else ...[
-                            Text(l10n.lockedCorridor),
-                            Text(
-                              '${l10n.currentStatus}: ${driverStatusLabel(l10n, state.currentRoute!.status)}',
-                            ),
-                          ],
-                          const SizedBox(height: AppTokens.spaceMedium),
-                          FilledButton(
-                            key: const ValueKey('openDriverRoute'),
-                            onPressed: () => context.go('/driver/route'),
-                            child: Text(
-                              state.currentRoute == null
-                                  ? l10n.createRoute
-                                  : l10n.viewRoute,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: AppTokens.spaceMedium),
-                    MasariCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Text(
-                            l10n.matchInbox,
-                            style: Theme.of(context).textTheme.titleLarge,
-                          ),
-                          Text(
-                            '${l10n.proposedMatches}: ${state.proposedMatchCount}',
-                            key: const ValueKey('proposedMatchCount'),
-                          ),
-                          const SizedBox(height: AppTokens.spaceMedium),
-                          FilledButton(
-                            key: const ValueKey('openMatchInbox'),
-                            onPressed: () => context.go('/driver/matches'),
-                            child: Text(l10n.matchInbox),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: AppTokens.spaceMedium),
-                    MasariCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Text(
-                            l10n.activeTrip,
-                            style: Theme.of(context).textTheme.titleLarge,
-                          ),
-                          if (state.activeTrip == null)
-                            Text(l10n.noActiveTrip)
-                          else ...[
-                            Text(
-                              '${l10n.currentStatus}: ${driverStatusLabel(l10n, state.activeTrip!.status)}',
-                            ),
-                            const SizedBox(height: AppTokens.spaceMedium),
-                            FilledButton(
-                              key: const ValueKey('openActiveTrip'),
-                              onPressed: () => context.go(
-                                '/driver/trip/${state.activeTrip!.id}',
-                              ),
-                              child: Text(l10n.openActiveTrip),
-                            ),
-                          ],
-                        ],
+                        secondaryAction: canonicalOffers
+                            ? CardAction(
+                                key: const ValueKey(
+                                  'openCanonicalDriverOffers',
+                                ),
+                                label: l10n.canonicalDriverOffers,
+                                filled: false,
+                                onPressed: () =>
+                                    context.go('/driver/canonical-offers'),
+                              )
+                            : null,
                       ),
                     ),
                   ],
-                ),
+
+                  const SizedBox(height: AppTokens.spaceLarge),
+                  const Divider(),
+                  const RoleSecurityActions(),
+                  const Align(
+                    alignment: AlignmentDirectional.centerEnd,
+                    child: LanguageSwitch(),
+                  ),
+                ],
               ),
-              const SizedBox(height: AppTokens.spaceLarge),
-              OutlinedButton(
-                onPressed: () =>
-                    ref.read(driverDashboardProvider.notifier).refresh(),
-                child: Text(l10n.refresh),
-              ),
-              const RoleSecurityActions(),
-            ],
+            ),
           ),
         ),
+      ],
+    );
+  }
+
+  String _greeting(AppLocalizations l10n, String? name) {
+    final display = name?.trim();
+    final who = (display == null || display.isEmpty) ? l10n.driver : display;
+    final hour = DateTime.now().hour;
+    if (hour < 12) return l10n.greetingMorning(who);
+    if (hour < 17) return l10n.greetingAfternoon(who);
+    return l10n.greetingEvening(who);
+  }
+
+  /// Going online creates a corridor route; going offline deactivates it.
+  ///
+  /// Both are real API calls, so failures surface inline and the dashboard is
+  /// reloaded to show whatever the server actually decided.
+  Future<void> _toggleOnline(AppLocalizations l10n, bool value) async {
+    final current = ref.read(driverDashboardProvider).value?.currentRoute;
+
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final repository = ref.read(driverRepositoryProvider);
+      if (value) {
+        if (current == null) {
+          // Seats and capacity are chosen on the route screen; going online
+          // from here uses the smallest viable offer rather than guessing.
+          await repository.createRoute(
+            seatsAvailable: 1,
+            parcelCapacityAvailable: 0,
+          );
+        }
+      } else if (current != null && current.canDeactivate) {
+        await repository.deactivateRoute(current.id);
+      }
+      await ref.read(driverDashboardProvider.notifier).refresh();
+    } catch (error) {
+      if (mounted) setState(() => _error = driverErrorLabel(l10n, error));
+      await ref.read(driverDashboardProvider.notifier).refresh();
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+}
+
+/// The two headline stat cards.
+class _StatsRow extends StatelessWidget {
+  const _StatsRow({required this.stats});
+
+  final AsyncValue<DriverHomeStats> stats;
+
+  @override
+  Widget build(BuildContext context) {
+    return stats.when(
+      loading: () => const Row(
+        children: [
+          Expanded(child: LoadingSkeleton(height: 150)),
+          SizedBox(width: AppTokens.gutterMobile),
+          Expanded(child: LoadingSkeleton(height: 150)),
+        ],
+      ),
+      error: (error, _) => const SizedBox.shrink(),
+      data: (value) => Column(
+        children: [
+          if (value.isSample) ...[
+            OfflineBanner(
+              message: AppLocalizations.of(context).sampleDataNotice,
+              icon: Icons.science_outlined,
+            ),
+            const SizedBox(height: AppTokens.spaceMedium),
+          ],
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(child: EarningsCard(stats: value)),
+                const SizedBox(width: AppTokens.gutterMobile),
+                Expanded(child: TrustScoreCard(stats: value)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Proposed matches waiting on the driver.
+class _InboxSection extends StatelessWidget {
+  const _InboxSection({required this.dashboard});
+
+  final AsyncValue<DriverDashboardState> dashboard;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
+    return dashboard.when(
+      loading: () => const LoadingSkeleton.card(),
+      error: (error, _) => ErrorStateView(
+        title: driverErrorLabel(l10n, error),
+        retryLabel: l10n.retry,
+        onRetry: () {},
+      ),
+      data: (state) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          MasariInfoCard(
+            title: l10n.matchInbox,
+            icon: Icons.inbox_outlined,
+            emphasis: state.proposedMatchCount > 0,
+            body: StatStrip(
+              stats: [
+                (
+                  label: l10n.proposedMatches,
+                  value: '${state.proposedMatchCount}',
+                  valueKey: const ValueKey('proposedMatchCount'),
+                ),
+              ],
+            ),
+            primaryAction: CardAction(
+              key: const ValueKey('openMatchInbox'),
+              label: l10n.matchInbox,
+              onPressed: () => context.go('/driver/matches'),
+            ),
+          ),
+          if (state.activeTrip != null) ...[
+            const SizedBox(height: AppTokens.spaceMedium),
+            MasariInfoCard(
+              title: l10n.activeTrip,
+              icon: Icons.local_shipping_outlined,
+              statusLabel: driverStatusLabel(l10n, state.activeTrip!.status),
+              statusTone: statusToneFor(state.activeTrip!.status),
+              primaryAction: CardAction(
+                key: const ValueKey('openActiveTrip'),
+                label: l10n.openActiveTrip,
+                onPressed: () =>
+                    context.go('/driver/trip/${state.activeTrip!.id}'),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

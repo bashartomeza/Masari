@@ -41,3 +41,18 @@ dev_dependencies:
 flutter:
   generate: true
   uses-material-design: true
+
+  # Bundled rather than fetched at runtime: the app is used in low-bandwidth
+  # areas and must render Arabic correctly offline. Licence (OFL) ships
+  # alongside the files in assets/fonts/.
+  fonts:
+    - family: IBMPlexSansArabic
+      fonts:
+        - asset: assets/fonts/IBMPlexSansArabic-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/IBMPlexSansArabic-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/IBMPlexSansArabic-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/IBMPlexSansArabic-Bold.ttf
+          weight: 700

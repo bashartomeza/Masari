@@ -1,5 +1,7 @@
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:masari_mobile/l10n/app_localizations.dart';
 
 import '../../features/auth/application/auth_controller.dart';
 import '../../features/auth/domain/auth_models.dart';
@@ -13,6 +15,8 @@ import '../../features/canonical_assignments/presentation/canonical_assignment_s
 import '../../features/driver/presentation/driver_home_screen.dart';
 import '../../features/driver/presentation/driver_match_detail_screen.dart';
 import '../../features/driver/presentation/driver_match_inbox_screen.dart';
+import '../../features/driver/presentation/driver_my_trip_screen.dart';
+import '../../features/driver/presentation/driver_performance_screen.dart';
 import '../../features/driver/presentation/driver_route_screen.dart';
 import '../../features/driver/presentation/driver_trip_screen.dart';
 import '../../features/matching/presentation/match_detail_screen.dart';
@@ -21,14 +25,68 @@ import '../../features/merchant/presentation/merchant_home_screen.dart';
 import '../../features/merchant/presentation/merchant_match_detail_screen.dart';
 import '../../features/merchant/presentation/merchant_match_inbox_screen.dart';
 import '../../features/merchant/presentation/merchant_order_detail_screen.dart';
+import '../../features/merchant/presentation/merchant_reports_screen.dart';
+import '../../features/merchant/presentation/merchant_shipments_screen.dart';
 import '../../features/merchant/presentation/merchant_trip_screen.dart';
+import '../../features/notifications/presentation/notifications_screen.dart';
 import '../../features/onboarding/presentation/onboarding_flow_screen.dart';
 import '../../features/onboarding/presentation/pending_status_recovery_screen.dart';
 import '../../features/passenger/presentation/create_request_screen.dart';
 import '../../features/passenger/presentation/passenger_home_screen.dart';
+import '../../features/passenger/presentation/passenger_map_alerts_screen.dart';
+import '../../features/passenger/presentation/passenger_trips_screen.dart';
 import '../../features/passenger/presentation/request_detail_screen.dart';
 import '../../features/security/presentation/session_management_screen.dart';
 import '../../features/trips/presentation/passenger_trip_screen.dart';
+import '../widgets/role_nav_scaffold.dart';
+
+/// Account tab path per role.
+///
+/// Each role needs its own path because a path may belong to only one shell
+/// branch, and the account tab exists in all three shells. The historical
+/// `/security/sessions` link still works — [_accountRedirect] maps it onto the
+/// signed-in role's tab.
+const passengerAccountPath = '/passenger/account';
+const driverAccountPath = '/driver/account';
+const merchantAccountPath = '/merchant/account';
+
+/// The legacy shared entry point for session management, kept so existing deep
+/// links and in-app links keep resolving.
+const securitySessionsPath = '/security/sessions';
+
+/// Branch navigators. Each keeps its own page stack and scroll position, which
+/// is what makes tab state survive switching.
+final _passengerHomeKey = GlobalKey<NavigatorState>(debugLabel: 'passengerHome');
+final _passengerTripsKey = GlobalKey<NavigatorState>(
+  debugLabel: 'passengerTrips',
+);
+final _passengerMapKey = GlobalKey<NavigatorState>(debugLabel: 'passengerMap');
+final _passengerAlertsKey = GlobalKey<NavigatorState>(
+  debugLabel: 'passengerAlerts',
+);
+final _passengerAccountKey = GlobalKey<NavigatorState>(
+  debugLabel: 'passengerAccount',
+);
+final _driverHomeKey = GlobalKey<NavigatorState>(debugLabel: 'driverHome');
+final _driverInboxKey = GlobalKey<NavigatorState>(debugLabel: 'driverInbox');
+final _driverTripKey = GlobalKey<NavigatorState>(debugLabel: 'driverTrip');
+final _driverPerformanceKey = GlobalKey<NavigatorState>(
+  debugLabel: 'driverPerformance',
+);
+final _driverAccountKey = GlobalKey<NavigatorState>(debugLabel: 'driverAccount');
+final _merchantHomeKey = GlobalKey<NavigatorState>(debugLabel: 'merchantHome');
+final _merchantOrdersKey = GlobalKey<NavigatorState>(
+  debugLabel: 'merchantOrders',
+);
+final _merchantReportsKey = GlobalKey<NavigatorState>(
+  debugLabel: 'merchantReports',
+);
+final _merchantAlertsKey = GlobalKey<NavigatorState>(
+  debugLabel: 'merchantAlerts',
+);
+final _merchantAccountKey = GlobalKey<NavigatorState>(
+  debugLabel: 'merchantAccount',
+);
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final auth = ref.watch(authControllerProvider.select(authRoutingSnapshotFor));
@@ -51,146 +109,344 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/onboarding/recover',
         builder: (context, state) => const PendingStatusRecoveryScreen(),
       ),
+
+      // ---------------------------------------------------------------------
+      // Intentional full-screen flows.
+      //
+      // These sit outside every shell, so they render without a navigation bar:
+      // creating a request or order is a focused task, and a live trip is a
+      // map experience that needs the full viewport.
+      //
+      // They are declared *before* the shells on purpose. Routes match in
+      // declaration order, so `/passenger/request/new` has to come before the
+      // shell's `/passenger/request/:id` or `new` would be read as an id.
+      // ---------------------------------------------------------------------
       GoRoute(
-        path: '/passenger',
-        builder: (context, state) => const PassengerHomeScreen(),
-        routes: [
-          GoRoute(
-            path: 'request/new',
-            builder: (context, state) => const CreateRequestScreen(),
+        path: '/passenger/request/new',
+        builder: (context, state) => const CreateRequestScreen(),
+      ),
+      GoRoute(
+        path: '/passenger/routes/request/new',
+        builder: (context, state) => const PassengerRouteRequestScreen(),
+      ),
+      GoRoute(
+        path: '/passenger/trip/:id',
+        builder: (context, state) =>
+            PassengerTripScreen(tripId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/driver/availability/new',
+        builder: (context, state) => const DriverAvailabilityFormScreen(),
+      ),
+      GoRoute(
+        path: '/driver/trip/:id',
+        builder: (context, state) =>
+            DriverTripScreen(tripId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/merchant/order/new',
+        builder: (context, state) => const CreateMerchantOrderScreen(),
+      ),
+      GoRoute(
+        path: '/merchant/routes/order/new',
+        builder: (context, state) => const MerchantRouteOrderScreen(),
+      ),
+      GoRoute(
+        path: '/merchant/trip/:id',
+        builder: (context, state) =>
+            MerchantTripScreen(tripId: state.pathParameters['id']!),
+      ),
+
+      // ---------------------------------------------------------------------
+      // Passenger shell.
+      // ---------------------------------------------------------------------
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) => RoleShellScaffold(
+          navigationShell: navigationShell,
+          destinations: RoleNavDestinations.passenger(
+            AppLocalizations.of(context),
           ),
-          GoRoute(
-            path: 'routes/request/new',
-            builder: (context, state) => const PassengerRouteRequestScreen(),
+        ),
+        branches: [
+          StatefulShellBranch(
+            navigatorKey: _passengerHomeKey,
+            routes: [
+              GoRoute(
+                path: '/passenger',
+                builder: (context, state) => const PassengerHomeScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'request/:id',
+                    builder: (context, state) =>
+                        RequestDetailScreen(requestId: state.pathParameters['id']!),
+                  ),
+                  GoRoute(
+                    path: 'match/:id',
+                    builder: (context, state) =>
+                        MatchDetailScreen(matchId: state.pathParameters['id']!),
+                  ),
+                ],
+              ),
+            ],
           ),
-          GoRoute(
-            path: 'canonical-assignments',
-            builder: (context, state) =>
-                const CanonicalAssignmentListScreen(role: 'passenger'),
+          // "My trips" roots at the passenger's own request history. Canonical
+          // assignments live under it as a sibling rather than as the root:
+          // they are one kind of trip, not the whole tab, and the existing
+          // `/passenger/canonical-assignments` deep link is preserved exactly.
+          StatefulShellBranch(
+            navigatorKey: _passengerTripsKey,
+            routes: [
+              GoRoute(
+                path: '/passenger/trips',
+                builder: (context, state) => const PassengerTripsScreen(),
+              ),
+              GoRoute(
+                path: '/passenger/canonical-assignments',
+                builder: (context, state) =>
+                    const CanonicalAssignmentListScreen(role: 'passenger'),
+                routes: [
+                  GoRoute(
+                    path: ':id',
+                    builder: (context, state) => CanonicalAssignmentDetailScreen(
+                      role: 'passenger',
+                      assignmentId: state.pathParameters['id']!,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          GoRoute(
-            path: 'canonical-assignments/:id',
-            builder: (context, state) => CanonicalAssignmentDetailScreen(
-              role: 'passenger',
-              assignmentId: state.pathParameters['id']!,
-            ),
+          StatefulShellBranch(
+            navigatorKey: _passengerMapKey,
+            routes: [
+              GoRoute(
+                path: '/passenger/map',
+                builder: (context, state) => const PassengerMapAlertsScreen(),
+              ),
+            ],
           ),
-          GoRoute(
-            path: 'request/:id',
-            builder: (context, state) =>
-                RequestDetailScreen(requestId: state.pathParameters['id']!),
+          StatefulShellBranch(
+            navigatorKey: _passengerAlertsKey,
+            routes: [
+              GoRoute(
+                path: '/passenger/notifications',
+                builder: (context, state) => const NotificationsScreen(),
+              ),
+            ],
           ),
-          GoRoute(
-            path: 'match/:id',
-            builder: (context, state) =>
-                MatchDetailScreen(matchId: state.pathParameters['id']!),
-          ),
-          GoRoute(
-            path: 'trip/:id',
-            builder: (context, state) =>
-                PassengerTripScreen(tripId: state.pathParameters['id']!),
+          StatefulShellBranch(
+            navigatorKey: _passengerAccountKey,
+            routes: [
+              GoRoute(
+                path: passengerAccountPath,
+                builder: (context, state) => const SessionManagementScreen(),
+              ),
+            ],
           ),
         ],
       ),
-      GoRoute(
-        path: '/driver',
-        builder: (context, state) => const DriverHomeScreen(),
-        routes: [
-          GoRoute(
-            path: 'route',
-            builder: (context, state) => const DriverRouteScreen(),
+
+      // ---------------------------------------------------------------------
+      // Driver shell.
+      // ---------------------------------------------------------------------
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) => RoleShellScaffold(
+          navigationShell: navigationShell,
+          destinations: RoleNavDestinations.driver(AppLocalizations.of(context)),
+        ),
+        branches: [
+          StatefulShellBranch(
+            navigatorKey: _driverHomeKey,
+            routes: [
+              GoRoute(
+                path: '/driver',
+                builder: (context, state) => const DriverHomeScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'route',
+                    builder: (context, state) => const DriverRouteScreen(),
+                  ),
+                  GoRoute(
+                    path: 'availabilities',
+                    builder: (context, state) =>
+                        const DriverAvailabilityListScreen(),
+                  ),
+                  GoRoute(
+                    path: 'availability/:id',
+                    builder: (context, state) => DriverAvailabilityDetailScreen(
+                      availabilityId: state.pathParameters['id']!,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          GoRoute(
-            path: 'availabilities',
-            builder: (context, state) => const DriverAvailabilityListScreen(),
+          StatefulShellBranch(
+            navigatorKey: _driverInboxKey,
+            routes: [
+              GoRoute(
+                path: '/driver/matches',
+                builder: (context, state) => const DriverMatchInboxScreen(),
+              ),
+              // A sibling rather than a child: the existing `/driver/match/:id`
+              // deep link is preserved exactly, and living in this branch means
+              // a match detail returns to the inbox tab.
+              GoRoute(
+                path: '/driver/match/:id',
+                builder: (context, state) =>
+                    DriverMatchDetailScreen(matchId: state.pathParameters['id']!),
+              ),
+              GoRoute(
+                path: '/driver/canonical-offers',
+                builder: (context, state) =>
+                    const DriverCanonicalOfferListScreen(),
+                routes: [
+                  GoRoute(
+                    path: ':id',
+                    builder: (context, state) =>
+                        DriverCanonicalOfferDetailScreen(
+                          offerId: state.pathParameters['id']!,
+                        ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          GoRoute(
-            path: 'canonical-offers',
-            builder: (context, state) => const DriverCanonicalOfferListScreen(),
+          // The live trip as a tab. It resolves the driver's active trip
+          // itself, so the tab needs no id — the `/driver/trip/:id` full-screen
+          // route above still serves links that name one.
+          StatefulShellBranch(
+            navigatorKey: _driverTripKey,
+            routes: [
+              GoRoute(
+                path: '/driver/my-trip',
+                builder: (context, state) => const DriverMyTripScreen(),
+              ),
+            ],
           ),
-          GoRoute(
-            path: 'canonical-offers/:id',
-            builder: (context, state) => DriverCanonicalOfferDetailScreen(
-              offerId: state.pathParameters['id']!,
-            ),
+          StatefulShellBranch(
+            navigatorKey: _driverPerformanceKey,
+            routes: [
+              GoRoute(
+                path: '/driver/performance',
+                builder: (context, state) => const DriverPerformanceScreen(),
+              ),
+            ],
           ),
-          GoRoute(
-            path: 'availability/new',
-            builder: (context, state) => const DriverAvailabilityFormScreen(),
-          ),
-          GoRoute(
-            path: 'availability/:id',
-            builder: (context, state) => DriverAvailabilityDetailScreen(
-              availabilityId: state.pathParameters['id']!,
-            ),
-          ),
-          GoRoute(
-            path: 'matches',
-            builder: (context, state) => const DriverMatchInboxScreen(),
-          ),
-          GoRoute(
-            path: 'match/:id',
-            builder: (context, state) =>
-                DriverMatchDetailScreen(matchId: state.pathParameters['id']!),
-          ),
-          GoRoute(
-            path: 'trip/:id',
-            builder: (context, state) =>
-                DriverTripScreen(tripId: state.pathParameters['id']!),
+          StatefulShellBranch(
+            navigatorKey: _driverAccountKey,
+            routes: [
+              GoRoute(
+                path: driverAccountPath,
+                builder: (context, state) => const SessionManagementScreen(),
+              ),
+            ],
           ),
         ],
       ),
-      GoRoute(
-        path: '/merchant',
-        builder: (context, state) => const MerchantHomeScreen(),
-        routes: [
-          GoRoute(
-            path: 'order/new',
-            builder: (context, state) => const CreateMerchantOrderScreen(),
+
+      // ---------------------------------------------------------------------
+      // Merchant shell.
+      // ---------------------------------------------------------------------
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) => RoleShellScaffold(
+          navigationShell: navigationShell,
+          destinations: RoleNavDestinations.merchant(
+            AppLocalizations.of(context),
           ),
-          GoRoute(
-            path: 'routes/order/new',
-            builder: (context, state) => const MerchantRouteOrderScreen(),
+        ),
+        branches: [
+          StatefulShellBranch(
+            navigatorKey: _merchantHomeKey,
+            routes: [
+              GoRoute(
+                path: '/merchant',
+                builder: (context, state) => const MerchantHomeScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'order/:id',
+                    builder: (context, state) => MerchantOrderDetailScreen(
+                      orderId: state.pathParameters['id']!,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          GoRoute(
-            path: 'canonical-assignments',
-            builder: (context, state) =>
-                const CanonicalAssignmentListScreen(role: 'merchant'),
+          // The shipments tab. It roots at the merchant's own orders — this
+          // branch previously rooted at the match inbox while being labelled
+          // "orders", so `GET /merchant/orders` had no list of its own. The
+          // inbox stays here as a sibling, reachable from the shipments screen
+          // and by its unchanged `/merchant/matches` link.
+          StatefulShellBranch(
+            navigatorKey: _merchantOrdersKey,
+            routes: [
+              GoRoute(
+                path: '/merchant/shipments',
+                builder: (context, state) => const MerchantShipmentsScreen(),
+              ),
+              GoRoute(
+                path: '/merchant/matches',
+                builder: (context, state) => const MerchantMatchInboxScreen(),
+              ),
+              GoRoute(
+                path: '/merchant/match/:id',
+                builder: (context, state) => MerchantMatchDetailScreen(
+                  matchId: state.pathParameters['id']!,
+                ),
+              ),
+              GoRoute(
+                path: '/merchant/canonical-assignments',
+                builder: (context, state) =>
+                    const CanonicalAssignmentListScreen(role: 'merchant'),
+                routes: [
+                  GoRoute(
+                    path: ':id',
+                    builder: (context, state) => CanonicalAssignmentDetailScreen(
+                      role: 'merchant',
+                      assignmentId: state.pathParameters['id']!,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          GoRoute(
-            path: 'canonical-assignments/:id',
-            builder: (context, state) => CanonicalAssignmentDetailScreen(
-              role: 'merchant',
-              assignmentId: state.pathParameters['id']!,
-            ),
+          StatefulShellBranch(
+            navigatorKey: _merchantReportsKey,
+            routes: [
+              GoRoute(
+                path: '/merchant/reports',
+                builder: (context, state) => const MerchantReportsScreen(),
+              ),
+            ],
           ),
-          GoRoute(
-            path: 'order/:id',
-            builder: (context, state) =>
-                MerchantOrderDetailScreen(orderId: state.pathParameters['id']!),
+          StatefulShellBranch(
+            navigatorKey: _merchantAlertsKey,
+            routes: [
+              GoRoute(
+                path: '/merchant/notifications',
+                builder: (context, state) => const NotificationsScreen(),
+              ),
+            ],
           ),
-          GoRoute(
-            path: 'matches',
-            builder: (context, state) => const MerchantMatchInboxScreen(),
-          ),
-          GoRoute(
-            path: 'match/:id',
-            builder: (context, state) =>
-                MerchantMatchDetailScreen(matchId: state.pathParameters['id']!),
-          ),
-          GoRoute(
-            path: 'trip/:id',
-            builder: (context, state) =>
-                MerchantTripScreen(tripId: state.pathParameters['id']!),
+          StatefulShellBranch(
+            navigatorKey: _merchantAccountKey,
+            routes: [
+              GoRoute(
+                path: merchantAccountPath,
+                builder: (context, state) => const SessionManagementScreen(),
+              ),
+            ],
           ),
         ],
       ),
+
       GoRoute(
         path: '/unsupported-role',
         builder: (context, state) => const UnsupportedRoleScreen(),
       ),
       GoRoute(
-        path: '/security/sessions',
+        path: securitySessionsPath,
         builder: (context, state) => const SessionManagementScreen(),
       ),
     ],
@@ -220,12 +476,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         return '/login';
       }
 
-      final target = routeForRole(auth.user!.role);
-      if (path == '/security/sessions' &&
-          auth.user!.role != UserRole.admin &&
-          auth.user!.role != UserRole.unsupported) {
-        return null;
+      final role = auth.user!.role;
+      final target = routeForRole(role);
+
+      // Send the shared security link to the signed-in role's account tab, so
+      // it lands inside the shell and keeps the navigation bar. Admin and
+      // unsupported roles fall through to the role guard below, which is what
+      // keeps session management off-limits to them.
+      if (path == securitySessionsPath) {
+        final account = accountRouteForRole(role);
+        if (account != null) return account;
       }
+
       if (path == target || path.startsWith('$target/')) {
         return null;
       }
@@ -262,5 +524,15 @@ String routeForRole(UserRole role) {
     UserRole.driver => '/driver',
     UserRole.merchant => '/merchant',
     UserRole.admin || UserRole.unsupported => '/unsupported-role',
+  };
+}
+
+/// The account tab for a role, or null for roles that have no mobile shell.
+String? accountRouteForRole(UserRole role) {
+  return switch (role) {
+    UserRole.passenger => passengerAccountPath,
+    UserRole.driver => driverAccountPath,
+    UserRole.merchant => merchantAccountPath,
+    UserRole.admin || UserRole.unsupported => null,
   };
 }

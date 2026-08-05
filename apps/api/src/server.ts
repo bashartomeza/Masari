@@ -1,10 +1,12 @@
 import { createApp } from "./app.js";
 import { config } from "./config.js";
+import { startCanonicalDispatchWorker } from "./lib/canonicalDispatchWorker.js";
 import { createOperationalLogger } from "./lib/logger.js";
 import { prisma } from "./lib/prisma.js";
 
 const logger = createOperationalLogger(config);
 const app = createApp(config, { logger });
+const canonicalDispatchWorker = startCanonicalDispatchWorker(config, logger);
 let shuttingDown = false;
 
 const server = app.listen(config.port, () => {
@@ -14,6 +16,7 @@ const server = app.listen(config.port, () => {
 async function shutdown(signal: NodeJS.Signals) {
   if (shuttingDown) return;
   shuttingDown = true;
+  canonicalDispatchWorker?.stop();
   logger.info({ event: "shutdown_started", signal }, "Masari API shutdown started");
 
   const forcedExit = setTimeout(() => {
