@@ -152,9 +152,9 @@ class _DriverMatchDetailScreenState
         // it is the least useful thing on the screen to a driver deciding.
         const SizedBox(height: AppTokens.spaceLarge),
         DefaultTextStyle.merge(
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: AppTheme.onSurfaceVariant,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.labelSmall?.copyWith(color: AppTheme.onSurfaceVariant),
           textAlign: TextAlign.center,
           child: technicalText(match.id, selectable: true),
         ),

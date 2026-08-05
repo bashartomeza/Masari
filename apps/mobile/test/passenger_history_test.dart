@@ -76,11 +76,14 @@ void main() {
     ].map((r) => r.id).toList();
 
     expect(placed.toSet(), hasLength(placed.length), reason: 'no duplicates');
-    expect(
-      placed.toSet(),
-      {'due', 'later', 'moving', 'done', 'dropped', 'gone'},
-      reason: 'nothing dropped',
-    );
+    expect(placed.toSet(), {
+      'due',
+      'later',
+      'moving',
+      'done',
+      'dropped',
+      'gone',
+    }, reason: 'nothing dropped');
   });
 
   test('buckets are newest first', () {

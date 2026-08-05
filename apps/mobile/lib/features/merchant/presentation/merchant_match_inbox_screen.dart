@@ -37,7 +37,8 @@ class MerchantMatchInboxScreen extends ConsumerWidget {
         top: false,
         bottom: false,
         child: RefreshIndicator(
-          onRefresh: () => ref.read(merchantMatchInboxProvider.notifier).refresh(),
+          onRefresh: () =>
+              ref.read(merchantMatchInboxProvider.notifier).refresh(),
           child: ListView(
             padding: const EdgeInsets.fromLTRB(
               AppTokens.marginMobile,

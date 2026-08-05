@@ -11,11 +11,42 @@ const prismaMock = vi.hoisted(() => ({
 vi.mock("../lib/prisma.js", () => ({ prisma: prismaMock }));
 
 const { createApp } = await import("../app.js");
-const { resetDemoData } = await import("../modules/demoReset.js");
+const { canonicalDemoSeedEnabled, resetDemoData } = await import("../modules/demoReset.js");
 
 describe("demo reset", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("seeds canonical dispatch supply only behind the complete dispatch gate", () => {
+    expect(
+      canonicalDemoSeedEnabled({
+        multiRouteEntryEnabled: true,
+        multiRouteMatchingEnabled: true,
+        canonicalTripCreationEnabled: true
+      })
+    ).toBe(true);
+    expect(
+      canonicalDemoSeedEnabled({
+        multiRouteEntryEnabled: true,
+        multiRouteMatchingEnabled: false,
+        canonicalTripCreationEnabled: true
+      })
+    ).toBe(false);
+    expect(
+      canonicalDemoSeedEnabled({
+        multiRouteEntryEnabled: false,
+        multiRouteMatchingEnabled: false,
+        canonicalTripCreationEnabled: false
+      })
+    ).toBe(false);
+    expect(
+      canonicalDemoSeedEnabled({
+        multiRouteEntryEnabled: true,
+        multiRouteMatchingEnabled: true,
+        canonicalTripCreationEnabled: false
+      })
+    ).toBe(false);
   });
 
   it("rejects reset without admin token or reset key", async () => {

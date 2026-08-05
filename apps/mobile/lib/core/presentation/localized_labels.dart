@@ -28,7 +28,8 @@ String localizedCorridorPlace(BuildContext context, String label) {
     'Bethlehem University Area' => 'منطقة جامعة بيت لحم',
     'Manger Street' => 'شارع المهد',
     'Beit Jala Junction' => 'مفرق بيت جالا',
-    'Hebron / PPU / Bab Al-Zawiya' => 'الخليل / جامعة بوليتكنك فلسطين / باب الزاوية',
+    'Hebron / PPU / Bab Al-Zawiya' =>
+      'الخليل / جامعة بوليتكنك فلسطين / باب الزاوية',
     'Hebron Merchant Pickup' => 'نقطة استلام التاجر - الخليل',
     _ => label,
   };

@@ -12,6 +12,13 @@ final driverRepositoryProvider = Provider<DriverRepository>((ref) {
   return DriverRepository(apiClient: ref.watch(authenticatedApiClientProvider));
 });
 
+/// The signed-in driver's own trust score. This actor-private cache must be
+/// invalidated with the rest of the authenticated providers on every terminal
+/// session transition.
+final driverTrustScoreProvider = FutureProvider<int?>((ref) async {
+  return ref.watch(driverRepositoryProvider).ownTrustScore();
+});
+
 class DriverRepository {
   const DriverRepository({required this.apiClient});
 

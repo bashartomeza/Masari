@@ -99,57 +99,57 @@ class DriverStatusCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(AppTokens.spaceMedium),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          greeting,
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            color: AppTheme.primary,
-                            fontWeight: FontWeight.w700,
+              child: Padding(
+                padding: const EdgeInsets.all(AppTokens.spaceMedium),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            greeting,
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              color: AppTheme.primary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+                          const SizedBox(height: AppTokens.spaceExtraSmall),
+                          Text(
+                            subtitle,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: AppTheme.onSurfaceVariant,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: AppTokens.spaceSmall),
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Switch(
+                          key: const ValueKey('driverOnlineSwitch'),
+                          value: isOnline,
+                          onChanged: busy ? null : onChanged,
                         ),
-                        const SizedBox(height: AppTokens.spaceExtraSmall),
                         Text(
-                          subtitle,
-                          style: theme.textTheme.bodySmall?.copyWith(
+                          isOnline ? l10n.driverOnline : l10n.driverOffline,
+                          style: theme.textTheme.labelSmall?.copyWith(
                             color: AppTheme.onSurfaceVariant,
                           ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
                         ),
                       ],
                     ),
-                  ),
-                  const SizedBox(width: AppTokens.spaceSmall),
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Switch(
-                        key: const ValueKey('driverOnlineSwitch'),
-                        value: isOnline,
-                        onChanged: busy ? null : onChanged,
-                      ),
-                      Text(
-                        isOnline ? l10n.driverOnline : l10n.driverOffline,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: AppTheme.onSurfaceVariant,
-                        ),
-                        maxLines: 1,
-                      ),
-                    ],
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
             // Status stripe on the trailing edge. Unlike the reference
             // design's fixed accent, its colour encodes the online state, so
             // the card's meaning survives a glance without reading the switch.

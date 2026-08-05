@@ -29,6 +29,18 @@ export const DEMO_ACCOUNTS = {
 
 export const CANONICAL_MODE = "canonical_route_v1";
 
+export function canonicalDemoSeedEnabled(appConfig: {
+  multiRouteEntryEnabled: boolean;
+  multiRouteMatchingEnabled: boolean;
+  canonicalTripCreationEnabled: boolean;
+}) {
+  return (
+    appConfig.multiRouteEntryEnabled &&
+    appConfig.multiRouteMatchingEnabled &&
+    appConfig.canonicalTripCreationEnabled
+  );
+}
+
 /**
  * Anchors every seeded timestamp to the moment of the reset.
  *
@@ -91,6 +103,7 @@ export async function resetDemoData(db: PrismaClient = prisma) {
     throw new HttpError(404, "not_found");
   }
   const schedule = demoSchedule();
+  const seedCanonicalDispatch = canonicalDemoSeedEnabled(config);
   return db.$transaction(async (tx) => {
     const onboardedUsers = await tx.onboardingAttempt.findMany({
       where: { completed_user_id: { not: null } },
@@ -397,43 +410,59 @@ export async function resetDemoData(db: PrismaClient = prisma) {
     // Left in `draft` on purpose: the driver activates it from the app during
     // the demo, so step 2 exercises the real activation transition instead of
     // being pre-done by the seed.
-    const primaryAvailability = await tx.driverRoute.create({
-      data: {
-        ...canonicalAvailabilityBase,
-        driver_id: driver1.id,
-        seats_available: 3,
-        parcel_capacity_available: 5,
-        total_seats: 3,
-        remaining_seats: 3,
-        total_parcel_capacity: 5,
-        remaining_parcel_capacity: 5,
-        departure_at: schedule.primaryDeparture,
-        availability_window_end: schedule.primaryWindowEnd,
-        availability_status: "draft",
-        status: "inactive"
-      }
-    });
+    let canonicalAvailabilities = null;
+    if (seedCanonicalDispatch) {
+      const primaryAvailability = await tx.driverRoute.create({
+        data: {
+          ...canonicalAvailabilityBase,
+          driver_id: driver1.id,
+          seats_available: 3,
+          parcel_capacity_available: 5,
+          total_seats: 3,
+          remaining_seats: 3,
+          total_parcel_capacity: 5,
+          remaining_parcel_capacity: 5,
+          departure_at: schedule.primaryDeparture,
+          availability_window_end: schedule.primaryWindowEnd,
+          availability_status: "draft",
+          status: "inactive"
+        }
+      });
 
-    // Already active, but departing outside the demo passenger's window. It
-    // proves the matcher genuinely filters on departure time rather than just
-    // picking the only row, and keeps the ranking deterministic.
-    const alternateAvailability = await tx.driverRoute.create({
-      data: {
-        ...canonicalAvailabilityBase,
-        driver_id: driver2.id,
-        seats_available: 2,
-        parcel_capacity_available: 8,
-        total_seats: 2,
-        remaining_seats: 2,
-        total_parcel_capacity: 8,
-        remaining_parcel_capacity: 8,
-        departure_at: schedule.alternateDeparture,
-        availability_window_end: schedule.alternateWindowEnd,
-        availability_status: "active",
-        status: "active",
-        activated_at: new Date()
-      }
-    });
+      // Already active, but departing outside the demo passenger's window. It
+      // proves the matcher genuinely filters on departure time rather than just
+      // picking the only row, and keeps the ranking deterministic.
+      const alternateAvailability = await tx.driverRoute.create({
+        data: {
+          ...canonicalAvailabilityBase,
+          driver_id: driver2.id,
+          seats_available: 2,
+          parcel_capacity_available: 8,
+          total_seats: 2,
+          remaining_seats: 2,
+          total_parcel_capacity: 8,
+          remaining_parcel_capacity: 8,
+          departure_at: schedule.alternateDeparture,
+          availability_window_end: schedule.alternateWindowEnd,
+          availability_status: "active",
+          status: "active",
+          activated_at: new Date()
+        }
+      });
+      canonicalAvailabilities = {
+        primary: {
+          id: primaryAvailability.id,
+          status: primaryAvailability.availability_status,
+          revision: primaryAvailability.availability_revision,
+          departure_at: primaryAvailability.departure_at
+        },
+        alternate: {
+          id: alternateAvailability.id,
+          status: alternateAvailability.availability_status,
+          departure_at: alternateAvailability.departure_at
+        }
+      };
+    }
 
     await tx.passengerRequest.create({
       data: {
@@ -535,19 +564,7 @@ export async function resetDemoData(db: PrismaClient = prisma) {
         passenger_pickup: passengerPickupStop.id,
         destination: destinationStop.id
       },
-      canonical_availabilities: {
-        primary: {
-          id: primaryAvailability.id,
-          status: primaryAvailability.availability_status,
-          revision: primaryAvailability.availability_revision,
-          departure_at: primaryAvailability.departure_at
-        },
-        alternate: {
-          id: alternateAvailability.id,
-          status: alternateAvailability.availability_status,
-          departure_at: alternateAvailability.departure_at
-        }
-      },
+      canonical_availabilities: canonicalAvailabilities,
       passenger_window: {
         from: schedule.passengerFrom,
         until: schedule.passengerUntil

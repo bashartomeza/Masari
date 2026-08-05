@@ -57,7 +57,9 @@ const securitySessionsPath = '/security/sessions';
 
 /// Branch navigators. Each keeps its own page stack and scroll position, which
 /// is what makes tab state survive switching.
-final _passengerHomeKey = GlobalKey<NavigatorState>(debugLabel: 'passengerHome');
+final _passengerHomeKey = GlobalKey<NavigatorState>(
+  debugLabel: 'passengerHome',
+);
 final _passengerTripsKey = GlobalKey<NavigatorState>(
   debugLabel: 'passengerTrips',
 );
@@ -74,7 +76,9 @@ final _driverTripKey = GlobalKey<NavigatorState>(debugLabel: 'driverTrip');
 final _driverPerformanceKey = GlobalKey<NavigatorState>(
   debugLabel: 'driverPerformance',
 );
-final _driverAccountKey = GlobalKey<NavigatorState>(debugLabel: 'driverAccount');
+final _driverAccountKey = GlobalKey<NavigatorState>(
+  debugLabel: 'driverAccount',
+);
 final _merchantHomeKey = GlobalKey<NavigatorState>(debugLabel: 'merchantHome');
 final _merchantOrdersKey = GlobalKey<NavigatorState>(
   debugLabel: 'merchantOrders',
@@ -178,8 +182,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 routes: [
                   GoRoute(
                     path: 'request/:id',
-                    builder: (context, state) =>
-                        RequestDetailScreen(requestId: state.pathParameters['id']!),
+                    builder: (context, state) => RequestDetailScreen(
+                      requestId: state.pathParameters['id']!,
+                    ),
                   ),
                   GoRoute(
                     path: 'match/:id',
@@ -208,10 +213,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 routes: [
                   GoRoute(
                     path: ':id',
-                    builder: (context, state) => CanonicalAssignmentDetailScreen(
-                      role: 'passenger',
-                      assignmentId: state.pathParameters['id']!,
-                    ),
+                    builder: (context, state) =>
+                        CanonicalAssignmentDetailScreen(
+                          role: 'passenger',
+                          assignmentId: state.pathParameters['id']!,
+                        ),
                   ),
                 ],
               ),
@@ -253,7 +259,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) => RoleShellScaffold(
           navigationShell: navigationShell,
-          destinations: RoleNavDestinations.driver(AppLocalizations.of(context)),
+          destinations: RoleNavDestinations.driver(
+            AppLocalizations.of(context),
+          ),
         ),
         branches: [
           StatefulShellBranch(
@@ -294,8 +302,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               // a match detail returns to the inbox tab.
               GoRoute(
                 path: '/driver/match/:id',
-                builder: (context, state) =>
-                    DriverMatchDetailScreen(matchId: state.pathParameters['id']!),
+                builder: (context, state) => DriverMatchDetailScreen(
+                  matchId: state.pathParameters['id']!,
+                ),
               ),
               GoRoute(
                 path: '/driver/canonical-offers',
@@ -313,7 +322,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               ),
               GoRoute(
                 path: '/driver/shared-offers',
-                builder: (context, state) => const DriverSharedOfferListScreen(),
+                builder: (context, state) =>
+                    const DriverSharedOfferListScreen(),
                 routes: [
                   GoRoute(
                     path: ':id',
@@ -415,10 +425,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 routes: [
                   GoRoute(
                     path: ':id',
-                    builder: (context, state) => CanonicalAssignmentDetailScreen(
-                      role: 'merchant',
-                      assignmentId: state.pathParameters['id']!,
-                    ),
+                    builder: (context, state) =>
+                        CanonicalAssignmentDetailScreen(
+                          role: 'merchant',
+                          assignmentId: state.pathParameters['id']!,
+                        ),
                   ),
                 ],
               ),

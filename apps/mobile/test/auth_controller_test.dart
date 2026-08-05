@@ -8,6 +8,7 @@ import 'package:masari_mobile/core/config/app_config.dart';
 import 'package:masari_mobile/features/auth/application/auth_controller.dart';
 import 'package:masari_mobile/features/auth/data/token_storage.dart';
 import 'package:masari_mobile/features/auth/domain/auth_models.dart';
+import 'package:masari_mobile/features/driver/data/driver_repository.dart';
 import 'package:masari_mobile/features/onboarding/data/onboarding_storage.dart';
 import 'package:masari_mobile/features/passenger/application/passenger_history_controller.dart';
 
@@ -198,6 +199,32 @@ void main() {
       container.read(passengerHistoryProvider).isLoading,
       isTrue,
       reason: 'the previous account\'s trips must not survive as settled data',
+    );
+  });
+
+  test('logout invalidates the actor-private driver trust score', () async {
+    FlutterSecureStorage.setMockInitialValues({
+      TokenStorage.tokenKey: 'saved-token',
+    });
+    final container = _container((request) async {
+      return http.Response(
+        '{"user":{"id":"driver_1","name":"Driver One","phone":"+970590000002","role":"driver","demo_account":true},'
+        '"driver_profile":{"trust_score":86}}',
+        200,
+      );
+    });
+    addTearDown(container.dispose);
+
+    await container.read(authControllerProvider.future);
+    expect(await container.read(driverTrustScoreProvider.future), 86);
+    expect(container.read(driverTrustScoreProvider).isLoading, isFalse);
+
+    await container.read(authControllerProvider.notifier).logout();
+
+    expect(
+      container.read(driverTrustScoreProvider).isLoading,
+      isTrue,
+      reason: 'another driver must not inherit the previous actor\'s score',
     );
   });
 }

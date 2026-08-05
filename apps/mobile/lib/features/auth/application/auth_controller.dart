@@ -4,6 +4,7 @@ import '../../../core/api/api_error.dart';
 import '../../canonical_assignments/application/canonical_assignment_controller.dart';
 import '../../canonical_routes/application/canonical_route_controller.dart';
 import '../../driver/application/driver_controller.dart';
+import '../../driver/data/driver_repository.dart';
 import '../../merchant/application/merchant_controller.dart';
 import '../../onboarding/application/onboarding_controller.dart';
 import '../../onboarding/data/onboarding_storage.dart';
@@ -205,6 +206,7 @@ class AuthController extends AsyncNotifier<AuthState> {
     ref.invalidate(passengerRequestDetailProvider);
     ref.invalidate(passengerTripControllerProvider);
     ref.invalidate(driverDashboardProvider);
+    ref.invalidate(driverTrustScoreProvider);
     ref.invalidate(driverRouteControllerProvider);
     ref.invalidate(driverMatchInboxProvider);
     ref.invalidate(driverMatchDetailProvider);

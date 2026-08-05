@@ -116,10 +116,7 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                   const SizedBox(height: AppTokens.spaceMedium),
                   // Never fakes a position: with no coordinates it renders an
                   // explicit empty state instead of a decorative map.
-                  MapPlaceholder(
-                    emptyLabel: l10n.mapNoLocation,
-                    height: 190,
-                  ),
+                  MapPlaceholder(emptyLabel: l10n.mapNoLocation, height: 190),
 
                   const SizedBox(height: AppTokens.spaceLarge),
                   _InboxSection(dashboard: dashboard),

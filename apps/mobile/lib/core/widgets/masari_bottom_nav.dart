@@ -79,8 +79,7 @@ Future<T?> showMasariBottomSheet<T>({
             top: AppTokens.spaceSmall,
             // Keeps content clear of the keyboard when the sheet holds inputs.
             bottom:
-                AppTokens.spaceLarge +
-                MediaQuery.of(context).viewInsets.bottom,
+                AppTokens.spaceLarge + MediaQuery.of(context).viewInsets.bottom,
           ),
           child: child,
         ),
