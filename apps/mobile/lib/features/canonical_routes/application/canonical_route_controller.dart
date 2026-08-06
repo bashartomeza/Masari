@@ -275,6 +275,7 @@ bool _ambiguous(Object error) {
   return error.type == ApiErrorType.network ||
       error.type == ApiErrorType.timeout ||
       error.type == ApiErrorType.server ||
+      error.message == 'session_changed' ||
       error.message == 'invalid_response' ||
       error.statusCode == 502 ||
       error.statusCode == 503 ||

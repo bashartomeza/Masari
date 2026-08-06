@@ -251,6 +251,36 @@ void main() {
         expect(storage.bundle?.actorId, 'driver_2');
       },
     );
+
+    test(
+      'actor change after server commit preserves the recovery bundle',
+      () async {
+        final fake = _FakeDriverRepository();
+        final storage = _MemoryCanonicalStorage();
+        final container = await _onlineContainer(fake, storage);
+        addTearDown(container.dispose);
+        fake.afterOnlineCommit = () {
+          container.read(authenticatedActorBindingProvider).clear();
+        };
+
+        await expectLater(
+          container.read(legacyDriverOnlineControllerProvider).setOnline(true),
+          throwsA(
+            isA<ApiException>().having(
+              (error) => error.message,
+              'message',
+              'session_changed',
+            ),
+          ),
+        );
+
+        expect(fake.onlineCalls, 1);
+        expect(fake.routes.single.isOperational, isTrue);
+        expect(storage.clearCount, 0);
+        expect(storage.bundle?.operation, legacyDriverOnlineOperation);
+        expect(storage.bundle?.actorId, 'driver_1');
+      },
+    );
   });
 
   test('match inbox handles empty, ordering, filter, and error', () async {
@@ -426,6 +456,7 @@ class _FakeDriverRepository extends DriverRepository {
   bool timeoutOnlineOnce = false;
   Completer<void>? onlineBarrier;
   void Function()? onOnlineSend;
+  void Function()? afterOnlineCommit;
   final List<String> observedKeys = [];
 
   @override
@@ -509,6 +540,7 @@ class _FakeDriverRepository extends DriverRepository {
           )
           .toList();
     }
+    afterOnlineCommit?.call();
     return LegacyDriverOnlineResult(
       online: online,
       routeId: expectedRouteId ?? 'route_1',
