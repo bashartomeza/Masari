@@ -3,6 +3,11 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_error.dart';
+import '../../auth/application/auth_actor_binding.dart';
+import '../../auth/application/auth_controller.dart';
+import '../../auth/domain/auth_models.dart';
+import '../../canonical_routes/application/canonical_route_controller.dart';
+import '../../canonical_routes/data/canonical_operation_storage.dart';
 import '../../trips/data/trip_models.dart';
 import '../data/driver_models.dart';
 import '../data/driver_repository.dart';
@@ -66,6 +71,116 @@ class DriverDashboardController extends AsyncNotifier<DriverDashboardState> {
     } catch (error, stackTrace) {
       state = AsyncError(error, stackTrace);
       Error.throwWithStackTrace(error, stackTrace);
+    }
+  }
+}
+
+const legacyDriverOnlineOperation = 'legacy_driver_online_state_v1';
+const _legacyOnlineScope = 'legacy_driver_online_state';
+const _legacyRouteSentinel = 'legacy_driver_online_state';
+
+final legacyDriverOnlineControllerProvider =
+    Provider<LegacyDriverOnlineController>(LegacyDriverOnlineController.new);
+
+class LegacyDriverOnlineController {
+  LegacyDriverOnlineController(this.ref);
+
+  final Ref ref;
+  bool _busy = false;
+
+  bool get busy => _busy;
+
+  Future<DriverDashboardState> setOnline(bool desiredOnline) async {
+    if (_busy) throw StateError('operation_in_progress');
+    _busy = true;
+    try {
+      final actor = ref.read(authControllerProvider).value?.user;
+      if (actor == null || actor.role != UserRole.driver) {
+        throw const ApiException(ApiErrorType.forbidden, 'forbidden');
+      }
+      final actorId = actor.id;
+      final storage = ref.read(canonicalOperationStorageProvider);
+      final pending = await storage.read();
+      if (pending != null && pending.actorId != actorId) {
+        throw const CanonicalOperationBlocked(
+          'canonical_recovery_other_account',
+        );
+      }
+
+      var dashboard = await ref
+          .read(driverDashboardProvider.notifier)
+          .refresh();
+      _requireCurrentActor(actorId);
+      if (pending != null && pending.operation == legacyDriverOnlineOperation) {
+        final pendingDesired = pending.payload['online'];
+        if (pendingDesired is! bool) {
+          throw const CanonicalOperationBlocked(
+            'canonical_recovery_unreadable',
+          );
+        }
+        if (_isOnline(dashboard) == pendingDesired) {
+          await ref
+              .read(canonicalMutationRunnerProvider)
+              .acknowledge(
+                actorId: actorId,
+                operation: legacyDriverOnlineOperation,
+              );
+          return dashboard;
+        }
+      } else if (pending == null && _isOnline(dashboard) == desiredOnline) {
+        return dashboard;
+      }
+
+      final routeId = dashboard.currentRoute?.id;
+      final payload = <String, dynamic>{
+        'route_version_id': _legacyRouteSentinel,
+        'online': desiredOnline,
+        'expected_route_id': desiredOnline ? null : routeId,
+      };
+      await ref
+          .read(canonicalMutationRunnerProvider)
+          .run<void>(
+            operation: legacyDriverOnlineOperation,
+            scope: _legacyOnlineScope,
+            actorId: actorId,
+            payload: payload,
+            send: (bundle) async {
+              _requireCurrentActor(actorId);
+              await ref
+                  .read(driverRepositoryProvider)
+                  .setLegacyOnlineState(
+                    online: bundle.payload['online'] as bool,
+                    expectedRouteId:
+                        bundle.payload['expected_route_id'] as String?,
+                    idempotencyKey: bundle.idempotencyKey,
+                    beforeRetry: () async => _requireCurrentActor(actorId),
+                  );
+              _requireCurrentActor(actorId);
+            },
+          );
+      dashboard = await ref.read(driverDashboardProvider.notifier).refresh();
+      _requireCurrentActor(actorId);
+      if (_isOnline(dashboard) != desiredOnline) {
+        throw const FormatException('Online state was not reconciled');
+      }
+      await ref
+          .read(canonicalMutationRunnerProvider)
+          .acknowledge(
+            actorId: actorId,
+            operation: legacyDriverOnlineOperation,
+          );
+      return dashboard;
+    } finally {
+      _busy = false;
+    }
+  }
+
+  bool _isOnline(DriverDashboardState state) =>
+      state.currentRoute?.isOperational == true;
+
+  void _requireCurrentActor(String actorId) {
+    if (ref.read(authenticatedActorBindingProvider).actorId != actorId) {
+      throw const ApiException(ApiErrorType.unauthorized, 'session_changed');
     }
   }
 }

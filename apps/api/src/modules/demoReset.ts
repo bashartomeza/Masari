@@ -2,7 +2,7 @@ import { Router } from "express";
 import { createHash } from "node:crypto";
 import bcrypt from "bcryptjs";
 import type { Prisma, PrismaClient, UserRole } from "../generated/prisma/client.js";
-import { config } from "../config.js";
+import { config, type AppConfig } from "../config.js";
 import { prisma } from "../lib/prisma.js";
 import { auditEvent } from "../lib/audit.js";
 import { authenticateAuthToken } from "../middleware/auth.js";
@@ -97,13 +97,13 @@ async function createDemoUser(
   });
 }
 
-export async function resetDemoData(db: PrismaClient = prisma) {
-  const demoConfig = config.demo;
-  if (!config.demoFeaturesEnabled || !demoConfig) {
+export async function resetDemoData(db: PrismaClient = prisma, appConfig: AppConfig = config) {
+  const demoConfig = appConfig.demo;
+  if (!appConfig.demoFeaturesEnabled || !demoConfig) {
     throw new HttpError(404, "not_found");
   }
   const schedule = demoSchedule();
-  const seedCanonicalDispatch = canonicalDemoSeedEnabled(config);
+  const seedCanonicalDispatch = canonicalDemoSeedEnabled(appConfig);
   return db.$transaction(async (tx) => {
     const onboardedUsers = await tx.onboardingAttempt.findMany({
       where: { completed_user_id: { not: null } },

@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../auth/application/auth_actor_binding.dart';
 import '../../auth/data/authenticated_api_client.dart';
 import '../../trips/data/trip_models.dart';
 import 'driver_models.dart';
@@ -15,8 +16,19 @@ final driverRepositoryProvider = Provider<DriverRepository>((ref) {
 /// The signed-in driver's own trust score. This actor-private cache must be
 /// invalidated with the rest of the authenticated providers on every terminal
 /// session transition.
-final driverTrustScoreProvider = FutureProvider<int?>((ref) async {
-  return ref.watch(driverRepositoryProvider).ownTrustScore();
+final driverTrustScoreProvider = FutureProvider.family<int?, String>((
+  ref,
+  actorId,
+) async {
+  final binding = ref.watch(authenticatedActorBindingProvider);
+  if (binding.actorId != actorId) return null;
+  try {
+    final score = await ref.watch(driverRepositoryProvider).ownTrustScore();
+    return binding.actorId == actorId ? score : null;
+  } catch (error, stackTrace) {
+    if (binding.actorId != actorId) return null;
+    Error.throwWithStackTrace(error, stackTrace);
+  }
 });
 
 class DriverRepository {
@@ -66,6 +78,35 @@ class DriverRepository {
   Future<DriverRoute> deactivateRoute(String id) async {
     final json = await apiClient.patchJson('/driver/routes/$id/deactivate');
     return DriverRoute.fromJson(json['route'] as Map<String, dynamic>);
+  }
+
+  Future<LegacyDriverOnlineResult> setLegacyOnlineState({
+    required bool online,
+    required String idempotencyKey,
+    String? expectedRouteId,
+    Future<void> Function()? beforeRetry,
+  }) async {
+    final body = <String, dynamic>{'online': online};
+    if (expectedRouteId != null) {
+      body['expected_route_id'] = expectedRouteId;
+    }
+    final json = await apiClient.putJson(
+      '/driver/online-state',
+      body: body,
+      headers: {'Idempotency-Key': idempotencyKey},
+      beforeRetry: beforeRetry,
+    );
+    final resultOnline = json['online'];
+    final routeId = json['route_id'];
+    final replayed = json['replayed'];
+    if (resultOnline is! bool || routeId is! String || replayed is! bool) {
+      throw const FormatException('Invalid legacy online-state response');
+    }
+    return LegacyDriverOnlineResult(
+      online: resultOnline,
+      routeId: routeId,
+      replayed: replayed,
+    );
   }
 
   Future<List<DriverMatch>> listMatches({String? status}) async {
@@ -148,4 +189,16 @@ class DriverRepository {
         .map(DriverRoute.fromJson)
         .toList();
   }
+}
+
+class LegacyDriverOnlineResult {
+  const LegacyDriverOnlineResult({
+    required this.online,
+    required this.routeId,
+    required this.replayed,
+  });
+
+  final bool online;
+  final String routeId;
+  final bool replayed;
 }

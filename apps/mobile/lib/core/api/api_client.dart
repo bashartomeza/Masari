@@ -72,6 +72,21 @@ class ApiClient {
     });
   }
 
+  Future<Map<String, dynamic>> putJson(
+    String path, {
+    required Map<String, dynamic> body,
+    String? token,
+    Map<String, String> headers = const {},
+  }) async {
+    return _sendJson(() {
+      return client.put(
+        _uri(path),
+        headers: _headers(token, headers),
+        body: jsonEncode(body),
+      );
+    });
+  }
+
   Future<Map<String, dynamic>> deleteJson(
     String path, {
     String? token,
