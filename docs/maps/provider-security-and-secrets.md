@@ -1,6 +1,6 @@
 # Provider security and secrets
 
-All routing and geocoding credentials remain in backend environment configuration. They are never serialized, audited, logged, placed in Flutter/Admin configuration, or included in errors. Provider URLs are assembled inside adapters from fixed HTTPS hosts; API input cannot select scheme, host, port, path, callback, or provider.
+All routing and geocoding credentials remain in backend environment configuration. They are never serialized, audited, logged, placed in Flutter/Admin configuration, or included in errors. Provider URLs are assembled inside adapters from fixed HTTPS hosts; API input cannot select scheme, host, port, path, callback, or provider. HTTP redirects are disabled so a provider response cannot forward credentials or route data to another origin.
 
 The preview endpoints require an active, unrevoked authenticated admin session. They reference an existing active draft route version, exact draft revision, contiguous active membership, and 2–100 server-owned stops. The scoped geocoder uses the stored Arabic or English stop name and accepts no arbitrary address. Global and route-provider-specific limits apply.
 

@@ -1,11 +1,12 @@
 import type { AppConfig, RouteProviderId } from "../config.js";
 import { FakeRouteProvider } from "./fakeProvider.js";
-import { array, finite, object, providerJson, string, type ProviderHttpOptions } from "./http.js";
+import { array, boundedString, finite, object, providerJson, string, type ProviderHttpOptions } from "./http.js";
 import {
   geometryChecksum,
+  decodeFlexiblePolyline,
   routeInputChecksum,
   RouteProviderError,
-  validateCoordinates,
+  validateGeocodeResult,
   validateRouteInput,
   type ActiveRouteProviderId,
   type GeocodeInput,
@@ -94,13 +95,12 @@ export class MapboxRouteProvider extends HttpRouteProvider {
     const properties = object(feature.properties);
     const coordinates = array(object(feature.geometry).coordinates);
     const result = {
-      displayLabel: string(properties.full_address ?? properties.name),
+       displayLabel: boundedString(properties.full_address ?? properties.name, 500),
       coordinates: { latitude: finite(coordinates[1]), longitude: finite(coordinates[0]) },
       provenance: { provider: this.id, apiVersion: "geocoding-v6", providerReferenceId: typeof feature.id === "string" ? feature.id : undefined, providerReferenceStoragePermitted: false },
       attribution: mapboxAttribution
     } as const;
-    validateCoordinates(result.coordinates);
-    return result;
+    return validateGeocodeResult(result, this.id);
   }
   async calculateRoute(input: RouteCalculationInput) {
     validateRouteInput(input);
@@ -128,18 +128,18 @@ export class GoogleRouteProvider extends HttpRouteProvider {
     url.searchParams.set("language", input.locale);
     url.searchParams.set("key", this.options.secret);
     const root = object(await providerJson(url, { method: "GET" }, this.options));
-    if (root.status === "OVER_QUERY_LIMIT") throw new RouteProviderError("provider_quota_exhausted");
+    if (root.status === "OVER_QUERY_LIMIT" || root.status === "OVER_DAILY_LIMIT") throw new RouteProviderError("provider_quota_exhausted");
+    if (root.status === "REQUEST_DENIED") throw new RouteProviderError("provider_unauthorized");
     if (root.status !== "OK") throw new RouteProviderError(root.status === "ZERO_RESULTS" ? "provider_unavailable" : "malformed_provider_response");
     const item = object(array(root.results)[0]);
     const location = object(object(item.geometry).location);
     const result = {
-      displayLabel: string(item.formatted_address),
+      displayLabel: boundedString(item.formatted_address, 500),
       coordinates: { latitude: finite(location.lat), longitude: finite(location.lng) },
       provenance: { provider: this.id, apiVersion: "geocoding-v3", providerReferenceId: typeof item.place_id === "string" ? item.place_id : undefined, providerReferenceStoragePermitted: false },
       attribution: googleAttribution
     } as const;
-    validateCoordinates(result.coordinates);
-    return result;
+    return validateGeocodeResult(result, this.id);
   }
   async calculateRoute(input: RouteCalculationInput) {
     validateRouteInput(input);
@@ -158,13 +158,6 @@ export class GoogleRouteProvider extends HttpRouteProvider {
 }
 
 const hereAttribution = [{ text: "© HERE", displayRequired: true, url: "https://legal.here.com/" }] as const;
-const flexibleAlphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-function flexiblePrecision(value: string): 5 | 6 {
-  const header = flexibleAlphabet.indexOf(value[1] ?? "");
-  const precision = header < 0 ? -1 : header & 15;
-  if (precision !== 5 && precision !== 6) throw new RouteProviderError("malformed_provider_response");
-  return precision;
-}
 export class HereRouteProvider extends HttpRouteProvider {
   readonly id = "here" as const;
   async geocodeStop(input: GeocodeInput): Promise<GeocodeResult> {
@@ -173,8 +166,8 @@ export class HereRouteProvider extends HttpRouteProvider {
     url.searchParams.set("q", input.query); url.searchParams.set("lang", input.locale); url.searchParams.set("apiKey", this.options.secret);
     const item = object(array(object(await providerJson(url, { method: "GET" }, this.options)).items)[0]);
     const position = object(item.position);
-    const result = { displayLabel: string(object(item.address).label), coordinates: { latitude: finite(position.lat), longitude: finite(position.lng) }, provenance: { provider: this.id, apiVersion: "geocoding-v1", providerReferenceId: typeof item.id === "string" ? item.id : undefined, providerReferenceStoragePermitted: false }, attribution: hereAttribution } as const;
-    validateCoordinates(result.coordinates); return result;
+    const result = { displayLabel: boundedString(object(item.address).label, 500), coordinates: { latitude: finite(position.lat), longitude: finite(position.lng) }, provenance: { provider: this.id, apiVersion: "geocoding-v1", providerReferenceId: typeof item.id === "string" ? item.id : undefined, providerReferenceStoragePermitted: false }, attribution: hereAttribution } as const;
+    return validateGeocodeResult(result, this.id);
   }
   async calculateRoute(input: RouteCalculationInput) {
     validateRouteInput(input);
@@ -186,8 +179,8 @@ export class HereRouteProvider extends HttpRouteProvider {
     for (const stop of input.orderedStops.slice(1, -1)) url.searchParams.append("via", `${stop.coordinates.latitude},${stop.coordinates.longitude}`);
     const sections = array(object(array(object(await providerJson(url, { method: "GET" }, this.options)).routes)[0]).sections).map(object);
     const polylines = sections.map((section) => string(section.polyline));
-    const precision = flexiblePrecision(polylines[0]);
-    if (polylines.some((polyline) => flexiblePrecision(polyline) !== precision)) throw new RouteProviderError("malformed_provider_response");
+    const precision = decodeFlexiblePolyline(polylines[0]).precision;
+    if (polylines.some((polyline) => decodeFlexiblePolyline(polyline).precision !== precision)) throw new RouteProviderError("malformed_provider_response");
     const summaries = sections.map((section) => object(section.summary));
     return this.routeResult(input, { apiVersion: "routing-v8", encodedGeometry: JSON.stringify(polylines), geometryEncoding: "flexible_polyline_segments", geometryPrecision: precision, distanceMeters: summaries.reduce((total, summary) => total + finite(summary.length), 0), durationSeconds: summaries.reduce((total, summary) => total + finite(summary.duration), 0), attribution: hereAttribution });
   }
@@ -202,14 +195,14 @@ export class StadiaRouteProvider extends HttpRouteProvider {
     url.searchParams.set("text", input.query); url.searchParams.set("lang", input.locale); url.searchParams.set("api_key", this.options.secret); url.searchParams.set("size", "1");
     const feature = object(array(object(await providerJson(url, { method: "GET" }, this.options)).features)[0]);
     const properties = object(feature.properties); const coordinates = array(object(feature.geometry).coordinates);
-    const result = { displayLabel: string(properties.label ?? properties.name), coordinates: { latitude: finite(coordinates[1]), longitude: finite(coordinates[0]) }, provenance: { provider: this.id, apiVersion: "pelias-v1", providerReferenceId: typeof properties.gid === "string" ? properties.gid : undefined, providerReferenceStoragePermitted: false }, attribution: stadiaAttribution } as const;
-    validateCoordinates(result.coordinates); return result;
+    const result = { displayLabel: boundedString(properties.label ?? properties.name, 500), coordinates: { latitude: finite(coordinates[1]), longitude: finite(coordinates[0]) }, provenance: { provider: this.id, apiVersion: "pelias-v1", providerReferenceId: typeof properties.gid === "string" ? properties.gid : undefined, providerReferenceStoragePermitted: false }, attribution: stadiaAttribution } as const;
+    return validateGeocodeResult(result, this.id);
   }
   async calculateRoute(input: RouteCalculationInput) {
     validateRouteInput(input);
     if (input.orderedStops.length > 50) throw new RouteProviderError("invalid_input");
     const url = new URL("https://api.stadiamaps.com/route/v1"); url.searchParams.set("api_key", this.options.secret);
-    const root = object(await providerJson(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ locations: input.orderedStops.map((stop) => ({ lat: stop.coordinates.latitude, lon: stop.coordinates.longitude })), costing: "auto", costing_options: { auto: { exclude_tolls: input.options.avoidTolls, exclude_ferries: input.options.avoidFerries } }, units: "kilometers", language: input.locale, directions_options: { units: "kilometers" } }) }, this.options));
+    const root = object(await providerJson(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ locations: input.orderedStops.map((stop) => ({ lat: stop.coordinates.latitude, lon: stop.coordinates.longitude })), costing: "auto", costing_options: { auto: { use_tolls: input.options.avoidTolls ? 0 : 0.5, use_ferry: input.options.avoidFerries ? 0 : 0.5 } }, units: "kilometers", language: input.locale, directions_options: { units: "kilometers" } }) }, this.options));
     const trip = object(root.trip); const summary = object(trip.summary);
     const legs = array(trip.legs); const shape = JSON.stringify(legs.map((leg) => string(object(leg).shape)));
     return this.routeResult(input, { apiVersion: "valhalla-v1", encodedGeometry: shape, geometryEncoding: "polyline6_segments", geometryPrecision: 6, distanceMeters: finite(summary.length) * 1000, durationSeconds: finite(summary.time), attribution: stadiaAttribution });
@@ -220,7 +213,7 @@ export function createRouteProvider(appConfig: AppConfig, http: Omit<ProviderHtt
   const provider = appConfig.routeMaps.provider as RouteProviderId;
   if (!appConfig.routeMaps.enabled || provider === "disabled") return undefined;
   if (provider === "fake") return new FakeRouteProvider();
-  const options = { secret: appConfig.routeMaps.secret!, requestTimeoutMs: appConfig.routeMaps.requestTimeoutMs, maxRetries: appConfig.routeMaps.maxRetries, ...http };
+  const options = { secret: appConfig.routeMaps.secret!, connectTimeoutMs: appConfig.routeMaps.connectTimeoutMs, requestTimeoutMs: appConfig.routeMaps.requestTimeoutMs, maxRetries: appConfig.routeMaps.maxRetries, ...http };
   if (provider === "mapbox") return new MapboxRouteProvider(options);
   if (provider === "google") return new GoogleRouteProvider(options);
   if (provider === "here") return new HereRouteProvider(options);

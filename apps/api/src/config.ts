@@ -12,6 +12,7 @@ const PRODUCTION_ACCESS_TOKEN_MIN_SECONDS = 300;
 const PRODUCTION_ACCESS_TOKEN_MAX_SECONDS = 1_800;
 const PRODUCTION_REFRESH_TOKEN_MAX_DAYS = 90;
 const unsafeSecretMarkers = ["development-jwt-secret", "change-me", "replace-with", "placeholder"];
+const unsafeRouteProviderSecretMarkers = ["changeme", "example", "test-key", "test_secret", "test-secret", "your-"];
 
 function isUnsafeSecret(value: string) {
   const normalized = value.trim().toLowerCase();
@@ -19,6 +20,11 @@ function isUnsafeSecret(value: string) {
     unsafeSecretMarkers.some((marker) => normalized.includes(marker)) ||
     (normalized.startsWith("<") && normalized.endsWith(">"))
   );
+}
+
+function isUnsafeRouteProviderSecret(value: string) {
+  const normalized = value.trim().toLowerCase();
+  return isUnsafeSecret(value) || unsafeRouteProviderSecretMarkers.some((marker) => normalized.includes(marker));
 }
 
 const rawSchema = z.object({
@@ -39,10 +45,10 @@ const rawSchema = z.object({
   CANONICAL_SHARED_TRIP_MOBILE_ENABLED: z.string().optional(),
   ROUTE_MAPS_ENABLED: z.string().optional(),
   ROUTE_PROVIDER: z.enum(ROUTE_PROVIDERS).default("disabled"),
-  ROUTE_PROVIDER_SECRET: z.string().min(8).optional(),
+  ROUTE_PROVIDER_SECRET: z.string().trim().min(8).optional(),
   ROUTE_PROVIDER_CONNECT_TIMEOUT_MS: z.coerce.number().int().min(100).max(10_000).default(1_000),
   ROUTE_PROVIDER_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(250).max(20_000).default(4_000),
-  ROUTE_PROVIDER_MAX_RETRIES: z.coerce.number().int().min(0).max(2).default(1),
+  ROUTE_PROVIDER_MAX_RETRIES: z.coerce.number().int().min(0).max(1).default(1),
   ROUTE_PROVIDER_CACHE_TTL_SECONDS: z.coerce.number().int().min(0).max(86_400).default(0),
   ROUTE_PROVIDER_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().min(60_000).max(3_600_000).default(900_000),
   ROUTE_PROVIDER_RATE_LIMIT_MAX: z.coerce.number().int().min(1).max(100).default(20),
@@ -233,11 +239,14 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
   if (routeMapsEnabled && raw.ROUTE_PROVIDER !== "fake" && !raw.ROUTE_PROVIDER_SECRET) {
     problems.push("ROUTE_PROVIDER_SECRET is required for an enabled live route provider");
   }
-  if (routeMapsEnabled && raw.ROUTE_PROVIDER_SECRET && isUnsafeSecret(raw.ROUTE_PROVIDER_SECRET)) {
+  if (routeMapsEnabled && raw.ROUTE_PROVIDER_SECRET && isUnsafeRouteProviderSecret(raw.ROUTE_PROVIDER_SECRET)) {
     problems.push("ROUTE_PROVIDER_SECRET uses a known placeholder or default value");
   }
   if (routeMapsEnabled && raw.ROUTE_PROVIDER_SECRET && [raw.JWT_SECRET, raw.REFRESH_TOKEN_PEPPER].includes(raw.ROUTE_PROVIDER_SECRET)) {
     problems.push("ROUTE_PROVIDER_SECRET must be distinct from operational secrets");
+  }
+  if (productionLike && raw.ROUTE_PROVIDER_CACHE_TTL_SECONDS !== 0) {
+    problems.push("ROUTE_PROVIDER_CACHE_TTL_SECONDS must remain 0 until provider cache rights are approved");
   }
   if (raw.ROUTE_PROVIDER_REQUEST_TIMEOUT_MS < raw.ROUTE_PROVIDER_CONNECT_TIMEOUT_MS) {
     problems.push("ROUTE_PROVIDER_REQUEST_TIMEOUT_MS must be at least the connect timeout");

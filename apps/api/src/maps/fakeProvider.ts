@@ -3,6 +3,7 @@ import {
   routeInputChecksum,
   RouteProviderError,
   validateRouteInput,
+  validateGeocodeResult,
   type GeocodeInput,
   type GeocodeResult,
   type NormalizedRouteResult,
@@ -53,14 +54,14 @@ export class FakeRouteProvider implements RouteProvider {
     if (!query || query.length > 200) throw new RouteProviderError("invalid_input");
     const fixture = fixtures.find((item) => item.aliases.some((alias) => query.includes(alias.toLocaleLowerCase("en"))));
     if (!fixture) throw new RouteProviderError("provider_unavailable");
-    return {
+    return validateGeocodeResult({
       displayLabel: fixture.label,
       coordinates: { latitude: fixture.latitude, longitude: fixture.longitude },
       confidence: 1,
       category: fixture.category,
       provenance: { provider: "fake", apiVersion: "fake-v1", providerReferenceId: `fixture:${fixture.category}`, providerReferenceStoragePermitted: true },
       attribution: [{ text: "Masari non-production deterministic fixture", displayRequired: false }]
-    };
+    }, this.id);
   }
 
   async calculateRoute(input: RouteCalculationInput): Promise<NormalizedRouteResult> {

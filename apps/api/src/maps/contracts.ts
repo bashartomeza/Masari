@@ -98,6 +98,18 @@ export function validateCoordinates(value: Coordinates) {
   }
 }
 
+export function validateGeocodeResult(result: GeocodeResult, provider?: ActiveRouteProviderId) {
+  if (!result.displayLabel || result.displayLabel.length > 500) malformed();
+  try { validateCoordinates(result.coordinates); } catch { malformed(); }
+  if (result.confidence !== undefined && (!Number.isFinite(result.confidence) || result.confidence < 0 || result.confidence > 1)) malformed();
+  if (result.category !== undefined && (!result.category || result.category.length > 100)) malformed();
+  if (provider && result.provenance.provider !== provider) malformed();
+  if (!result.provenance.apiVersion || result.provenance.apiVersion.length > 100) malformed();
+  if (result.provenance.providerReferenceId && result.provenance.providerReferenceId.length > 500) malformed();
+  if (result.attribution.length > 20 || result.attribution.some((item) => !item.text || item.text.length > 500 || (item.url && item.url.length > 2_000))) malformed();
+  return result;
+}
+
 export function validateRouteInput(input: RouteCalculationInput) {
   if (!input.routeVersionId || input.routeVersionId.length > 191) throw new RouteProviderError("invalid_input");
   if (input.profile !== "driving" || input.orderedStops.length < 2 || input.orderedStops.length > 100) {
@@ -119,7 +131,7 @@ function stableValue(value: unknown): unknown {
     return Object.fromEntries(
       Object.entries(value as Record<string, unknown>)
         .filter(([, item]) => item !== undefined)
-        .sort(([a], [b]) => a.localeCompare(b))
+        .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
         .map(([key, item]) => [key, stableValue(item)])
     );
   }
@@ -165,6 +177,115 @@ export function geometryChecksum(input: {
   return sha256(input);
 }
 
+const MAX_GEOMETRY_POINTS = 100_000;
+
+function malformed(): never {
+  throw new RouteProviderError("malformed_provider_response");
+}
+
+function requireMeaningfulGeometry(points: readonly Coordinates[]) {
+  if (points.length < 2 || points.length > MAX_GEOMETRY_POINTS) malformed();
+  const first = points[0];
+  if (!points.some((point) => point.latitude !== first.latitude || point.longitude !== first.longitude)) malformed();
+  return points;
+}
+
+export function decodeStandardPolyline(encoded: string, precision: 5 | 6) {
+  if (!encoded || encoded.length > 2_000_000) malformed();
+  const factor = 10 ** precision;
+  const points: Coordinates[] = [];
+  let index = 0;
+  let latitude = 0;
+  let longitude = 0;
+  const unsigned = () => {
+    let value = 0;
+    let multiplier = 1;
+    for (let groups = 0; groups < 11; groups += 1) {
+      if (index >= encoded.length) malformed();
+      const chunk = encoded.charCodeAt(index++) - 63;
+      if (chunk < 0 || chunk > 63) malformed();
+      value += (chunk & 31) * multiplier;
+      if (!Number.isSafeInteger(value)) malformed();
+      if (chunk < 32) return value;
+      multiplier *= 32;
+      if (!Number.isSafeInteger(multiplier)) malformed();
+    }
+    return malformed();
+  };
+  const signed = () => {
+    const value = unsigned();
+    return value % 2 === 1 ? -(Math.floor(value / 2) + 1) : Math.floor(value / 2);
+  };
+  while (index < encoded.length) {
+    latitude += signed();
+    longitude += signed();
+    if (!Number.isSafeInteger(latitude) || !Number.isSafeInteger(longitude)) malformed();
+    const point = { latitude: latitude / factor, longitude: longitude / factor };
+    try { validateCoordinates(point); } catch { malformed(); }
+    points.push(point);
+    if (points.length > MAX_GEOMETRY_POINTS) malformed();
+  }
+  return requireMeaningfulGeometry(points);
+}
+
+const flexibleAlphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+
+export function decodeFlexiblePolyline(encoded: string) {
+  if (!encoded || encoded.length > 2_000_000) malformed();
+  let index = 0;
+  const unsigned = () => {
+    let value = 0;
+    let multiplier = 1;
+    for (let groups = 0; groups < 11; groups += 1) {
+      if (index >= encoded.length) malformed();
+      const chunk = flexibleAlphabet.indexOf(encoded[index++]);
+      if (chunk < 0) malformed();
+      value += (chunk & 31) * multiplier;
+      if (!Number.isSafeInteger(value)) malformed();
+      if (chunk < 32) return value;
+      multiplier *= 32;
+      if (!Number.isSafeInteger(multiplier)) malformed();
+    }
+    return malformed();
+  };
+  const signed = () => {
+    const value = unsigned();
+    return value % 2 === 1 ? -(Math.floor(value / 2) + 1) : Math.floor(value / 2);
+  };
+  if (unsigned() !== 1) malformed();
+  const header = unsigned();
+  if (header > 2_047) malformed();
+  const precision = header & 15;
+  const thirdDimension = (header >> 4) & 7;
+  const thirdDimensionPrecision = (header >> 7) & 15;
+  if ((precision !== 5 && precision !== 6) || thirdDimension !== 0 || thirdDimensionPrecision !== 0) malformed();
+  const factor = 10 ** precision;
+  const points: Coordinates[] = [];
+  let latitude = 0;
+  let longitude = 0;
+  while (index < encoded.length) {
+    latitude += signed();
+    longitude += signed();
+    if (!Number.isSafeInteger(latitude) || !Number.isSafeInteger(longitude)) malformed();
+    const point = { latitude: latitude / factor, longitude: longitude / factor };
+    try { validateCoordinates(point); } catch { malformed(); }
+    points.push(point);
+    if (points.length > MAX_GEOMETRY_POINTS) malformed();
+  }
+  return { precision: precision as 5 | 6, points: requireMeaningfulGeometry(points) };
+}
+
+function geometrySegments(encoded: string) {
+  try {
+    const segments = JSON.parse(encoded) as unknown;
+    if (!Array.isArray(segments) || segments.length === 0 || segments.length > 100) malformed();
+    return segments.map((segment) => typeof segment === "string" ? segment : malformed());
+  } catch (error) {
+    if (error instanceof RouteProviderError) throw error;
+    return malformed();
+  }
+}
+
 export function validateNormalizedRouteResult(result: NormalizedRouteResult) {
   if (!result.encodedGeometry || result.encodedGeometry.length > 2_000_000) {
     throw new RouteProviderError("malformed_provider_response");
@@ -179,19 +300,57 @@ export function validateNormalizedRouteResult(result: NormalizedRouteResult) {
     throw new RouteProviderError("malformed_provider_response");
   }
   if (!Number.isFinite(Date.parse(result.calculatedAt))) throw new RouteProviderError("malformed_provider_response");
-  const standardPolyline = /^[?-~]+$/;
-  if ((result.geometryEncoding === "polyline5" || result.geometryEncoding === "polyline6") && !standardPolyline.test(result.encodedGeometry)) {
-    throw new RouteProviderError("malformed_provider_response");
-  }
-  if (result.geometryEncoding === "flexible_polyline" && !/^[A-Za-z0-9_-]+$/.test(result.encodedGeometry)) {
-    throw new RouteProviderError("malformed_provider_response");
-  }
-  if (result.geometryEncoding === "polyline6_segments" || result.geometryEncoding === "flexible_polyline_segments") {
-    try {
-      const segments = JSON.parse(result.encodedGeometry) as unknown;
-      const pattern = result.geometryEncoding === "polyline6_segments" ? standardPolyline : /^[A-Za-z0-9_-]+$/;
-      if (!Array.isArray(segments) || segments.length === 0 || segments.some((segment) => typeof segment !== "string" || !pattern.test(segment))) throw new Error("invalid segments");
-    } catch { throw new RouteProviderError("malformed_provider_response"); }
-  }
+  if (!result.provenance.apiVersion || result.provenance.apiVersion.length > 100) malformed();
+  if (result.provenance.providerReferenceId && result.provenance.providerReferenceId.length > 500) malformed();
+  if (result.attribution.length > 20 || result.attribution.some((item) => !item.text || item.text.length > 500 || (item.url && item.url.length > 2_000))) malformed();
+  if (result.geometryEncoding === "polyline5") {
+    if (result.geometryPrecision !== 5) malformed();
+    decodeStandardPolyline(result.encodedGeometry, 5);
+  } else if (result.geometryEncoding === "polyline6") {
+    if (result.geometryPrecision !== 6) malformed();
+    decodeStandardPolyline(result.encodedGeometry, 6);
+  } else if (result.geometryEncoding === "polyline6_segments") {
+    if (result.geometryPrecision !== 6) malformed();
+    let total = 0;
+    for (const segment of geometrySegments(result.encodedGeometry)) {
+      total += decodeStandardPolyline(segment, 6).length;
+      if (total > MAX_GEOMETRY_POINTS) malformed();
+    }
+  } else if (result.geometryEncoding === "flexible_polyline") {
+    const decoded = decodeFlexiblePolyline(result.encodedGeometry);
+    if (decoded.precision !== result.geometryPrecision) malformed();
+  } else if (result.geometryEncoding === "flexible_polyline_segments") {
+    let total = 0;
+    for (const segment of geometrySegments(result.encodedGeometry)) {
+      const decoded = decodeFlexiblePolyline(segment);
+      if (decoded.precision !== result.geometryPrecision) malformed();
+      total += decoded.points.length;
+      if (total > MAX_GEOMETRY_POINTS) malformed();
+    }
+  } else malformed();
+  return result;
+}
+
+export function verifyNormalizedRouteResult(
+  result: NormalizedRouteResult,
+  input: RouteCalculationInput,
+  provider: ActiveRouteProviderId
+) {
+  validateNormalizedRouteResult(result);
+  const inputChecksum = routeInputChecksum(input, provider);
+  if (result.provenance.provider !== provider || result.provenance.profile !== input.profile || result.inputChecksum !== inputChecksum) malformed();
+  const expectedGeometryChecksum = geometryChecksum({
+    routeVersionId: input.routeVersionId,
+    orderedStopInputChecksum: inputChecksum,
+    provider,
+    profile: input.profile,
+    apiVersion: result.provenance.apiVersion,
+    geometryEncoding: result.geometryEncoding,
+    geometryPrecision: result.geometryPrecision,
+    encodedGeometry: result.encodedGeometry,
+    distanceMeters: result.distanceMeters,
+    durationSeconds: result.durationSeconds
+  });
+  if (result.geometryChecksum !== expectedGeometryChecksum) malformed();
   return result;
 }

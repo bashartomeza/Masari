@@ -11,7 +11,7 @@ Evidence date: 2026-08-07. This is an engineering review of public official mate
 | HERE | NOT_EXECUTED | absent | not measured | not measured | no human review | not measured |
 | Stadia/MapLibre stack | NOT_EXECUTED | absent | not measured | not measured | no human review | not measured |
 
-The fake-provider harness ran 10 sequential local samples with zero failures, 100% fixture geocoding, Arabic/English acceptance, and a recorded local p95 of 8.54 ms. This proves only harness determinism; it is not live-provider performance or Palestine route-quality evidence. Run with `ROUTE_BAKEOFF_PROVIDER=<candidate>` and server-side `ROUTE_PROVIDER_SECRET`; missing credentials deliberately exit as `NOT_EXECUTED`.
+The fake-provider harness ran 10 sequential local samples with zero failures, 100% fixture geocoding, and Arabic/English acceptance. This proves only harness determinism; it is not live-provider performance or Palestine route-quality evidence. The harness reports geocode and route p50/p95 separately using a monotonic clock, explicit sample/call/Arabic counts, safe failure categories, and unresolved human-review, storage, attribution, privacy, and commercial gates. Run with `ROUTE_BAKEOFF_PROVIDER=<candidate>` and server-side `ROUTE_PROVIDER_SECRET`; missing credentials deliberately emits null latency/success evidence and exits as `NOT_EXECUTED`.
 
 ## Storage and attribution matrix
 

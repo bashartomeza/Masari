@@ -1,6 +1,6 @@
 import { sha256, validateNormalizedRouteResult, type NormalizedRouteResult, type RouteCalculationInput } from "./contracts.js";
 
-type Entry = { expiresAt: number; value: NormalizedRouteResult };
+type Entry = { expiresAt: number; integrity: string; value: NormalizedRouteResult };
 
 export class RoutePreviewCache {
   private readonly entries = new Map<string, Entry>();
@@ -19,6 +19,7 @@ export class RoutePreviewCache {
       return undefined;
     }
     try {
+      if (entry.integrity !== sha256(entry.value)) throw new Error("cache integrity mismatch");
       return validateNormalizedRouteResult(entry.value);
     } catch {
       this.entries.delete(key);
@@ -28,7 +29,8 @@ export class RoutePreviewCache {
 
   set(key: string, value: NormalizedRouteResult) {
     if (this.ttlMs <= 0) return;
-    this.entries.set(key, { expiresAt: this.now() + this.ttlMs, value: validateNormalizedRouteResult(value) });
+    const validated = validateNormalizedRouteResult(value);
+    this.entries.set(key, { expiresAt: this.now() + this.ttlMs, integrity: sha256(validated), value: validated });
   }
 
   clear() {

@@ -1,6 +1,6 @@
 import { prisma } from "../lib/prisma.js";
 import { RoutePreviewCache } from "./cache.js";
-import { RouteProviderError, type RouteCalculationInput, type RouteProvider } from "./contracts.js";
+import { RouteProviderError, validateGeocodeResult, verifyNormalizedRouteResult, type GeocodeResult, type NormalizedRouteResult, type RouteCalculationInput, type RouteProvider } from "./contracts.js";
 
 type DecimalLike = { toString(): string };
 type DraftVersion = {
@@ -62,10 +62,11 @@ export function createRoutePreviewService(input: {
 }) {
   const cache = new RoutePreviewCache(input.cacheTtlMs, () => (input.now?.() ?? new Date()).getTime());
   const breaker = new CircuitBreaker(() => (input.now?.() ?? new Date()).getTime());
+  const routeInFlight = new Map<string, Promise<NormalizedRouteResult>>();
+  const geocodeInFlight = new Map<string, Promise<GeocodeResult>>();
   const repo = input.repository ?? repository;
   const provider = () => {
     if (!input.provider) throw new RouteProviderError("provider_disabled");
-    breaker.assertAvailable();
     return input.provider;
   };
   return {
@@ -85,21 +86,36 @@ export function createRoutePreviewService(input: {
       const cacheKey = cache.key(selected.id, routeInput);
       const cached = cache.get(cacheKey);
       if (cached) return { result: cached, cacheStatus: "hit" as const };
+      breaker.assertAvailable();
+      let pending = routeInFlight.get(cacheKey);
+      if (!pending) {
+        pending = selected.calculateRoute(routeInput).then((result) => verifyNormalizedRouteResult(result, routeInput, selected.id));
+        routeInFlight.set(cacheKey, pending);
+      }
       try {
-        const result = await selected.calculateRoute(routeInput);
+        const result = await pending;
         breaker.success(); cache.set(cacheKey, result);
         return { result, cacheStatus: "miss" as const };
       } catch (error) { breaker.failure(error); throw error; }
+      finally { if (routeInFlight.get(cacheKey) === pending) routeInFlight.delete(cacheKey); }
     },
     async geocode(versionId: string, stopId: string, request: { expectedRevision: number; locale: "ar" | "en" }) {
       const version = requireEditable(await repo.getVersion(versionId), request.expectedRevision);
       const membership = version.stops.find((item) => item.stop_id === stopId);
       if (!membership) throw new RouteProviderError("invalid_input");
       const selected = provider();
+      breaker.assertAvailable();
+      const geocodeKey = `${selected.id}:${version.id}:${version.draft_revision}:${membership.stop_id}:${request.locale}`;
+      let pending = geocodeInFlight.get(geocodeKey);
+      if (!pending) {
+        pending = selected.geocodeStop({ query: request.locale === "ar" ? membership.stop.name_ar : membership.stop.name_en, locale: request.locale }).then((result) => validateGeocodeResult(result, selected.id));
+        geocodeInFlight.set(geocodeKey, pending);
+      }
       try {
-        const result = await selected.geocodeStop({ query: request.locale === "ar" ? membership.stop.name_ar : membership.stop.name_en, locale: request.locale });
+        const result = await pending;
         breaker.success(); return result;
       } catch (error) { breaker.failure(error); throw error; }
+      finally { if (geocodeInFlight.get(geocodeKey) === pending) geocodeInFlight.delete(geocodeKey); }
     }
   };
 }

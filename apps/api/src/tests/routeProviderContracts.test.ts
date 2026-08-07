@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { RoutePreviewCache } from "../maps/cache.js";
 import { FakeRouteProvider, type FakeProviderScenario } from "../maps/fakeProvider.js";
-import { geometryChecksum, routeInputChecksum, RouteProviderError, type RouteCalculationInput } from "../maps/contracts.js";
+import { canonicalJson, decodeFlexiblePolyline, decodeStandardPolyline, geometryChecksum, routeInputChecksum, RouteProviderError, verifyNormalizedRouteResult, type RouteCalculationInput } from "../maps/contracts.js";
 
 const input: RouteCalculationInput = {
   routeVersionId: "version_1",
@@ -57,6 +57,25 @@ describe("M7D1 provider-neutral route contract", () => {
     for (const changed of [{ ...record, encodedGeometry: "abd" }, { ...record, provider: "google" as const }, { ...record, distanceMeters: 11 }, { ...record, durationSeconds: 21 }]) expect(geometryChecksum(changed)).not.toBe(geometryChecksum(record));
   });
 
+  it("uses environment-independent canonical key ordering", () => {
+    expect(canonicalJson({ z: 1, a: { y: 2, b: 3 } })).toBe('{"a":{"b":3,"y":2},"z":1}');
+  });
+
+  it("decodes documented standard and HERE vectors and rejects meaningless or malformed geometry", () => {
+    expect(decodeStandardPolyline("_p~iF~ps|U_ulLnnqC_mqNvxq`@", 5)).toHaveLength(3);
+    expect(decodeFlexiblePolyline("BFoz5xJ67i1B1B7PzIhaxL7Y").points.length).toBeGreaterThan(1);
+    for (const encoded of ["????", "_p~iF~ps|U_", "~~~~~~~~~~~~"]) {
+      expect(() => decodeStandardPolyline(encoded, 5)).toThrowError(RouteProviderError);
+    }
+    for (const encoded of ["", "AF", "B_"]) expect(() => decodeFlexiblePolyline(encoded)).toThrowError(RouteProviderError);
+  });
+
+  it("verifies provider results against canonical input and geometry checksums", async () => {
+    const result = await new FakeRouteProvider().calculateRoute(input);
+    expect(verifyNormalizedRouteResult(result, input, "fake")).toEqual(result);
+    expect(() => verifyNormalizedRouteResult({ ...result, distanceMeters: result.distanceMeters + 1 }, input, "fake")).toThrowError(RouteProviderError);
+  });
+
   it("handles cache miss, hit, provider/input changes, expiry, and corruption", async () => {
     let now = 1_000;
     const cache = new RoutePreviewCache(500, () => now);
@@ -67,6 +86,8 @@ describe("M7D1 provider-neutral route contract", () => {
     expect(cache.get(cache.key("fake", { ...input, orderedStops: [...input.orderedStops].reverse() }))).toBeUndefined();
     now = 1_501; expect(cache.get(key)).toBeUndefined();
     expect(() => cache.set(key, { ...result, geometryChecksum: "broken" })).toThrowError(RouteProviderError);
+    expect(cache.get(key)).toBeUndefined();
+    const mutable = { ...result }; cache.set(key, mutable); (mutable as { distanceMeters: number }).distanceMeters += 1;
     expect(cache.get(key)).toBeUndefined();
   });
 });
