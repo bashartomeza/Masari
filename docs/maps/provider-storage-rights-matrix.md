@@ -4,12 +4,12 @@ Evidence date: 2026-08-07. This is a conservative engineering reading of current
 
 | Proposed canonical field | Mapbox | Google | HERE | Stadia | OSM self-hosted |
 |---|---|---|---|---|---|
-| normalized latitude | CONDITIONAL | RESTRICTED | RESTRICTED | CONDITIONAL | CONDITIONAL / ODbL review |
-| normalized longitude | CONDITIONAL | RESTRICTED | RESTRICTED | CONDITIONAL | CONDITIONAL / ODbL review |
-| normalized display label | CONDITIONAL | RESTRICTED | RESTRICTED | CONDITIONAL | CONDITIONAL / geocoding guideline |
-| encoded route geometry/polyline | UNRESOLVED | RESTRICTED | RESTRICTED | UNRESOLVED | CONDITIONAL / legal review |
-| route distance | UNRESOLVED | RESTRICTED | RESTRICTED | UNRESOLVED | CONDITIONAL / legal review |
-| route duration | UNRESOLVED | RESTRICTED | RESTRICTED | UNRESOLVED | CONDITIONAL / legal review |
+| normalized latitude | CONDITIONAL | RESTRICTED | RESTRICTED | CONDITIONAL | ALLOWED / CONDITIONAL on non-substantial geocoding use |
+| normalized longitude | CONDITIONAL | RESTRICTED | RESTRICTED | CONDITIONAL | ALLOWED / CONDITIONAL on non-substantial geocoding use |
+| normalized display label | CONDITIONAL | RESTRICTED | RESTRICTED | CONDITIONAL | ALLOWED / CONDITIONAL on non-substantial geocoding use |
+| encoded route geometry/polyline | UNRESOLVED | RESTRICTED | RESTRICTED | UNRESOLVED | UNRESOLVED / LEGAL_REVIEW_REQUIRED |
+| route distance | UNRESOLVED | RESTRICTED | RESTRICTED | UNRESOLVED | CONDITIONAL / LEGAL_REVIEW_REQUIRED for systematic canonical use |
+| route duration | UNRESOLVED | RESTRICTED | RESTRICTED | UNRESOLVED | CONDITIONAL / LEGAL_REVIEW_REQUIRED for systematic canonical use |
 | provider route/reference ID | UNRESOLVED | UNRESOLVED | RESTRICTED | UNRESOLVED | not returned in tested contract |
 | provider geocode/reference ID | CONDITIONAL | ALLOWED only when it is a place ID | RESTRICTED | CONDITIONAL | CONDITIONAL / OSM object reference |
 | attribution/provenance metadata | CONDITIONAL | CONDITIONAL | CONDITIONAL | CONDITIONAL | REQUIRED |
@@ -40,7 +40,9 @@ The same public terms do not expressly approve long-term database persistence of
 
 ### OSM self-hosted
 
-Raw OpenStreetMap data is ODbL-licensed. A Valhalla graph is an OSM-derived database; public use requires the applicable attribution and share-alike/source-availability obligations. Individual route geometry is plausibly a Produced Work, but [OSMF's recorded routing discussion](https://osmfoundation.org/wiki/Licensing_Working_Group/Minutes/2024-06-10) does not supply a final general ruling for every routing-output database. Masari therefore classifies indefinite canonical route geometry, distance and duration as `CONDITIONAL / LEGAL_REVIEW_REQUIRED`, not proprietary/unrestricted. The [OSMF geocoding guideline](https://osmfoundation.org/wiki/Licence/Community_Guidelines/Geocoding_-_Guideline) treats ordinary individual results as insubstantial under stated conditions, but systematic collections and derivative databases differ. Attribution to OpenStreetMap contributors and access to license information remain mandatory.
+Raw OpenStreetMap data is ODbL-licensed. A Valhalla graph is an OSM-derived database; public use requires applicable attribution and share-alike/source-availability obligations. The [OSMF attribution guideline](https://osmfoundation.org/wiki/Licence/Attribution_Guidelines) says dynamically generated routing instructions need not carry attribution per record if they do not form a Derivative Database, while the engine and incorporating application must credit OpenStreetMap. The [June](https://osmfoundation.org/wiki/Licensing_Working_Group/Minutes/2024-06-10) and [July 2024](https://osmfoundation.org/wiki/Licensing_Working_Group/Minutes/2024-07-08) LWG minutes distinguish transient dynamically generated routes from durable/comprehensive geometry and record concern that accumulated actual geometries may be a Derivative Database. Those minutes are not a formal legal ruling for Masari's exact design. Systematic indefinite canonical geometry is therefore `UNRESOLVED / LEGAL_REVIEW_REQUIRED`, not proprietary/unrestricted.
+
+The [OSMF geocoding guideline](https://osmfoundation.org/wiki/Licence/Community_Guidelines/Geocoding_-_Guideline) permits ordinary individual name/address/latitude/longitude results to be stored with proprietary data when the collection is not a systematic reconstruction of all or a substantial part of OSM. Public geocoder/application use still requires OpenStreetMap attribution. Masari must keep OSM-derived and proprietary feature types/layers separable enough to preserve a defensible Collective Database boundary; the [OSMF Collective Database guideline](https://osmfoundation.org/wiki/Licence/Community_Guidelines/Collective_Database_Guideline_Guideline) does not bless arbitrary deduplicated merging.
 
 ## Decision
 

@@ -29,8 +29,8 @@ export type FakeProviderScenario = "normal" | "timeout" | "rate_limit" | "quota"
 
 const fixtures = [
   { aliases: ["hebron", "الخليل"], label: "Hebron / الخليل", latitude: 31.5326, longitude: 35.0998, category: "locality" },
-  { aliases: ["palestine polytechnic university", "ppu", "جامعة بوليتكنك فلسطين"], label: "Palestine Polytechnic University / جامعة بوليتكنك فلسطين", latitude: 31.5782, longitude: 35.0801, category: "university" },
-  { aliases: ["bab al-zawiya", "bab al zawiya", "باب الزاوية"], label: "Bab Al-Zawiya / باب الزاوية", latitude: 31.5279, longitude: 35.0938, category: "district" },
+  { aliases: ["palestine polytechnic university", "ppu", "جامعة بوليتكنك فلسطين"], label: "Palestine Polytechnic University - Dahiat Al-Baladiyah / جامعة بوليتكنك فلسطين - ضاحية البلدية", latitude: 31.5073157, longitude: 35.0908933, category: "university" },
+  { aliases: ["bab al-zawiya", "bab al zawiya", "bab al-zawiya square", "باب الزاوية", "ميدان باب الزاوية"], label: "Bab Al-Zawiya Square / ميدان باب الزاوية", latitude: 31.5275134, longitude: 35.1018593, category: "public_square" },
   { aliases: ["bethlehem", "بيت لحم"], label: "Bethlehem / بيت لحم", latitude: 31.7054, longitude: 35.2024, category: "locality" }
 ] as const;
 

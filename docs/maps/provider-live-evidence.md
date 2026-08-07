@@ -2,7 +2,7 @@
 
 Evidence date: 2026-08-07 (Asia/Hebron). Milestone state: `ACTIVE / BLOCKED_ON_REMAINING_PROVIDER_EVIDENCE`. Provider selection: `NO_PROVIDER_APPROVED_YET`.
 
-This report uses only the committed public fixture in `docs/maps/fixtures/palestine-route-bakeoff.json`. It contains canonical planning points in the Hebron–Bethlehem corridor and no user address, current location, passenger, merchant, or driver data.
+This report uses the corrected corridor fixture and the 30-location/60-query expanded public fixture under `docs/maps/fixtures/`. They contain public planning points and no user address, current location, passenger, merchant, phone-associated place, or driver data.
 
 ## Credential and execution result
 
@@ -14,7 +14,7 @@ Credential availability was checked categorically in the approved process enviro
 | Google | NOT_AVAILABLE | NOT_AVAILABLE | NOT_EXECUTED | 0 | 0 | 0 | NOT_EXECUTED |
 | HERE | NOT_AVAILABLE | NOT_AVAILABLE | NOT_EXECUTED | 0 | 0 | 0 | NOT_EXECUTED |
 | Stadia | NOT_AVAILABLE | NOT_AVAILABLE | NOT_EXECUTED | 0 | 0 | 0 | NOT_EXECUTED |
-| OSM self-hosted Valhalla + evaluated Nominatim | NOT_REQUIRED | NOT_REQUIRED | EXECUTED | 8 | 4 | 4 | 4 PASS |
+| OSM self-hosted Valhalla + evaluated Nominatim | NOT_REQUIRED | NOT_REQUIRED | EXECUTED | 60 | 30 | 12 | 12 structural PASS; access CONDITIONAL |
 
 The existing harness was invoked once for each unavailable hosted provider. Each returned the expected `credential_unavailable` safe category, null acceptance and latency fields, zero samples, and process exit 2. Exit 2 is the harness's deliberate `NOT_EXECUTED` outcome, not a provider failure. No credential was requested from the user. The separate keyless OSM/Valhalla run used a local digest-pinned service and current regional extract; it did not pretend that routing validates geocoding.
 
@@ -50,12 +50,12 @@ G1 is based on the already-approved M7D1 adapters and deterministic tests, not l
 | Gate | Result | Evidence |
 |---|---|---|
 | G1 provider-neutral compatibility | PASS | Local Valhalla responses normalized without production integration |
-| G2 Palestine road coverage | PASS | Four required routes; tested corridor only |
-| G3 route validity | PASS | 4/4 human-reviewed routes |
-| G4 route latency | PASS | cold request p95 121.952 ms; warm p95 11.291 ms |
-| G5 Arabic geocoding | FAIL | strict self-hosted Nominatim result 2/4 |
-| G6 geocoding quality | FAIL | strict 4/8, below target; sample too small for regional claims |
-| G7 canonical-storage compatibility | CONDITIONAL | ODbL/route-output legal classification remains open |
+| G2 Palestine road coverage | CONDITIONAL | 12 expanded public routes passed structurally; real-world access/full coverage remain unproved |
+| G3 route validity | PASS | corrected 4/4 required routes and 12/12 expanded structural routes |
+| G4 route latency | PASS | process-cold p95 66.984 ms; warm p95 14.627 ms; mixed 20-way p95 25.110 ms |
+| G5 Arabic geocoding | FAIL | 26/30 (`86.7%`) expanded strict result |
+| G6 geocoding quality | FAIL | 51/60 (`85.0%`) overall, below 95% |
+| G7 canonical-storage compatibility | UNRESOLVED | systematic canonical route geometry requires legal review |
 | G8 attribution compatibility | CONDITIONAL | requirement documented; final renderer absent |
 | G9 privacy | PASS | local-only fixture processing; no third-party provider |
 | G10 operational complexity/cost | CONDITIONAL | feasible footprint; production SRE/TCO not approved |
@@ -64,15 +64,15 @@ G1 is based on the already-approved M7D1 adapters and deterministic tests, not l
 
 ## Missing evidence matrix
 
-Each hosted provider still needs a securely supplied server credential through an approved local or CI mechanism, a repeated live run, human review of every returned geocode and route, Arabic assessment, credible cold/warm latency sampling, and a leak scan. The OSM candidate instead needs broader corridor evidence, an improved/alternative geocoder, ODbL legal approval, renderer attribution design and production operational/TCO review. Separately, account-specific terms must resolve every conditional or unresolved storage, display, DPA, regional-processing, quota, support, and billing item.
+Each hosted provider still needs a securely supplied server credential through an approved local or CI mechanism, a repeated live run, human review of every returned geocode and route, Arabic assessment, credible cold/warm latency sampling, and a leak scan. The OSM routing candidate now has broader structural samples but still needs real-world access review, an alternative geocoder comparison, ODbL legal approval, renderer attribution design and production operational/TCO review. Separately, account-specific terms must resolve every conditional or unresolved storage, display, DPA, regional-processing, quota, support, and billing item.
 
 Failure behavior remains covered by deterministic adapter tests for authorization, timeout, rate limit/quota, 5xx, no result, malformed response, bounded retry, circuit breaker, redirect rejection, and credential non-disclosure. Live quota exhaustion or abusive rate testing is prohibited.
 
-The hosted providers produced no live geometry. The self-hosted candidate produced a safe attributed [four-route plot](evidence/osm-valhalla-palestine-routes.png) from public fixture geometry; it is real local routing evidence, not fake-provider or production-renderer evidence.
+The hosted providers produced no live geometry. The self-hosted candidate produced a safe attributed [expanded road-context plot](evidence/osm-valhalla-palestine-routes.png) from public fixture geometry and roads in the exact PBF; it is real local routing evidence, not fake-provider or production-renderer evidence.
 
 ## Regression and production-boundary evidence
 
-The documentation-only branch passed API 271, Admin 54, Flutter 241, and tooling 9, plus typecheck, builds, analysis, workflow validation, dependency policy, and security validation. Isolated MySQL 8.0.46 applied all 18 migrations from empty, repeated deployment as a no-op, and passed M7C3C1 145, M7C3A 98, M7C1 79, M7H1 reset 45, M7H1 legacy online 21, M7H1 passenger association 12, and public onboarding 76, together with trusted sessions, onboarding foundation, and route lifecycle. The Windows aggregate wrapper reproduced its documented `spawn EINVAL`; every underlying harness passed individually, while Linux CI remains authoritative for the aggregate path.
+The independently corrected branch passed local API 271, Admin 54, Flutter 241, and tooling 12, plus typecheck, builds, analysis, workflow validation, dependency policy, and security validation. The original evidence head's exact-head Linux CI applied all 18 migrations from empty, repeated deployment as a no-op, and passed M7C3C1 145, M7C3A 98, M7C1 79, M7H1 reset 45, M7H1 legacy online 21, M7H1 passenger association 12, and public onboarding 76, together with trusted sessions, onboarding foundation, and route lifecycle. The corrected head requires the same exact-head Linux CI gates before closure.
 
 Demo preflight passed 22/22. Deterministic smoke remained score 0.9317, sequence 2, trips 1 versus 6, distance 21.53 versus 129.19, cost 43.06 versus 258.38, winner `masari`. Maps remained disabled during the demo and provider calls were zero.
 

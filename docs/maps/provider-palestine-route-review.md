@@ -1,37 +1,28 @@
-# M7D1B Palestine route review
+# M7D1B independent Palestine route review
 
 Evidence date: 2026-08-07. Classification: `TEST FIXTURE DATA — NOT USER LOCATION DATA`.
 
-No hosted-provider credential was securely available. Mapbox, Google, HERE, and Stadia are each `NOT_EXECUTED`; their route sample count remains zero. The separate keyless `OSM_SELF_HOSTED_VALHALLA` candidate was executed locally against the current Geofabrik Israel/Palestine extract.
+Hosted providers remain `NOT_EXECUTED`. The keyless Valhalla review used the checksum-pinned Geofabrik extract, corrected PPU and Bab Al-Zawiya public fixtures, 12 expanded public routes and three explicit restriction controls. Full measurements are in [the Valhalla evidence](osm-valhalla-palestine-evidence.md).
 
-## OSM/Valhalla human review
+## Corrected required routes
 
-| Public fixture | Distance / duration | Geometry | Human classification |
+| Public fixture | Distance / duration | Geometry | Review |
 |---|---|---|---|
-| Hebron → Bethlehem / `الخليل → بيت لحم` | 28.163 km / 39.0 min | 679 points, continuous | PASS |
-| PPU → Bethlehem / `جامعة بوليتكنك فلسطين → بيت لحم` | 23.271 km / 35.4 min | 599 points, continuous | PASS |
-| Bab Al-Zawiya → Bethlehem / `باب الزاوية → بيت لحم` | 29.013 km / 40.5 min | 738 points, continuous | PASS |
-| PPU → Bab Al-Zawiya → Bethlehem / `جامعة بوليتكنك فلسطين → باب الزاوية → بيت لحم` | 37.728 km / 59.6 min | 1,002 points, two ordered legs, continuous | PASS |
+| Hebron → Bethlehem | 28.163 km / 39.0 min | 679 points, continuous | PASS |
+| corrected PPU → Bethlehem | 36.440 km / 44.9 min | 884 points, continuous | PASS |
+| corrected Bab Al-Zawiya → Bethlehem | 28.786 km / 40.0 min | 712 points, continuous | PASS |
+| corrected PPU → Bab Al-Zawiya → Bethlehem | 32.964 km / 49.2 min | 874 points, two ordered legs | PASS |
 
-The attributed [local review plot](evidence/osm-valhalla-palestine-routes.png) visibly states `TEST FIXTURE DATA — NOT USER LOCATION DATA`. Origin, waypoint and destination order are sane; no disconnected segment, impossible jump, obvious terrain crossing or absurd unexplained detour is visible. The required PPU-to-Bab-to-Bethlehem backtrack is correctly longer. This plot has no basemap and cannot establish every one-way, access or turn-restriction detail; broader road review remains required. Full measurements and checksums are in [osm-valhalla-palestine-evidence.md](osm-valhalla-palestine-evidence.md).
+The earlier PPU/Bab measurements are invalid because their fixture coordinates were materially misplaced. The four rows above are rerun results, not reinterpretations of the old geometry.
 
-## Approved future review set
+## Expanded human review
 
-The committed public fixture defines two canonical ordered routes and the public stops needed to review Hebron, Palestine Polytechnic University, Bab Al-Zawiya, and Bethlehem. A credentialed rerun may add other public corridor points, but never private residential or user locations.
+The attributed [road-context plot](evidence/osm-valhalla-palestine-routes.png) overlays returned shapes on roads extracted from the same PBF. The 12 expanded routes cover intra-Hebron, Hebron–Bethlehem, Bethlehem local, Ramallah/Al-Bireh local, Nablus local, Jericho local, Jenin local, Tulkarm local, Qalqilya local, Ramallah–Nablus, Nablus–Jenin and Bethlehem–Ramallah. They follow the visible road network without straight-line jumps, malformed geometry, disconnected sections, suspicious reversals or unexplained extreme detours. Trace attributes show no pedestrian, unpaved or destination-only edge in these route samples.
 
-For each successful provider route the evidence record must include provider, driving profile, ordered public fixture stop IDs, distance, duration, encoding, decoded point count, monotonic call latency, safe error category, normalized checksum, and returned attribution metadata. Provider responses must not be copied wholesale.
+Selected controls confirm observed handling of a mapped `no_left_turn`, reverse travel on a mapped one-way, and a pedestrian way with a `motor_vehicle=no` barrier. This does not establish every access rule. OSM/Valhalla cannot by itself determine real-time checkpoint state, nationality-specific access, regulatory permission, safety or operational delivery feasibility. Intercity and locally sensitive corridors therefore remain operationally `CONDITIONAL` even when geometry passes.
 
-## Human checklist
+## Human-review rule
 
-The reviewer must independently confirm all of the following from normalized geometry:
+Every future route must independently confirm endpoint snap, waypoint order, continuous road-following geometry, finite values, plausible detour, no pedestrian shortcut, and available access/restriction evidence. A computed route is not automatic operational approval.
 
-- origin and destination are sane;
-- every intermediate stop is sane and stop order is preserved;
-- geometry follows a plausible road network without impossible jumps or inaccessible terrain;
-- there is no absurd detour;
-- distance and duration are plausible for the provider's stated conditions;
-- observable behavior is recorded without geopolitical assumptions based on labels.
-
-Shortest does not mean safest or correct. Each route receives `PASS`, `CONDITIONAL`, or `FAIL`; any provider with a failed mandatory route is ineligible. A local visual artifact may be produced only from approved public fixture geometry and must retain the fixture-data disclaimer above.
-
-Current human Palestine review: hosted providers `NOT_EXECUTED`; OSM/Valhalla tested corridor `4/4 PASS`. Current recommendation: `OSM_VALHALLA_CANDIDATE=CONDITIONAL`; `NO_PROVIDER_APPROVED_YET`.
+`OSM_PALESTINE_ROUTE_DATA=PASS_FOR_TESTED_FIXTURES_ONLY`. Do not generalize this to “Valhalla works across Palestine.” `VALHALLA_ROUTING_CANDIDATE=CONDITIONAL`; `PROVIDER_SELECTION=NO_PROVIDER_APPROVED_YET`.

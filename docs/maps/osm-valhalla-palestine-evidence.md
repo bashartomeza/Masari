@@ -1,46 +1,80 @@
-# M7D1B OSM + Valhalla Palestine routing evidence
+# M7D1B independent OSM + Valhalla Palestine routing evidence
 
-Evidence date: 2026-08-07 (Asia/Hebron). Candidate: `OSM_SELF_HOSTED_VALHALLA`. Classification: `TEST FIXTURE DATA — NOT USER LOCATION DATA`. This is engineering evidence, not legal advice or a production-provider approval.
+Evidence date: 2026-08-07 (Asia/Hebron). Candidate: `OSM_SELF_HOSTED_VALHALLA`. Classification: `TEST FIXTURE DATA — NOT USER LOCATION DATA`. This is engineering evidence, not legal advice or production approval.
 
 ## Reproducible input and runtime
 
-- Source: [Geofabrik Israel and Palestine extract](https://download.geofabrik.de/asia/israel-and-palestine.html), downloaded through the `latest` URL at `2026-08-07T18:41:45.5487477Z`.
-- Resolved extract: `israel-and-palestine-260806.osm.pbf`; HTTP `Last-Modified: 2026-08-06T22:41:11Z`; size `119,354,376` bytes.
-- Published MD5 matched: `a70807a665791211288db4ddc467aac2`. Independently calculated SHA-256: `36e45cb73d7fa584fbdf58836b615174122c32f22bf1871ec691161826af79aa`.
-- Valhalla `3.8.3`, scripted container `ghcr.io/valhalla/valhalla-scripted@sha256:24ef7955899dececb94e26c6dfb89d64fabfae875f980432694b0261eb6c251b`, image creation timestamp `2026-07-25T00:47:50.705864672Z`. The release is the current upstream release reviewed for this run; the scripted wrapper supplies the reproducible build entrypoint.
-- Configuration: automobile costing, eight build/service threads, admins and time zones enabled, tar extract enabled, elevation/transit/live traffic disabled, default OSM speed configuration enabled. HTTP was bound only to `127.0.0.1:18002`.
+- Geofabrik `israel-and-palestine-260806.osm.pbf`, `119,354,376` bytes, SHA-256 `36e45cb73d7fa584fbdf58836b615174122c32f22bf1871ec691161826af79aa`.
+- Valhalla `3.8.3`, `ghcr.io/valhalla/valhalla-scripted@sha256:24ef7955899dececb94e26c6dfb89d64fabfae875f980432694b0261eb6c251b`.
+- Eight build/service threads; admins and time zones enabled; tar extract enabled; elevation, transit and live traffic disabled; localhost only.
+- Independent build: about 261 seconds to readiness, 82 tile files, 812,218 nodes, 2,185,488 directed edges, `196,254,720` tile bytes and `196,403,200` tar bytes. The builder parsed 12,428 simple turn restrictions and validation completed.
 
-The graph build ran from `2026-08-07T18:42:05.155Z` to service readiness at `2026-08-07T18:46:27.123Z`: 262 seconds. It produced 82 tile files, 812,218 nodes and 2,185,488 directed edges. The tile directory was `196,254,720` bytes and its tar was `196,403,200` bytes. Peak sampled build memory was about 730 MiB; peak sampled CPU was about 79% of the Docker-reported host allocation. These samples are observations, not capacity sizing.
+Run [the service script](../../scripts/maps/m7d1b-services.ps1) with `-Action prepare`, `-Action valhalla-build`, and optionally `-Action valhalla-serve`. Run [the evidence harness](../../scripts/maps/m7d1b-live-evidence.mjs) with `--mode=route` or `--mode=performance`. The harness uses a five-second request timeout by default, monotonic timing, nearest-rank percentiles, explicit error accounting and committed public fixtures. The [renderer source](../../scripts/maps/render-m7d1b-routing.py) reads the same PBF and never calls an online tile service.
 
-Safe warning categories were: 15 incomplete boundary members and 15 corresponding degenerate out-of-extract admin areas; 33 expected `admin_access` rows absent from this non-planet extract; five malformed OSM time ranges summarized by one warning; 44 possible duplicate level-1 edges; and expected absence of elevation, transit and live-traffic inputs. The builder completed successfully, validation completed, the tile extract loaded, and route requests succeeded. No warning was silently treated as route correctness proof.
+## Corrected fixture finding
 
-## Route results
+The earlier evidence used two materially misplaced public fixtures:
 
-All calls used POST/JSON, automobile costing, public coordinates from `fixtures/palestine-route-bakeoff.json`, and Valhalla polyline6 geometry. The checksum is SHA-256 of the returned encoded leg shape(s). Arabic-equivalent descriptions are: `الخليل → بيت لحم`, `جامعة بوليتكنك فلسطين → بيت لحم`, `باب الزاوية → بيت لحم`, and `جامعة بوليتكنك فلسطين → باب الزاوية → بيت لحم`.
+- PPU `31.5782,35.0801` was about 7.9 km from the official Dahiat Al-Baladiyah campus. The corrected point `31.5073157,35.0908933` matches PPU Building C and the PPU-published coordinate `31°30′26.16378″ N, 35°5′27.40563″ E` within metres.
+- Bab Al-Zawiya `31.5279,35.0938` was about 0.77 km west of the named square. The corrected public square is `31.5275134,35.1018593`.
 
-| Fixture | Result | Distance | Duration | Legs / maneuvers | Points | Max decoded segment | Endpoint snap offsets | Geometry SHA-256 | Review |
-|---|---|---:|---:|---:|---:|---:|---:|---|---|
-| `hebron-bethlehem` | success | 28.163 km | 2,342.147 s | 1 / 22 | 679 | 369.4 m | 51.0 m / 31.9 m | `8c10f4b1a3cd3d68b6540dc44a0cb1b6ae16a100dae7cc37c65e0c2d56c66684` | PASS |
-| `ppu-bethlehem` | success | 23.271 km | 2,123.114 s | 1 / 25 | 599 | 369.4 m | 6.1 m / 31.9 m | `6b40a5571c89ceca2b91ca1277c06e346ffc0c5d256b00747ce6f40281fc4096` | PASS |
-| `bab-al-zawiya-bethlehem` | success | 29.013 km | 2,430.487 s | 1 / 30 | 738 | 369.4 m | 9.6 m / 31.9 m | `96d69b990de801ce6edd556d745d2332d6066a20bd912db2525bd853491ebb1b` | PASS |
-| `ppu-bab-al-zawiya-bethlehem` | success | 37.728 km | 3,576.072 s | 2 / 46 | 1,002 | 369.4 m | 6.1 m / 31.9 m | `5af3aa9457c9f68d571967bdb4bab996dab59d7d1a97c7fb02b03bc263435303` | PASS |
+Consequently the old PPU/Bab route measurements were invalid and are superseded. The corrected four-route run is:
 
-The combined [local geometry plot](evidence/osm-valhalla-palestine-routes.png) (SHA-256 `b4250f544429a65f39a06c74d5c2b70839597a3e3705adfc710e1548f34bf9af`) was reviewed at original resolution. Origins, waypoint, destination and deliberate waypoint order are visible. Geometry is continuous; it has no straight-line teleport, disconnected leg, terrain-crossing appearance or extreme unexplained detour. The two-leg PPU → Bab Al-Zawiya → Bethlehem route visibly travels south to the required waypoint before returning north, explaining its longer distance. Returned maneuvers reference plausible corridor roads in Arabic and numbered road references, including شارع القدس-الخليل and roads 35/60. The plot has no basemap, so it is supporting continuity evidence rather than an exhaustive lane, access, one-way or turn-restriction audit.
+| Route | Distance | Duration | Legs / maneuvers | Points | Max segment | Endpoint snap | Geometry SHA-256 | Geometry review |
+|---|---:|---:|---:|---:|---:|---:|---|---|
+| Hebron → Bethlehem | 28.163 km | 2,342.147 s | 1 / 22 | 679 | 369.4 m | 51.0 / 31.9 m | `8c10f4b1a3cd3d68b6540dc44a0cb1b6ae16a100dae7cc37c65e0c2d56c66684` | PASS |
+| corrected PPU → Bethlehem | 36.440 km | 2,695.820 s | 1 / 24 | 884 | 369.4 m | 27.8 / 31.9 m | `ae29ecebd578f1188e6bdb140e29fe477cfb7e880e8596aafe5d981cd48c866b` | PASS |
+| corrected Bab Al-Zawiya → Bethlehem | 28.786 km | 2,400.186 s | 1 / 23 | 712 | 369.4 m | 7.1 / 31.9 m | `0d0013506bc4863ca9e24e9feec5ab754c1d53ddd0348741c4da7438291af151` | PASS |
+| corrected PPU → Bab Al-Zawiya → Bethlehem | 32.964 km | 2,952.371 s | 2 / 34 | 874 | 369.4 m | 27.8 / 31.9 m | `7a080493f4e61b985672d0c00bafdc8d7adae413d124a57f5c697fe625eebe68` | PASS |
 
-The tested central Hebron, PPU access, Bab Al-Zawiya access and Bethlehem central cases produced automobile routes without disconnected geometry, pedestrian-only shortcuts, pathological U-turns or obvious missing links. Classification: `OSM_PALESTINE_ROUTE_DATA=PASS_FOR_TESTED_CORRIDOR_ONLY`. This must not be generalized to every road or all of Palestine.
+The multi-stop route passes within 7.1 m of the corrected Bab waypoint and preserves leg order. The direct PPU route is faster but longer than the via-Bab route because it prefers road 60 over slower central-Hebron streets; maneuvers and the road-context plot support that explanation.
 
-## Calculation latency and bounded concurrency
+## Expanded routing coverage
 
-All timings use `performance.now()` and measure the local Valhalla calculation round trip, not Internet/provider-network latency. Cold sampling is 20 independent container restarts retaining the prebuilt graph, followed by one route request each: request p50 `96.305 ms`, p95 `121.952 ms`; restart-to-ready p50 `1,029.001 ms`, p95 `1,033.318 ms`. Warm sequential sampling is 100 calls (25 per fixture): p50 `8.440 ms`, p95 `11.291 ms`, maximum `14.583 ms`, zero errors.
+The committed [expanded public fixture](fixtures/palestine-expanded-public-evidence.json) covers eight local areas and three additional intercity samples. All 12 returned finite, continuous automobile routes whose decoded geometry followed roads in the exact PBF. Trace attributes showed zero pedestrian, unpaved, or destination-only edges in these samples.
 
-At concurrency 20, identical Hebron → Bethlehem calls had p50/p95 `27.006/31.079 ms`; identical PPU → Bethlehem calls had `19.486/29.500 ms`. Twenty mixed approved-fixture calls had p50/p95 `21.961/28.062 ms`. All 60 concurrent calls succeeded. Service memory after the run was about 257 MiB. This bounded developer-machine result passes the `<2 s` calculation target but is not production capacity planning.
+| Route | Distance | Duration | Points | Structural geometry |
+|---|---:|---:|---:|---|
+| PPU → Bab Al-Zawiya | 4.178 km | 552.184 s | 163 | PASS |
+| Hebron → Bethlehem | 28.163 km | 2,342.147 s | 679 | PASS |
+| Bethlehem local | 1.725 km | 287.510 s | 81 | PASS |
+| Ramallah → Al-Bireh local | 3.076 km | 502.587 s | 107 | PASS |
+| Nablus local | 3.709 km | 569.032 s | 129 | PASS |
+| Jericho local | 3.315 km | 504.856 s | 87 | PASS |
+| Jenin local | 1.001 km | 120.521 s | 19 | PASS |
+| Tulkarm local | 0.624 km | 141.680 s | 33 | PASS |
+| Qalqilya local | 0.377 km | 79.364 s | 26 | PASS |
+| Ramallah → Nablus | 54.287 km | 4,068.656 s | 1,277 | PASS / operational access CONDITIONAL |
+| Nablus → Jenin | 42.780 km | 3,218.584 s | 1,099 | PASS / operational access CONDITIONAL |
+| Bethlehem → Ramallah | 41.042 km | 3,156.125 s | 938 | PASS / operational access CONDITIONAL |
 
-## Rights and attribution boundary
+The attributed [road-context plot](evidence/osm-valhalla-palestine-routes.png), SHA-256 `db62ed20509b3f22c2cd75bacce193c8f64c93762f415e3dd3d1146c9fcee8c`, was reviewed at original resolution. It derives roads and routes from the exact PBF, shows no straight-line jump, disconnected leg, suspicious reversal or extreme unexplained detour, and visibly states the public-test-fixture and OSM attribution notices.
 
-OpenStreetMap raw data is licensed under the ODbL. The local Valhalla graph is an OSM-derived database and must be operated under applicable ODbL attribution/share-alike obligations when publicly used. Individual route geometry is plausibly a Produced Work, but OSMF discussion of routing geometry shows that the classification is not sufficiently settled for Masari to infer unrestricted proprietary ownership. Therefore canonical route-geometry storage is `CONDITIONAL / LEGAL_REVIEW_REQUIRED`, not unrestricted.
+## Restriction controls
 
-Every evidence or future user-facing OSM-derived display must visibly credit `© OpenStreetMap contributors` and provide access to the ODbL/license information. See [OSM copyright](https://www.openstreetmap.org/copyright), the [OSMF Produced Work guideline](https://osmfoundation.org/wiki/Licence/Community_Guidelines/Produced_Work_-_Guideline), and the recorded [OSMF routing discussion](https://osmfoundation.org/wiki/Licensing_Working_Group/Minutes/2024-06-10). The committed plot contains attribution. No final Flutter renderer is added.
+Three selected controls demonstrate observed tag handling, not universal regulatory correctness:
 
-## Result
+- OSM relation `13252221` (`no_left_turn`) makes a roughly 15 m prohibited direct movement route 5.585 km around the legal graph path.
+- OSM way `337051667` (`oneway=yes`) makes a roughly 10 m reverse movement route 5.521 km around the permitted direction.
+- OSM way `1457807736` (`highway=pedestrian`) with node `4973647884` (`motor_vehicle=no`) makes a roughly 64 m through movement route 0.879 km around it; trace attributes contain no pedestrian edge.
 
-Routing quality, local calculation latency, keyless operation and provider-neutral normalization are credible for this narrow corridor. Storage classification, production update/SRE design, renderer attribution, broader route coverage and independent approval remain open. `OSM_VALHALLA_CANDIDATE=CONDITIONAL`; `PROVIDER_SELECTION=NO_PROVIDER_APPROVED_YET`.
+Valhalla cannot establish real-time checkpoint status, nationality-specific access, regulatory permission, road safety or practical delivery accessibility from basic OSM automobile costing. Every production corridor still needs local operational review.
+
+## Local performance methodology
+
+The independent harness used `performance.now()`, explicit 5,000 ms aborts, nearest-rank percentiles and complete error accounting. “Cold” means a restarted Valhalla process retaining graph files and OS cache; it is not machine-cold or disk-cold.
+
+| Test | Samples | p50 | p95 | Maximum | Errors |
+|---|---:|---:|---:|---:|---:|
+| process-cold route | 20 | 61.728 ms | 66.984 ms | 71.843 ms | 0 |
+| restart to ready | 20 | 8,139.535 ms | 10,039.013 ms | 10,263.986 ms | 0 |
+| warm sequential | 100 | 8.298 ms | 14.627 ms | 16.349 ms | 0 |
+| 20-way identical Hebron | 20 | 27.742 ms | 31.817 ms | 32.240 ms | 0 |
+| 20-way identical corrected PPU | 20 | 19.493 ms | 25.309 ms | 25.541 ms | 0 |
+| 20-way mixed | 20 | 17.969 ms | 25.110 ms | 25.305 ms | 0 |
+
+The calculation p95 target `<2 s` passes locally. The prior ~1.03 s restart-to-ready value was not independently reproducible and is superseded. `VALHALLA_LOCAL_PERFORMANCE=CONDITIONAL` because this is bounded developer-machine evidence, not remote latency, HA, sustained load or production capacity planning.
+
+## Decision
+
+`ROUTING_ENGINE_CANDIDATE=OSM_VALHALLA_RECOMMENDATION_CANDIDATE`. Tested structural route quality and local latency pass; operations, real-world access, production TCO and canonical route-storage rights remain conditional or unresolved. `VALHALLA_ROUTING_CANDIDATE=CONDITIONAL`; `PROVIDER_SELECTION=NO_PROVIDER_APPROVED_YET`.
