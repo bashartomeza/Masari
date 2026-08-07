@@ -1,5 +1,13 @@
 # PROJECT_MAP.md
 
+[M7D1B_PROVIDER_LIVE_EVIDENCE_ACTIVE]
+- M7D1B is an evidence-only milestone on `m7d1b/provider-live-evidence`, based on approved baseline `a7f1a2c643d449a59ab6c61f68f093182cc6b11e`. M7D1 remains closed.
+- Categorical checks found no Mapbox, Google, HERE, or Stadia credential in approved local or CI-secret mechanisms. All four live executions are `NOT_EXECUTED`; live geocode, Arabic, route, human-review, and latency sample counts are zero.
+- The existing provider-neutral harness remains ready and its deterministic fake completed 8/8 geocodes and 2/2 routes. Fake output is architecture evidence only and cannot approve provider quality or performance.
+- Official-source storage, attribution, privacy, commercial, and quota research is recorded in focused M7D1B documents. Google and HERE do not fit the proposed shared multi-year canonical record under reviewed public standard terms; Mapbox and Stadia retain unresolved route-result persistence fields.
+- `PROVIDER_RECOMMENDATION_CANDIDATE=NONE`; `PROVIDER_SELECTION=NO_PROVIDER_APPROVED_YET`; M7D1B remains `ACTIVE / BLOCKED_ON_LIVE_EVIDENCE` pending secure credentials, live Palestine/Arabic evidence, human route review, credible p95, account-specific rights/DPA/price/quota review, and independent approval.
+- The Prisma schema and all 18 migrations remain unchanged. M7D1B persists no geocode, geometry, distance, duration, provider ID, or cache result. Production remains `ROUTE_MAPS_ENABLED=false` and `ROUTE_PROVIDER=disabled`; no renderer, SDK, GPS, permission, background location, realtime, M7D2, or M7E work is approved.
+
 [M7D1_PROVIDER_ABSTRACTION_ROUTE_GEOMETRY_CLOSED]
 - M7D1 is formally merged and closed on `production-readiness`. Approved feature head `2d286057f8505fb3b20f08ba76fe1c260c75e8b1` is preserved under PR #17 merge commit `e7b9fbf10e1653420adcd7f149d9d0f721416916`; the reviewed correction commit and prior feature history remain visible.
 - The provider-neutral geocode/route foundation is approved. Fixed HTTPS Mapbox, Google, HERE, and Stadia adapters expose no arbitrary-host proxy or user-selectable scheme, hostname, port, provider path, callback, custom URL, credential, or coordinate list. Credentials remain server-only; redirects are manual/rejected and cross-origin 301/302/303/307/308 destinations receive no credential, query-key, or body forwarding.
