@@ -1,6 +1,6 @@
 # M7D1B provider live evidence
 
-Evidence date: 2026-08-07 (Asia/Hebron). Milestone state: `ACTIVE / BLOCKED_ON_LIVE_EVIDENCE`. Provider selection: `NO_PROVIDER_APPROVED_YET`.
+Evidence date: 2026-08-07 (Asia/Hebron). Milestone state: `ACTIVE / BLOCKED_ON_REMAINING_PROVIDER_EVIDENCE`. Provider selection: `NO_PROVIDER_APPROVED_YET`.
 
 This report uses only the committed public fixture in `docs/maps/fixtures/palestine-route-bakeoff.json`. It contains canonical planning points in the Hebron–Bethlehem corridor and no user address, current location, passenger, merchant, or driver data.
 
@@ -14,8 +14,9 @@ Credential availability was checked categorically in the approved process enviro
 | Google | NOT_AVAILABLE | NOT_AVAILABLE | NOT_EXECUTED | 0 | 0 | 0 | NOT_EXECUTED |
 | HERE | NOT_AVAILABLE | NOT_AVAILABLE | NOT_EXECUTED | 0 | 0 | 0 | NOT_EXECUTED |
 | Stadia | NOT_AVAILABLE | NOT_AVAILABLE | NOT_EXECUTED | 0 | 0 | 0 | NOT_EXECUTED |
+| OSM self-hosted Valhalla + evaluated Nominatim | NOT_REQUIRED | NOT_REQUIRED | EXECUTED | 8 | 4 | 4 | 4 PASS |
 
-The existing harness was invoked once for each unavailable provider. Each returned the expected `credential_unavailable` safe category, null acceptance and latency fields, zero samples, and process exit 2. Exit 2 is the harness's deliberate `NOT_EXECUTED` outcome, not a provider failure. No credential was requested from the user.
+The existing harness was invoked once for each unavailable hosted provider. Each returned the expected `credential_unavailable` safe category, null acceptance and latency fields, zero samples, and process exit 2. Exit 2 is the harness's deliberate `NOT_EXECUTED` outcome, not a provider failure. No credential was requested from the user. The separate keyless OSM/Valhalla run used a local digest-pinned service and current regional extract; it did not pretend that routing validates geocoding.
 
 ## Harness readiness evidence
 
@@ -44,13 +45,30 @@ No aggregate score can conceal a failed or missing mandatory gate.
 
 G1 is based on the already-approved M7D1 adapters and deterministic tests, not live evidence. Google fails G6 for the proposed shared canonical record because the published indefinite geocode exception is end-user-specific and logically isolated, while Routes content storage is restricted. HERE fails G6 under standard public terms because results cannot form Masari's multi-year canonical record without separate rights. Mapbox and Stadia remain unresolved because their geocode paths can be made conditional, but published route-result persistence rights do not approve every proposed field.
 
+## OSM self-hosted candidate gates
+
+| Gate | Result | Evidence |
+|---|---|---|
+| G1 provider-neutral compatibility | PASS | Local Valhalla responses normalized without production integration |
+| G2 Palestine road coverage | PASS | Four required routes; tested corridor only |
+| G3 route validity | PASS | 4/4 human-reviewed routes |
+| G4 route latency | PASS | cold request p95 121.952 ms; warm p95 11.291 ms |
+| G5 Arabic geocoding | FAIL | strict self-hosted Nominatim result 2/4 |
+| G6 geocoding quality | FAIL | strict 4/8, below target; sample too small for regional claims |
+| G7 canonical-storage compatibility | CONDITIONAL | ODbL/route-output legal classification remains open |
+| G8 attribution compatibility | CONDITIONAL | requirement documented; final renderer absent |
+| G9 privacy | PASS | local-only fixture processing; no third-party provider |
+| G10 operational complexity/cost | CONDITIONAL | feasible footprint; production SRE/TCO not approved |
+
+`OSM_VALHALLA_CANDIDATE=CONDITIONAL`. Routing and geocoding remain separable; the weak Nominatim initial set does not invalidate the Valhalla route result.
+
 ## Missing evidence matrix
 
-Every provider still needs a securely supplied server credential through an approved local or CI mechanism, a repeated live run, human review of every returned geocode and route, Arabic assessment, credible cold/warm latency sampling, and a leak scan. Separately, account-specific terms must resolve every conditional or unresolved storage, display, DPA, regional-processing, quota, support, and billing item.
+Each hosted provider still needs a securely supplied server credential through an approved local or CI mechanism, a repeated live run, human review of every returned geocode and route, Arabic assessment, credible cold/warm latency sampling, and a leak scan. The OSM candidate instead needs broader corridor evidence, an improved/alternative geocoder, ODbL legal approval, renderer attribution design and production operational/TCO review. Separately, account-specific terms must resolve every conditional or unresolved storage, display, DPA, regional-processing, quota, support, and billing item.
 
 Failure behavior remains covered by deterministic adapter tests for authorization, timeout, rate limit/quota, 5xx, no result, malformed response, bounded retry, circuit breaker, redirect rejection, and credential non-disclosure. Live quota exhaustion or abusive rate testing is prohibited.
 
-No live geometry artifact was generated because no provider produced live geometry. A fake-provider visualization would not be route-quality evidence.
+The hosted providers produced no live geometry. The self-hosted candidate produced a safe attributed [four-route plot](evidence/osm-valhalla-palestine-routes.png) from public fixture geometry; it is real local routing evidence, not fake-provider or production-renderer evidence.
 
 ## Regression and production-boundary evidence
 

@@ -8,6 +8,7 @@ Evidence date: 2026-08-07. Scope is Masari's server-side HTTP adapters using pub
 | Google | Maps terms describe Google collection/use of queries, IP and coordinates; controller-controller terms are relevant; generic Cloud DPA applicability is not assumed | UNRESOLVED |
 | HERE | public privacy material and essential-data-processing option exist; applicable processor/DPA and region/account configuration are not established | UNRESOLVED |
 | Stadia | DPA incorporated into terms; processor role for Customer Data; US/international transfers; API logs approximately 7–14 days | CONDITIONAL |
+| OSM self-hosted | evidence traffic stayed on localhost; production logging/hosting/retention remain Masari's responsibility | PASS for local evidence / CONDITIONAL for production |
 
 ## Mapbox
 
@@ -28,3 +29,5 @@ The [Stadia DPA](https://stadiamaps.com/legal/data-processing-addendum/) is inco
 ## SDK and production boundary
 
 This review does not approve any client SDK. A later renderer or provider SDK could add client IP exposure, SDK telemetry, identifiers, crash analytics, map-load events, or device-location processing and must receive a separate review. No provider is `APPROVED_FOR_NEXT_DESIGN` yet.
+
+The self-hosted evidence sent only public fixtures to localhost-bound Valhalla and Nominatim and introduced no third-party request processor. That passes the narrow evidence privacy gate. Production self-hosting still needs access control, log minimization/retention, backup and regional-hosting review; it is not automatic legal approval.

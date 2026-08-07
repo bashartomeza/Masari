@@ -18,6 +18,7 @@ Renderer/map loads are excluded and must be budgeted separately after a renderer
 | Google Geocoding + Compute Routes Essentials | $0 | $0 | $900 | CONDITIONAL, storage-incompatible |
 | HERE Geocoding + Routing | UNRESOLVED | UNRESOLVED | UNRESOLVED | UNRESOLVED |
 | Stadia Standard plan, 20 credits per geocode and route | $80 | $80 | $80 | CONDITIONAL, routing rights unresolved |
+| OSM self-hosted Valhalla + Nominatim | no per-call vendor fee measured | no per-call vendor fee measured | no per-call vendor fee measured | UNPRICED infrastructure/SRE burden |
 
 ### Mapbox
 
@@ -43,3 +44,5 @@ The [Google Maps Platform pricing list](https://developers.google.com/maps/billi
 - Stadia: fixed plan credit pools prevent unapproved overage; plan-specific request-rate and higher-limit details require dashboard/account confirmation. Standard/Professional/Enterprise implications remain conditional.
 
 Operational gate G10 and commercial gate G9 remain unapproved for every provider pending credentialed measurements, account validation, volume distribution, support/SLA review, and an approved budget.
+
+The self-hosted run demonstrated modest developer-machine footprint but did not price production compute, storage, bandwidth, observability, blue/green graph builds, backups, on-call work or upgrades. Avoiding per-request vendor fees is not a zero-cost conclusion; G10 remains `CONDITIONAL`.

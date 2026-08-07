@@ -2,17 +2,17 @@
 
 Evidence date: 2026-08-07. This is a conservative engineering reading of current public official sources, not legal advice. No provider-derived result is persisted by M7D1B.
 
-| Proposed canonical field | Mapbox | Google | HERE | Stadia |
-|---|---|---|---|---|
-| normalized latitude | CONDITIONAL | RESTRICTED | RESTRICTED | CONDITIONAL |
-| normalized longitude | CONDITIONAL | RESTRICTED | RESTRICTED | CONDITIONAL |
-| normalized display label | CONDITIONAL | RESTRICTED | RESTRICTED | CONDITIONAL |
-| encoded route geometry/polyline | UNRESOLVED | RESTRICTED | RESTRICTED | UNRESOLVED |
-| route distance | UNRESOLVED | RESTRICTED | RESTRICTED | UNRESOLVED |
-| route duration | UNRESOLVED | RESTRICTED | RESTRICTED | UNRESOLVED |
-| provider route/reference ID | UNRESOLVED | UNRESOLVED | RESTRICTED | UNRESOLVED |
-| provider geocode/reference ID | CONDITIONAL | ALLOWED only when it is a place ID | RESTRICTED | CONDITIONAL |
-| attribution/provenance metadata | CONDITIONAL | CONDITIONAL | CONDITIONAL | CONDITIONAL |
+| Proposed canonical field | Mapbox | Google | HERE | Stadia | OSM self-hosted |
+|---|---|---|---|---|---|
+| normalized latitude | CONDITIONAL | RESTRICTED | RESTRICTED | CONDITIONAL | CONDITIONAL / ODbL review |
+| normalized longitude | CONDITIONAL | RESTRICTED | RESTRICTED | CONDITIONAL | CONDITIONAL / ODbL review |
+| normalized display label | CONDITIONAL | RESTRICTED | RESTRICTED | CONDITIONAL | CONDITIONAL / geocoding guideline |
+| encoded route geometry/polyline | UNRESOLVED | RESTRICTED | RESTRICTED | UNRESOLVED | CONDITIONAL / legal review |
+| route distance | UNRESOLVED | RESTRICTED | RESTRICTED | UNRESOLVED | CONDITIONAL / legal review |
+| route duration | UNRESOLVED | RESTRICTED | RESTRICTED | UNRESOLVED | CONDITIONAL / legal review |
+| provider route/reference ID | UNRESOLVED | UNRESOLVED | RESTRICTED | UNRESOLVED | not returned in tested contract |
+| provider geocode/reference ID | CONDITIONAL | ALLOWED only when it is a place ID | RESTRICTED | CONDITIONAL | CONDITIONAL / OSM object reference |
+| attribution/provenance metadata | CONDITIONAL | CONDITIONAL | CONDITIONAL | CONDITIONAL | REQUIRED |
 
 ## Provider findings
 
@@ -38,6 +38,10 @@ The [HERE Platform Terms](https://legal.here.com/us-en/terms/here-platform/terms
 
 The same public terms do not expressly approve long-term database persistence of routing geometry, distance, duration, or route references. They remain unresolved. [Stadia attribution guidance](https://docs.stadiamaps.com/attribution/) requires credit to Stadia Maps and applicable original sources for geocoding/routing, and additional Stadia/OpenMapTiles/OpenStreetMap attribution for its usual map styles.
 
+### OSM self-hosted
+
+Raw OpenStreetMap data is ODbL-licensed. A Valhalla graph is an OSM-derived database; public use requires the applicable attribution and share-alike/source-availability obligations. Individual route geometry is plausibly a Produced Work, but [OSMF's recorded routing discussion](https://osmfoundation.org/wiki/Licensing_Working_Group/Minutes/2024-06-10) does not supply a final general ruling for every routing-output database. Masari therefore classifies indefinite canonical route geometry, distance and duration as `CONDITIONAL / LEGAL_REVIEW_REQUIRED`, not proprietary/unrestricted. The [OSMF geocoding guideline](https://osmfoundation.org/wiki/Licence/Community_Guidelines/Geocoding_-_Guideline) treats ordinary individual results as insubstantial under stated conditions, but systematic collections and derivative databases differ. Attribution to OpenStreetMap contributors and access to license information remain mandatory.
+
 ## Decision
 
-No provider has `ALLOWED` or compatible conditional status for every required field. Storage gate G6 is not satisfied. Formal approval requires provider/account-specific written confirmation, legal review, and a later independently reviewed persistence design. M7D1B creates no schema change, migration, cache, or canonical provider record.
+No candidate has unconditional approval for every required field. Storage gate G6/G7 (rubric-dependent naming) is not satisfied. Formal approval requires provider/account-specific confirmation where applicable, ODbL legal review for the self-hosted path, and a later independently reviewed persistence design. M7D1B creates no schema change, migration, cache, or canonical provider record.
