@@ -86,6 +86,25 @@ describe("fail-closed application configuration", () => {
     expect(() => createConfig(environment({ ROUTE_MANAGEMENT_ENABLED: "yes" }))).toThrow(/true or false/);
   });
 
+  it("keeps route providers disabled by default and validates explicit provider selection", () => {
+    expect(createConfig(environment()).routeMaps).toEqual(expect.objectContaining({ enabled: false, provider: "disabled", secret: undefined }));
+    expect(() => createConfig(environment({ ROUTE_MAPS_ENABLED: "true", ROUTE_PROVIDER: "mapbox", ROUTE_PROVIDER_SECRET: "server-secret" }))).toThrow(/requires ROUTE_MANAGEMENT_ENABLED/);
+    expect(() => createConfig(environment({ ROUTE_MANAGEMENT_ENABLED: "true", ROUTE_MAPS_ENABLED: "true", ROUTE_PROVIDER: "mapbox" }))).toThrow(/ROUTE_PROVIDER_SECRET/);
+    expect(() => createConfig(environment({ ROUTE_PROVIDER: "mapbox" }))).toThrow(/must be disabled/);
+    expect(() => createConfig(environment({ ROUTE_MANAGEMENT_ENABLED: "true", ROUTE_MAPS_ENABLED: "true", ROUTE_PROVIDER: "fake" }))).toThrow(/forbidden/);
+    const local = createConfig(environment({ APP_ENV: "local", ROUTE_MANAGEMENT_ENABLED: "true", ROUTE_MAPS_ENABLED: "true", ROUTE_PROVIDER: "fake" }));
+    expect(local.routeMaps).toEqual(expect.objectContaining({ enabled: true, provider: "fake", secret: undefined }));
+  });
+
+  it("rejects unknown, malformed, and inconsistent route-provider configuration without echoing secrets", () => {
+    expect(() => createConfig(environment({ ROUTE_PROVIDER: "unknown" }))).toThrow(/ROUTE_PROVIDER/);
+    expect(() => createConfig(environment({ ROUTE_MAPS_ENABLED: "yes" }))).toThrow(/true or false/);
+    expect(() => createConfig(environment({ ROUTE_PROVIDER_REQUEST_TIMEOUT_MS: "999", ROUTE_PROVIDER_CONNECT_TIMEOUT_MS: "1000" }))).toThrow(/at least the connect timeout/);
+    expect(() => createConfig(environment({ APP_ENV: "local", ROUTE_MANAGEMENT_ENABLED: "true", ROUTE_MAPS_ENABLED: "true", ROUTE_PROVIDER: "mapbox", ROUTE_PROVIDER_SECRET: "replace-with-provider-secret" }))).toThrow(/known placeholder/);
+    const secret = "provider-secret-that-must-not-leak";
+    expect(() => createConfig(environment({ ROUTE_MANAGEMENT_ENABLED: "true", ROUTE_MAPS_ENABLED: "true", ROUTE_PROVIDER: "mapbox", ROUTE_PROVIDER_SECRET: secret, ROUTE_PROVIDER_REQUEST_TIMEOUT_MS: "500", ROUTE_PROVIDER_CONNECT_TIMEOUT_MS: "1000" }))).toThrowError(expect.not.objectContaining({ message: expect.stringContaining(secret) }));
+  });
+
   it("accepts only exact lowercase M7C1 gate booleans", () => {
     for (const value of ["TRUE", "1", " true", "true ", "malformed"]) {
       expect(() => createConfig(environment({ APP_ENV: "local", MULTI_ROUTE_ENTRY_ENABLED: value }))).toThrow(

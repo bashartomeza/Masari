@@ -39,7 +39,11 @@ const rules = [
   ["demo reset header", /x-demo-reset-key/i],
   ["full demo sequence", /Full Demo Sequence/],
   ["simulation mutation", /\/simulate\/(?:step|reset)/i],
-  ["known demo credential label", /DEMO_(?:PASSENGER|DRIVER|MERCHANT|ADMIN)_(?:EMAIL|PASSWORD)/]
+  ["known demo credential label", /DEMO_(?:PASSENGER|DRIVER|MERCHANT|ADMIN)_(?:EMAIL|PASSWORD)/],
+  ["route provider server secret", /ROUTE_PROVIDER_SECRET|MAPBOX_ACCESS_TOKEN|GOOGLE_MAPS_API_KEY|HERE_API_KEY|STADIA_API_KEY/i],
+  ["Android precise location permission", /android\.permission\.ACCESS_(?:FINE|COARSE|BACKGROUND)_LOCATION/i],
+  ["Android location foreground service", /android\.permission\.FOREGROUND_SERVICE_LOCATION/i],
+  ["Flutter location dependency", /\b(?:geolocator|background_locator|flutter_background_geolocation)\b/i]
 ];
 const findings = [];
 function walk(root, path = root) {
