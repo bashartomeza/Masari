@@ -8,6 +8,9 @@ const fixturePath = fileURLToPath(new URL("../../docs/maps/fixtures/palestine-ex
 const corridorPath = fileURLToPath(new URL("../../docs/maps/fixtures/palestine-route-bakeoff.json", import.meta.url));
 const fixture = JSON.parse(await readFile(fixturePath, "utf8"));
 const corridor = JSON.parse(await readFile(corridorPath, "utf8"));
+const peliasResults = JSON.parse(await readFile(fileURLToPath(new URL("../../docs/maps/evidence/pelias-palestine-geocoding-results.json", import.meta.url)), "utf8"));
+const photonResults = JSON.parse(await readFile(fileURLToPath(new URL("../../docs/maps/evidence/photon-palestine-geocoding-results.json", import.meta.url)), "utf8"));
+const peliasAdjudication = JSON.parse(await readFile(fileURLToPath(new URL("../../docs/maps/evidence/pelias-palestine-geocoding-adjudication.json", import.meta.url)), "utf8"));
 
 test("M7D1B evidence fixture has 30 bilingual public locations and expanded routes", () => {
   assert.deepEqual(validateFixture(fixture), {
@@ -34,4 +37,15 @@ test("nearest-rank percentiles and polyline6 decoding are deterministic", () => 
   const points = decodePolyline6("_c`|t@_s~qfA_pR_pR");
   assert.equal(points.length, 2);
   assert.ok(points.every(([latitude, longitude]) => Number.isFinite(latitude) && Number.isFinite(longitude)));
+});
+
+test("Pelias and Photon evidence covers the unchanged bilingual corpus", () => {
+  assert.equal(Object.keys(peliasAdjudication.decisions).length, 60);
+  assert.deepEqual([peliasResults.query_count, peliasResults.arabic.acceptable, peliasResults.english.acceptable, peliasResults.overall.acceptable], [60, 10, 15, 25]);
+  assert.deepEqual([photonResults.query_count, photonResults.arabic.acceptable, photonResults.english.acceptable, photonResults.overall.acceptable], [60, 19, 26, 45]);
+  for (const evidence of [peliasResults, photonResults]) {
+    assert.equal(evidence.results.length, 60);
+    assert.equal(evidence.methodology.exact_committed_queries, true);
+    assert.equal(evidence.results.some((result) => result.acceptable === undefined || !result.fixture_id || !result.language), false);
+  }
 });

@@ -2,7 +2,7 @@
 
 Evidence date: 2026-08-07 (Asia/Hebron). Milestone state: `ACTIVE / BLOCKED_ON_REMAINING_PROVIDER_EVIDENCE`. Provider selection: `NO_PROVIDER_APPROVED_YET`.
 
-This report uses the corrected corridor fixture and the 30-location/60-query expanded public fixture under `docs/maps/fixtures/`. They contain public planning points and no user address, current location, passenger, merchant, phone-associated place, or driver data.
+This report uses the corrected corridor fixture and the 30-location/60-query expanded public fixture under `docs/maps/fixtures/`. They contain public planning points and no user address, current location, passenger, merchant, phone-associated place, or driver data. The same unchanged 60 queries were subsequently benchmarked against open-data-only Pelias and Photon; both failed the 95% gates ([comparison](geocoder-comparison.md)).
 
 ## Credential and execution result
 
@@ -59,6 +59,8 @@ G1 is based on the already-approved M7D1 adapters and deterministic tests, not l
 | G8 attribution compatibility | CONDITIONAL | requirement documented; final renderer absent |
 | G9 privacy | PASS | local-only fixture processing; no third-party provider |
 | G10 operational complexity/cost | CONDITIONAL | feasible footprint; production SRE/TCO not approved |
+
+Pelias reached 10/30 Arabic, 15/30 English and 25/60 overall. Photon reached 19/30 Arabic, 26/30 English and 45/60 overall. Both were localhost-only and had zero errors in the bounded 20-way performance sample, but quality—not transport latency—is disqualifying. `PELIAS_GEOCODING_CANDIDATE=FAIL`, `PHOTON_GEOCODING_CANDIDATE=FAIL`, and `GEOCODING_RECOMMENDATION_CANDIDATE=NONE`.
 
 `OSM_VALHALLA_CANDIDATE=CONDITIONAL`. Routing and geocoding remain separable; the weak Nominatim initial set does not invalidate the Valhalla route result.
 

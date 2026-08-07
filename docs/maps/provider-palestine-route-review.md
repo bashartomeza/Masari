@@ -4,6 +4,8 @@ Evidence date: 2026-08-07. Classification: `TEST FIXTURE DATA — NOT USER LOCAT
 
 Hosted providers remain `NOT_EXECUTED`. The keyless Valhalla review used the checksum-pinned Geofabrik extract, corrected PPU and Bab Al-Zawiya public fixtures, 12 expanded public routes and three explicit restriction controls. Full measurements are in [the Valhalla evidence](osm-valhalla-palestine-evidence.md).
 
+Routing and geocoding remain separate. The later unchanged-fixture geocoder comparison found Pelias open-data-only at 25/60 and Photon at 45/60, both below the 95% gate. This does not alter `VALHALLA_ROUTING_CANDIDATE=CONDITIONAL`; it leaves `GEOCODING_RECOMMENDATION_CANDIDATE=NONE` and `PROVIDER_SELECTION=NO_PROVIDER_APPROVED_YET`.
+
 ## Corrected required routes
 
 | Public fixture | Distance / duration | Geometry | Review |
