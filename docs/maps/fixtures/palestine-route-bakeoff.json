@@ -1,0 +1,15 @@
+{
+  "classification": "public-canonical-route-planning-fixture-no-user-data",
+  "service_region": "approved-hebron-bethlehem-corridor",
+  "locales": ["ar", "en"],
+  "stops": [
+    { "id": "hebron-center", "name_ar": "الخليل", "name_en": "Hebron", "latitude": 31.5326, "longitude": 35.0998 },
+    { "id": "ppu", "name_ar": "جامعة بوليتكنك فلسطين", "name_en": "Palestine Polytechnic University", "latitude": 31.5782, "longitude": 35.0801 },
+    { "id": "bab-al-zawiya", "name_ar": "باب الزاوية", "name_en": "Bab Al-Zawiya", "latitude": 31.5279, "longitude": 35.0938 },
+    { "id": "bethlehem-center", "name_ar": "بيت لحم", "name_en": "Bethlehem", "latitude": 31.7054, "longitude": 35.2024 }
+  ],
+  "routes": [
+    { "id": "hebron-bethlehem", "ordered_stop_ids": ["hebron-center", "ppu", "bethlehem-center"] },
+    { "id": "urban-hebron", "ordered_stop_ids": ["bab-al-zawiya", "hebron-center", "ppu"] }
+  ]
+}
