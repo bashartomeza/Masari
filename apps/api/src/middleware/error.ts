@@ -1,5 +1,6 @@
 import type { ErrorRequestHandler, Request } from "express";
 import { ZodError } from "zod";
+import { RouteProviderError } from "../maps/contracts.js";
 
 export class HttpError extends Error {
   constructor(public statusCode: number, message: string) {
@@ -52,6 +53,19 @@ export const errorHandler: ErrorRequestHandler = (error, req, res, _next) => {
       );
     }
     res.status(error.statusCode).json(errorShape(error.message, req));
+    return;
+  }
+  if (error instanceof RouteProviderError) {
+    const status = error.category === "invalid_input" ? 400
+      : error.category === "provider_rate_limited" || error.category === "provider_quota_exhausted" ? 429
+      : error.category === "provider_timeout" ? 504
+      : error.category === "provider_unauthorized" || error.category === "malformed_provider_response" ? 502
+      : 503;
+    const arabic = req.acceptsLanguages("ar") === "ar";
+    const message = arabic
+      ? (error.category === "provider_timeout" ? "انتهت مهلة مزود المسار. حاول لاحقاً." : error.category === "invalid_input" ? "بيانات المسار غير صالحة." : "خدمة حساب المسار غير متاحة حالياً.")
+      : (error.category === "provider_timeout" ? "The route provider timed out. Try again later." : error.category === "invalid_input" ? "The route input is invalid." : "Route calculation is currently unavailable.");
+    res.status(status).json(errorShape(error.category, req, { message }));
     return;
   }
 
