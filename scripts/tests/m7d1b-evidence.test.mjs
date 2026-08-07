@@ -12,6 +12,11 @@ const peliasResults = JSON.parse(await readFile(fileURLToPath(new URL("../../doc
 const photonResults = JSON.parse(await readFile(fileURLToPath(new URL("../../docs/maps/evidence/photon-palestine-geocoding-results.json", import.meta.url)), "utf8"));
 const googleResults = JSON.parse(await readFile(fileURLToPath(new URL("../../docs/maps/evidence/google-palestine-geocoding-results.json", import.meta.url)), "utf8"));
 const googleRoutes = JSON.parse(await readFile(fileURLToPath(new URL("../../docs/maps/evidence/google-palestine-route-results.json", import.meta.url)), "utf8"));
+const googlePlaces = JSON.parse(await readFile(fileURLToPath(new URL("../../docs/maps/evidence/google-palestine-places-text-search-results.json", import.meta.url)), "utf8"));
+const googlePlacesAdjudication = JSON.parse(await readFile(fileURLToPath(new URL("../../docs/maps/evidence/google-palestine-places-text-search-adjudication.json", import.meta.url)), "utf8"));
+const googleMinimalRoute = JSON.parse(await readFile(fileURLToPath(new URL("../../docs/maps/evidence/google-route-minimal-control.json", import.meta.url)), "utf8"));
+const googlePlaceIdRoute = JSON.parse(await readFile(fileURLToPath(new URL("../../docs/maps/evidence/google-route-place-id-control.json", import.meta.url)), "utf8"));
+const googleCorrectedRoutes = JSON.parse(await readFile(fileURLToPath(new URL("../../docs/maps/evidence/google-route-corrected-matrix.json", import.meta.url)), "utf8"));
 const peliasAdjudication = JSON.parse(await readFile(fileURLToPath(new URL("../../docs/maps/evidence/pelias-palestine-geocoding-adjudication.json", import.meta.url)), "utf8"));
 
 test("M7D1B evidence fixture has 30 bilingual public locations and expanded routes", () => {
@@ -27,7 +32,7 @@ test("M7D1B evidence fixture has 30 bilingual public locations and expanded rout
   assert.equal(JSON.stringify(fixture).match(/phone|recipient|home address|current gps/gi), null);
 });
 
-test("Google evidence covers the unchanged corpus without retained provider coordinates", () => {
+test("Google address geocoding evidence remains preserved without provider coordinates", () => {
   assert.deepEqual([googleResults.query_count, googleResults.arabic.acceptable, googleResults.english.acceptable, googleResults.overall.acceptable], [60, 11, 10, 21]);
   assert.deepEqual(googleResults.failures, { AMBIGUOUS_RESULT: 4, WRONG_AREA: 4, WRONG_CAMPUS: 10, WRONG_LANDMARK: 21 });
   assert.equal(googleResults.successful_requests, 60);
@@ -39,11 +44,68 @@ test("Google evidence covers the unchanged corpus without retained provider coor
   }
 });
 
+test("Google Places Text Search covers the unchanged corpus with independent top-1 and top-5 scores", () => {
+  assert.equal(Object.keys(googlePlacesAdjudication.decisions).length, 60);
+  assert.deepEqual(
+    [googlePlaces.query_count, googlePlaces.successful_requests, googlePlaces.failed_requests],
+    [60, 60, 0]
+  );
+  assert.deepEqual(
+    [googlePlaces.top_1.arabic.acceptable, googlePlaces.top_1.english.acceptable, googlePlaces.top_1.overall.acceptable],
+    [25, 23, 48]
+  );
+  assert.deepEqual(
+    [googlePlaces.top_n.arabic.acceptable, googlePlaces.top_n.english.acceptable, googlePlaces.top_n.overall.acceptable],
+    [26, 26, 52]
+  );
+  assert.deepEqual(googlePlaces.failures, {
+    RANKING_ISSUE: 4,
+    WRONG_AREA: 2,
+    WRONG_CAMPUS: 3,
+    WRONG_LANDMARK: 1,
+    WRONG_PUBLIC_PLACE: 2
+  });
+  assert.equal(googlePlaces.methodology.primary_acceptance_rule, "correct intended public concept at rank 1");
+  assert.equal(googlePlaces.methodology.google_coordinates_retained, false);
+  assert.equal(googlePlaces.methodology.canonical_persistence, false);
+  assert.equal(googlePlaces.results.length, 60);
+  for (const result of googlePlaces.results) {
+    assert.equal(result.candidates.some((candidate) => typeof candidate.place_id === "string" && candidate.place_id.length > 0), true);
+    assert.deepEqual(Object.keys(result).filter((key) => /coordinate|latitude|longitude/i.test(key)), []);
+    for (const candidate of result.candidates) {
+      assert.deepEqual(Object.keys(candidate).filter((key) => /coordinate|latitude|longitude/i.test(key)), []);
+    }
+  }
+});
+
 test("Google optional routing records four unavailable routes without geometry", () => {
   assert.deepEqual([googleRoutes.request_count, googleRoutes.successful_requests, googleRoutes.failed_requests, googleRoutes.available_routes], [4, 4, 0, 0]);
   assert.equal(googleRoutes.methodology.google_geometry_retained, false);
   assert.equal(googleRoutes.results.every((result) => result.route_available === false && result.failure_reason === "NO_ROUTE"), true);
   assert.equal(JSON.stringify(googleRoutes).includes("encodedPolyline"), false);
+});
+
+test("Google corrected route controls record safe empty HTTP-success responses", () => {
+  assert.deepEqual(
+    [googleMinimalRoute.request_count, googlePlaceIdRoute.request_count, googleCorrectedRoutes.request_count],
+    [1, 1, 4]
+  );
+  for (const evidence of [googleMinimalRoute, googlePlaceIdRoute, googleCorrectedRoutes]) {
+    assert.equal(evidence.methodology.encoded_polylines_retained, false);
+    assert.equal(evidence.methodology.canonical_persistence, false);
+    for (const result of evidence.results) {
+      assert.equal(result.http_status, 200);
+      assert.deepEqual(result.response_top_level_fields, []);
+      assert.equal(result.routes_array_count, 0);
+      assert.equal(result.distance_meters, null);
+      assert.equal(result.duration_seconds, null);
+      assert.equal(result.decoded_geometry_valid, false);
+      assert.equal(result.failure_category, "NO_ROUTE");
+      assert.equal(Object.hasOwn(result, "polyline"), false);
+    }
+  }
+  assert.equal(googleMinimalRoute.results[0].waypoint_representation, "COORDINATE_LOCATION_LATLNG");
+  assert.equal(googlePlaceIdRoute.results[0].waypoint_representation, "PLACE_ID");
 });
 
 test("corrected PPU and Bab Al-Zawiya corridor coordinates cannot regress", () => {

@@ -2,7 +2,7 @@
 
 Evidence date: 2026-08-08 (Asia/Hebron). Milestone state: `ACTIVE / BLOCKED_ON_REMAINING_PROVIDER_EVIDENCE`. Provider selection: `NO_PROVIDER_APPROVED_YET`.
 
-This report uses the corrected corridor fixture and the 30-location/60-query expanded public fixture under `docs/maps/fixtures/`. They contain public planning points and no user address, current location, passenger, merchant, phone-associated place, or driver data. The same unchanged 60 queries were subsequently benchmarked against open-data-only Pelias, Photon, and official Google Geocoding API v4; all failed the 95% gates ([comparison](geocoder-comparison.md)).
+This report uses the corrected corridor fixture and the 30-location/60-query expanded public fixture under `docs/maps/fixtures/`. They contain public planning points and no user address, current location, passenger, merchant, phone-associated place, or driver data. The same unchanged 60 queries were benchmarked against open-data-only Pelias, Photon, official Google address Geocoding API v4, and separately Google Places Text Search (New); all failed the primary 95% gates ([comparison](geocoder-comparison.md)).
 
 ## Credential and execution result
 
@@ -11,7 +11,7 @@ Credential availability was checked categorically in the approved process enviro
 | Provider | Local credential | CI credential name | Live classification | Geocodes | Arabic cases | Routes | Human review |
 |---|---|---|---|---:|---:|---:|---|
 | Mapbox | NOT_AVAILABLE | NOT_AVAILABLE | NOT_EXECUTED | 0 | 0 | 0 | NOT_EXECUTED |
-| Google | AVAILABLE_DEMO_KEY | NOT_REQUIRED_FOR_LOCAL_EVIDENCE | EXECUTED_EVIDENCE_ONLY | 60 | 30 | 4 attempted | geocode 21/60; routes 0/4 available |
+| Google | AVAILABLE_DEMO_KEY | NOT_REQUIRED_FOR_LOCAL_EVIDENCE | EXECUTED_EVIDENCE_ONLY | 60 address + 60 Places | 30 each | corrected 4 + 2 controls | address 21/60; Places top-1 48/60; routes 0 available |
 | HERE | NOT_AVAILABLE | NOT_AVAILABLE | NOT_EXECUTED | 0 | 0 | 0 | NOT_EXECUTED |
 | Stadia | NOT_AVAILABLE | NOT_AVAILABLE | NOT_EXECUTED | 0 | 0 | 0 | NOT_EXECUTED |
 | OSM self-hosted Valhalla + evaluated Nominatim | NOT_REQUIRED | NOT_REQUIRED | EXECUTED | 60 | 30 | 12 | 12 structural PASS; access CONDITIONAL |
@@ -22,9 +22,9 @@ The existing harness was invoked once for each unavailable hosted provider. Mapb
 
 The deterministic fake ran 10 sequential local operations: 8/8 fixture geocodes (4 Arabic and 4 English) and 2/2 fixture routes, with no failures. This establishes adapter-contract and fixture readiness only. Fake correctness and timings are not live provider quality, Palestine road validity, or service performance.
 
-For a future credentialed run, the harness uses `performance.now()` monotonic timing; operations are sequential; warm/cold state is uncontrolled; failures remain in the sample count; retry is bounded to at most one; request timeout is 4 seconds. Geocode and routing p50/p95 are calculated separately. A small sample cannot establish credible p95 and must be reported as `INSUFFICIENT_EVIDENCE`.
+The hosted-provider harness uses `performance.now()` monotonic timing; operations are sequential; warm/cold state is uncontrolled; failures remain in the sample count; retry is bounded to at most one; request timeout is 4 seconds. Geocode and routing p50/p95 are calculated separately. A small route sample cannot establish credible p95 and is reported as `INSUFFICIENT_EVIDENCE`.
 
-Environment: local Windows 11 workstation and ordinary developer network. No controlled network shaping, cache reset, or provider-region pinning was used. No live calls occurred, so all provider geocode and route p50/p95 values are `NOT_EXECUTED / null`.
+Environment: local Windows 11 workstation and ordinary developer network. No controlled network shaping, cache reset, or provider-region pinning was used. Google address Geocoding v4 and Places Text Search timings are bounded evidence from this environment; Mapbox, HERE, and Stadia remain `NOT_EXECUTED / null`. Empty Google route responses have recorded request latency but no credible route-performance p95.
 
 ## Mandatory-gate rubric
 
@@ -33,9 +33,9 @@ No aggregate score can conceal a failed or missing mandatory gate.
 | Gate | Requirement | Mapbox | Google | HERE | Stadia |
 |---|---|---|---|---|---|
 | G1 | Provider-neutral architecture compatibility | PASS | PASS | PASS | PASS |
-| G2 | ≥95% acceptable Palestine geocoding | NOT_EXECUTED | FAIL (21/60) | NOT_EXECUTED | NOT_EXECUTED |
-| G3 | Acceptable Arabic quality | NOT_EXECUTED | FAIL (11/30) | NOT_EXECUTED | NOT_EXECUTED |
-| G4 | Human-approved Palestine route validity | NOT_EXECUTED | FAIL (0/4 available) | NOT_EXECUTED | NOT_EXECUTED |
+| G2 | ≥95% acceptable Palestine geocoding/search | NOT_EXECUTED | FAIL (address 21/60; Places top-1 48/60) | NOT_EXECUTED | NOT_EXECUTED |
+| G3 | Acceptable Arabic quality | NOT_EXECUTED | FAIL (address 11/30; Places 25/30) | NOT_EXECUTED | NOT_EXECUTED |
+| G4 | Human-approved Palestine route validity | NOT_EXECUTED | INSUFFICIENT_EVIDENCE (all corrected controls empty) | NOT_EXECUTED | NOT_EXECUTED |
 | G5 | Credible routing p95 under 2 seconds | INSUFFICIENT_EVIDENCE | INSUFFICIENT_EVIDENCE | INSUFFICIENT_EVIDENCE | INSUFFICIENT_EVIDENCE |
 | G6 | Compatible rights for every canonical field | UNRESOLVED | FAIL | FAIL | UNRESOLVED |
 | G7 | Attribution/display compatibility | CONDITIONAL | CONDITIONAL | CONDITIONAL | CONDITIONAL |
@@ -62,13 +62,15 @@ G1 is based on the already-approved M7D1 adapters and deterministic tests, not l
 
 Pelias reached 10/30 Arabic, 15/30 English and 25/60 overall. Photon reached 19/30 Arabic, 26/30 English and 45/60 overall. Both were localhost-only and had zero errors in the bounded 20-way performance sample, but quality—not transport latency—is disqualifying. `PELIAS_GEOCODING_CANDIDATE=FAIL`, `PHOTON_GEOCODING_CANDIDATE=FAIL`, and `GEOCODING_RECOMMENDATION_CANDIDATE=NONE`.
 
-Google Geocoding API v4 returned 60/60 API responses but passed only 11/30 Arabic, 10/30 English and 21/60 overall after functional public-place review; p50/p95 were 111.201/128.934 ms. Its four optional Routes API calls returned HTTP success with no route objects, while Valhalla returned all four reviewed routes. `GOOGLE_GEOCODING_QUALITY=FAIL`, `GOOGLE_PRODUCTION_STORAGE=RESTRICTED`, and `GOOGLE_ROUTING_EVIDENCE=FAIL_0_OF_4_AVAILABLE`. Detailed safe evidence is in [Google Palestine geocoding evidence](google-palestine-geocoding-evidence.md).
+Google address Geocoding API v4 returned 60/60 API responses but passed only 11/30 Arabic, 10/30 English and 21/60 overall after functional public-place review; p50/p95 were 111.201/128.934 ms. The separately appropriate Places Text Search benchmark returned 60/60 responses and passed 25/30 Arabic, 23/30 English, and 48/60 overall at rank 1; top-5 was 52/60 and p50/p95 were 224.7181/277.3053 ms. It materially improves named-place search but still fails all 95% gates. `GOOGLE_ADDRESS_GEOCODING_QUALITY=FAIL`, `GOOGLE_PLACES_SEARCH_QUALITY=FAIL`, `GOOGLE_PLACES_STORAGE_COMPATIBILITY=RESTRICTED`, and `GOOGLE_PLACE_ID_STORAGE=PERMITTED_WITH_REFRESH_POLICY`. Detailed evidence is in [address Geocoding v4](google-palestine-geocoding-evidence.md), [Places Text Search](google-palestine-places-text-search-evidence.md), and the [official product review](google-product-methodology-review.md).
+
+The corrected Google Routes audit used documented coordinate nesting, a minimal mask, and a correct Place-ID control. Each control and all four corrected coordinate routes returned HTTP 200 with an empty response object and zero routes. This rules out a demonstrated field-mask, nesting, or coordinate-snapping defect, but does not explain the behavior despite official driving coverage. `GOOGLE_ROUTING_EVIDENCE=INSUFFICIENT_EVIDENCE`; Valhalla returned all four reviewed routes and remains the conditional routing candidate.
 
 `OSM_VALHALLA_CANDIDATE=CONDITIONAL`. Routing and geocoding remain separable; the weak Nominatim initial set does not invalidate the Valhalla route result.
 
 ## Missing evidence matrix
 
-Mapbox, HERE, and Stadia still need a securely supplied server credential through an approved local or CI mechanism, a live run, human review, Arabic assessment, credible latency sampling, and a leak scan. Google quality and route availability fail this corpus; its production storage, privacy, commercial, quota, and display design are separately unapproved. The OSM routing candidate still needs real-world access review, ODbL legal approval, renderer attribution design, and production operational/TCO review.
+Mapbox, HERE, and Stadia still need a securely supplied server credential through an approved local or CI mechanism, a live run, human review, Arabic assessment, credible latency sampling, and a leak scan. Google address and Places quality fail this corpus; its corrected route behavior remains insufficiently explained, and production storage, privacy, commercial, quota, and display design are separately unapproved. The OSM routing candidate still needs real-world access review, ODbL legal approval, renderer attribution design, and production operational/TCO review.
 
 Failure behavior remains covered by deterministic adapter tests for authorization, timeout, rate limit/quota, 5xx, no result, malformed response, bounded retry, circuit breaker, redirect rejection, and credential non-disclosure. Live quota exhaustion or abusive rate testing is prohibited.
 
@@ -76,7 +78,7 @@ The hosted providers produced no live geometry. The self-hosted candidate produc
 
 ## Regression and production-boundary evidence
 
-The Google evidence branch passed local API 271, Admin 54, Flutter 241, and tooling 15, plus typecheck, builds, analysis, workflow validation, dependency policy, and security validation. The original evidence head's exact-head Linux CI applied all 18 migrations from empty, repeated deployment as a no-op, and passed M7C3C1 145, M7C3A 98, M7C1 79, M7H1 reset 45, M7H1 legacy online 21, M7H1 passenger association 12, and public onboarding 76, together with trusted sessions, onboarding foundation, and route lifecycle. The new exact head requires the same exact-head Linux CI gates before closure.
+The Google evidence branch passed local API 271, Admin 54, Flutter 241, and tooling 17, plus typecheck, builds, analysis, workflow validation, dependency policy, and security validation. The original evidence head's exact-head Linux CI applied all 18 migrations from empty, repeated deployment as a no-op, and passed M7C3C1 145, M7C3A 98, M7C1 79, M7H1 reset 45, M7H1 legacy online 21, M7H1 passenger association 12, and public onboarding 76, together with trusted sessions, onboarding foundation, and route lifecycle. The new exact head requires the same exact-head Linux CI gates before closure.
 
 Demo preflight passed 22/22. Deterministic smoke remained score 0.9317, sequence 2, trips 1 versus 6, distance 21.53 versus 129.19, cost 43.06 versus 258.38, winner `masari`. Maps remained disabled during the demo and provider calls were zero.
 

@@ -1,6 +1,8 @@
-# Google Palestine geocoding evidence
+# Google address geocoding v4 Palestine evidence
 
-Evidence date: 2026-08-08. Classification: `TEST FIXTURE DATA — NOT USER LOCATION DATA`. This evidence used the no-cost Maps Demo Key for bounded prototype evaluation only; it is not a production credential or production approval.
+Evidence date: 2026-08-08. Evidence classification: `GOOGLE_ADDRESS_GEOCODING_V4_EVIDENCE`. Fixture classification: `TEST FIXTURE DATA — NOT USER LOCATION DATA`. This evidence used the no-cost Maps Demo Key for bounded prototype evaluation only; it is not a production credential or production approval.
+
+This preserved result measures the address-geocoding method that was actually tested. It does not measure Google Places Text Search. The independently executed Places benchmark and official product separation are documented in [Google Places Text Search Palestine evidence](google-palestine-places-text-search-evidence.md) and [Google Maps product methodology review](google-product-methodology-review.md); none of the address-geocoding scores below were replaced.
 
 ## Method and safety boundary
 
@@ -26,9 +28,11 @@ Failure totals are `AMBIGUOUS_RESULT=4`, `WRONG_AREA=4`, `WRONG_CAMPUS=10`, and 
 
 The first useful response took `698.709 ms`. Across 60 attempts and 60 successful API responses, monotonic latency was `111.201 ms` p50 and `128.934 ms` p95. This is a bounded developer-network observation, not a load test, SLA, production-region benchmark, or direct comparison with localhost Valhalla.
 
-## Optional route evidence
+## Original optional route evidence
 
 After geocoding completed, four official Routes API v2 `ComputeRoutes` calls used the corrected independently reviewed public coordinates, `DRIVE`, `TRAFFIC_UNAWARE`, `X-Goog-Api-Key`, and the minimal distance/duration/leg field mask. All four HTTP requests succeeded, but all four responses contained no route object: Hebron → Bethlehem, PPU → Bethlehem, Bab Al-Zawiya → Bethlehem, and PPU → Bab Al-Zawiya → Bethlehem. Route availability is therefore `0/4`; distance, duration, and structural plausibility are unavailable/failed. No polyline or Google route geometry was requested or retained. Safe details are in [google-palestine-route-results.json](evidence/google-palestine-route-results.json). The official method requires origin, destination, travel mode, and a field mask ([Compute Routes](https://developers.google.com/maps/documentation/routes/compute-route-over)).
+
+The subsequent corrected audit used proper `location.latLng` nesting, a minimal route field mask, and a Place-ID control. Every corrected request also returned HTTP 200 with an empty response object and zero routes. The earlier zero-route outcome is preserved, but no specific prior request defect is proven; the final classification is `GOOGLE_ROUTING_EVIDENCE=INSUFFICIENT_EVIDENCE`. See [Google Maps product methodology review](google-product-methodology-review.md) and the safe [minimal](evidence/google-route-minimal-control.json), [Place-ID](evidence/google-route-place-id-control.json), and [corrected-matrix](evidence/google-route-corrected-matrix.json) evidence.
 
 Valhalla remains materially stronger for these four fixtures: it returned `4/4` structurally reviewed routes at 28.163 km/2,342.147 s, 36.440 km/2,695.820 s, 28.786 km/2,400.186 s, and 32.964 km/2,952.371 s. Google network latency is not compared directly with local Valhalla latency. `VALHALLA_ROUTING_CANDIDATE=CONDITIONAL` and `ROUTING_RECOMMENDATION_CANDIDATE=OSM_VALHALLA` remain unchanged.
 
@@ -47,6 +51,6 @@ Valhalla remains materially stronger for these four fixtures: it returned `4/4` 
 | GEO9 commercial feasibility | UNRESOLVED | Demo Key is prototype-only; paid production cost/billing was not approved |
 | GEO10 quota/operations | UNRESOLVED | bounded demo quota worked; production quotas, support, monitoring, and regional operations are unapproved |
 
-Google's current geocoding policy generally restricts prefetching, caching, and storage except place IDs, and requires attribution/display treatment plus public Terms of Use and a Privacy Policy ([policies and attribution](https://developers.google.com/maps/documentation/geocoding/policies)). The Maps Demo Key is explicitly for testing/prototyping and not production ([Demo Key](https://developers.google.com/maps/demo-key)). Google Maps Platform terms also state that Google receives search terms, IP addresses, and coordinates and describe controller-controller/privacy obligations ([terms](https://cloud.google.com/maps-platform/terms)). Therefore `GOOGLE_GEOCODING_QUALITY=FAIL` and, independently, `GOOGLE_PRODUCTION_STORAGE=RESTRICTED`.
+Google's current geocoding policy generally restricts prefetching, caching, and storage except place IDs, and requires attribution/display treatment plus public Terms of Use and a Privacy Policy ([policies and attribution](https://developers.google.com/maps/documentation/geocoding/policies)). The Maps Demo Key is explicitly for testing/prototyping and not production ([Demo Key](https://developers.google.com/maps/demo-key)). Google Maps Platform terms also state that Google receives search terms, IP addresses, and coordinates and describe controller-controller/privacy obligations ([terms](https://cloud.google.com/maps-platform/terms)). Therefore `GOOGLE_ADDRESS_GEOCODING_QUALITY=FAIL` and, independently, `GOOGLE_PRODUCTION_STORAGE=RESTRICTED`.
 
 No Google-derived coordinate, label, geometry, polyline, distance, duration, content cache, or reference content was added to canonical MySQL. Production remains disabled. This evidence does not add a Google SDK, renderer, GPS/location permission, realtime function, migration, or schema change.
