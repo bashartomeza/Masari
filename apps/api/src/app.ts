@@ -41,6 +41,9 @@ import { createCanonicalSharedMatchingRouter } from "./modules/canonicalSharedMa
 import type { CanonicalMatchingService } from "./services/canonicalMatching.js";
 import type { CanonicalSharedMatchingService } from "./services/canonicalSharedMatching.js";
 import type { LegacyDriverOnlineStateService } from "./services/legacyDriverOnlineState.js";
+import { createRouteProvider } from "./maps/liveProviders.js";
+import { createRoutePreviewService, type RoutePreviewService } from "./maps/previewService.js";
+import { createRoutePreviewRouter } from "./modules/routePreview.js";
 
 export const HTTP_JSON_LIMIT = "64kb";
 export const HTTP_FORM_LIMIT = "16kb";
@@ -55,6 +58,7 @@ type AppDependencies = {
   canonicalMatchingService?: CanonicalMatchingService;
   canonicalSharedMatchingService?: CanonicalSharedMatchingService;
   legacyDriverOnlineStateService?: LegacyDriverOnlineStateService;
+  routePreviewService?: RoutePreviewService;
 };
 
 export function createApp(
@@ -139,6 +143,11 @@ export function createApp(
       dependencies.routeManagementService,
     ),
   );
+  const routePreviewService = dependencies.routePreviewService ?? createRoutePreviewService({
+    provider: createRouteProvider(appConfig),
+    cacheTtlMs: appConfig.routeMaps.cacheTtlSeconds * 1_000
+  });
+  app.use("/api/v1", createRoutePreviewRouter(appConfig, routePreviewService));
   app.use("/api/v1", adminRouter);
 
   app.use(notFoundHandler);

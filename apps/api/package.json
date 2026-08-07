@@ -16,6 +16,7 @@
     "test:integration:passenger-trip-association": "node dist/scripts/passengerTripAssociationIntegration.js",
     "canonical:match": "node dist/scripts/canonicalMatchingCommand.js",
     "canonical:shared": "node dist/scripts/canonicalSharedMatchingCommand.js",
+    "maps:bakeoff": "tsx src/scripts/routeProviderBakeoff.ts",
     "prisma:generate": "prisma generate",
     "prisma:validate": "prisma validate",
     "db:migrate": "prisma migrate deploy",
