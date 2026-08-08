@@ -45,6 +45,7 @@
     "mysql:restore:verify": "node scripts/mysql-restore-verify.mjs",
     "phone:preflight": "node --env-file=apps/api/.env --import tsx apps/api/src/scripts/phoneNormalizationPreflight.ts",
     "maps:bakeoff": "tsx apps/api/src/scripts/routeProviderBakeoff.ts",
+    "maps:m7d1b:evidence": "node scripts/maps/m7d1b-live-evidence.mjs",
     "release:metadata": "node scripts/release-metadata.mjs",
     "prisma:generate": "npm run prisma:generate -w @masari/api",
     "prisma:validate": "npm run prisma:validate -w @masari/api",
