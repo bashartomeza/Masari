@@ -7,12 +7,12 @@ Evidence date: 2026-08-07. This is an engineering review of public official mate
 | Candidate | Result | Live credentials | Geocode ≥95% | Arabic | Route validity | Live route p95 <2s |
 |---|---|---:|---:|---:|---:|---:|
 | Mapbox | NOT_EXECUTED | NOT_AVAILABLE | NOT_EXECUTED | NOT_EXECUTED | NOT_EXECUTED | INSUFFICIENT_EVIDENCE |
-| Google | NOT_EXECUTED | NOT_AVAILABLE | NOT_EXECUTED | NOT_EXECUTED | NOT_EXECUTED | INSUFFICIENT_EVIDENCE |
+| Google | EXECUTED_EVIDENCE_ONLY | AVAILABLE_DEMO_KEY | address v4 21/60 FAIL; Places top-1 48/60 FAIL | address 11/30; Places 25/30 | corrected controls returned empty route arrays; INSUFFICIENT_EVIDENCE | INSUFFICIENT_EVIDENCE |
 | HERE | NOT_EXECUTED | NOT_AVAILABLE | NOT_EXECUTED | NOT_EXECUTED | NOT_EXECUTED | INSUFFICIENT_EVIDENCE |
 | Stadia/MapLibre stack | NOT_EXECUTED | NOT_AVAILABLE | NOT_EXECUTED | NOT_EXECUTED | NOT_EXECUTED | INSUFFICIENT_EVIDENCE |
 | OSM self-hosted Valhalla | EXECUTED_ROUTING | NOT_REQUIRED | NOT_EXECUTED_BY_VALHALLA | separate Nominatim 26/30 Arabic | corrected 4/4 required; 12/12 expanded structural PASS | PASS (14.627 ms warm p95) |
 
-Categorical checks of approved local environment mechanisms and repository CI secret names found no credential. No value was printed, documented, or committed and no user credential was requested. The harness was run for every candidate; each deliberately emitted zero samples, null latency, `credential_unavailable`, and `NOT_EXECUTED`.
+Categorical checks initially found no hosted-provider credential. Mapbox, HERE, and Stadia retained zero samples, null latency, `credential_unavailable`, and `NOT_EXECUTED`. Google was later evaluated with a separately supplied Demo Key without printing, documenting, or committing its value.
 
 The fake-provider harness ran 10 sequential local samples with zero failures: 8/8 fixture geocodes (4 Arabic, 4 English) and 2/2 fixture routes. This proves only harness determinism; it is not live-provider performance or Palestine route-quality evidence. The harness reports geocode and route p50/p95 separately using a monotonic clock, explicit sample/call/Arabic counts, safe failure categories, and unresolved human-review, storage, attribution, privacy, and commercial gates. Run with `ROUTE_BAKEOFF_PROVIDER=<candidate>` and server-side `ROUTE_PROVIDER_SECRET`; missing credentials deliberately emit null evidence and process exit 2 as `NOT_EXECUTED`.
 
@@ -36,6 +36,6 @@ All server APIs receive canonical stop queries/coordinates and network/account r
 
 At the required LOW/MEDIUM/HIGH scenarios, list-price modeling is: Mapbox Permanent Geocoding plus Directions $5/$50/$500; Google Essentials $0/$0/$900; HERE unresolved; and Stadia Standard $80/$80/$80 while included credits suffice. These are not approved budgets and do not cure storage or privacy blockers. Renderer/map-load costs remain separate.
 
-The mandatory G1–G10 rubric is defined in [provider-live-evidence.md](provider-live-evidence.md). `OSM_VALHALLA_CANDIDATE=CONDITIONAL` and `PROVIDER_SELECTION=NO_PROVIDER_APPROVED_YET`. M7D1B remains `ACTIVE / BLOCKED_ON_REMAINING_PROVIDER_EVIDENCE`. Hosted providers still require credentials and live review. The self-hosted path requires geocoding remediation/replacement, broader routes, legal storage approval, attribution/renderer approval, production SRE/TCO evidence and independent review.
+The mandatory G1–G10 rubric is defined in [provider-live-evidence.md](provider-live-evidence.md). `M7D1B_EVIDENCE_QUALITY=APPROVED`, `OSM_VALHALLA_CANDIDATE=CONDITIONAL`, and `PROVIDER_SELECTION=NO_PROVIDER_APPROVED_YET`. No tested generic search product met the 95% gates, so `GENERIC_GEOCODER_AS_SOURCE_OF_TRUTH=NOT_APPROVED`. The next recommended design milestone is M7D1C — Canonical Palestinian Place Catalog & Search Architecture; it has not started. Legal storage approval, attribution/renderer design, production SRE/TCO evidence, and human merge approval remain separate requirements.
 
 Focused evidence: [live methodology and scoring](provider-live-evidence.md), [Palestine route review](provider-palestine-route-review.md), [storage-rights matrix](provider-storage-rights-matrix.md), [commercial evaluation](provider-commercial-evaluation.md), and [privacy evaluation](provider-privacy-evaluation.md).

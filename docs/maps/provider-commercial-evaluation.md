@@ -43,6 +43,6 @@ The [Google Maps Platform pricing list](https://developers.google.com/maps/billi
 - HERE: the Limited plan publishes 1,000 daily requests, 5 RPS for geocoding, and 10 RPS for car/bicycle/pedestrian routing. General HERE quota documentation reports 429/503 throttling and plan/account-specific limits; production terms and support remain unresolved.
 - Stadia: fixed plan credit pools prevent unapproved overage; plan-specific request-rate and higher-limit details require dashboard/account confirmation. Standard/Professional/Enterprise implications remain conditional.
 
-Operational gate G10 and commercial gate G9 remain unapproved for every provider pending credentialed measurements, account validation, volume distribution, support/SLA review, and an approved budget.
+Operational gate G10 and commercial gate G9 remain unapproved for every provider. Google has bounded Demo-Key evidence, while Mapbox, HERE, and Stadia remain unexecuted; production approval still requires applicable account validation, representative volume distribution, support/SLA review, and an approved budget.
 
 The self-hosted run demonstrated modest developer-machine footprint but did not price production compute, storage, bandwidth, observability, blue/green graph builds, backups, on-call work or upgrades. Avoiding per-request vendor fees is not a zero-cost conclusion; G10 remains `CONDITIONAL`.

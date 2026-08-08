@@ -32,12 +32,12 @@ Self-hosting can keep canonical stop coordinates and route requests inside Masar
 
 | Dimension | OSM/Valhalla observed or known | Google current state |
 |---|---|---|
-| Palestine route quality | Corrected 4/4 required routes and 12/12 expanded routes passed structural review; operational access remains conditional | NOT_EXECUTED |
-| Arabic geocoding | Expanded strict result 26/30 Arabic and 51/60 overall, below 95% | NOT_EXECUTED |
+| Palestine route quality | Corrected 4/4 required routes and 12/12 expanded routes passed structural review; operational access remains conditional | Corrected coordinate and Place-ID controls returned HTTP 200 with empty route arrays; `INSUFFICIENT_EVIDENCE` |
+| Arabic geocoding/search | Expanded strict result 26/30 Arabic and 51/60 overall, below 95% | Address Geocoding v4 11/30 Arabic and 21/60 overall; Places Text Search 25/30 Arabic and 48/60 top-1; both FAIL |
 | Canonical geometry rights | ODbL; route-output/storage classification needs legal review | Published standard Routes persistence is restricted for the proposed record |
-| Calculation latency | Warm p95 14.627 ms; process-cold request p95 66.984 ms; mixed 20-way p95 25.110 ms | NOT_EXECUTED |
-| Vendor lock-in | Open data and open-source engine; graph/config behavior still engine-specific | UNRESOLVED pending live/account evaluation |
-| Infrastructure cost | Self-funded compute/storage/operations; no per-call fee measured | Published list-price estimate only; no credentialed usage |
+| Calculation latency | Warm p95 14.627 ms; process-cold request p95 66.984 ms; mixed 20-way p95 25.110 ms | Hosted address/Places latency observed; no route-performance result because no route object was returned |
+| Vendor lock-in | Open data and open-source engine; graph/config behavior still engine-specific | Managed platform; content/storage and display constraints remain unapproved |
+| Infrastructure cost | Self-funded compute/storage/operations; no per-call fee measured | Demo evidence only; production billing/account approval unresolved |
 | Attribution | OpenStreetMap attribution and license access required | Google attribution/display rules apply |
 | Maintenance | Masari owns imports, graph builds, updates, monitoring and incidents | Managed service, account/SLA still unreviewed |
 | Offline/self-host | Supported and demonstrated locally | Not established for this design |

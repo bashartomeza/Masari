@@ -1,6 +1,6 @@
 # M7D1B provider live evidence
 
-Evidence date: 2026-08-08 (Asia/Hebron). Milestone state: `ACTIVE / BLOCKED_ON_REMAINING_PROVIDER_EVIDENCE`. Provider selection: `NO_PROVIDER_APPROVED_YET`.
+Evidence date: 2026-08-08 (Asia/Hebron). `M7D1B_PROVIDER_LIVE_EVIDENCE=EVIDENCE_APPROVED_AWAITING_HUMAN_MERGE`. Provider selection: `NO_PROVIDER_APPROVED_YET`.
 
 This report uses the corrected corridor fixture and the 30-location/60-query expanded public fixture under `docs/maps/fixtures/`. They contain public planning points and no user address, current location, passenger, merchant, phone-associated place, or driver data. The same unchanged 60 queries were benchmarked against open-data-only Pelias, Photon, official Google address Geocoding API v4, and separately Google Places Text Search (New); all failed the primary 95% gates ([comparison](geocoder-comparison.md)).
 
@@ -64,13 +64,15 @@ Pelias reached 10/30 Arabic, 15/30 English and 25/60 overall. Photon reached 19/
 
 Google address Geocoding API v4 returned 60/60 API responses but passed only 11/30 Arabic, 10/30 English and 21/60 overall after functional public-place review; p50/p95 were 111.201/128.934 ms. The separately appropriate Places Text Search benchmark returned 60/60 responses and passed 25/30 Arabic, 23/30 English, and 48/60 overall at rank 1; top-5 was 52/60 and p50/p95 were 224.7181/277.3053 ms. It materially improves named-place search but still fails all 95% gates. `GOOGLE_ADDRESS_GEOCODING_QUALITY=FAIL`, `GOOGLE_PLACES_SEARCH_QUALITY=FAIL`, `GOOGLE_PLACES_STORAGE_COMPATIBILITY=RESTRICTED`, and `GOOGLE_PLACE_ID_STORAGE=PERMITTED_WITH_REFRESH_POLICY`. Detailed evidence is in [address Geocoding v4](google-palestine-geocoding-evidence.md), [Places Text Search](google-palestine-places-text-search-evidence.md), and the [official product review](google-product-methodology-review.md).
 
-The corrected Google Routes audit used documented coordinate nesting, a minimal mask, and a correct Place-ID control. Each control and all four corrected coordinate routes returned HTTP 200 with an empty response object and zero routes. This rules out a demonstrated field-mask, nesting, or coordinate-snapping defect, but does not explain the behavior despite official driving coverage. `GOOGLE_ROUTING_EVIDENCE=INSUFFICIENT_EVIDENCE`; Valhalla returned all four reviewed routes and remains the conditional routing candidate.
+The corrected Google Routes audit used documented coordinate nesting, a minimal mask, and a correct Place-ID control. Each control and all four corrected coordinate routes returned HTTP 200 with an empty response object and zero routes. This rules out a demonstrated field-mask, nesting, or coordinate-snapping defect, but does not explain the behavior despite official driving coverage. `GOOGLE_ROUTING_RESULT=INSUFFICIENT_EVIDENCE`; Valhalla returned all four reviewed routes and remains the conditional routing candidate.
 
 `OSM_VALHALLA_CANDIDATE=CONDITIONAL`. Routing and geocoding remain separable; the weak Nominatim initial set does not invalidate the Valhalla route result.
 
-## Missing evidence matrix
+## Production/provider approval blockers
 
-Mapbox, HERE, and Stadia still need a securely supplied server credential through an approved local or CI mechanism, a live run, human review, Arabic assessment, credible latency sampling, and a leak scan. Google address and Places quality fail this corpus; its corrected route behavior remains insufficiently explained, and production storage, privacy, commercial, quota, and display design are separately unapproved. The OSM routing candidate still needs real-world access review, ODbL legal approval, renderer attribution design, and production operational/TCO review.
+M7D1B evidence quality is approved without a provider winner. Mapbox, HERE, and Stadia remain unexecuted and would need separate evidence before any future consideration. Google address and Places quality fail this corpus; its corrected route behavior remains `INSUFFICIENT_EVIDENCE`, and production storage, privacy, commercial, quota, and display design are separately unapproved. The OSM routing candidate still needs real-world access review, ODbL legal approval, renderer attribution design, and production operational/TCO review. These block provider approval and deployment, not closure of the evidence milestone after human merge review.
+
+No generic geocoder is approved as Masari's source of truth. `GOOGLE_DISCOVERY_FALLBACK_CANDIDATE=CONDITIONAL` only for a later optional, ephemeral discovery design; `GOOGLE_CANONICAL_PLACE_SOURCE=REJECTED / NOT_APPROVED`. `CANONICAL_PLACE_CATALOG_DIRECTION=APPROVED`, and the recommended next design milestone is M7D1C — Canonical Palestinian Place Catalog & Search Architecture. M7D1C implementation has not started.
 
 Failure behavior remains covered by deterministic adapter tests for authorization, timeout, rate limit/quota, 5xx, no result, malformed response, bounded retry, circuit breaker, redirect rejection, and credential non-disclosure. Live quota exhaustion or abusive rate testing is prohibited.
 
@@ -78,7 +80,7 @@ The hosted providers produced no live geometry. The self-hosted candidate produc
 
 ## Regression and production-boundary evidence
 
-The Google evidence branch passed local API 271, Admin 54, Flutter 241, and tooling 17, plus typecheck, builds, analysis, workflow validation, dependency policy, and security validation. The original evidence head's exact-head Linux CI applied all 18 migrations from empty, repeated deployment as a no-op, and passed M7C3C1 145, M7C3A 98, M7C1 79, M7H1 reset 45, M7H1 legacy online 21, M7H1 passenger association 12, and public onboarding 76, together with trusted sessions, onboarding foundation, and route lifecycle. The new exact head requires the same exact-head Linux CI gates before closure.
+The Google evidence branch passed local API 271, Admin 54, Flutter 241, and tooling 17, plus typecheck, builds, analysis, workflow validation, dependency policy, and security validation. Exact-head Linux CI applied all 18 migrations from empty, repeated deployment as a no-op, and passed M7C3C1 145, M7C3A 98, M7C1 79, M7H1 reset 45, M7H1 legacy online 21, M7H1 passenger association 12, and public onboarding 76, together with trusted sessions, onboarding foundation, and route lifecycle. Every subsequent documentation-only head must pass the same four exact-head CI workflows before merge review.
 
 Demo preflight passed 22/22. Deterministic smoke remained score 0.9317, sequence 2, trips 1 versus 6, distance 21.53 versus 129.19, cost 43.06 versus 258.38, winner `masari`. Maps remained disabled during the demo and provider calls were zero.
 
