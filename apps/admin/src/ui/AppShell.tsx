@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Icon } from "./Icon";
 import { IconButton } from "./Button";
-import type { ModuleId, NavItem } from "../navigation";
+import { NAV_GROUPS, type ModuleId, type NavItem } from "../navigation";
 
 export function initialOf(name: string | undefined) {
   const trimmed = (name ?? "").trim();
@@ -22,7 +22,13 @@ export function SideNav({
   items: NavItem[];
   active: ModuleId;
   onSelect: (id: ModuleId) => void;
-  labels: { brand: string; subtitle: string; navigation: string; label: (item: NavItem) => string };
+  labels: {
+    brand: string;
+    subtitle: string;
+    navigation: string;
+    label: (item: NavItem) => string;
+    groupLabel: (labelKey: (typeof NAV_GROUPS)[number]["labelKey"]) => string;
+  };
   footer: ReactNode;
 }) {
   return (
@@ -38,21 +44,32 @@ export function SideNav({
       </div>
 
       <nav className="sidenav__nav" aria-label={labels.navigation}>
-        <ul>
-          {items.map((item) => (
-            <li key={item.id}>
-              <button
-                type="button"
-                className={item.id === active ? "sidenav__item is-active" : "sidenav__item"}
-                aria-current={item.id === active ? "page" : undefined}
-                onClick={() => onSelect(item.id)}
-              >
-                <Icon name={item.icon} size={20} />
-                <span>{labels.label(item)}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
+        {NAV_GROUPS.map((group) => {
+          const groupItems = items.filter((item) => item.group === group.id);
+          if (groupItems.length === 0) return null;
+          return (
+            <section className="sidenav__group" key={group.id} aria-labelledby={`nav-group-${group.id}`}>
+              <h2 className="sidenav__group-label" id={`nav-group-${group.id}`}>
+                {labels.groupLabel(group.labelKey)}
+              </h2>
+              <ul>
+                {groupItems.map((item) => (
+                  <li key={item.id}>
+                    <button
+                      type="button"
+                      className={item.id === active ? "sidenav__item is-active" : "sidenav__item"}
+                      aria-current={item.id === active ? "page" : undefined}
+                      onClick={() => onSelect(item.id)}
+                    >
+                      <Icon name={item.icon} size={20} />
+                      <span>{labels.label(item)}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          );
+        })}
       </nav>
 
       <div className="sidenav__footer">{footer}</div>

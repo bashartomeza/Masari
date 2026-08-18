@@ -81,8 +81,22 @@
 .sidenav__nav {
   flex: 1;
   overflow-y: auto;
-  padding-block: var(--space-base);
+  padding-block: var(--space-xs) var(--space-base);
   scrollbar-width: thin;
+}
+
+.sidenav__group + .sidenav__group {
+  margin-block-start: var(--space-xs);
+}
+
+.sidenav__group-label {
+  padding: var(--space-xs) var(--space-md) 2px;
+  color: var(--on-surface-variant);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.5;
+  text-transform: uppercase;
 }
 
 .sidenav__nav ul {
@@ -1322,9 +1336,29 @@
     border-block-end: 1px solid color-mix(in srgb, var(--outline-variant) 30%, transparent);
   }
 
-  .sidenav__nav ul {
+  .sidenav__nav {
     display: flex;
     overflow-x: auto;
+    overflow-y: hidden;
+    padding-block: 0;
+  }
+
+  .sidenav__group {
+    display: flex;
+    flex: none;
+  }
+
+  .sidenav__group + .sidenav__group {
+    margin-block-start: 0;
+  }
+
+  .sidenav__group-label {
+    display: none;
+  }
+
+  .sidenav__nav ul {
+    display: flex;
+    overflow: visible;
   }
 
   .sidenav__item {

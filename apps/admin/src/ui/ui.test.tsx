@@ -52,7 +52,8 @@ describe("admin shell", () => {
             brand: "Masari",
             subtitle: "",
             navigation: "nav",
-            label: (item) => translate(locale, item.labelKey)
+            label: (item) => translate(locale, item.labelKey),
+            groupLabel: (labelKey) => translate(locale, labelKey)
           }}
           footer={null}
         />
@@ -69,7 +70,13 @@ describe("admin shell", () => {
         items={NAV_ITEMS}
         active="trips"
         onSelect={() => undefined}
-        labels={{ brand: "", subtitle: "", navigation: "nav", label: (item) => item.id }}
+        labels={{
+          brand: "",
+          subtitle: "",
+          navigation: "nav",
+          label: (item) => item.id,
+          groupLabel: (labelKey) => labelKey
+        }}
         footer={null}
       />
     );

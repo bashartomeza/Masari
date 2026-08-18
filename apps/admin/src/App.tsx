@@ -16,7 +16,14 @@ import { DriverDirectory } from "./features/verification/DriverDirectory";
 import { UsersDirectory } from "./features/users/UsersDirectory";
 import { DemoControl } from "./features/demo/DemoControl";
 import { ModuleUnavailable } from "./features/placeholder/ModuleUnavailable";
-import { isModuleAvailable, resolveActiveModule, visibleNavItems, type ModuleId } from "./navigation";
+import {
+  hashForModule,
+  isModuleAvailable,
+  moduleFromHash,
+  resolveActiveModule,
+  visibleNavItems,
+  type ModuleId
+} from "./navigation";
 import { AppShell, Button, Icon, Notice, SideNav, TopBar } from "./ui";
 
 export { ADMIN_TOKEN_KEY, clearAdminSession } from "./session";
@@ -69,7 +76,7 @@ export function App({
   const [latestLocation, setLatestLocation] = useState<LocationEvent | null>(null);
   const [locationTrail, setLocationTrail] = useState<LocationEvent[]>([]);
   const [demoSteps, setDemoSteps] = useState<DemoStep[]>([]);
-  const [activeModule, setActiveModule] = useState<ModuleId>("overview");
+  const [activeModule, setActiveModule] = useState<ModuleId>(() => moduleFromHash(window.location.hash));
   const [search, setSearch] = useState("");
 
   const flags = { demoEnabled, routeManagementEnabled };
@@ -381,6 +388,20 @@ export function App({
     });
   }, [token]);
 
+  useEffect(() => {
+    const syncModuleFromUrl = () => setActiveModule(moduleFromHash(window.location.hash));
+    window.addEventListener("hashchange", syncModuleFromUrl);
+    if (!window.location.hash) window.history.replaceState(null, "", hashForModule(activeModule));
+    return () => window.removeEventListener("hashchange", syncModuleFromUrl);
+  }, []);
+
+  function navigateToModule(id: ModuleId) {
+    setActiveModule(id);
+    setNotice(null);
+    const nextHash = hashForModule(id);
+    if (window.location.hash !== nextHash) window.location.hash = nextHash.slice(1);
+  }
+
   if (!token) {
     return (
       <main className="login-shell" dir={direction} lang={locale}>
@@ -443,36 +464,33 @@ export function App({
           </>
         );
 
-      case "requests":
+      case "deliveries":
         return <RequestsBoard requests={requests} orders={orders} search={search} />;
 
-      case "matching":
-        return isModuleAvailable("matching", flags) ? (
-          <MatchingWorkspace
-            request={selectedRequest}
-            order={selectedOrder}
-            matchResult={matchResult}
-            canAct={canAct}
-            busy={busy === "match"}
-            onRunMatch={() => void runMatch()}
-            onAccept={() => void acceptMatch()}
-            onReject={() => void rejectMatch()}
-            scoreLabel={(key) => t(scoringLabels[key] ?? "score")}
-          />
+      case "matchingBatching":
+        return isModuleAvailable("matchingBatching", flags) ? (
+          <>
+            <MatchingWorkspace
+              request={selectedRequest}
+              order={selectedOrder}
+              matchResult={matchResult}
+              canAct={canAct}
+              busy={busy === "match"}
+              onRunMatch={() => void runMatch()}
+              onAccept={() => void acceptMatch()}
+              onReject={() => void rejectMatch()}
+              scoreLabel={(key) => t(scoringLabels[key] ?? "score")}
+            />
+            <BatchingWorkspace
+              order={selectedOrder}
+              batchResult={batchResult}
+              canAct={canAct}
+              onCreateBatch={() => void runBatch()}
+            />
+            <ComparisonPanel comparison={comparison} canAct={canAct} onRunComparison={() => void runComparison()} />
+          </>
         ) : (
           <ModuleUnavailable icon="alt_route" reason="demo-only" />
-        );
-
-      case "batching":
-        return isModuleAvailable("batching", flags) ? (
-          <BatchingWorkspace
-            order={selectedOrder}
-            batchResult={batchResult}
-            canAct={canAct}
-            onCreateBatch={() => void runBatch()}
-          />
-        ) : (
-          <ModuleUnavailable icon="inventory_2" reason="demo-only" />
         );
 
       case "trips":
@@ -503,20 +521,13 @@ export function App({
           <ModuleUnavailable icon="edit_road" reason="no-api" />
         );
 
-      case "comparison":
-        return isModuleAvailable("comparison", flags) ? (
-          <ComparisonPanel comparison={comparison} canAct={canAct} onRunComparison={() => void runComparison()} />
-        ) : (
-          <ModuleUnavailable icon="analytics" reason="demo-only" />
-        );
-
       case "settings":
         return <SettingsPanel config={config} admin={admin} />;
 
       case "users":
         return <UsersDirectory drivers={drivers} requests={requests} orders={orders} search={search} />;
 
-      case "verification":
+      case "drivers":
         return (
           <DriverDirectory
             drivers={drivers}
@@ -526,14 +537,8 @@ export function App({
           />
         );
 
-      case "incidents":
-        return <ModuleUnavailable icon="report" reason="no-api" />;
-
-      case "safety":
+      case "incidentsSafety":
         return <ModuleUnavailable icon="emergency" reason="no-api" />;
-
-      case "aiReview":
-        return <ModuleUnavailable icon="psychology" reason="no-api" />;
 
       case "reports":
         return <ModuleUnavailable icon="assessment" reason="no-api" />;
@@ -545,13 +550,11 @@ export function App({
 
   const moduleDescription: Partial<Record<ModuleId, string>> = {
     overview: t("overviewDescription"),
-    requests: t("requestsDescription"),
-    matching: t("matchingDescription"),
-    batching: t("batchingDescription"),
+    deliveries: t("requestsDescription"),
+    matchingBatching: t("matchingDescription"),
     trips: t("tripsDescription"),
-    comparison: t("comparisonDescription"),
     users: t("usersDescription"),
-    verification: t("verificationDescription"),
+    drivers: t("verificationDescription"),
     settings: t("settingsDescription")
   };
 
@@ -562,16 +565,17 @@ export function App({
           <SideNav
             items={navItems}
             active={currentModule}
-            onSelect={(id) => { setActiveModule(id); setNotice(null); }}
+            onSelect={navigateToModule}
             labels={{
               brand: t("brandName"),
               subtitle: t("adminConsoleSubtitle"),
               navigation: t("navigationLabel"),
-              label: (item) => t(item.labelKey)
+              label: (item) => t(item.labelKey),
+              groupLabel: (labelKey) => t(labelKey)
             }}
             footer={
               <>
-                <Button variant="ghost" icon="account_circle" onClick={() => setActiveModule("settings")}>
+                <Button variant="ghost" icon="account_circle" onClick={() => navigateToModule("settings")}>
                   {t("navProfile")}
                 </Button>
                 <Button variant="ghost" icon="language" onClick={() => { setNotice(null); toggleLocale(); }}>
