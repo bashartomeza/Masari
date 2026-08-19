@@ -57,7 +57,7 @@ async function main() {
   const migrations = await prisma.$queryRaw<Array<{ migration_name: string }>>`
     SELECT migration_name FROM _prisma_migrations WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL
   `;
-  check(migrations.length === 19, "all nineteen migrations applied from empty");
+  check(migrations.length === 20, "all twenty migrations applied from empty");
   check(migrations.some((migration) => migration.migration_name === "20260722130000_multi_route_operational_foundation"), "M7C1 migration current");
   check(migrations.some((migration) => migration.migration_name === "20260722180000_harden_multi_route_operations"), "M7C1 review hardening migration current");
   check(migrations.some((migration) => migration.migration_name === "20260722200000_enforce_operational_mode_and_expiry_quarantine"), "M7C1 follow-up hardening migration current");
