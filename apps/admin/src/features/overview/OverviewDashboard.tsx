@@ -31,10 +31,9 @@ import {
 import type { IconName } from "../../ui/Icon";
 import type { Tone } from "../../ui/StatusBadge";
 import { matchesSearch } from "../search";
+import { activeTrips as selectActiveTrips, isActiveTripStatus } from "./overviewMetrics";
 import type { OverviewResourceState, OverviewResourceStates } from "./overviewState";
 
-// Mirrors the API's ACTIVE_TRIP_STATUSES contract in apps/api/src/modules/trips.ts.
-const ACTIVE_TRIP_STATUSES = new Set(["created", "accepted", "pickup_started", "picked_up", "in_transit", "delivered"]);
 const AWAITING_MATCH_STATUSES = new Set(["draft", "pending"]);
 const UNBATCHED_ORDER_STATUSES = new Set(["draft", "submitted"]);
 const TRIP_FLOW = ["created", "accepted", "pickup_started", "picked_up", "in_transit", "delivered", "completed", "cancelled"];
@@ -104,7 +103,8 @@ function MetricCard({
   value,
   emptyLabel,
   state,
-  unavailable = false
+  unavailable = false,
+  unavailableLabel = "incidentsNotConnected"
 }: {
   metric: string;
   icon: IconName;
@@ -114,13 +114,14 @@ function MetricCard({
   emptyLabel: TranslationKey;
   state?: OverviewResourceState;
   unavailable?: boolean;
+  unavailableLabel?: TranslationKey;
 }) {
   const { t, number } = useLocale();
   const initialLoading = !unavailable && state && !state.hasData && (state.phase === "idle" || state.phase === "loading");
   let statusText: string | undefined;
   let statusTone: Tone = "neutral";
 
-  if (unavailable) statusText = t("incidentsNotConnected");
+  if (unavailable) statusText = t(unavailableLabel);
   else if (state?.phase === "loading" && state.hasData) statusText = t("metricRefreshing");
   else if (state?.phase === "error") {
     statusText = state.hasData ? t("metricRefreshError") : t("metricLoadError");
@@ -164,15 +165,13 @@ export function OverviewDashboard({
   const { t, status, number } = useLocale();
   const alerts = useMemo(() => deriveAlerts(data), [data.requests, data.routes, data.orders]);
 
-  const activeDrivers = data.drivers.filter((driver) => driver.user?.account_status === "active");
-  const pendingApprovals = data.drivers.filter((driver) => driver.user?.account_status === "pending");
   const activeRoutes = data.routes.filter((route) => route.status === "active");
-  const activeTrips = data.trips.filter((trip) => ACTIVE_TRIP_STATUSES.has(trip.status));
+  const activeTrips = selectActiveTrips(data.trips);
 
   const operations = useMemo<OperationRow[]>(() => {
     const byId = new Map(data.routes.map((route) => [route.id, route]));
     return data.trips
-      .filter((trip) => ACTIVE_TRIP_STATUSES.has(trip.status))
+      .filter((trip) => isActiveTripStatus(trip.status))
       .map((trip) => ({ trip, route: byId.get(trip.driver_route_id) }))
       .filter(({ trip, route }) =>
         matchesSearch(
@@ -238,9 +237,9 @@ export function OverviewDashboard({
   return (
     <>
       <section className="kpi-row" aria-label={t("overviewMetrics")}>
-        <MetricCard metric="active-drivers" icon="directions_car" tone="info" label={t("activeDrivers")} value={activeDrivers.length} emptyLabel="noActiveDrivers" state={data.resources.drivers} />
+        <MetricCard metric="active-drivers" icon="directions_car" tone="info" label={t("activeDrivers")} emptyLabel="noActiveDrivers" unavailable unavailableLabel="activeDriversNotConnected" />
         <MetricCard metric="active-trips" icon="route" tone="neutral" label={t("activeTrips")} value={activeTrips.length} emptyLabel="noActiveTrips" state={data.resources.trips} />
-        <MetricCard metric="pending-approvals" icon="verified" tone="warning" label={t("pendingApprovals")} value={pendingApprovals.length} emptyLabel="noPendingApprovals" state={data.resources.drivers} />
+        <MetricCard metric="pending-approvals" icon="verified" tone="warning" label={t("pendingApprovals")} emptyLabel="noPendingApprovals" unavailable unavailableLabel="pendingApprovalsNotConnected" />
         <MetricCard metric="orders" icon="inventory_2" tone="success" label={t("ordersMetric")} value={data.dashboard?.counts.merchant_orders} emptyLabel="noOrders" state={data.resources.dashboard} />
         <MetricCard metric="requests" icon="person_pin_circle" tone="info" label={t("requestsMetric")} value={data.dashboard?.counts.passenger_requests} emptyLabel="noRequests" state={data.resources.dashboard} />
         <MetricCard metric="incidents" icon="report" tone="danger" label={t("incidentsMetric")} emptyLabel="incidentsNotConnected" unavailable />

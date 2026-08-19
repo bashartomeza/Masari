@@ -182,17 +182,17 @@ describe("overview dashboard", () => {
       "en",
       <OverviewDashboard data={emptyOverview} search="" busy={false} onRefresh={() => undefined} />
     );
-    expect(markup).toContain("No active operations right now.");
+    expect(markup).toContain("No trips are currently in progress.");
     expect(markup).toContain("No critical alerts");
-    expect(markup).toContain("No active drivers");
+    expect(markup).toContain("Operational driver presence is not connected");
     expect(markup).toContain("No active trips");
-    expect(markup).toContain("No pending approvals");
+    expect(markup).toContain("The driver approval queue is not exposed to Admin");
     expect(markup).toContain("No orders");
     expect(markup).toContain("No requests");
     expect(markup).toContain("—");
   });
 
-  it("renders real metric values from the owning API resources", () => {
+  it("renders only supported metric values from their owning API resources", () => {
     const user = (id: string, account_status: "active" | "pending") => ({
       id,
       name: id,
@@ -212,18 +212,34 @@ describe("overview dashboard", () => {
         { id: "d1", vehicle_type: "sedan", seats_total: 4, parcel_capacity: 2, verified: true, trust_score: 80, created_at: "", user: user("1", "active") },
         { id: "d2", vehicle_type: "van", seats_total: 6, parcel_capacity: 8, verified: false, trust_score: 70, created_at: "", user: user("2", "pending") }
       ],
-      trips: [{ id: "trip_1", status: "accepted", driver_route_id: "route_1" }]
+      trips: [
+        { id: "trip_accepted", status: "accepted", driver_route_id: "route_1" },
+        { id: "trip_active", status: "in_transit", driver_route_id: "route_1" },
+        { id: "trip_delivered", status: "delivered", driver_route_id: "route_1" }
+      ]
     };
     const markup = withLocale("en", <OverviewDashboard data={data} search="" busy={false} onRefresh={() => undefined} />);
 
     expect(markup).toContain('data-metric="active-drivers"');
     expect(markup).toContain('data-metric="active-trips"');
     expect(markup).toContain('data-metric="pending-approvals"');
-    expect(textOf(markup)).toContain("Active drivers 1");
+    expect(textOf(markup)).toContain("Active drivers — Operational driver presence is not connected");
     expect(textOf(markup)).toContain("Active trips 1");
-    expect(textOf(markup)).toContain("Pending approvals 1");
-    expect(textOf(markup)).toContain("Orders 12");
-    expect(textOf(markup)).toContain("Requests 8");
+    expect(textOf(markup)).toContain("Pending approvals — The driver approval queue is not exposed to Admin");
+    expect(textOf(markup)).toContain("Total orders 12");
+    expect(textOf(markup)).toContain("Total passenger requests 8");
+    expect(textOf(markup)).not.toContain("Active drivers 1");
+    expect(textOf(markup)).not.toContain("Pending approvals 1");
+  });
+
+  it("keeps unsupported metric semantics equivalent in Arabic", () => {
+    const markup = withLocale("ar", <OverviewDashboard data={emptyOverview} search="" busy={false} onRefresh={() => undefined} />);
+    const text = textOf(markup);
+
+    expect(text).toContain("السائقون النشطون — حالة تواجد السائقين التشغيلية غير متصلة");
+    expect(text).toContain("الموافقات المعلقة — قائمة موافقات السائقين غير متاحة للإدارة");
+    expect(text).toContain("إجمالي طلبات التجار ٠");
+    expect(text).toContain("إجمالي طلبات الركاب ٠");
   });
 
   it("shows stable loading states without flashing fake zero values", () => {
@@ -274,12 +290,14 @@ describe("overview dashboard", () => {
           status_reason: null, status_updated_at: "", last_login_at: null, demo_account: false, created_at: ""
         }
       }],
+      trips: [{ id: "trip_1", status: "in_transit", driver_route_id: "route_1" }],
       resources
     };
     const markup = withLocale("en", <OverviewDashboard data={partial} search="" busy={false} onRefresh={() => undefined} />);
 
-    expect(textOf(markup)).toContain("Active drivers 1");
-    expect(textOf(markup)).toContain("Orders — Data could not be loaded");
+    expect(textOf(markup)).toContain("Active drivers — Operational driver presence is not connected");
+    expect(textOf(markup)).toContain("Active trips 1");
+    expect(textOf(markup)).toContain("Total orders — Data could not be loaded");
   });
 
   it("never invents an incident count and localizes the unavailable contract", () => {
