@@ -21,6 +21,12 @@ enum AccountStatus {
   disabled
 }
 
+enum DriverVerificationStatus {
+  pending
+  approved
+  rejected
+}
+
 enum AuthClientType {
   mobile
   admin
@@ -347,6 +353,8 @@ model User {
   created_at        DateTime      @default(now())
 
   driver_profile                   DriverProfile?
+  driver_verification              DriverVerification?  @relation("DriverVerificationApplicant")
+  driver_verification_reviews      DriverVerification[]  @relation("DriverVerificationReviewer")
   passenger_requests               PassengerRequest[]
   merchant_orders                  MerchantOrder[]
   audit_events                     AuditEvent[]
@@ -639,6 +647,26 @@ model DriverProfile {
   routes DriverRoute[]
 
   @@map("driver_profiles")
+}
+
+model DriverVerification {
+  id               String                   @id @default(cuid())
+  user_id          String                   @unique
+  status           DriverVerificationStatus @default(pending)
+  rejection_reason String?                  @db.VarChar(500)
+  revision         Int                      @default(1)
+  submitted_at     DateTime                 @default(now())
+  reviewed_at      DateTime?
+  reviewed_by_id   String?
+  created_at       DateTime                 @default(now())
+  updated_at       DateTime                 @updatedAt
+
+  user        User  @relation("DriverVerificationApplicant", fields: [user_id], references: [id], onDelete: Cascade)
+  reviewed_by User? @relation("DriverVerificationReviewer", fields: [reviewed_by_id], references: [id], onDelete: SetNull)
+
+  @@index([status, submitted_at])
+  @@index([reviewed_by_id])
+  @@map("driver_verifications")
 }
 
 model DriverRoute {

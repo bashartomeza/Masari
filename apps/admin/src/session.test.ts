@@ -78,6 +78,21 @@ describe("admin access-token expiry", () => {
     expect((init?.headers as Record<string, string>).Authorization).toBe("Bearer admin-access-token");
   });
 
+  it("keeps driver review data behind the current Admin bearer session", async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response('{"drivers":[]}', {
+      status: 200,
+      headers: { "Content-Type": "application/json" }
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    const api = createApiClient("https://api.masari.invalid");
+
+    await api.drivers("admin-access-token");
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toBe("https://api.masari.invalid/api/v1/admin/drivers");
+    expect((init?.headers as Record<string, string>).Authorization).toBe("Bearer admin-access-token");
+  });
+
   it("ends an unavailable account but ignores a stale response after reauthentication", () => {
     const session = storage({ [ADMIN_TOKEN_KEY]: "old-access" });
     const legacy = storage({ [ADMIN_TOKEN_KEY]: "legacy-token" });

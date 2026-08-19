@@ -580,9 +580,13 @@ export function App({
       case "drivers":
         return (
           <DriverDirectory
+            api={api}
+            token={token}
             drivers={drivers}
             search={search}
             busy={Boolean(busy)}
+            state={overviewResources.drivers}
+            onRefresh={() => void refreshOverview()}
             onUpdateStatus={(userId, status, reason) => void updateUserStatus(userId, status, reason)}
           />
         );
