@@ -24,7 +24,9 @@ const expected = {
   "20260726170000_enforce_match_trip_availability_mode": "189a0ff189c52fcc84f343f0e535d1f84696c9e6f62271597cc52f0915e7a59a",
   "20260727110000_harden_canonical_assignment_integrity": "1ee6e63b4ba698fd122fe2680e88d7612c2fb27940e74501002ca449f69d3bbf",
   "20260728130000_canonical_shared_trip_aggregation": "5ea77b6a40bfcbd2be1ba1076eb30951b85f5e6dd34f6037b3265a835f847c90",
-  "20260729120000_harden_canonical_shared_trip_integrity": "b27a28b17c6c090fad8520b97bde8c02463fb02f0195f2cb6736117f64af167c"
+  "20260729120000_harden_canonical_shared_trip_integrity": "b27a28b17c6c090fad8520b97bde8c02463fb02f0195f2cb6736117f64af167c",
+  "20260819150000_driver_verification_approval": "2f381773237f840cf896ee144d28ae0e77a8525b841a7f89bf45eb1bef874010",
+  "20260820120000_global_e164_phone_constraints": "7822831a007d451c689fd8a2260567cf8c4728cacea847ae47b43e887ba67539"
 };
 
 function normalizedChecksum(path) {

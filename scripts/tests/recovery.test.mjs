@@ -90,7 +90,9 @@ test("release metadata is reproducible with SOURCE_DATE_EPOCH and excludes secre
       "20260726170000_enforce_match_trip_availability_mode",
       "20260727110000_harden_canonical_assignment_integrity",
       "20260728130000_canonical_shared_trip_aggregation",
-      "20260729120000_harden_canonical_shared_trip_integrity"
+      "20260729120000_harden_canonical_shared_trip_integrity",
+      "20260819150000_driver_verification_approval",
+      "20260820120000_global_e164_phone_constraints"
     ]
   );
   rmSync(directory, { recursive: true, force: true });
