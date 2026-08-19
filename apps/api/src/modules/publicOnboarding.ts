@@ -870,6 +870,15 @@ export function createPublicOnboardingRouter(
             demo_account: false
           }
         });
+        if (attempt.intended_role === "driver") {
+          await tx.driverVerification.create({
+            data: {
+              user_id: user.id,
+              status: "pending",
+              submitted_at: now
+            }
+          });
+        }
         await tx.userConsent.createMany({
           data: documents.map((document) => ({
             user_id: user.id,

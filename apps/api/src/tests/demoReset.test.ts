@@ -129,6 +129,7 @@ describe("demo reset", () => {
         deleteMany: vi.fn(),
         create: vi.fn().mockResolvedValueOnce({ id: "profile_1" }).mockResolvedValueOnce({ id: "profile_2" })
       },
+      driverVerification: { createMany: vi.fn() },
       demoScenario: { deleteMany: vi.fn(), createMany: vi.fn() },
       serviceRoute: {
         updateMany: vi.fn(),
@@ -166,6 +167,12 @@ describe("demo reset", () => {
       tx.user.deleteMany.mock.invocationCallOrder[0]
     );
     expect(userCreate).toHaveBeenCalledTimes(5);
+    expect(tx.driverVerification.createMany).toHaveBeenCalledWith({
+      data: expect.arrayContaining([
+        expect.objectContaining({ user_id: "driver_1", status: "approved", reviewed_by_id: "admin" }),
+        expect.objectContaining({ user_id: "driver_2", status: "approved", reviewed_by_id: "admin" })
+      ])
+    });
     expect(tx.serviceRouteVersion.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         description_ar: expect.stringContaining("مساري"),

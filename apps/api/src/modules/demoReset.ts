@@ -243,6 +243,23 @@ export async function resetDemoData(db: PrismaClient = prisma, appConfig: AppCon
       }
     });
 
+    await tx.driverVerification.createMany({
+      data: [
+        {
+          user_id: driver1User.id,
+          status: "approved",
+          reviewed_at: resetAt,
+          reviewed_by_id: admin.id
+        },
+        {
+          user_id: driver2User.id,
+          status: "approved",
+          reviewed_at: resetAt,
+          reviewed_by_id: admin.id
+        }
+      ]
+    });
+
     const [originStop, passengerPickupStop, destinationStop] = await Promise.all([
       tx.stop.create({
         data: {
