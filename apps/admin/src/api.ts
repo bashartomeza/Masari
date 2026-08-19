@@ -55,6 +55,36 @@ return {
       `/admin/driver-verifications/${encodeURIComponent(userId)}/reject`,
       { method: "POST", token, body: { expected_revision: expectedRevision, reason } }
     ),
+  consentReleases: (token: string) =>
+    apiRequest<{ releases: ConsentRelease[] }>("/admin/consent-releases", { token }),
+  currentConsentRelease: (token: string) =>
+    apiRequest<ConsentCurrentResponse>("/admin/consent-releases/current", { token }),
+  createConsentRelease: (token: string, draft: ConsentReleaseDraft) =>
+    apiRequest<{ release: ConsentRelease }>("/admin/consent-releases", { method: "POST", token, body: draft }),
+  updateConsentRelease: (token: string, version: string, expectedRevision: number, draft: Omit<ConsentReleaseDraft, "version">) =>
+    apiRequest<{ release: ConsentRelease }>(`/admin/consent-releases/${encodeURIComponent(version)}`, {
+      method: "PUT",
+      token,
+      body: { expected_revision: expectedRevision, ...draft }
+    }),
+  approveConsentRelease: (token: string, version: string, expectedRevision: number) =>
+    apiRequest<{ release: ConsentRelease }>(`/admin/consent-releases/${encodeURIComponent(version)}/approve`, {
+      method: "POST",
+      token,
+      body: { expected_revision: expectedRevision, legal_approval_confirmed: true }
+    }),
+  activateConsentRelease: (token: string, version: string, expectedRevision: number, expectedCurrentReleaseId: string | null) =>
+    apiRequest<{ release: ConsentRelease }>(`/admin/consent-releases/${encodeURIComponent(version)}/activate`, {
+      method: "POST",
+      token,
+      body: { expected_revision: expectedRevision, expected_current_release_id: expectedCurrentReleaseId, activation_confirmed: true }
+    }),
+  retireConsentRelease: (token: string, version: string, expectedRevision: number, reason: string) =>
+    apiRequest<{ release: ConsentRelease }>(`/admin/consent-releases/${encodeURIComponent(version)}/retire`, {
+      method: "POST",
+      token,
+      body: { expected_revision: expectedRevision, reason, confirm_disable_onboarding: true }
+    }),
   /**
    * Suspend, disable or reactivate an account.
    *
@@ -190,6 +220,49 @@ export type DriverVerificationPage = {
   page: number;
   limit: number;
   total: number;
+};
+export type ConsentDocumentType = "terms" | "privacy" | "adult_self_attestation";
+export type ConsentLocale = "ar" | "en";
+export type ConsentReleaseStatus = "draft" | "approved" | "effective" | "retired";
+export type ConsentReleaseDocument = {
+  id: string;
+  type: ConsentDocumentType;
+  locale: ConsentLocale;
+  version: string;
+  content: string | null;
+  content_digest: string;
+  effective_at: string;
+  retired_at: string | null;
+  legal_approved_at: string | null;
+  legal_approved_by: string | null;
+};
+export type ConsentRelease = {
+  id: string;
+  version: string;
+  status: ConsentReleaseStatus;
+  revision: number;
+  intended_effective_at: string;
+  legal_approved_at: string | null;
+  legal_approved_by: string | null;
+  activated_at: string | null;
+  activated_by: string | null;
+  retired_at: string | null;
+  retired_by: string | null;
+  retirement_reason: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  documents: ConsentReleaseDocument[];
+};
+export type ConsentReleaseDraft = {
+  version: string;
+  intended_effective_at: string;
+  documents: Array<{ type: ConsentDocumentType; locale: ConsentLocale; content: string }>;
+};
+export type ConsentCurrentResponse = {
+  ready: boolean;
+  ambiguous: boolean;
+  release: ConsentRelease | null;
 };
 export type ApiClient = ReturnType<typeof createApiClient>;
 export type LoginResponse = { token: string; user: User };

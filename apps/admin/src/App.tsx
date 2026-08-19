@@ -569,7 +569,7 @@ export function App({
         );
 
       case "settings":
-        return <SettingsPanel config={config} admin={admin} />;
+        return <SettingsPanel config={config} admin={admin} api={api} token={token} />;
 
       case "profile":
         return <ProfilePanel admin={admin} />;

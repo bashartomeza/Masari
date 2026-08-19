@@ -1109,6 +1109,67 @@
   align-items: end;
 }
 
+/* ------------------------------------------------ consent management -- */
+
+.consent-management {
+  display: grid;
+  gap: var(--space-md);
+}
+
+.consent-current,
+.consent-release {
+  display: grid;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-lg);
+  background: var(--surface-container-lowest);
+}
+
+.consent-document-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-sm);
+}
+
+.consent-document {
+  min-inline-size: 0;
+  padding: var(--space-sm);
+  border: 1px solid color-mix(in srgb, var(--outline-variant) 70%, transparent);
+  border-radius: var(--radius);
+  background: var(--surface-container-low);
+}
+
+.consent-document textarea {
+  min-block-size: 180px;
+  unicode-bidi: plaintext;
+}
+
+.consent-document pre {
+  margin-block: var(--space-xs);
+  max-block-size: 220px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+  unicode-bidi: plaintext;
+}
+
+.consent-release__meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-sm);
+  color: var(--on-surface-variant);
+  font-size: var(--body-sm-size);
+}
+
+@media (max-width: 760px) {
+  .consent-document-grid,
+  .consent-release__meta {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ---------------------------------------------------------------- login -- */
 
 .login-shell {
