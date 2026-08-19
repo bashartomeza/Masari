@@ -9,6 +9,7 @@ import { NotificationControl, SideNav, initialOf, notificationPanelState } from 
 import { toneForStatus } from "./StatusBadge";
 import { ModuleUnavailable } from "../features/placeholder/ModuleUnavailable";
 import { OverviewDashboard, deriveAlerts } from "../features/overview/OverviewDashboard";
+import { OVERVIEW_RESOURCE_KEYS, type OverviewResourcePhase, type OverviewResourceStates } from "../features/overview/overviewState";
 import { matchesSearch } from "../features/search";
 import { railSteps } from "../features/trips/TripsTracking";
 import { parcelSteps } from "../features/batching/BatchingWorkspace";
@@ -36,10 +37,25 @@ function escapeHtml(value: string) {
 
 /** Visible text only — strips tags so SVG path data is not mistaken for content. */
 function textOf(markup: string) {
-  return markup.replace(/<[^>]*>/g, " ");
+  return markup.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 }
 
-const emptyOverview = { dashboard: null, routes: [], requests: [], orders: [], trips: [] };
+function resourceStates(phase: OverviewResourcePhase, hasData: boolean): OverviewResourceStates {
+  return Object.fromEntries(OVERVIEW_RESOURCE_KEYS.map((key) => [key, { phase, hasData }])) as OverviewResourceStates;
+}
+
+const zeroDashboard = {
+  counts: { users: 0, drivers: 0, routes: 0, passenger_requests: 0, merchant_orders: 0, parcels: 0 }
+};
+const emptyOverview = {
+  dashboard: zeroDashboard,
+  drivers: [],
+  routes: [],
+  requests: [],
+  orders: [],
+  trips: [],
+  resources: resourceStates("ready", true)
+};
 
 describe("admin shell", () => {
   it("renders every sidebar tab label in Arabic and English", () => {
@@ -161,14 +177,121 @@ describe("modules without a backing endpoint", () => {
 });
 
 describe("overview dashboard", () => {
-  it("renders empty states rather than placeholder numbers when the API returned nothing", () => {
+  it("renders genuine zero states when successful APIs return no records", () => {
     const markup = withLocale(
       "en",
       <OverviewDashboard data={emptyOverview} search="" busy={false} onRefresh={() => undefined} />
     );
     expect(markup).toContain("No active operations right now.");
     expect(markup).toContain("No critical alerts");
+    expect(markup).toContain("No active drivers");
+    expect(markup).toContain("No active trips");
+    expect(markup).toContain("No pending approvals");
+    expect(markup).toContain("No orders");
+    expect(markup).toContain("No requests");
     expect(markup).toContain("—");
+  });
+
+  it("renders real metric values from the owning API resources", () => {
+    const user = (id: string, account_status: "active" | "pending") => ({
+      id,
+      name: id,
+      phone: `+97059${id}`,
+      role: "driver",
+      account_status,
+      status_reason: null,
+      status_updated_at: "2026-08-19T00:00:00.000Z",
+      last_login_at: null,
+      demo_account: false,
+      created_at: "2026-08-19T00:00:00.000Z"
+    });
+    const data = {
+      ...emptyOverview,
+      dashboard: { ...zeroDashboard, counts: { ...zeroDashboard.counts, merchant_orders: 12, passenger_requests: 8 } },
+      drivers: [
+        { id: "d1", vehicle_type: "sedan", seats_total: 4, parcel_capacity: 2, verified: true, trust_score: 80, created_at: "", user: user("1", "active") },
+        { id: "d2", vehicle_type: "van", seats_total: 6, parcel_capacity: 8, verified: false, trust_score: 70, created_at: "", user: user("2", "pending") }
+      ],
+      trips: [{ id: "trip_1", status: "accepted", driver_route_id: "route_1" }]
+    };
+    const markup = withLocale("en", <OverviewDashboard data={data} search="" busy={false} onRefresh={() => undefined} />);
+
+    expect(markup).toContain('data-metric="active-drivers"');
+    expect(markup).toContain('data-metric="active-trips"');
+    expect(markup).toContain('data-metric="pending-approvals"');
+    expect(textOf(markup)).toContain("Active drivers 1");
+    expect(textOf(markup)).toContain("Active trips 1");
+    expect(textOf(markup)).toContain("Pending approvals 1");
+    expect(textOf(markup)).toContain("Orders 12");
+    expect(textOf(markup)).toContain("Requests 8");
+  });
+
+  it("shows stable loading states without flashing fake zero values", () => {
+    const loading = {
+      ...emptyOverview,
+      dashboard: null,
+      resources: resourceStates("loading", false)
+    };
+    const markup = withLocale("en", <OverviewDashboard data={loading} search="" busy onRefresh={() => undefined} />);
+
+    expect(markup).toContain('aria-label="Loading data"');
+    expect(markup).toContain("Refreshing...");
+    expect(markup).not.toContain("No active drivers");
+    expect(markup).not.toContain("No active trips");
+  });
+
+  it("distinguishes a total API error from an empty dashboard and exposes retry", () => {
+    const failed = {
+      ...emptyOverview,
+      dashboard: null,
+      resources: resourceStates("error", false)
+    };
+    const markup = withLocale("en", <OverviewDashboard data={failed} search="" busy={false} onRefresh={() => undefined} />);
+
+    expect(markup).toContain("Data could not be loaded");
+    expect(markup).toContain("This section could not be loaded");
+    expect(markup).toContain("Retry");
+    expect(markup).not.toContain("internal_server_error");
+    expect(markup).not.toContain("No active drivers");
+  });
+
+  it("keeps successful metrics visible during a partial resource failure", () => {
+    const resources = resourceStates("ready", true);
+    resources.dashboard = { phase: "error", hasData: false };
+    const partial = {
+      ...emptyOverview,
+      dashboard: null,
+      drivers: [{
+        id: "d1",
+        vehicle_type: "sedan",
+        seats_total: 4,
+        parcel_capacity: 2,
+        verified: true,
+        trust_score: 80,
+        created_at: "",
+        user: {
+          id: "u1", name: "Driver", phone: "+970590000001", role: "driver", account_status: "active" as const,
+          status_reason: null, status_updated_at: "", last_login_at: null, demo_account: false, created_at: ""
+        }
+      }],
+      resources
+    };
+    const markup = withLocale("en", <OverviewDashboard data={partial} search="" busy={false} onRefresh={() => undefined} />);
+
+    expect(textOf(markup)).toContain("Active drivers 1");
+    expect(textOf(markup)).toContain("Orders — Data could not be loaded");
+  });
+
+  it("never invents an incident count and localizes the unavailable contract", () => {
+    const english = withLocale("en", <OverviewDashboard data={emptyOverview} search="" busy={false} onRefresh={() => undefined} />);
+    const arabic = withLocale("ar", <OverviewDashboard data={emptyOverview} search="" busy={false} onRefresh={() => undefined} />);
+    const incidentCardText = textOf(english.split('data-metric="incidents"')[1].split("</section>")[0]);
+
+    expect(incidentCardText).toContain("Incidents");
+    expect(incidentCardText).toContain("Incident service is not connected");
+    expect(incidentCardText).not.toMatch(/\d/);
+    expect(arabic).toContain("السائقون النشطون");
+    expect(arabic).toContain("خدمة الحوادث غير متصلة");
   });
 
   it("derives alerts only from data the API actually returned", () => {
@@ -195,7 +318,7 @@ describe("overview dashboard", () => {
           driver: { verified: false }
         }
       ],
-      orders: [{ id: "o1", status: "created", pickup_label: "a" }]
+      orders: [{ id: "o1", status: "submitted", pickup_label: "a" }]
     });
     expect(alerts).toEqual({ unmatchedRequests: 1, unverifiedDriverRoutes: 1, unbatchedOrders: 1 });
   });

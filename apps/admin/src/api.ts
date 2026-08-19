@@ -109,13 +109,15 @@ export type User = { id: string; name: string; phone: string; role: string };
 
 /** The three values `PATCH /admin/users/:id/status` accepts. */
 export type AccountStatus = "active" | "suspended" | "disabled";
+/** Every account state the read-only Admin APIs can return. */
+export type UserAccountStatus = AccountStatus | "pending";
 
 /**
  * A user as the admin endpoints serialise it — the `safeUserSelect` shape,
  * which deliberately omits the password hash and security version.
  */
 export type AdminUser = User & {
-  account_status: AccountStatus;
+  account_status: UserAccountStatus;
   status_reason: string | null;
   status_updated_at: string;
   last_login_at: string | null;
