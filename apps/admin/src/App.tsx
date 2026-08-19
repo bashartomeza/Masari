@@ -424,8 +424,11 @@ export function App({
 
   useEffect(() => {
     if (!token) return;
-    void loadMe(token).then((loaded) => {
-      if (loaded) void runAction("restore-overview", () => refreshOverview(token));
+    void loadMe(token).then(() => {
+      // A transient /me failure must not leave the overview in permanent
+      // skeleton state. Terminal session failures clear the stored token, so
+      // only a still-current Admin session proceeds with independent loads.
+      if (sessionStore.getItem(ADMIN_TOKEN_KEY) === token) void refreshOverview(token);
     });
   }, [token]);
 
