@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { DriverProfile } from "../../api";
 import { LocaleProvider } from "../../i18n/LocaleContext";
 import type { Locale } from "../../i18n/translations";
-import { DriverDirectory } from "./DriverDirectory";
+import { DriverDirectory, DriverReviewPanel } from "./DriverDirectory";
 import { UsersDirectory } from "../users/UsersDirectory";
 
 function withLocale(locale: Locale, children: ReactNode) {
@@ -56,16 +56,44 @@ describe("driver verification module", () => {
     expect(markup).not.toContain("This module is not available yet");
   });
 
-  it("reports the verified flag without offering to change it", () => {
+  it("shows an honest unavailable queue without offering fake approval actions", () => {
     const markup = textOf(
       withLocale("en", <DriverDirectory drivers={[driver]} search="" busy={false} onUpdateStatus={() => {}} />)
     );
 
     expect(markup).toContain("Unverified");
-    // No endpoint writes DriverProfile.verified, so no approve/reject control.
+    expect(markup).toContain("Approval queue unavailable");
     expect(markup).not.toContain("Approve");
     expect(markup).not.toContain("Reject");
-    expect(markup).toContain("read-only");
+    expect(markup).toContain("Review details");
+  });
+
+  it("renders real existing profile, driver, vehicle and stored verification details", () => {
+    const markup = textOf(withLocale("en", <DriverReviewPanel driver={driver} />));
+
+    expect(markup).toContain("Profile");
+    expect(markup).toContain("Demo Driver Hebron Route");
+    expect(markup).toContain("+970590000002");
+    expect(markup).toContain("Driver profile ID");
+    expect(markup).toContain("driver_profile_1");
+    expect(markup).toContain("Vehicle type");
+    expect(markup).toContain("van");
+    expect(markup).toContain("Stored state");
+    expect(markup).toContain("Unverified");
+    expect(markup).toContain("Not exposed by the current API");
+    expect(markup).toContain("Review history unavailable");
+    expect(markup).not.toContain("Approve");
+    expect(markup).not.toContain("Reject");
+  });
+
+  it("preserves equivalent read-only review semantics in Arabic", () => {
+    const markup = textOf(withLocale("ar", <DriverReviewPanel driver={driver} />));
+
+    expect(markup).toContain("مراجعة السائق");
+    expect(markup).toContain("الملف الشخصي");
+    expect(markup).toContain("المركبة");
+    expect(markup).toContain("التوثيق");
+    expect(markup).toContain("غير متاح عبر واجهة API الحالية");
   });
 
   it("offers suspension for an active account and reactivation for a suspended one", () => {
@@ -85,6 +113,54 @@ describe("driver verification module", () => {
     expect(markup).toContain("Reactivate");
     expect(markup).toContain("documents expired");
     expect(markup).not.toContain("Suspend account");
+  });
+
+  it("does not turn a pending account into a fake reactivation or approval action", () => {
+    const pending: DriverProfile = {
+      ...driver,
+      user: { ...driver.user!, account_status: "pending" }
+    };
+    const markup = textOf(
+      withLocale("en", <DriverDirectory drivers={[pending]} search="" busy={false} onUpdateStatus={() => {}} />)
+    );
+
+    expect(markup).toContain("Pending review");
+    expect(markup).toContain("Requires a separate approval contract");
+    expect(markup).not.toContain("Reactivate");
+    expect(markup).not.toContain("Approve");
+    expect(markup).not.toContain("Reject");
+  });
+
+  it("distinguishes loading, confirmed empty and API error states", () => {
+    const loading = withLocale(
+      "en",
+      <DriverDirectory
+        drivers={[]}
+        search=""
+        busy={false}
+        state={{ phase: "loading", hasData: false }}
+        onUpdateStatus={() => {}}
+      />
+    );
+    const empty = textOf(withLocale("en", <DriverDirectory drivers={[]} search="" busy={false} onUpdateStatus={() => {}} />));
+    const failed = textOf(
+      withLocale(
+        "en",
+        <DriverDirectory
+          drivers={[]}
+          search=""
+          busy={false}
+          state={{ phase: "error", hasData: false }}
+          onUpdateStatus={() => {}}
+        />
+      )
+    );
+
+    expect(loading).toContain('aria-label="Loading data"');
+    expect(empty).toContain("No existing driver profiles");
+    expect(failed).toContain("This section could not be loaded");
+    expect(failed).toContain("Retry");
+    expect(failed).not.toContain("internal_server_error");
   });
 
   it("filters by the console search box", () => {

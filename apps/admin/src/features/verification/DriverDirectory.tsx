@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import type { AccountStatus, DriverProfile } from "../../api";
 import { useLocale } from "../../i18n/LocaleContext";
 import {
@@ -9,37 +9,132 @@ import {
   CardHeader,
   DataTable,
   EmptyState,
+  Skeleton,
   StatusBadge,
   TechnicalValue,
-  type Column
+  type Column,
+  type Tone
 } from "../../ui";
+import type { OverviewResourceState } from "../overview/overviewState";
 import { matchesSearch } from "../search";
 
 /**
- * Driver verification and account control, backed by `GET /admin/drivers` and
- * `PATCH /admin/users/:id/status`.
- *
- * Both endpoints have existed for some time; the console rendered an
- * "unavailable" placeholder for this tab anyway, so nothing read them. What the
- * flow diagram calls "approve / reject documents" is genuinely absent — there
- * is no document model and no endpoint writes `DriverProfile.verified` — so the
- * verified flag is reported and never offered as an action. The account
- * controls below it are real, and are the lever an admin actually has.
+ * The current Admin contract exposes existing DriverProfile rows and account
+ * controls only. Pending onboarding users have no profile and are absent from
+ * GET /admin/drivers; no endpoint writes `verified`, stores a verification
+ * rejection, or exposes evidence/history. This module therefore keeps account
+ * control distinct and offers no client-only approval or rejection action.
  */
+
+function accountTone(status: string | undefined): Tone {
+  if (status === "active") return "success";
+  if (status === "pending") return "warning";
+  return "danger";
+}
+
+function ReviewField({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="split">
+      <span className="kv__key">{label}</span>
+      <span>{children}</span>
+    </div>
+  );
+}
+
+/** Read-only detail assembled exclusively from GET /admin/drivers. */
+export function DriverReviewPanel({ driver, onClose }: { driver: DriverProfile; onClose?: () => void }) {
+  const { t, number, dateTime } = useLocale();
+  const user = driver.user;
+
+  return (
+    <>
+      <Card span={12} id="driver-review" aria-labelledby="driver-review-title">
+        <CardHeader
+          title={<span id="driver-review-title">{t("driverReview")}: {user?.name ?? t("noData")}</span>}
+          action={onClose ? <Button size="sm" variant="ghost" onClick={onClose}>{t("closeReview")}</Button> : undefined}
+        />
+        <p className="muted">{t("driverReviewReadOnly")}</p>
+      </Card>
+
+      <Card span={6}>
+        <CardHeader title={t("reviewProfileSection")} />
+        <div className="stack stack--tight">
+          <ReviewField label={t("profileName")}>{user?.name ?? "—"}</ReviewField>
+          <ReviewField label={t("phoneNumber")}><TechnicalValue>{user?.phone ?? "—"}</TechnicalValue></ReviewField>
+          <ReviewField label={t("columnAccountStatus")}>
+            <StatusBadge tone={accountTone(user?.account_status)}>
+              {user ? t(`accountStatus_${user.account_status}`) : "—"}
+            </StatusBadge>
+          </ReviewField>
+          <ReviewField label={t("accountStatusUpdatedAt")}>{dateTime(user?.status_updated_at)}</ReviewField>
+          {user?.status_reason && <ReviewField label={t("statusReason")}>{user.status_reason}</ReviewField>}
+        </div>
+      </Card>
+
+      <Card span={6}>
+        <CardHeader title={t("reviewDriverSection")} />
+        <div className="stack stack--tight">
+          <ReviewField label={t("driverProfileId")}><TechnicalValue>{driver.id}</TechnicalValue></ReviewField>
+          <ReviewField label={t("trustScore")}>{number(driver.trust_score)}</ReviewField>
+          <ReviewField label={t("profileCreatedAt")}>{dateTime(driver.created_at)}</ReviewField>
+        </div>
+      </Card>
+
+      <Card span={6}>
+        <CardHeader title={t("reviewVehicleSection")} />
+        <div className="stack stack--tight">
+          <ReviewField label={t("vehicleType")}>{driver.vehicle_type}</ReviewField>
+          <ReviewField label={t("seatCapacity")}>{number(driver.seats_total)}</ReviewField>
+          <ReviewField label={t("parcelCapacity")}>{number(driver.parcel_capacity)}</ReviewField>
+        </div>
+      </Card>
+
+      <Card span={6}>
+        <CardHeader title={t("reviewVerificationSection")} />
+        <div className="stack stack--tight">
+          <ReviewField label={t("verificationStoredState")}>
+            <StatusBadge tone={driver.verified ? "success" : "warning"}>
+              {driver.verified ? t("verified") : t("unverified")}
+            </StatusBadge>
+          </ReviewField>
+          <ReviewField label={t("verificationEvidence")}>{t("notExposedByApi")}</ReviewField>
+          <ReviewField label={t("verificationRejectionReason")}>{t("notExposedByApi")}</ReviewField>
+        </div>
+        <p className="muted profile-panel__note">{t("verificationMutationUnavailable")}</p>
+      </Card>
+
+      <Card span={12}>
+        <CardHeader title={t("reviewHistorySection")} />
+        <EmptyState
+          compact
+          icon="verified_user"
+          title={t("reviewHistoryUnavailable")}
+          description={t("reviewHistoryUnavailableDescription")}
+        />
+      </Card>
+    </>
+  );
+}
+
 export function DriverDirectory({
   drivers,
   search,
   busy,
-  onUpdateStatus
+  onUpdateStatus,
+  state = { phase: "ready", hasData: true },
+  onRefresh = () => undefined
 }: {
   drivers: DriverProfile[];
   search: string;
   busy: boolean;
   onUpdateStatus: (userId: string, status: AccountStatus, reason?: string) => void;
+  state?: OverviewResourceState;
+  onRefresh?: () => void;
 }) {
   const { t, number } = useLocale();
-  const [pending, setPending] = useState<{ driver: DriverProfile; status: AccountStatus } | null>(null);
+  const [accountChange, setAccountChange] = useState<{ driver: DriverProfile; status: AccountStatus } | null>(null);
   const [reason, setReason] = useState("");
+  const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null);
 
   const visible = useMemo(
     () =>
@@ -48,17 +143,15 @@ export function DriverDirectory({
       ),
     [drivers, search]
   );
-
+  const selectedDriver = selectedDriverId ? drivers.find((driver) => driver.id === selectedDriverId) : undefined;
   const unverified = visible.filter((driver) => !driver.verified).length;
 
-  function submit() {
-    if (!pending) return;
-    // The API rejects a suspension without a reason of at least three
-    // characters, so the dialog enforces the same rule before sending.
+  function submitAccountChange() {
+    if (!accountChange) return;
     const trimmed = reason.trim();
-    if (pending.status !== "active" && trimmed.length < 3) return;
-    onUpdateStatus(pending.driver.user!.id, pending.status, trimmed || undefined);
-    setPending(null);
+    if (accountChange.status !== "active" && trimmed.length < 3) return;
+    onUpdateStatus(accountChange.driver.user!.id, accountChange.status, trimmed || undefined);
+    setAccountChange(null);
     setReason("");
   }
 
@@ -100,7 +193,7 @@ export function DriverDirectory({
       header: t("columnAccountStatus"),
       cell: (driver) => (
         <div>
-          <StatusBadge tone={driver.user?.account_status === "active" ? "success" : "danger"}>
+          <StatusBadge tone={accountTone(driver.user?.account_status)}>
             {t(`accountStatus_${driver.user?.account_status ?? "active"}`)}
           </StatusBadge>
           {driver.user?.status_reason && <p className="cell-stack__sub">{driver.user.status_reason}</p>}
@@ -108,26 +201,38 @@ export function DriverDirectory({
       )
     },
     {
-      key: "actions",
-      header: t("columnActions"),
+      key: "review",
+      header: t("reviewAction"),
+      cell: (driver) => (
+        <Button variant="secondary" size="sm" icon="id_card" onClick={() => setSelectedDriverId(driver.id)}>
+          {t("reviewDetails")}
+        </Button>
+      )
+    },
+    {
+      key: "account-control",
+      header: t("accountControl"),
       align: "end",
-      cell: (driver) =>
-        !driver.user ? (
-          <TechnicalValue>{driver.id}</TechnicalValue>
-        ) : driver.user.account_status === "active" ? (
-          <Button
-            variant="ghost"
-            size="sm"
-            icon="block"
-            disabled={busy}
-            onClick={() => {
-              setReason("");
-              setPending({ driver, status: "suspended" });
-            }}
-          >
-            {t("suspendAccount")}
-          </Button>
-        ) : (
+      cell: (driver) => {
+        if (!driver.user) return <TechnicalValue>{driver.id}</TechnicalValue>;
+        if (driver.user.account_status === "pending") return <span className="muted">{t("pendingAccountControlUnavailable")}</span>;
+        if (driver.user.account_status === "active") {
+          return (
+            <Button
+              variant="ghost"
+              size="sm"
+              icon="block"
+              disabled={busy}
+              onClick={() => {
+                setReason("");
+                setAccountChange({ driver, status: "suspended" });
+              }}
+            >
+              {t("suspendAccount")}
+            </Button>
+          );
+        }
+        return (
           <Button
             variant="ghost"
             size="sm"
@@ -135,50 +240,86 @@ export function DriverDirectory({
             disabled={busy}
             onClick={() => {
               setReason("");
-              setPending({ driver, status: "active" });
+              setAccountChange({ driver, status: "active" });
             }}
           >
             {t("reactivateAccount")}
           </Button>
-        )
+        );
+      }
     }
   ];
 
+  const initialLoading = !state.hasData && (state.phase === "idle" || state.phase === "loading");
+  const initialError = !state.hasData && state.phase === "error";
+
   return (
     <BentoGrid>
-      {/* Named up front so the missing half of this flow is not mistaken for a
-          control the admin failed to find. */}
       <Card span={12}>
-        <AlertItem tone="info" icon="verified_user" title={t("columnVerified")} description={t("verificationDocumentsUnavailable")} />
+        <CardHeader title={t("pendingDriverQueue")} />
+        <EmptyState
+          compact
+          icon="verified_user"
+          title={t("pendingQueueUnavailable")}
+          description={t("pendingQueueUnavailableDescription")}
+        />
       </Card>
 
       <Card span={12} padded={false}>
         <CardHeader
           title={t("driverDirectory")}
-          badge={
+          badge={state.hasData ? (
             <StatusBadge tone={unverified > 0 ? "warning" : "success"}>
               {t("unverifiedCount", { count: number(unverified) })}
             </StatusBadge>
-          }
+          ) : undefined}
         />
-        <DataTable
-          columns={columns}
-          rows={visible}
-          rowKey={(driver) => driver.id}
-          empty={<EmptyState compact icon="verified_user" title={search ? t("searchNoResults") : t("noData")} />}
-        />
+        {initialLoading && <div className="overview-resource-state" role="status" aria-label={t("metricLoading")}><Skeleton lines={5} /></div>}
+        {initialError && (
+          <EmptyState
+            compact
+            icon="report"
+            title={t("resourceLoadError")}
+            description={t("resourceLoadErrorDescription")}
+            action={<Button size="sm" variant="secondary" icon="refresh" onClick={onRefresh}>{t("retry")}</Button>}
+          />
+        )}
+        {state.hasData && (
+          <>
+            {state.phase === "loading" && <p className="overview-resource-note" role="status">{t("metricRefreshing")}</p>}
+            {state.phase === "error" && <p className="overview-resource-note overview-resource-note--error" role="alert">{t("metricRefreshError")}</p>}
+            <DataTable
+              columns={columns}
+              rows={visible}
+              rowKey={(driver) => driver.id}
+              empty={<EmptyState compact icon="verified_user" title={search ? t("searchNoResults") : t("noExistingDriverProfiles")} />}
+            />
+          </>
+        )}
       </Card>
 
-      {pending && (
+      {selectedDriver && <DriverReviewPanel driver={selectedDriver} onClose={() => setSelectedDriverId(null)} />}
+      {selectedDriverId && !selectedDriver && (
         <Card span={12}>
-          <CardHeader title={pending.status === "active" ? t("reactivateAccount") : t("suspendAccount")} />
+          <AlertItem tone="warning" icon="report" title={t("staleDriverReview")} description={t("staleDriverReviewDescription")} />
+          <div className="card__actions">
+            <Button size="sm" variant="secondary" icon="refresh" onClick={onRefresh}>{t("refreshData")}</Button>
+            <Button size="sm" variant="ghost" onClick={() => setSelectedDriverId(null)}>{t("closeReview")}</Button>
+          </div>
+        </Card>
+      )}
+
+      {accountChange && (
+        <Card span={12}>
+          <CardHeader title={accountChange.status === "active" ? t("reactivateAccount") : t("suspendAccount")} />
+          <AlertItem tone="info" title={t("accountControl")} description={t("accountControlSeparateDescription")} />
           <p className="muted">
             {t("accountStatusConfirm", {
-              name: pending.driver.user?.name ?? "",
-              status: t(`accountStatus_${pending.status}`)
+              name: accountChange.driver.user?.name ?? "",
+              status: t(`accountStatus_${accountChange.status}`)
             })}
           </p>
-          {pending.status !== "active" && (
+          {accountChange.status !== "active" && (
             <label className="field">
               {t("statusReason")}
               <input value={reason} onChange={(event) => setReason(event.target.value)} minLength={3} />
@@ -187,12 +328,12 @@ export function DriverDirectory({
           <div className="card__actions">
             <Button
               variant="primary"
-              disabled={busy || (pending.status !== "active" && reason.trim().length < 3)}
-              onClick={submit}
+              disabled={busy || (accountChange.status !== "active" && reason.trim().length < 3)}
+              onClick={submitAccountChange}
             >
               {t("confirm")}
             </Button>
-            <Button variant="ghost" disabled={busy} onClick={() => setPending(null)}>
+            <Button variant="ghost" disabled={busy} onClick={() => setAccountChange(null)}>
               {t("cancel")}
             </Button>
           </div>

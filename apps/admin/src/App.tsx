@@ -583,6 +583,8 @@ export function App({
             drivers={drivers}
             search={search}
             busy={Boolean(busy)}
+            state={overviewResources.drivers}
+            onRefresh={() => void refreshOverview()}
             onUpdateStatus={(userId, status, reason) => void updateUserStatus(userId, status, reason)}
           />
         );
