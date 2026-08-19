@@ -5,7 +5,7 @@ import { useLocale } from "./i18n/LocaleContext";
 import type { TranslationKey } from "./i18n/translations";
 import { ADMIN_TOKEN_KEY, clearAdminSession, createAdminSessionExpiryHandler, isAdminSessionEndError, type TokenStorage } from "./session";
 import { RouteManagement } from "./features/routes/RouteManagement";
-import { OverviewDashboard, deriveAlerts, type OverviewData } from "./features/overview/OverviewDashboard";
+import { OverviewDashboard, type OverviewData } from "./features/overview/OverviewDashboard";
 import { RequestsBoard } from "./features/requests/RequestsBoard";
 import { MatchingWorkspace } from "./features/matching/MatchingWorkspace";
 import { BatchingWorkspace } from "./features/batching/BatchingWorkspace";
@@ -16,7 +16,15 @@ import { DriverDirectory } from "./features/verification/DriverDirectory";
 import { UsersDirectory } from "./features/users/UsersDirectory";
 import { DemoControl } from "./features/demo/DemoControl";
 import { ModuleUnavailable } from "./features/placeholder/ModuleUnavailable";
-import { isModuleAvailable, resolveActiveModule, visibleNavItems, type ModuleId } from "./navigation";
+import { ProfilePanel } from "./features/profile/ProfilePanel";
+import {
+  hashForModule,
+  isModuleAvailable,
+  moduleFromHash,
+  resolveActiveModule,
+  visibleNavItems,
+  type AdminRouteId
+} from "./navigation";
 import { AppShell, Button, Icon, Notice, SideNav, TopBar } from "./ui";
 
 export { ADMIN_TOKEN_KEY, clearAdminSession } from "./session";
@@ -69,7 +77,7 @@ export function App({
   const [latestLocation, setLatestLocation] = useState<LocationEvent | null>(null);
   const [locationTrail, setLocationTrail] = useState<LocationEvent[]>([]);
   const [demoSteps, setDemoSteps] = useState<DemoStep[]>([]);
-  const [activeModule, setActiveModule] = useState<ModuleId>("overview");
+  const [activeModule, setActiveModule] = useState<AdminRouteId>(() => moduleFromHash(window.location.hash));
   const [search, setSearch] = useState("");
 
   const flags = { demoEnabled, routeManagementEnabled };
@@ -381,6 +389,20 @@ export function App({
     });
   }, [token]);
 
+  useEffect(() => {
+    const syncModuleFromUrl = () => setActiveModule(moduleFromHash(window.location.hash));
+    window.addEventListener("hashchange", syncModuleFromUrl);
+    if (!window.location.hash) window.history.replaceState(null, "", hashForModule(activeModule));
+    return () => window.removeEventListener("hashchange", syncModuleFromUrl);
+  }, []);
+
+  function navigateToModule(id: AdminRouteId) {
+    setActiveModule(id);
+    setNotice(null);
+    const nextHash = hashForModule(id);
+    if (window.location.hash !== nextHash) window.location.hash = nextHash.slice(1);
+  }
+
   if (!token) {
     return (
       <main className="login-shell" dir={direction} lang={locale}>
@@ -412,10 +434,12 @@ export function App({
   }
 
   const overviewData: OverviewData = { dashboard, routes, requests, orders, trips };
-  const alerts = deriveAlerts(overviewData);
-  const alertCount = alerts.unmatchedRequests + alerts.unverifiedDriverRoutes + alerts.unbatchedOrders;
   const activeNavItem = navItems.find((item) => item.id === currentModule);
-  const moduleTitle = activeNavItem ? t(activeNavItem.labelKey) : t("navOverview");
+  const moduleTitle = currentModule === "profile"
+    ? t("navProfile")
+    : activeNavItem
+      ? t(activeNavItem.labelKey)
+      : t("navOverview");
 
   function renderModule() {
     switch (currentModule) {
@@ -443,36 +467,33 @@ export function App({
           </>
         );
 
-      case "requests":
+      case "deliveries":
         return <RequestsBoard requests={requests} orders={orders} search={search} />;
 
-      case "matching":
-        return isModuleAvailable("matching", flags) ? (
-          <MatchingWorkspace
-            request={selectedRequest}
-            order={selectedOrder}
-            matchResult={matchResult}
-            canAct={canAct}
-            busy={busy === "match"}
-            onRunMatch={() => void runMatch()}
-            onAccept={() => void acceptMatch()}
-            onReject={() => void rejectMatch()}
-            scoreLabel={(key) => t(scoringLabels[key] ?? "score")}
-          />
+      case "matchingBatching":
+        return isModuleAvailable("matchingBatching", flags) ? (
+          <>
+            <MatchingWorkspace
+              request={selectedRequest}
+              order={selectedOrder}
+              matchResult={matchResult}
+              canAct={canAct}
+              busy={busy === "match"}
+              onRunMatch={() => void runMatch()}
+              onAccept={() => void acceptMatch()}
+              onReject={() => void rejectMatch()}
+              scoreLabel={(key) => t(scoringLabels[key] ?? "score")}
+            />
+            <BatchingWorkspace
+              order={selectedOrder}
+              batchResult={batchResult}
+              canAct={canAct}
+              onCreateBatch={() => void runBatch()}
+            />
+            <ComparisonPanel comparison={comparison} canAct={canAct} onRunComparison={() => void runComparison()} />
+          </>
         ) : (
           <ModuleUnavailable icon="alt_route" reason="demo-only" />
-        );
-
-      case "batching":
-        return isModuleAvailable("batching", flags) ? (
-          <BatchingWorkspace
-            order={selectedOrder}
-            batchResult={batchResult}
-            canAct={canAct}
-            onCreateBatch={() => void runBatch()}
-          />
-        ) : (
-          <ModuleUnavailable icon="inventory_2" reason="demo-only" />
         );
 
       case "trips":
@@ -503,20 +524,16 @@ export function App({
           <ModuleUnavailable icon="edit_road" reason="no-api" />
         );
 
-      case "comparison":
-        return isModuleAvailable("comparison", flags) ? (
-          <ComparisonPanel comparison={comparison} canAct={canAct} onRunComparison={() => void runComparison()} />
-        ) : (
-          <ModuleUnavailable icon="analytics" reason="demo-only" />
-        );
-
       case "settings":
         return <SettingsPanel config={config} admin={admin} />;
+
+      case "profile":
+        return <ProfilePanel admin={admin} />;
 
       case "users":
         return <UsersDirectory drivers={drivers} requests={requests} orders={orders} search={search} />;
 
-      case "verification":
+      case "drivers":
         return (
           <DriverDirectory
             drivers={drivers}
@@ -526,14 +543,8 @@ export function App({
           />
         );
 
-      case "incidents":
-        return <ModuleUnavailable icon="report" reason="no-api" />;
-
-      case "safety":
+      case "incidentsSafety":
         return <ModuleUnavailable icon="emergency" reason="no-api" />;
-
-      case "aiReview":
-        return <ModuleUnavailable icon="psychology" reason="no-api" />;
 
       case "reports":
         return <ModuleUnavailable icon="assessment" reason="no-api" />;
@@ -543,16 +554,15 @@ export function App({
     }
   }
 
-  const moduleDescription: Partial<Record<ModuleId, string>> = {
+  const moduleDescription: Partial<Record<AdminRouteId, string>> = {
     overview: t("overviewDescription"),
-    requests: t("requestsDescription"),
-    matching: t("matchingDescription"),
-    batching: t("batchingDescription"),
+    deliveries: t("requestsDescription"),
+    matchingBatching: t("matchingDescription"),
     trips: t("tripsDescription"),
-    comparison: t("comparisonDescription"),
     users: t("usersDescription"),
-    verification: t("verificationDescription"),
-    settings: t("settingsDescription")
+    drivers: t("verificationDescription"),
+    settings: t("settingsDescription"),
+    profile: t("profileDescription")
   };
 
   return (
@@ -561,17 +571,24 @@ export function App({
         sidenav={
           <SideNav
             items={navItems}
-            active={currentModule}
-            onSelect={(id) => { setActiveModule(id); setNotice(null); }}
+            active={currentModule === "profile" ? null : currentModule}
+            onSelect={navigateToModule}
             labels={{
               brand: t("brandName"),
               subtitle: t("adminConsoleSubtitle"),
               navigation: t("navigationLabel"),
-              label: (item) => t(item.labelKey)
+              label: (item) => t(item.labelKey),
+              groupLabel: (labelKey) => t(labelKey)
             }}
             footer={
               <>
-                <Button variant="ghost" icon="account_circle" onClick={() => setActiveModule("settings")}>
+                <Button
+                  variant="ghost"
+                  icon="account_circle"
+                  className={currentModule === "profile" ? "is-active" : undefined}
+                  aria-current={currentModule === "profile" ? "page" : undefined}
+                  onClick={() => navigateToModule("profile")}
+                >
                   {t("navProfile")}
                 </Button>
                 <Button variant="ghost" icon="language" onClick={() => { setNotice(null); toggleLocale(); }}>
@@ -599,7 +616,9 @@ export function App({
             searchLabel={t("searchLabel")}
             helpLabel={t("helpLabel")}
             notificationsLabel={t("notificationsLabel")}
-            alertCount={alertCount}
+            notificationsTitle={t("notificationsTitle")}
+            notificationsDescription={t("notificationsUnavailableDescription")}
+            closeNotificationsLabel={t("closeNotifications")}
             user={{ name: admin?.name ?? "Admin", detail: admin?.phone ?? "" }}
           />
         }
