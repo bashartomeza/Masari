@@ -64,6 +64,20 @@ describe("admin access-token expiry", () => {
     expect(isAdminSessionEndError(apiError("account_unavailable", 403))).toBe(true);
   });
 
+  it("keeps the overview API behind the current Admin bearer session", async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify({
+      counts: { users: 0, drivers: 0, routes: 0, passenger_requests: 0, merchant_orders: 0, parcels: 0 }
+    }), { status: 200, headers: { "Content-Type": "application/json" } }));
+    vi.stubGlobal("fetch", fetchMock);
+    const api = createApiClient("https://api.masari.invalid");
+
+    await api.dashboard("admin-access-token");
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toBe("https://api.masari.invalid/api/v1/admin/dashboard");
+    expect((init?.headers as Record<string, string>).Authorization).toBe("Bearer admin-access-token");
+  });
+
   it("ends an unavailable account but ignores a stale response after reauthentication", () => {
     const session = storage({ [ADMIN_TOKEN_KEY]: "old-access" });
     const legacy = storage({ [ADMIN_TOKEN_KEY]: "legacy-token" });

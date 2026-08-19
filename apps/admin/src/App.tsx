@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { createApiClient, createDemoApiClient, type AccountStatus, type BatchResponse, type Comparison, type DashboardResponse, type DriverProfile, type DriverRoute, type LocationEvent, type MatchRunResponse, type MerchantOrder, type PassengerRequest, type Trip, type User } from "./api";
 import { demoUiEnabled, getAdminBuildConfig, routeManagementUiEnabled, type AdminBuildConfig } from "./config";
 import { useLocale } from "./i18n/LocaleContext";
@@ -6,6 +6,14 @@ import type { TranslationKey } from "./i18n/translations";
 import { ADMIN_TOKEN_KEY, clearAdminSession, createAdminSessionExpiryHandler, isAdminSessionEndError, type TokenStorage } from "./session";
 import { RouteManagement } from "./features/routes/RouteManagement";
 import { OverviewDashboard, type OverviewData } from "./features/overview/OverviewDashboard";
+import {
+  OVERVIEW_RESOURCE_KEYS,
+  beginOverviewRefresh,
+  completeOverviewRefresh,
+  createInitialOverviewResourceStates,
+  loadOverviewResources,
+  summarizeOverviewResults
+} from "./features/overview/overviewState";
 import { RequestsBoard } from "./features/requests/RequestsBoard";
 import { MatchingWorkspace } from "./features/matching/MatchingWorkspace";
 import { BatchingWorkspace } from "./features/batching/BatchingWorkspace";
@@ -73,6 +81,11 @@ export function App({
   const [batchResult, setBatchResult] = useState<BatchResponse | null>(null);
   const [comparison, setComparison] = useState<Comparison | null>(null);
   const [trips, setTrips] = useState<Trip[]>([]);
+  const [overviewResources, setOverviewResources] = useState(createInitialOverviewResourceStates);
+  const overviewRefreshRef = useRef<{
+    token: string;
+    promise: Promise<{ succeeded: number; failed: number }>;
+  } | null>(null);
   const [activeTrip, setActiveTrip] = useState<Trip | null>(null);
   const [latestLocation, setLatestLocation] = useState<LocationEvent | null>(null);
   const [locationTrail, setLocationTrail] = useState<LocationEvent[]>([]);
@@ -95,6 +108,7 @@ export function App({
     setBatchResult(null);
     setComparison(null);
     setTrips([]);
+    setOverviewResources(createInitialOverviewResourceStates());
     setActiveTrip(null);
     setLatestLocation(null);
     setLocationTrail([]);
@@ -158,23 +172,45 @@ export function App({
     }
   }
 
-  async function refreshOverview(currentToken = token) {
-    if (!currentToken) return;
-    const [dashboardData, driversData, routesData, requestsData, ordersData, tripsData] = await Promise.all([
-      api.dashboard(currentToken),
-      api.drivers(currentToken),
-      api.routes(currentToken),
-      api.requests(currentToken),
-      api.orders(currentToken),
-      api.trips(currentToken)
-    ]);
-    setDashboard(dashboardData);
-    setDrivers(driversData.drivers);
-    setRoutes(routesData.routes);
-    setRequests(requestsData.requests);
-    setOrders(ordersData.orders);
-    setTrips(tripsData.trips);
-    setActiveTrip((current) => current ?? tripsData.trips[0] ?? null);
+  function refreshOverview(currentToken = token): Promise<{ succeeded: number; failed: number }> {
+    if (!currentToken) return Promise.resolve({ succeeded: 0, failed: 0 });
+    if (overviewRefreshRef.current?.token === currentToken) return overviewRefreshRef.current.promise;
+
+    const promise = (async () => {
+      setOverviewResources((current) => beginOverviewRefresh(current));
+      const results = await loadOverviewResources({
+        dashboard: () => api.dashboard(currentToken),
+        drivers: () => api.drivers(currentToken),
+        routes: () => api.routes(currentToken),
+        requests: () => api.requests(currentToken),
+        orders: () => api.orders(currentToken),
+        trips: () => api.trips(currentToken)
+      });
+
+      if (results.dashboard.status === "fulfilled") setDashboard(results.dashboard.value);
+      if (results.drivers.status === "fulfilled") setDrivers(results.drivers.value.drivers);
+      if (results.routes.status === "fulfilled") setRoutes(results.routes.value.routes);
+      if (results.requests.status === "fulfilled") setRequests(results.requests.value.requests);
+      if (results.orders.status === "fulfilled") setOrders(results.orders.value.orders);
+      if (results.trips.status === "fulfilled") {
+        const loadedTrips = results.trips.value.trips;
+        setTrips(loadedTrips);
+        setActiveTrip((current) => current ?? loadedTrips[0] ?? null);
+      }
+
+      for (const key of OVERVIEW_RESOURCE_KEYS) {
+        const result = results[key];
+        if (result.status === "rejected") console.error(`[admin overview] ${key} request failed`, result.reason);
+      }
+      setOverviewResources((current) => completeOverviewRefresh(current, results));
+      return summarizeOverviewResults(results);
+    })();
+
+    overviewRefreshRef.current = { token: currentToken, promise };
+    void promise.finally(() => {
+      if (overviewRefreshRef.current?.promise === promise) overviewRefreshRef.current = null;
+    });
+    return promise;
   }
 
   /**
@@ -195,7 +231,11 @@ export function App({
   }
 
   async function refreshData() {
-    await runAction("refresh", () => refreshOverview(), t("dataRefreshed"));
+    const summary = await runAction("refresh", () => refreshOverview());
+    if (!summary) return;
+    if (summary.failed === 0) setNotice({ type: "success", message: t("dataRefreshed") });
+    else if (summary.succeeded === 0) setNotice({ type: "error", message: t("overviewLoadFailed") });
+    else setNotice({ type: "error", message: t("overviewPartialLoad") });
   }
 
   async function login(event: FormEvent) {
@@ -384,8 +424,11 @@ export function App({
 
   useEffect(() => {
     if (!token) return;
-    void loadMe(token).then((loaded) => {
-      if (loaded) void runAction("restore-overview", () => refreshOverview(token));
+    void loadMe(token).then(() => {
+      // A transient /me failure must not leave the overview in permanent
+      // skeleton state. Terminal session failures clear the stored token, so
+      // only a still-current Admin session proceeds with independent loads.
+      if (sessionStore.getItem(ADMIN_TOKEN_KEY) === token) void refreshOverview(token);
     });
   }, [token]);
 
@@ -433,7 +476,8 @@ export function App({
     );
   }
 
-  const overviewData: OverviewData = { dashboard, routes, requests, orders, trips };
+  const overviewData: OverviewData = { dashboard, drivers, routes, requests, orders, trips, resources: overviewResources };
+  const overviewRefreshing = Object.values(overviewResources).some((resource) => resource.phase === "loading");
   const activeNavItem = navItems.find((item) => item.id === currentModule);
   const moduleTitle = currentModule === "profile"
     ? t("navProfile")
@@ -461,7 +505,7 @@ export function App({
             <OverviewDashboard
               data={overviewData}
               search={search}
-              busy={Boolean(busy)}
+              busy={Boolean(busy) || overviewRefreshing}
               onRefresh={() => void refreshData()}
             />
           </>
