@@ -16,6 +16,7 @@ export const MODULE_IDS = [
 ] as const;
 
 export type ModuleId = (typeof MODULE_IDS)[number];
+export type AdminRouteId = ModuleId | "profile";
 
 export const NAV_GROUP_IDS = ["main", "people", "operations", "safety", "insights", "system"] as const;
 export type NavGroupId = (typeof NAV_GROUP_IDS)[number];
@@ -84,11 +85,11 @@ export function isModuleAvailable(id: ModuleId, flags: ModuleFlags): boolean {
   return item.backing === "api";
 }
 
-export function resolveActiveModule(active: ModuleId, _flags: ModuleFlags): ModuleId {
-  return MODULE_IDS.includes(active) ? active : "overview";
+export function resolveActiveModule(active: AdminRouteId, _flags: ModuleFlags): AdminRouteId {
+  return active === "profile" || MODULE_IDS.includes(active) ? active : "overview";
 }
 
-const HASH_BY_MODULE: Record<ModuleId, string> = {
+const HASH_BY_MODULE: Record<AdminRouteId, string> = {
   overview: "#/overview",
   users: "#/users",
   drivers: "#/drivers",
@@ -98,11 +99,12 @@ const HASH_BY_MODULE: Record<ModuleId, string> = {
   matchingBatching: "#/matching-batching",
   incidentsSafety: "#/incidents-safety",
   reports: "#/reports",
-  settings: "#/settings"
+  settings: "#/settings",
+  profile: "#/profile"
 };
 
-const MODULE_BY_HASH = new Map<string, ModuleId>([
-  ...Object.entries(HASH_BY_MODULE).map(([id, hash]) => [hash, id as ModuleId] as const),
+const MODULE_BY_HASH = new Map<string, AdminRouteId>([
+  ...Object.entries(HASH_BY_MODULE).map(([id, hash]) => [hash, id as AdminRouteId] as const),
   // Compatibility aliases for the previous flat console modules.
   ["#/verification", "drivers"],
   ["#/requests", "deliveries"],
@@ -114,11 +116,11 @@ const MODULE_BY_HASH = new Map<string, ModuleId>([
   ["#/ai-review", "incidentsSafety"]
 ]);
 
-export function hashForModule(id: ModuleId) {
+export function hashForModule(id: AdminRouteId) {
   return HASH_BY_MODULE[id];
 }
 
-export function moduleFromHash(hash: string): ModuleId {
+export function moduleFromHash(hash: string): AdminRouteId {
   const normalized = hash.replace(/\/+$/, "") || "#/overview";
   return MODULE_BY_HASH.get(normalized) ?? "overview";
 }

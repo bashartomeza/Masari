@@ -83,6 +83,9 @@ describe("admin navigation", () => {
 
   it("provides stable deep links and resolves compatibility aliases", () => {
     for (const id of MODULE_IDS) expect(moduleFromHash(hashForModule(id))).toBe(id);
+    expect(hashForModule("profile")).toBe("#/profile");
+    expect(moduleFromHash("#/profile")).toBe("profile");
+    expect(NAV_ITEMS.map((item) => item.id)).not.toContain("profile");
     expect(moduleFromHash("#/verification")).toBe("drivers");
     expect(moduleFromHash("#/requests")).toBe("deliveries");
     expect(moduleFromHash("#/matching")).toBe("matchingBatching");

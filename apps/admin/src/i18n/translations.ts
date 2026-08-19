@@ -191,6 +191,9 @@ export const translations = {
     searchLabel: "بحث",
     helpLabel: "المساعدة",
     notificationsLabel: "التنبيهات",
+    notificationsTitle: "التنبيهات",
+    notificationsUnavailableDescription: "لا توجد خدمة تنبيهات متصلة حالياً.",
+    closeNotifications: "إغلاق التنبيهات",
     viewAll: "عرض الكل",
 
     activeOperations: "العمليات النشطة",
@@ -259,6 +262,11 @@ export const translations = {
     settingsSession: "الجلسة",
     settingsEnabled: "مفعّل",
     settingsDisabled: "معطّل",
+    profileTitle: "تفاصيل الحساب",
+    profileDescription: "تفاصيل حساب المسؤول المرتبط بالجلسة الحالية.",
+    profileName: "الاسم",
+    profileRole: "الدور",
+    profileReadOnly: "هذه التفاصيل للعرض فقط. تعديل الملف الشخصي غير متاح بعد.",
     selectTrip: "تحديد",
 
     navUsers: "المستخدمون",
@@ -486,6 +494,9 @@ export const translations = {
     searchLabel: "Search",
     helpLabel: "Help",
     notificationsLabel: "Notifications",
+    notificationsTitle: "Notifications",
+    notificationsUnavailableDescription: "No notification service is currently connected.",
+    closeNotifications: "Close notifications",
     viewAll: "View all",
 
     activeOperations: "Active operations",
@@ -555,6 +566,11 @@ export const translations = {
     settingsSession: "Session",
     settingsEnabled: "Enabled",
     settingsDisabled: "Disabled",
+    profileTitle: "Account details",
+    profileDescription: "Admin account details for the current authenticated session.",
+    profileName: "Name",
+    profileRole: "Role",
+    profileReadOnly: "These details are read-only. Profile editing is not available yet.",
     selectTrip: "Select",
 
     navUsers: "Users",

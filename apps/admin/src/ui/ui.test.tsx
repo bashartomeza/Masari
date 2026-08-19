@@ -5,7 +5,7 @@ import { LocaleProvider } from "../i18n/LocaleContext";
 import type { Locale } from "../i18n/translations";
 import { NAV_ITEMS } from "../navigation";
 import { translate } from "../i18n/locale";
-import { SideNav, initialOf } from "./AppShell";
+import { NotificationControl, SideNav, initialOf, notificationPanelState } from "./AppShell";
 import { toneForStatus } from "./StatusBadge";
 import { ModuleUnavailable } from "../features/placeholder/ModuleUnavailable";
 import { OverviewDashboard, deriveAlerts } from "../features/overview/OverviewDashboard";
@@ -13,6 +13,7 @@ import { matchesSearch } from "../features/search";
 import { railSteps } from "../features/trips/TripsTracking";
 import { parcelSteps } from "../features/batching/BatchingWorkspace";
 import { scorePercent } from "../features/matching/MatchingWorkspace";
+import { ProfilePanel } from "../features/profile/ProfilePanel";
 
 /**
  * The suite runs in a node environment, so the provider is given explicit
@@ -88,6 +89,42 @@ describe("admin shell", () => {
     expect(initialOf("أحمد محمود")).toBe("أ");
     expect(initialOf("Sara Mansour")).toBe("S");
     expect(initialOf(undefined)).toBe("؟");
+  });
+
+  it("renders a real read-only profile view in both supported directions", () => {
+    const admin = { id: "admin_1", name: "Bashar Admin", phone: "+970590000005", role: "admin" };
+    const english = withLocale("en", <ProfilePanel admin={admin} />);
+    const arabic = withLocale("ar", <ProfilePanel admin={admin} />);
+
+    expect(english).toContain("Account details");
+    expect(english).toContain("Profile editing is not available yet");
+    expect(arabic).toContain("تفاصيل الحساب");
+    expect(arabic).toContain("تعديل الملف الشخصي غير متاح بعد");
+    expect(english).toContain("Bashar Admin");
+    expect(english).not.toContain("<input");
+  });
+
+  it("opens an accessible notification panel without an invented count or unread marker", () => {
+    expect(notificationPanelState(false, "toggle")).toBe(true);
+    expect(notificationPanelState(true, "toggle")).toBe(false);
+    expect(notificationPanelState(true, "close")).toBe(false);
+
+    const markup = renderToStaticMarkup(
+      <NotificationControl
+        label="Notifications"
+        title="Notifications"
+        description="No notification service is currently connected."
+        closeLabel="Close notifications"
+        initiallyOpen
+      />
+    );
+    expect(markup).toContain('aria-haspopup="dialog"');
+    expect(markup).toContain('aria-expanded="true"');
+    expect(markup).toContain('role="dialog"');
+    expect(markup).toContain("No notification service is currently connected.");
+    expect(markup).toContain('aria-label="Close notifications"');
+    expect(markup).not.toContain("topbar__dot");
+    expect(markup).not.toMatch(/Notifications \(\d+\)/);
   });
 });
 

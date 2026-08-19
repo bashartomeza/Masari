@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Icon } from "./Icon";
 import { IconButton } from "./Button";
 import { NAV_GROUPS, type ModuleId, type NavItem } from "../navigation";
@@ -6,6 +6,75 @@ import { NAV_GROUPS, type ModuleId, type NavItem } from "../navigation";
 export function initialOf(name: string | undefined) {
   const trimmed = (name ?? "").trim();
   return trimmed ? trimmed[0] : "؟";
+}
+
+export function notificationPanelState(open: boolean, action: "toggle" | "close") {
+  return action === "toggle" ? !open : false;
+}
+
+export function NotificationControl({
+  label,
+  title,
+  description,
+  closeLabel,
+  initiallyOpen = false
+}: {
+  label: string;
+  title: string;
+  description: string;
+  closeLabel: string;
+  initiallyOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(initiallyOpen);
+  const root = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setOpen((current) => notificationPanelState(current, "close"));
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") close();
+    };
+    const onPointerDown = (event: PointerEvent) => {
+      if (event.target instanceof Node && !root.current?.contains(event.target)) close();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("pointerdown", onPointerDown);
+    };
+  }, [open]);
+
+  return (
+    <div className="topbar__notifications" ref={root}>
+      <IconButton
+        icon="notifications"
+        label={label}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-controls="admin-notifications-panel"
+        onClick={() => setOpen((current) => notificationPanelState(current, "toggle"))}
+      />
+      {open && (
+        <section
+          className="topbar__notifications-panel"
+          id="admin-notifications-panel"
+          role="dialog"
+          aria-labelledby="admin-notifications-title"
+        >
+          <div className="topbar__notifications-header">
+            <h3 id="admin-notifications-title">{title}</h3>
+            <IconButton
+              icon="close"
+              label={closeLabel}
+              onClick={() => setOpen((current) => notificationPanelState(current, "close"))}
+            />
+          </div>
+          <p>{description}</p>
+        </section>
+      )}
+    </div>
+  );
 }
 
 /**
@@ -20,7 +89,7 @@ export function SideNav({
   footer
 }: {
   items: NavItem[];
-  active: ModuleId;
+  active: ModuleId | null;
   onSelect: (id: ModuleId) => void;
   labels: {
     brand: string;
@@ -85,7 +154,9 @@ export function TopBar({
   searchLabel,
   helpLabel,
   notificationsLabel,
-  alertCount,
+  notificationsTitle,
+  notificationsDescription,
+  closeNotificationsLabel,
   user
 }: {
   title: string;
@@ -95,7 +166,9 @@ export function TopBar({
   searchLabel: string;
   helpLabel: string;
   notificationsLabel: string;
-  alertCount: number;
+  notificationsTitle: string;
+  notificationsDescription: string;
+  closeNotificationsLabel: string;
   user: { name: string; detail: string };
 }) {
   return (
@@ -116,10 +189,12 @@ export function TopBar({
 
       <div className="topbar__end">
         <IconButton icon="help" label={helpLabel} />
-        <span className="topbar__bell">
-          <IconButton icon="notifications" label={`${notificationsLabel} (${alertCount})`} />
-          {alertCount > 0 && <span className="topbar__dot" aria-hidden="true" />}
-        </span>
+        <NotificationControl
+          label={notificationsLabel}
+          title={notificationsTitle}
+          description={notificationsDescription}
+          closeLabel={closeNotificationsLabel}
+        />
         <span className="topbar__divider" aria-hidden="true" />
         <div className="topbar__user">
           <div className="topbar__user-text">

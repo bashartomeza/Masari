@@ -151,6 +151,12 @@
   border-radius: var(--radius-lg);
 }
 
+.sidenav__footer .btn.is-active {
+  color: var(--primary);
+  font-weight: 700;
+  background: color-mix(in srgb, var(--primary-container) 10%, transparent);
+}
+
 /* --------------------------------------------------------------- topbar -- */
 
 .topbar {
@@ -214,20 +220,45 @@
   cursor: pointer;
 }
 
-.topbar__bell {
+.topbar__notifications {
   position: relative;
   display: inline-flex;
 }
 
-.topbar__dot {
+.topbar__notifications-panel {
   position: absolute;
-  inset-block-start: 6px;
-  inset-inline-end: 6px;
-  inline-size: 8px;
-  block-size: 8px;
-  border-radius: var(--radius-full);
-  background: var(--error);
-  box-shadow: 0 0 0 2px var(--surface);
+  inset-block-start: calc(100% + var(--space-sm));
+  inset-inline-end: 0;
+  inline-size: min(320px, calc(100vw - (2 * var(--space-md))));
+  padding: var(--space-md);
+  border: 1px solid color-mix(in srgb, var(--outline-variant) 35%, transparent);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--elevation-3);
+  color: var(--on-surface);
+}
+
+.topbar__notifications-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.topbar__notifications-header h3 {
+  font-size: var(--headline-sm-size);
+  line-height: var(--headline-sm-line);
+}
+
+.topbar__notifications-panel p {
+  margin-block-start: var(--space-sm);
+  color: var(--on-surface-variant);
+  font-size: var(--body-sm-size);
+  line-height: var(--body-sm-line);
+}
+
+.profile-panel__note {
+  margin-block-start: var(--space-md);
 }
 
 .topbar__divider {
