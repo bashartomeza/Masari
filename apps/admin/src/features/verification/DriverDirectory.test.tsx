@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import type { DriverProfile } from "../../api";
+import type { DriverProfile, DriverVerification } from "../../api";
 import { LocaleProvider } from "../../i18n/LocaleContext";
 import type { Locale } from "../../i18n/translations";
 import { DriverDirectory, DriverReviewPanel } from "./DriverDirectory";
@@ -43,6 +43,31 @@ const driver: DriverProfile = {
   }
 };
 
+const verification: DriverVerification = {
+  id: "verification_1",
+  revision: 1,
+  status: "pending",
+  rejection_reason: null,
+  submitted_at: "2026-08-18T10:00:00.000Z",
+  reviewed_at: null,
+  reviewer: null,
+  candidate: { ...driver.user!, account_status: "pending" },
+  driver_profile: null,
+  evidence: { status: "not_collected" }
+};
+
+const panelProps = {
+  busy: false,
+  action: null,
+  reason: "",
+  profile: { vehicle_type: "", seats_total: "", parcel_capacity: "" },
+  onAction: () => undefined,
+  onReasonChange: () => undefined,
+  onProfileChange: () => undefined,
+  onConfirm: () => undefined,
+  onClose: () => undefined
+} as const;
+
 describe("driver verification module", () => {
   it("renders real driver rows rather than an unavailable placeholder", () => {
     const markup = textOf(
@@ -56,44 +81,60 @@ describe("driver verification module", () => {
     expect(markup).not.toContain("This module is not available yet");
   });
 
-  it("shows an honest unavailable queue without offering fake approval actions", () => {
+  it("renders the real pending queue and its server-backed review action", () => {
     const markup = textOf(
-      withLocale("en", <DriverDirectory drivers={[driver]} search="" busy={false} onUpdateStatus={() => {}} />)
+      withLocale("en", <DriverDirectory drivers={[driver]} initialVerifications={[verification]} search="" busy={false} onUpdateStatus={() => {}} />)
     );
 
     expect(markup).toContain("Unverified");
-    expect(markup).toContain("Approval queue unavailable");
+    expect(markup).toContain("1 verification requests");
+    expect(markup).toContain("Demo Driver Hebron Route");
     expect(markup).not.toContain("Approve");
     expect(markup).not.toContain("Reject");
     expect(markup).toContain("Review details");
   });
 
-  it("renders real existing profile, driver, vehicle and stored verification details", () => {
-    const markup = textOf(withLocale("en", <DriverReviewPanel driver={driver} />));
+  it("renders authoritative candidate state and honestly reports missing evidence and profile", () => {
+    const markup = textOf(withLocale("en", <DriverReviewPanel verification={verification} {...panelProps} />));
 
     expect(markup).toContain("Profile");
     expect(markup).toContain("Demo Driver Hebron Route");
     expect(markup).toContain("+970590000002");
-    expect(markup).toContain("Driver profile ID");
-    expect(markup).toContain("driver_profile_1");
-    expect(markup).toContain("Vehicle type");
-    expect(markup).toContain("van");
-    expect(markup).toContain("Stored state");
-    expect(markup).toContain("Unverified");
-    expect(markup).toContain("Not exposed by the current API");
-    expect(markup).toContain("Review history unavailable");
-    expect(markup).not.toContain("Approve");
-    expect(markup).not.toContain("Reject");
+    expect(markup).toContain("No driver profile exists yet");
+    expect(markup).toContain("does not collect verification documents or evidence");
+    expect(markup).toContain("Approve driver");
+    expect(markup).toContain("Reject driver");
   });
 
-  it("preserves equivalent read-only review semantics in Arabic", () => {
-    const markup = textOf(withLocale("ar", <DriverReviewPanel driver={driver} />));
+  it("preserves equivalent queue and decision semantics in Arabic", () => {
+    const markup = textOf(withLocale("ar", <DriverReviewPanel verification={verification} {...panelProps} />));
 
     expect(markup).toContain("مراجعة السائق");
     expect(markup).toContain("الملف الشخصي");
     expect(markup).toContain("المركبة");
     expect(markup).toContain("التوثيق");
-    expect(markup).toContain("غير متاح عبر واجهة API الحالية");
+    expect(markup).toContain("لا يجمع مسار التسجيل الحالي مستندات أو أدلة توثيق");
+    expect(markup).toContain("قبول السائق");
+    expect(markup).toContain("رفض السائق");
+  });
+
+  it("requires explicit vehicle values for a candidate without a profile", () => {
+    const markup = withLocale("en", <DriverReviewPanel verification={verification} {...panelProps} action="approve" />);
+
+    expect(textOf(markup)).toContain("Confirm driver approval");
+    expect(markup).toContain('type="number"');
+    expect(markup).toContain("disabled");
+  });
+
+  it("shows the persisted rejection reason without further decision buttons", () => {
+    const rejected = { ...verification, status: "rejected", revision: 2, rejection_reason: "Licence image was unreadable", reviewed_at: "2026-08-19T09:00:00.000Z", reviewer: { id: "admin_1", name: "Demo Admin" } } satisfies DriverVerification;
+    const markup = textOf(withLocale("en", <DriverReviewPanel verification={rejected} {...panelProps} />));
+
+    expect(markup).toContain("Rejected");
+    expect(markup).toContain("Licence image was unreadable");
+    expect(markup).toContain("Demo Admin");
+    expect(markup).not.toContain("Approve driver");
+    expect(markup).not.toContain("Reject driver");
   });
 
   it("offers suspension for an active account and reactivation for a suspended one", () => {
@@ -127,8 +168,8 @@ describe("driver verification module", () => {
     expect(markup).toContain("Pending review");
     expect(markup).toContain("Requires a separate approval contract");
     expect(markup).not.toContain("Reactivate");
-    expect(markup).not.toContain("Approve");
-    expect(markup).not.toContain("Reject");
+    expect(markup).not.toContain("Approve driver");
+    expect(markup).not.toContain("Reject driver");
   });
 
   it("distinguishes loading, confirmed empty and API error states", () => {

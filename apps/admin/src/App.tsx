@@ -580,6 +580,8 @@ export function App({
       case "drivers":
         return (
           <DriverDirectory
+            api={api}
+            token={token}
             drivers={drivers}
             search={search}
             busy={Boolean(busy)}

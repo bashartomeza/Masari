@@ -30,6 +30,31 @@ return {
   me: (token: string) => apiRequest<MeResponse>("/me", { token }),
   dashboard: (token: string) => apiRequest<DashboardResponse>("/admin/dashboard", { token }),
   drivers: (token: string) => apiRequest<{ drivers: DriverProfile[] }>("/admin/drivers", { token }),
+  driverVerifications: (token: string, status: DriverVerificationStatus = "pending", page = 1, limit = 50) =>
+    apiRequest<DriverVerificationPage>(
+      `/admin/driver-verifications?status=${encodeURIComponent(status)}&page=${page}&limit=${limit}`,
+      { token }
+    ),
+  driverVerification: (token: string, userId: string) =>
+    apiRequest<{ verification: DriverVerification }>(
+      `/admin/driver-verifications/${encodeURIComponent(userId)}`,
+      { token }
+    ),
+  approveDriverVerification: (
+    token: string,
+    userId: string,
+    expectedRevision: number,
+    profile?: DriverProfileDraft
+  ) =>
+    apiRequest<{ verification: DriverVerification }>(
+      `/admin/driver-verifications/${encodeURIComponent(userId)}/approve`,
+      { method: "POST", token, body: profile ? { expected_revision: expectedRevision, profile } : { expected_revision: expectedRevision } }
+    ),
+  rejectDriverVerification: (token: string, userId: string, expectedRevision: number, reason: string) =>
+    apiRequest<{ verification: DriverVerification }>(
+      `/admin/driver-verifications/${encodeURIComponent(userId)}/reject`,
+      { method: "POST", token, body: { expected_revision: expectedRevision, reason } }
+    ),
   /**
    * Suspend, disable or reactivate an account.
    *
@@ -142,6 +167,31 @@ export type DriverProfile = {
   user?: AdminUser;
   routes?: DriverRoute[];
 };
+export type DriverVerificationStatus = "pending" | "approved" | "rejected";
+export type DriverProfileDraft = {
+  vehicle_type: string;
+  seats_total: number;
+  parcel_capacity: number;
+};
+export type DriverVerification = {
+  id: string;
+  revision: number;
+  status: DriverVerificationStatus;
+  rejection_reason: string | null;
+  submitted_at: string;
+  reviewed_at: string | null;
+  reviewer: { id: string; name: string } | null;
+  candidate: AdminUser;
+  driver_profile: DriverProfile | null;
+  evidence: { status: "not_collected" };
+};
+export type DriverVerificationPage = {
+  verifications: DriverVerification[];
+  page: number;
+  limit: number;
+  total: number;
+};
+export type ApiClient = ReturnType<typeof createApiClient>;
 export type LoginResponse = { token: string; user: User };
 export type MeResponse = { user: User };
 

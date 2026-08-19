@@ -405,6 +405,11 @@ async function main() {
   const wrongRecovery = await request(app).post("/api/v1/onboarding/status-sessions").send({ phone: "+970599111115", region: "PS", password: "wrong password value" });
   check(wrongRecovery.status === 401 && wrongRecovery.body.error === "invalid_credentials", "wrong recovery credentials are generic");
   const driverUser = await prisma.user.findUniqueOrThrow({ where: { phone: "+970599111115" } });
+  const driverVerification = await prisma.driverVerification.findUnique({ where: { user_id: driverUser.id } });
+  check(
+    driverVerification?.status === "pending" && driverVerification.revision === 1,
+    "driver completion creates exactly one pending verification lifecycle"
+  );
   const suspended = await request(app)
     .patch(`/api/v1/admin/users/${driverUser.id}/status`)
     .set("authorization", `Bearer ${admin}`)
