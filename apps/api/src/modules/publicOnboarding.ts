@@ -31,6 +31,7 @@ import {
   revokeOnboardingSessions
 } from "../lib/onboardingSessions.js";
 import { PHONE_INPUT_MAX_LENGTH, maskPhone, normalizePhoneToE164, phoneLast4 } from "../lib/phone.js";
+import { consentDigestMatches } from "../lib/consentContent.js";
 import { prisma } from "../lib/prisma.js";
 import {
   requireOnboardingToken,
@@ -135,6 +136,11 @@ async function currentConsentDocuments(db: Db, locale: ConsentLocale, now = new 
     where: {
       locale,
       document_type: { in: [...REQUIRED_CONSENTS] },
+      release: {
+        status: "effective",
+        activated_at: { lte: now },
+        retired_at: null
+      },
       legal_approved_at: { not: null },
       effective_at: { lte: now },
       OR: [{ retired_at: null }, { retired_at: { gt: now } }]
@@ -149,7 +155,11 @@ async function currentConsentDocuments(db: Db, locale: ConsentLocale, now = new 
     const matches = byType.get(type) ?? [];
     return matches.length === 1 ? matches[0] : null;
   });
-  if (selected.some((document) => document === null)) return [];
+  if (selected.some((document) =>
+    document === null ||
+    !document.content_body ||
+    !consentDigestMatches(document.content_body, document.content_digest)
+  )) return [];
   return selected as Array<(typeof documents)[number]>;
 }
 
@@ -454,7 +464,7 @@ export function createPublicOnboardingRouter(
           type: document.document_type,
           version: document.version,
           locale: document.locale,
-          content: document.content_reference,
+          content: document.content_body,
           content_hash: document.content_digest,
           effective_at: document.effective_at
         })),

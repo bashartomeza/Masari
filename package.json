@@ -32,6 +32,7 @@
     "test:integration:sessions": "node scripts/session-integration-smoke.mjs",
     "test:integration:sessions:local": "node scripts/local-trusted-session-integration.mjs --confirm-disposable --cleanup",
     "test:integration:onboarding": "node apps/api/dist/scripts/onboardingIntegration.js",
+    "test:integration:consents": "node --env-file-if-exists=apps/api/.env apps/api/dist/scripts/consentManagementIntegration.js",
     "test:integration:public-onboarding": "node --env-file-if-exists=apps/api/.env apps/api/dist/scripts/publicOnboardingIntegration.js",
     "test:integration:routes": "node --env-file-if-exists=apps/api/.env apps/api/dist/scripts/routeCatalogIntegration.js",
     "test:integration:multi-route": "npm run test:integration:multi-route -w @masari/api",

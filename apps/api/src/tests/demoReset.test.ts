@@ -88,6 +88,7 @@ describe("demo reset", () => {
       otpChallenge: { deleteMany: vi.fn() },
       invitation: { deleteMany: vi.fn() },
       consentDocument: { deleteMany: vi.fn() },
+      consentRelease: { deleteMany: vi.fn() },
       abuseCounter: { deleteMany: vi.fn() },
       idempotencyRecord: { deleteMany: vi.fn() },
       refreshToken: { deleteMany: vi.fn() },
@@ -160,6 +161,7 @@ describe("demo reset", () => {
     expect(tx.authSession.deleteMany).toHaveBeenCalledOnce();
     expect(tx.invitation.deleteMany).toHaveBeenCalledOnce();
     expect(tx.otpChallenge.deleteMany).toHaveBeenCalledOnce();
+    expect(tx.consentRelease.deleteMany).toHaveBeenCalledOnce();
     expect(tx.refreshToken.deleteMany.mock.invocationCallOrder[0]).toBeLessThan(
       tx.authSession.deleteMany.mock.invocationCallOrder[0]
     );

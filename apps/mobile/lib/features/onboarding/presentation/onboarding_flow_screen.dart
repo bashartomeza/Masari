@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -794,13 +793,7 @@ String _safeError(AppLocalizations l10n, String? code) => switch (code) {
 };
 
 String _safeConsentText(String value) {
-  try {
-    final decoded = jsonDecode(value);
-    if (decoded is Map) {
-      return decoded.values.whereType<String>().join('\n');
-    }
-  } catch (_) {
-    // Treat content_reference as plain text; never execute markup.
-  }
+  // Consent releases are canonical plain text. Flutter's Text widget renders
+  // the exact value without interpreting HTML, Markdown, JSON, or scripts.
   return value;
 }

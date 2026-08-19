@@ -24,6 +24,7 @@ try {
     ["demo:smoke", "deterministic smoke"],
     ["test:integration:sessions", "trusted-session smoke"],
     ["test:integration:onboarding", "onboarding foundation concurrency smoke"],
+    ["test:integration:consents", "consent publication lifecycle and concurrency smoke"],
     ["test:integration:public-onboarding", "public onboarding race and privacy smoke", {
       PUBLIC_ONBOARDING_ENABLED: "true",
       ONBOARDING_TEST_LEGAL_FIXTURES_ENABLED: "true",
