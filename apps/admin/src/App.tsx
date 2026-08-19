@@ -467,7 +467,7 @@ export function App({
           <h1>{t("loginHeading")}</h1>
           <p className="login-card__description">{t("loginDescription", { apiBaseUrl: config.apiBaseUrl })}</p>
           {demoEnabled && <p className="login-card__hint technical">{t("demoCredentials")}</p>}
-          <label className="field">{t("adminPhone")}<input className="technical" value={phone} onChange={(event) => setPhone(event.target.value)} /></label>
+          <label className="field">{t("adminPhone")}<input className="technical" type="tel" dir="ltr" autoComplete="tel" maxLength={32} placeholder="+[country code][number]" value={phone} onChange={(event) => setPhone(event.target.value)} /></label>
           <label className="field">{t("password")}<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} /></label>
           <button className="btn btn--primary" disabled={busy === "login"}>{busy === "login" ? t("signingIn") : t("signIn")}</button>
           {notice && <Notice kind={notice.type}>{notice.message}</Notice>}

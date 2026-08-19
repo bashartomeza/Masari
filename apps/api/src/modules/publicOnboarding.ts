@@ -30,7 +30,7 @@ import {
   onboardingSessionTokenData,
   revokeOnboardingSessions
 } from "../lib/onboardingSessions.js";
-import { maskPhone, normalizePhoneToE164, phoneLast4 } from "../lib/phone.js";
+import { PHONE_INPUT_MAX_LENGTH, maskPhone, normalizePhoneToE164, phoneLast4 } from "../lib/phone.js";
 import { prisma } from "../lib/prisma.js";
 import {
   requireOnboardingToken,
@@ -53,8 +53,8 @@ const localeSchema = z.enum(SUPPORTED_LOCALES);
 const startSchema = z.strictObject({
   invitation_code: z.string().trim().min(20).max(32),
   role: roleSchema,
-  phone: z.string().trim().min(7).max(32),
-  region: z.literal("PS"),
+  phone: z.string().trim().min(7).max(PHONE_INPUT_MAX_LENGTH),
+  region: z.string().trim().regex(/^[A-Za-z]{2}$/).optional(),
   locale: localeSchema
 });
 const verifySchema = z.strictObject({ otp: z.string().regex(/^\d{6}$/) });
@@ -72,8 +72,8 @@ const completionSchema = z.strictObject({
   adult_self_attestation: z.literal(true)
 });
 const recoverySchema = z.strictObject({
-  phone: z.string().trim().min(7).max(32),
-  region: z.literal("PS"),
+  phone: z.string().trim().min(7).max(PHONE_INPUT_MAX_LENGTH),
+  region: z.string().trim().regex(/^[A-Za-z]{2}$/).optional(),
   password: z.string().min(1).max(128)
 });
 
@@ -412,7 +412,11 @@ export function createPublicOnboardingRouter(
         registration_roles: enabled ? [...SUPPORTED_ROLES] : [],
         ...(enabled
           ? {
-              supported_region: "PS",
+              phone_policy: {
+                canonical_format: "E.164",
+                international_prefix_required_without_region: true,
+                local_numbers_require_region: true
+              },
               supported_locales: [...SUPPORTED_LOCALES],
               password_policy: {
                 minimum_characters: PASSWORD_MIN_CHARACTERS,

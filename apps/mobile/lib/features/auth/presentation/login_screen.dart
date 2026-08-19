@@ -127,9 +127,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       controller: _phoneController,
                       keyboardType: TextInputType.phone,
                       inputFormatters: [
-                        FilteringTextInputFormatter.allow(RegExp(r'[+0-9]')),
+                        FilteringTextInputFormatter.allow(
+                          RegExp(r'[+0-9٠-٩۰-۹ ()-]'),
+                        ),
+                        LengthLimitingTextInputFormatter(32),
                       ],
-                      decoration: InputDecoration(labelText: l10n.phone),
+                      decoration: InputDecoration(
+                        labelText: l10n.phone,
+                        hintText: '+[country code][number]',
+                      ),
                     ),
                   ),
                   const SizedBox(height: AppTokens.spaceMedium),

@@ -170,7 +170,6 @@ class OnboardingController extends AsyncNotifier<OnboardingState> {
       'phone': phone.trim(),
       'role': role.apiValue,
       'locale': locale,
-      'region': 'PS',
     };
     final key = _keyFor('start', payload);
     final generation = _generation;

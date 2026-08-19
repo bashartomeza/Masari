@@ -78,6 +78,32 @@ describe("auth", () => {
     expect(JSON.stringify(response.body)).not.toContain(storedHash);
   });
 
+  it("normalizes a global international phone before account lookup", async () => {
+    prismaMock.user.findUnique.mockResolvedValue({
+      id: "admin_global",
+      name: "Global Admin",
+      phone: "+972569523636",
+      password_hash: await bcrypt.hash("test-global-admin-password", 4),
+      role: "admin",
+      account_status: "active",
+      security_version: 1,
+      demo_account: false
+    });
+
+    const response = await request(createApp())
+      .post("/api/v1/auth/login")
+      .send({ phone: "+972 (56) 952-3636", password: "test-global-admin-password" })
+      .expect(200);
+
+    expect(response.body.user).toEqual(expect.objectContaining({
+      name: "Global Admin",
+      phone: "+972569523636",
+      role: "admin",
+      demo_account: false
+    }));
+    expect(prismaMock.user.findUnique).toHaveBeenCalledWith({ where: { phone: "+972569523636" } });
+  });
+
   it("creates the access credential before the login transaction callback resolves", async () => {
     prismaMock.user.findUnique.mockResolvedValue({
       id: "user_1",
