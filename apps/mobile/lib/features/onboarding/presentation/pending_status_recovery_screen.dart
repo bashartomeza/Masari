@@ -109,10 +109,14 @@ class _PendingStatusRecoveryScreenState
                       keyboardType: TextInputType.phone,
                       inputFormatters: [
                         FilteringTextInputFormatter.allow(
-                          RegExp(r'[+0-9٠-٩۰-۹ ]'),
+                          RegExp(r'[+0-9٠-٩۰-۹ ()-]'),
                         ),
+                        LengthLimitingTextInputFormatter(32),
                       ],
-                      decoration: InputDecoration(labelText: l10n.phoneNumber),
+                      decoration: InputDecoration(
+                        labelText: l10n.phoneNumber,
+                        hintText: '+[country code][number]',
+                      ),
                     ),
                   ),
                   const SizedBox(height: AppTokens.spaceMedium),

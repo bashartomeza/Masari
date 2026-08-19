@@ -68,7 +68,6 @@ const rawSchema = z.object({
   INVITATIONS_ENABLED: z.string().optional(),
   PUBLIC_ONBOARDING_ENABLED: z.string().optional(),
   OTP_PROVIDER: z.enum(["disabled", "fake"]).default("disabled"),
-  SUPPORTED_PHONE_REGIONS: z.string().default("PS"),
   INVITATION_CODE_PEPPER: z.string().min(MINIMUM_ONBOARDING_PEPPER_LENGTH).optional(),
   INVITATION_CODE_KEY_VERSION: z.coerce.number().int().positive().default(1),
   PHONE_DIGEST_PEPPER: z.string().min(MINIMUM_ONBOARDING_PEPPER_LENGTH).optional(),
@@ -250,13 +249,6 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
   }
   if (raw.ROUTE_PROVIDER_REQUEST_TIMEOUT_MS < raw.ROUTE_PROVIDER_CONNECT_TIMEOUT_MS) {
     problems.push("ROUTE_PROVIDER_REQUEST_TIMEOUT_MS must be at least the connect timeout");
-  }
-
-  const supportedRegions = raw.SUPPORTED_PHONE_REGIONS.split(",")
-    .map((region) => region.trim().toUpperCase())
-    .filter(Boolean);
-  if (supportedRegions.length !== 1 || supportedRegions[0] !== "PS") {
-    problems.push("SUPPORTED_PHONE_REGIONS must be PS in M6C2B1");
   }
 
   const onboardingSecrets = {

@@ -22,11 +22,11 @@ import {
 } from "../middleware/auth.js";
 import { HttpError } from "../middleware/error.js";
 import { AuditAction, Prisma } from "../generated/prisma/client.js";
-import { normalizePhoneToE164 } from "../lib/phone.js";
+import { PHONE_INPUT_MAX_LENGTH, normalizePhoneToE164 } from "../lib/phone.js";
 
 const loginSchema = z.object({
-  phone: z.string().min(5),
-  region: z.literal("PS").optional(),
+  phone: z.string().min(5).max(PHONE_INPUT_MAX_LENGTH),
+  region: z.string().trim().regex(/^[A-Za-z]{2}$/).optional(),
   password: z.string().min(1),
   device_name: z.string().trim().min(1).max(120).optional()
 });

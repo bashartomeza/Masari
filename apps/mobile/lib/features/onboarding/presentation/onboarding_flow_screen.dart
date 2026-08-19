@@ -234,7 +234,14 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
               controller: _phone,
               keyboardType: TextInputType.phone,
               textInputAction: TextInputAction.done,
-              decoration: InputDecoration(labelText: l10n.phoneNumber),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[+0-9٠-٩۰-۹ ()-]')),
+                LengthLimitingTextInputFormatter(32),
+              ],
+              decoration: InputDecoration(
+                labelText: l10n.phoneNumber,
+                hintText: '+[country code][number]',
+              ),
             ),
           ),
           const SizedBox(height: AppTokens.spaceLarge),
