@@ -9,6 +9,10 @@ import { authenticateAuthToken } from "../middleware/auth.js";
 import { HttpError } from "../middleware/error.js";
 import { AuditAction } from "../generated/prisma/enums.js";
 import { DEMO_ROUTE_POINTS } from "../lib/geo.js";
+import {
+  assertDemoResetDatabaseSafe,
+  DemoResetDatabaseNotAllowedError
+} from "../lib/demoResetSafety.js";
 
 export const LOCKED_CORRIDOR_KEY = "hebron-ppu-bab-al-zawiya-to-bethlehem";
 export const LOCKED_CORRIDOR_LABEL = "Hebron / PPU / Bab Al-Zawiya -> Bethlehem";
@@ -102,9 +106,22 @@ export async function resetDemoData(db: PrismaClient = prisma, appConfig: AppCon
   if (!appConfig.demoFeaturesEnabled || !demoConfig) {
     throw new HttpError(404, "not_found");
   }
+  try {
+    assertDemoResetDatabaseSafe(appConfig);
+  } catch (error) {
+    if (error instanceof DemoResetDatabaseNotAllowedError) {
+      throw new HttpError(403, error.code);
+    }
+    throw error;
+  }
   const schedule = demoSchedule();
   const seedCanonicalDispatch = canonicalDemoSeedEnabled(appConfig);
   return db.$transaction(async (tx) => {
+    const nonDemoUser = await tx.user.findFirst({
+      where: { demo_account: false },
+      select: { id: true }
+    });
+    if (nonDemoUser) throw new HttpError(403, "demo_reset_real_data_present");
     const onboardedUsers = await tx.onboardingAttempt.findMany({
       where: { completed_user_id: { not: null } },
       select: { completed_user_id: true }
@@ -588,12 +605,12 @@ export async function resetDemoData(db: PrismaClient = prisma, appConfig: AppCon
         until: schedule.passengerUntil
       }
     };
-  });
+  }, { isolationLevel: "Serializable" });
 }
 
-async function canReset(req: { header(name: string): string | undefined }) {
+async function canReset(req: { header(name: string): string | undefined }, appConfig: AppConfig) {
   const resetKey = req.header("x-demo-reset-key");
-  if (config.demo && resetKey === config.demo.resetKey) {
+  if (appConfig.demo && resetKey === appConfig.demo.resetKey) {
     return true;
   }
 
@@ -611,23 +628,25 @@ async function canReset(req: { header(name: string): string | undefined }) {
   }
 }
 
-export const demoRouter = Router();
+export function createDemoRouter(appConfig: AppConfig = config, db: PrismaClient = prisma) {
+  const demoRouter = Router();
+  demoRouter.post("/demo/reset", async (req, res, next) => {
+    try {
+      if (!(await canReset(req, appConfig))) {
+        throw new HttpError(403, "demo_reset_forbidden");
+      }
 
-demoRouter.post("/demo/reset", async (req, res, next) => {
-  try {
-    if (!(await canReset(req))) {
-      throw new HttpError(403, "demo_reset_forbidden");
+      const result = await resetDemoData(db, appConfig);
+      await auditEvent(db, {
+        action: AuditAction.demo_reset,
+        entityType: "DemoScenario",
+        metadata: { source: "api", corridor: LOCKED_CORRIDOR_LABEL }
+      });
+
+      res.json({ ok: true, seed: result });
+    } catch (error) {
+      next(error);
     }
-
-    const result = await resetDemoData(prisma);
-    await auditEvent(prisma, {
-      action: AuditAction.demo_reset,
-      entityType: "DemoScenario",
-      metadata: { source: "api", corridor: LOCKED_CORRIDOR_LABEL }
-    });
-
-    res.json({ ok: true, seed: result });
-  } catch (error) {
-    next(error);
-  }
-});
+  });
+  return demoRouter;
+}

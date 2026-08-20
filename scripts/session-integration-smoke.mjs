@@ -110,6 +110,8 @@ async function run() {
   assert(process.env.APP_ENV === "demo", "Trusted-session integration requires APP_ENV=demo");
   assert(databaseName.endsWith("_ci"), "Trusted-session integration refuses a database not ending in _ci");
   assert(/^[A-Za-z0-9_]+$/.test(databaseName), "Trusted-session integration requires a safe database name");
+  const resetAllowedDatabases = (process.env.DEMO_RESET_ALLOWED_DATABASES ?? "").split(",").map((value) => value.trim()).filter(Boolean);
+  assert(databaseName.toLowerCase() !== "masari" && resetAllowedDatabases.includes(databaseName), "Trusted-session integration requires an explicitly reset-safe database");
   assert(resetKey && passengerCredentials[1] && adminCredentials[1], "Required demo credentials are unavailable");
   mysqlDefaults = createMysqlDefaults(new URL(databaseUrl));
   await reset();

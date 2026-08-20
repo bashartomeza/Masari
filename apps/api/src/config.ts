@@ -53,6 +53,7 @@ const rawSchema = z.object({
   ROUTE_PROVIDER_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().min(60_000).max(3_600_000).default(900_000),
   ROUTE_PROVIDER_RATE_LIMIT_MAX: z.coerce.number().int().min(1).max(100).default(20),
   DEMO_RESET_KEY: z.string().min(8).optional(),
+  DEMO_RESET_ALLOWED_DATABASES: z.string().optional(),
   DEMO_PASSENGER_PASSWORD: z.string().min(12).optional(),
   DEMO_DRIVER_PASSWORD: z.string().min(12).optional(),
   DEMO_MERCHANT_PASSWORD: z.string().min(12).optional(),
@@ -164,6 +165,16 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
     raw.ONBOARDING_TEST_LEGAL_FIXTURES_ENABLED
   );
   const problems: string[] = [];
+  const demoResetAllowedDatabases = (raw.DEMO_RESET_ALLOWED_DATABASES ?? "")
+    .split(",")
+    .map((name) => name.trim())
+    .filter(Boolean);
+  if (demoResetAllowedDatabases.some((name) => !/^[A-Za-z0-9_]+$/.test(name))) {
+    problems.push("DEMO_RESET_ALLOWED_DATABASES must contain exact comma-separated database names");
+  }
+  if (new Set(demoResetAllowedDatabases).size !== demoResetAllowedDatabases.length) {
+    problems.push("DEMO_RESET_ALLOWED_DATABASES must not contain duplicate database names");
+  }
 
   if (productionLike && explicitlyEnabled) {
     problems.push("ENABLE_DEMO_FEATURES cannot be enabled in staging or production");
@@ -393,6 +404,7 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
     isStaging,
     isProduction,
     demoFeaturesEnabled,
+    demoResetAllowedDatabases,
     routeManagementEnabled,
     multiRouteEntryEnabled,
     multiRouteMatchingEnabled,

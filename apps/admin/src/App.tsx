@@ -46,6 +46,9 @@ function getErrorMessage(error: unknown, t: (key: TranslationKey) => string) {
   if (!(error instanceof Error)) return t("unexpectedError");
   if (error.message === "Failed to fetch") return t("failedToFetch");
   if (error.message === "forbidden" || error.message === "unauthorized") return t("unauthorized");
+  if (error.message === "demo_reset_database_not_allowed" || error.message === "demo_reset_real_data_present") {
+    return t("demoResetUnavailable");
+  }
   return error.message || t("unexpectedError");
 }
 
@@ -90,6 +93,7 @@ export function App({
   const [latestLocation, setLatestLocation] = useState<LocationEvent | null>(null);
   const [locationTrail, setLocationTrail] = useState<LocationEvent[]>([]);
   const [demoSteps, setDemoSteps] = useState<DemoStep[]>([]);
+  const [demoResetAvailable, setDemoResetAvailable] = useState(false);
   const [activeModule, setActiveModule] = useState<AdminRouteId>(() => moduleFromHash(window.location.hash));
   const [search, setSearch] = useState("");
 
@@ -113,6 +117,7 @@ export function App({
     setLatestLocation(null);
     setLocationTrail([]);
     setDemoSteps([]);
+    setDemoResetAvailable(false);
   }
 
   const sessionExpiry = useMemo(
@@ -246,6 +251,8 @@ export function App({
     sessionStore.setItem(ADMIN_TOKEN_KEY, result.token);
     setToken(result.token);
     setAdmin(result.user);
+    const capabilities = await api.capabilities(result.token).catch(() => ({ demo_reset_available: false }));
+    setDemoResetAvailable(capabilities.demo_reset_available === true);
     await refreshOverview(result.token);
   }
 
@@ -256,8 +263,9 @@ export function App({
   }
 
   async function resetDemo() {
-    if (!demoApi) return;
-    await runAction("reset", () => demoApi.reset(token || undefined, resetKey), t("demoDataReset"));
+    if (!demoApi || !demoResetAvailable) return;
+    const result = await runAction("reset", () => demoApi.reset(token || undefined, resetKey), t("demoDataReset"));
+    if (!result) return;
     const session = await api.login(phone, password);
     sessionExpiry.reset();
     sessionStore.setItem(ADMIN_TOKEN_KEY, session.token);
@@ -370,7 +378,7 @@ export function App({
   }
 
   async function runFullDemoSequence() {
-    if (!demoApi) return;
+    if (!demoApi || !demoResetAvailable) return;
     await runAction("full-demo", async () => {
       const steps: DemoStep[] = [];
       const mark = (key: TranslationKey, statusValue?: string) => {
@@ -428,7 +436,12 @@ export function App({
       // A transient /me failure must not leave the overview in permanent
       // skeleton state. Terminal session failures clear the stored token, so
       // only a still-current Admin session proceeds with independent loads.
-      if (sessionStore.getItem(ADMIN_TOKEN_KEY) === token) void refreshOverview(token);
+      if (sessionStore.getItem(ADMIN_TOKEN_KEY) === token) {
+        void api.capabilities(token)
+          .then((capabilities) => setDemoResetAvailable(capabilities.demo_reset_available === true))
+          .catch(() => setDemoResetAvailable(false));
+        void refreshOverview(token);
+      }
     });
   }, [token]);
 
@@ -496,6 +509,7 @@ export function App({
                 onResetKeyChange={setResetKey}
                 steps={demoSteps.map((step) => t(step.key, step.statusValue ? { status: status(step.statusValue) } : {}))}
                 canAct={canAct}
+                resetAvailable={demoResetAvailable}
                 busy={busy}
                 onReset={() => void resetDemo()}
                 onRefresh={() => void refreshData()}

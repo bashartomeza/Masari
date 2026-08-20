@@ -6,6 +6,10 @@ import { executable } from "./lib/process.mjs";
 if (process.env.APP_ENV !== "demo") throw new Error("CI MySQL integration requires APP_ENV=demo");
 const database = new URL(process.env.DATABASE_URL).pathname.slice(1);
 if (!database.endsWith("_ci")) throw new Error("CI MySQL integration refuses a database not ending in _ci");
+const resetAllowedDatabases = (process.env.DEMO_RESET_ALLOWED_DATABASES ?? "").split(",").map((value) => value.trim()).filter(Boolean);
+if (database.toLowerCase() === "masari" || !resetAllowedDatabases.includes(database)) {
+  throw new Error("CI MySQL integration requires an explicitly reset-safe database");
+}
 const root = resolve(new URL("../", import.meta.url).pathname.replace(/^\/(\w:)/, "$1"));
 const apiOrigin = (process.env.API_BASE_URL ?? "http://127.0.0.1:3000").replace(/\/$/, "");
 const child = spawn(process.execPath, ["apps/api/dist/server.js"], { cwd: root, env: process.env, stdio: "inherit" });

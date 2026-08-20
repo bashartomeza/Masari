@@ -1,7 +1,7 @@
 import express from "express";
 import type { Logger } from "pino";
 import { authRouter } from "./modules/auth.js";
-import { demoRouter } from "./modules/demoReset.js";
+import { createDemoRouter } from "./modules/demoReset.js";
 import { passengerRouter } from "./modules/passenger.js";
 import { createDriverRouter } from "./modules/driver.js";
 import { merchantRouter } from "./modules/merchant.js";
@@ -95,7 +95,7 @@ export function createApp(
 
   app.use("/api/v1", authRouter);
   app.use("/api/v1", createCapabilitiesRouter(appConfig));
-  if (appConfig.demoFeaturesEnabled) app.use("/api/v1", demoRouter);
+  if (appConfig.demoFeaturesEnabled) app.use("/api/v1", createDemoRouter(appConfig));
   app.use(
     "/api/v1",
     createCanonicalDemandRouter(appConfig, dependencies.canonicalDemandService),
