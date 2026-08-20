@@ -504,10 +504,41 @@ async function main() {
   const auditText = JSON.stringify(await prisma.auditEvent.findMany({ select: { metadata: true } }));
   check(!["+970599111114", replayOtp, passengerPassword, secondVerify.body.registration_grant].some((secret) => auditText.includes(secret)), "audit metadata contains no raw onboarding secret or phone");
 
-  const authCountBeforeReset = await prisma.user.count({ where: { demo_account: false } });
-  check(authCountBeforeReset >= 3, "onboarded users exist before reset");
+  const onboardedUsers = await prisma.user.findMany({
+    where: { demo_account: false },
+    select: { id: true }
+  });
+  check(onboardedUsers.length >= 3, "onboarded users exist before reset");
+  const protectedCounts = await Promise.all([
+    prisma.user.count(),
+    prisma.onboardingAttempt.count(),
+    prisma.userConsent.count(),
+    prisma.auditEvent.count()
+  ]);
+  try {
+    await resetDemoData();
+    throw new Error("reset unexpectedly accepted real-shaped onboarding users");
+  } catch (error) {
+    check(
+      error instanceof Error && error.message === "demo_reset_real_data_present",
+      "reset refuses a disposable database while non-demo users exist"
+    );
+  }
+  check(
+    JSON.stringify(await Promise.all([
+      prisma.user.count(),
+      prisma.onboardingAttempt.count(),
+      prisma.userConsent.count(),
+      prisma.auditEvent.count()
+    ])) === JSON.stringify(protectedCounts),
+    "blocked reset leaves onboarding data unchanged"
+  );
+  await prisma.user.updateMany({
+    where: { id: { in: onboardedUsers.map(({ id }) => id) } },
+    data: { demo_account: true }
+  });
   await resetDemoData();
-  check(await prisma.user.count({ where: { demo_account: false } }) === 0, "reset removes onboarded users");
+  check(await prisma.user.count({ where: { id: { in: onboardedUsers.map(({ id }) => id) } } }) === 0, "reset removes explicitly marked integration fixtures");
   check(await prisma.onboardingAttempt.count() === 0 && await prisma.onboardingSession.count() === 0, "reset removes onboarding attempts and sessions");
   check(await prisma.user.count({ where: { demo_account: true } }) === 5, "reset preserves deterministic demo accounts");
   check(await prisma.userConsent.count() === 0 && await prisma.invitationRedemption.count() === 0, "reset leaves no onboarding evidence orphan");

@@ -194,4 +194,26 @@ describe("fail-closed application configuration", () => {
     });
     expect(parsed.demoFeaturesEnabled).toBe(true);
   });
+
+  it("parses only exact reset database allow-list entries", () => {
+    const parsed = createConfig({
+      ...process.env,
+      APP_ENV: "demo",
+      ENABLE_DEMO_FEATURES: "true",
+      DEMO_RESET_ALLOWED_DATABASES: "masari_demo,masari_demo_ci"
+    });
+    expect(parsed.demoResetAllowedDatabases).toEqual(["masari_demo", "masari_demo_ci"]);
+    expect(() => createConfig({
+      ...process.env,
+      APP_ENV: "demo",
+      ENABLE_DEMO_FEATURES: "true",
+      DEMO_RESET_ALLOWED_DATABASES: "masari_*_ci"
+    })).toThrow(/exact comma-separated database names/);
+    expect(() => createConfig({
+      ...process.env,
+      APP_ENV: "demo",
+      ENABLE_DEMO_FEATURES: "true",
+      DEMO_RESET_ALLOWED_DATABASES: "masari_demo,masari_demo"
+    })).toThrow(/must not contain duplicate/);
+  });
 });

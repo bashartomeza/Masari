@@ -3,6 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const prismaMock = vi.hoisted(() => ({
   $transaction: vi.fn(),
+  authSession: {
+    findUnique: vi.fn(),
+    update: vi.fn()
+  },
   auditEvent: {
     create: vi.fn()
   }
@@ -11,7 +15,19 @@ const prismaMock = vi.hoisted(() => ({
 vi.mock("../lib/prisma.js", () => ({ prisma: prismaMock }));
 
 const { createApp } = await import("../app.js");
+const { createConfig } = await import("../config.js");
+const { signAuthToken } = await import("../middleware/auth.js");
 const { canonicalDemoSeedEnabled, resetDemoData } = await import("../modules/demoReset.js");
+
+function resetConfig(databaseUrl: string, allowedDatabases?: string) {
+  return createConfig({
+    ...process.env,
+    APP_ENV: "demo",
+    ENABLE_DEMO_FEATURES: "true",
+    DATABASE_URL: databaseUrl,
+    DEMO_RESET_ALLOWED_DATABASES: allowedDatabases
+  });
+}
 
 describe("demo reset", () => {
   beforeEach(() => {
@@ -69,6 +85,59 @@ describe("demo reset", () => {
     expect(response.body.ok).toBe(true);
     expect(prismaMock.$transaction).toHaveBeenCalledOnce();
     expect(prismaMock.auditEvent.create).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    ["the permanently protected human database", "mysql://test:test@localhost:3306/masari", "masari"],
+    ["an unlisted database", "mysql://test:test@localhost:3306/unknown_database", "masari_demo_ci"],
+    ["a malformed database URL", "not-a-database-url", "masari_demo_ci"],
+    ["a missing allow-list", "mysql://test:test@localhost:3306/masari_demo_ci", undefined]
+  ])("blocks %s before starting a transaction", async (_label, databaseUrl, allowedDatabases) => {
+    const response = await request(createApp(resetConfig(databaseUrl, allowedDatabases)))
+      .post("/api/v1/demo/reset")
+      .set("x-demo-reset-key", "test-reset-key")
+      .expect(403);
+
+    expect(response.body.error).toBe("demo_reset_database_not_allowed");
+    expect(prismaMock.$transaction).not.toHaveBeenCalled();
+    expect(prismaMock.auditEvent.create).not.toHaveBeenCalled();
+  });
+
+  it("blocks an authenticated Admin before writes when the database is unsafe", async () => {
+    prismaMock.authSession.findUnique.mockResolvedValue({
+      id: "session_admin",
+      user_id: "admin_1",
+      expires_at: new Date(Date.now() + 60_000),
+      revoked_at: null,
+      security_version_at_issue: 1,
+      user: { id: "admin_1", role: "admin", account_status: "active", security_version: 1 }
+    });
+    prismaMock.authSession.update.mockResolvedValue({});
+    const token = signAuthToken({ id: "admin_1", role: "admin", sessionId: "session_admin", securityVersion: 1 });
+
+    const response = await request(createApp(resetConfig("mysql://test:test@localhost:3306/masari", "masari")))
+      .post("/api/v1/demo/reset")
+      .set("authorization", `Bearer ${token}`)
+      .expect(403);
+
+    expect(response.body.error).toBe("demo_reset_database_not_allowed");
+    expect(prismaMock.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("blocks real users inside the serializable transaction before destructive writes", async () => {
+    const deleteAuditEvents = vi.fn();
+    const tx = {
+      user: { findFirst: vi.fn().mockResolvedValue({ id: "real_user" }) },
+      auditEvent: { deleteMany: deleteAuditEvents }
+    };
+    const db = { $transaction: vi.fn((callback: (transaction: typeof tx) => unknown) => callback(tx)) };
+
+    await expect(resetDemoData(db as never)).rejects.toMatchObject({
+      statusCode: 403,
+      message: "demo_reset_real_data_present"
+    });
+    expect(deleteAuditEvents).not.toHaveBeenCalled();
+    expect(db.$transaction).toHaveBeenCalledWith(expect.any(Function), { isolationLevel: "Serializable" });
   });
 
   it("clears session state and recreates deterministic active users", async () => {
@@ -151,7 +220,7 @@ describe("demo reset", () => {
           .mockResolvedValueOnce({ id: "pickup_stop" })
           .mockResolvedValueOnce({ id: "destination_stop" })
       },
-      user: { deleteMany: vi.fn(), create: userCreate }
+      user: { findFirst: vi.fn().mockResolvedValue(null), deleteMany: vi.fn(), create: userCreate }
     };
     const db = { $transaction: vi.fn((callback: (transaction: typeof tx) => unknown) => callback(tx)) };
 

@@ -39,6 +39,7 @@ jobs:
       LOG_LEVEL: silent
       PORT: "3000"
       DEMO_RESET_KEY: ci-only-reset-key
+      DEMO_RESET_ALLOWED_DATABASES: masari_ci,masari_canonical_matching_ci,masari_canonical_shared_ci
       DEMO_PASSENGER_PASSWORD: ci-only-passenger-password
       DEMO_DRIVER_PASSWORD: ci-only-driver-password
       DEMO_MERCHANT_PASSWORD: ci-only-merchant-password

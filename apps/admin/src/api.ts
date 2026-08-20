@@ -28,6 +28,7 @@ async function apiRequest<T>(path: string, options: { method?: string; token?: s
 return {
   login: (phone: string, password: string) => apiRequest<LoginResponse>("/auth/login", { method: "POST", body: { phone, password } }),
   me: (token: string) => apiRequest<MeResponse>("/me", { token }),
+  capabilities: (token: string) => apiRequest<CapabilitiesResponse>("/capabilities", { token }),
   dashboard: (token: string) => apiRequest<DashboardResponse>("/admin/dashboard", { token }),
   drivers: (token: string) => apiRequest<{ drivers: DriverProfile[] }>("/admin/drivers", { token }),
   driverVerifications: (token: string, status: DriverVerificationStatus = "pending", page = 1, limit = 50) =>
@@ -161,6 +162,7 @@ export function createDemoApiClient(apiBaseUrl: string, clientOptions: ApiClient
 }
 
 export type User = { id: string; name: string; phone: string; role: string };
+export type CapabilitiesResponse = { demo_reset_available: boolean };
 
 /** The three values `PATCH /admin/users/:id/status` accepts. */
 export type AccountStatus = "active" | "suspended" | "disabled";

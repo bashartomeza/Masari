@@ -4,7 +4,7 @@ Use Arabic as the primary language. Keep the admin comparison ready in the brows
 
 ## Before the clock
 
-- Confirm `npm run demo:preflight` is 10/10 and `npm run demo:smoke` returns `"ok":true`.
+- Confirm `npm run demo:preflight` is 22/22 and `npm run demo:smoke` returns `"ok":true` against the explicitly allow-listed disposable demo database.
 - Run one protected reset, open `http://localhost:5173`, and leave the mobile app on the Arabic login screen.
 - If a live step fails, use the backup instruction in that row once; do not debug in front of judges.
 

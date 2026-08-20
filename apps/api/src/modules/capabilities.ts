@@ -1,6 +1,7 @@
 import { Router } from "express";
 import type { AppConfig } from "../config.js";
 import { requireAuth } from "../middleware/auth.js";
+import { evaluateDemoResetSafety } from "../lib/demoResetSafety.js";
 
 export function createCapabilitiesRouter(appConfig: AppConfig) {
   const router = Router();
@@ -27,7 +28,8 @@ export function createCapabilitiesRouter(appConfig: AppConfig) {
       canonical_shared_driver_offers_available: canonicalSharedTripPresentationAvailable,
       canonical_shared_assignment_status_available: canonicalSharedTripPresentationAvailable,
       maps_available: false,
-      live_tracking_available: false
+      live_tracking_available: false,
+      demo_reset_available: evaluateDemoResetSafety(appConfig).allowed
     });
   });
 
