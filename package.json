@@ -56,6 +56,9 @@
     "node": "22.17.1",
     "npm": ">=10.9.2 <11"
   },
+  "overrides": {
+    "deepmerge-ts": "8.0.1"
+  },
   "packageManager": "npm@10.9.2",
   "devDependencies": {
     "yaml": "2.9.0"
