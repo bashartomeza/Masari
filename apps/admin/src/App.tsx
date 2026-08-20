@@ -589,7 +589,7 @@ export function App({
         return <ProfilePanel admin={admin} />;
 
       case "users":
-        return <UsersDirectory drivers={drivers} requests={requests} orders={orders} search={search} />;
+        return <UsersDirectory api={api} token={token} admin={admin} search={search} canAct={canAct} />;
 
       case "drivers":
         return (

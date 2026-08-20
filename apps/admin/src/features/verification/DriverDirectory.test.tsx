@@ -5,7 +5,6 @@ import type { DriverProfile, DriverVerification } from "../../api";
 import { LocaleProvider } from "../../i18n/LocaleContext";
 import type { Locale } from "../../i18n/translations";
 import { DriverDirectory, DriverReviewPanel } from "./DriverDirectory";
-import { UsersDirectory } from "../users/UsersDirectory";
 
 function withLocale(locale: Locale, children: ReactNode) {
   const storage = { getItem: () => locale, setItem: () => undefined };
@@ -211,47 +210,5 @@ describe("driver verification module", () => {
 
     expect(markup).not.toContain("Demo Driver Hebron Route");
     expect(markup).toContain("Nothing matches your search.");
-  });
-});
-
-describe("users module", () => {
-  it("collects users from every admin endpoint that embeds one", () => {
-    const markup = textOf(
-      withLocale(
-        "en",
-        <UsersDirectory
-          drivers={[driver]}
-          requests={
-            [
-              {
-                id: "request_1",
-                status: "pending",
-                pickup_label: "PPU Main Gate",
-                destination_label: "Bethlehem Center",
-                passenger_count: 1,
-                passenger: {
-                  id: "user_1",
-                  name: "Demo Passenger",
-                  phone: "+970590000001",
-                  role: "passenger",
-                  account_status: "active",
-                  status_reason: null,
-                  status_updated_at: "2026-07-01T00:00:00.000Z",
-                  last_login_at: null,
-                  demo_account: true,
-                  created_at: "2026-07-01T00:00:00.000Z"
-                }
-              }
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            ] as any
-          }
-          orders={[]}
-          search=""
-        />
-      )
-    );
-
-    expect(markup).toContain("Demo Passenger");
-    expect(markup).toContain("Demo Driver Hebron Route");
   });
 });

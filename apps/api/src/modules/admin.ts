@@ -23,6 +23,40 @@ const safeUserSelect = {
   created_at: true
 } as const;
 
+const userDirectoryListSelect = {
+  ...safeUserSelect,
+  driver_profile: { select: { id: true, verified: true } },
+  driver_verification: { select: { status: true } }
+} as const;
+
+type UserDirectoryListRecord = Prisma.UserGetPayload<{ select: typeof userDirectoryListSelect }>;
+
+const userDirectoryDetailSelect = {
+  ...safeUserSelect,
+  driver_profile: {
+    select: {
+      id: true,
+      vehicle_type: true,
+      seats_total: true,
+      parcel_capacity: true,
+      verified: true,
+      trust_score: true
+    }
+  },
+  driver_verification: {
+    select: {
+      id: true,
+      status: true,
+      revision: true,
+      submitted_at: true,
+      reviewed_at: true,
+      reviewer: { select: { id: true, name: true } }
+    }
+  }
+} as const;
+
+type UserDirectoryDetailRecord = Prisma.UserGetPayload<{ select: typeof userDirectoryDetailSelect }>;
+
 function serializeSafeUser(user: {
   id: string;
   name: string;
@@ -48,6 +82,82 @@ function serializeSafeUser(user: {
     created_at: user.created_at
   };
 }
+
+function serializeUserDirectoryListRecord(user: UserDirectoryListRecord) {
+  return {
+    id: user.id,
+    name: user.name,
+    phone: user.phone,
+    role: user.role,
+    account_status: user.account_status,
+    status_reason: user.status_reason,
+    status_updated_at: user.status_updated_at,
+    last_login_at: user.last_login_at,
+    demo_account: user.demo_account,
+    created_at: user.created_at,
+    role_context: createUserRoleContext(user)
+  };
+}
+
+function createUserRoleContext(
+  user: { role: string; driver_profile: { verified: boolean } | null; driver_verification: { status: string } | null }
+) {
+  if (user.role === "driver") {
+    return {
+      kind: "driver",
+      driver_profile_exists: Boolean(user.driver_profile),
+      driver_profile_verified: user.driver_profile?.verified ?? false,
+      driver_verification_status: user.driver_verification?.status ?? "none"
+    };
+  }
+  if (user.role === "merchant") {
+    return { kind: "merchant", merchant_approval_connected: false };
+  }
+  if (user.role === "admin") return { kind: "admin" };
+  return { kind: "passenger" };
+}
+
+function serializeUserDirectoryDetailRecord(user: UserDirectoryDetailRecord) {
+  const roleContext = createUserRoleContext(user);
+  return {
+    ...serializeSafeUser(user),
+    role_context: roleContext,
+    driver_profile: user.driver_profile
+      ? {
+          id: user.driver_profile.id,
+          vehicle_type: user.driver_profile.vehicle_type,
+          seats_total: user.driver_profile.seats_total,
+          parcel_capacity: user.driver_profile.parcel_capacity,
+          verified: user.driver_profile.verified,
+          trust_score: user.driver_profile.trust_score
+        }
+        : null,
+    driver_verification: user.driver_verification
+      ? {
+          id: user.driver_verification.id,
+          status: user.driver_verification.status,
+          revision: user.driver_verification.revision,
+          submitted_at: user.driver_verification.submitted_at,
+          reviewed_at: user.driver_verification.reviewed_at,
+          reviewer: user.driver_verification.reviewer
+        }
+      : null
+  };
+}
+
+const adminUserListQuerySchema = z.object({
+  role: z.enum(["passenger", "driver", "merchant", "admin"]).optional(),
+  account_status: z
+    .enum([AccountStatus.active, AccountStatus.pending, AccountStatus.suspended, AccountStatus.disabled])
+    .optional(),
+  demo_account: z
+    .enum(["true", "false"])
+    .transform((value) => value === "true")
+    .optional(),
+  search: z.string().trim().max(64).default(""),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(50)
+});
 
 const driverVerificationInclude = {
   user: { select: { ...safeUserSelect, driver_profile: true } },
@@ -117,6 +227,87 @@ function requestParam(value: string | string[]) {
 }
 
 adminRouter.use("/admin", requireAuth, requireRole("admin"));
+
+adminRouter.get("/admin/users", async (req: AuthenticatedRequest, res, next) => {
+  try {
+    const input = adminUserListQuerySchema.parse(req.query);
+    const where: Prisma.UserWhereInput = {
+      ...(input.role ? { role: input.role } : null),
+      ...(input.account_status ? { account_status: input.account_status } : null),
+      ...(typeof input.demo_account === "boolean" ? { demo_account: input.demo_account } : null),
+      ...(input.search
+        ? {
+            OR: [
+              { id: { contains: input.search } },
+              { name: { contains: input.search } },
+              { phone: { contains: input.search } },
+              { status_reason: { contains: input.search } }
+            ]
+          }
+        : null)
+    };
+
+    const [users, total] = await Promise.all([
+      prisma.user.findMany({
+        where,
+        select: userDirectoryListSelect,
+        orderBy: [{ created_at: "desc" }, { id: "asc" }],
+        skip: (input.page - 1) * input.limit,
+        take: input.limit
+      }),
+      prisma.user.count({ where })
+    ]);
+    res.json({
+      users: users.map(serializeUserDirectoryListRecord),
+      page: input.page,
+      limit: input.limit,
+      total
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.get("/admin/users/:id", async (req: AuthenticatedRequest, res, next) => {
+  try {
+    const userId = requestParam(req.params.id);
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: userDirectoryDetailSelect
+    });
+    if (!user) throw new HttpError(404, "user_not_found");
+
+    const [activeSessionSummary, passengerRequestCount, merchantOrderCount] = await Promise.all([
+      prisma.authSession.aggregate({
+        where: {
+          user_id: user.id,
+          revoked_at: null
+        },
+        _count: { _all: true },
+        _max: { last_used_at: true }
+      }),
+      prisma.passengerRequest.count({
+        where: { passenger_id: user.id }
+      }),
+      prisma.merchantOrder.count({
+        where: { merchant_id: user.id }
+      })
+    ]);
+
+    const serialized = serializeUserDirectoryDetailRecord(user);
+    res.json({
+      user: {
+        ...serialized,
+        active_session_count: activeSessionSummary._count._all,
+        last_session_at: activeSessionSummary._max.last_used_at,
+        passenger_request_count: user.role === "passenger" ? passengerRequestCount : 0,
+        merchant_order_count: user.role === "merchant" ? merchantOrderCount : 0
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
 
 adminRouter.get("/admin/driver-verifications", async (req: AuthenticatedRequest, res, next) => {
   try {
@@ -307,6 +498,9 @@ adminRouter.post("/admin/driver-verifications/:userId/reject", async (req: Authe
 const accountStatusSchema = z
   .object({
     status: z.enum([AccountStatus.active, AccountStatus.suspended, AccountStatus.disabled]),
+    expected_status: z
+      .enum([AccountStatus.active, AccountStatus.pending, AccountStatus.suspended, AccountStatus.disabled])
+      .optional(),
     reason: z
       .string()
       .max(500)
@@ -336,6 +530,12 @@ adminRouter.patch("/admin/users/:id/status", async (req: AuthenticatedRequest, r
       async (tx) => {
         const target = await tx.user.findUnique({ where: { id: targetId }, select: safeUserSelect });
         if (!target) throw new HttpError(404, "user_not_found");
+        if (input.expected_status && target.account_status !== input.expected_status) {
+          throw new HttpError(409, "account_status_conflict");
+        }
+        if (target.account_status === AccountStatus.pending && input.status === AccountStatus.active && target.role !== "passenger") {
+          throw new HttpError(409, "approval_required");
+        }
         if (target.account_status === input.status) return target;
 
         if (target.role === "admin" && input.status !== AccountStatus.active) {
