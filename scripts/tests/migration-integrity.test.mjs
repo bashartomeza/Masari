@@ -26,7 +26,8 @@ const expected = {
   "20260728130000_canonical_shared_trip_aggregation": "5ea77b6a40bfcbd2be1ba1076eb30951b85f5e6dd34f6037b3265a835f847c90",
   "20260729120000_harden_canonical_shared_trip_integrity": "b27a28b17c6c090fad8520b97bde8c02463fb02f0195f2cb6736117f64af167c",
   "20260819150000_driver_verification_approval": "2f381773237f840cf896ee144d28ae0e77a8525b841a7f89bf45eb1bef874010",
-  "20260820120000_global_e164_phone_constraints": "7822831a007d451c689fd8a2260567cf8c4728cacea847ae47b43e887ba67539"
+  "20260820120000_global_e164_phone_constraints": "7822831a007d451c689fd8a2260567cf8c4728cacea847ae47b43e887ba67539",
+  "20260821120000_consent_management_workflow": "675d82606bba96680dcb31d6bcf3bea85d01b50e445cd136f3670f528d483362"
 };
 
 function normalizedChecksum(path) {

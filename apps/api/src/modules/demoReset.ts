@@ -121,6 +121,7 @@ export async function resetDemoData(db: PrismaClient = prisma, appConfig: AppCon
     await tx.onboardingAttempt.deleteMany();
     await tx.invitation.deleteMany();
     await tx.consentDocument.deleteMany();
+    await tx.consentRelease.deleteMany();
     await tx.abuseCounter.deleteMany();
     await tx.idempotencyRecord.deleteMany();
     await tx.refreshToken.deleteMany();

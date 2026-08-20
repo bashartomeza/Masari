@@ -44,8 +44,11 @@ import type { LegacyDriverOnlineStateService } from "./services/legacyDriverOnli
 import { createRouteProvider } from "./maps/liveProviders.js";
 import { createRoutePreviewService, type RoutePreviewService } from "./maps/previewService.js";
 import { createRoutePreviewRouter } from "./modules/routePreview.js";
+import { createAdminConsentRouter } from "./modules/adminConsents.js";
+import type { ConsentReleaseService } from "./services/consentReleases.js";
 
 export const HTTP_JSON_LIMIT = "64kb";
+export const CONSENT_RELEASE_JSON_LIMIT = "256kb";
 export const HTTP_FORM_LIMIT = "16kb";
 
 type AppDependencies = {
@@ -59,6 +62,7 @@ type AppDependencies = {
   canonicalSharedMatchingService?: CanonicalSharedMatchingService;
   legacyDriverOnlineStateService?: LegacyDriverOnlineStateService;
   routePreviewService?: RoutePreviewService;
+  consentReleaseService?: ConsentReleaseService;
 };
 
 export function createApp(
@@ -74,6 +78,7 @@ export function createApp(
   app.use(operationalLogMiddleware(logger));
   app.use(securityHeaders(appConfig));
   app.use(createCors(appConfig));
+  app.use("/api/v1/admin/consent-releases", express.json({ limit: CONSENT_RELEASE_JSON_LIMIT }));
   app.use(express.json({ limit: HTTP_JSON_LIMIT }));
   app.use(express.urlencoded({ extended: false, limit: HTTP_FORM_LIMIT }));
 
@@ -148,6 +153,7 @@ export function createApp(
     cacheTtlMs: appConfig.routeMaps.cacheTtlSeconds * 1_000
   });
   app.use("/api/v1", createRoutePreviewRouter(appConfig, routePreviewService));
+  app.use("/api/v1", createAdminConsentRouter(dependencies.consentReleaseService));
   app.use("/api/v1", adminRouter);
 
   app.use(notFoundHandler);
