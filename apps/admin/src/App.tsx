@@ -17,7 +17,7 @@ import {
 import { RequestsBoard } from "./features/requests/RequestsBoard";
 import { MatchingWorkspace } from "./features/matching/MatchingWorkspace";
 import { BatchingWorkspace } from "./features/batching/BatchingWorkspace";
-import { TripsTracking } from "./features/trips/TripsTracking";
+import { TripsManagement } from "./features/trips/TripsManagement";
 import { ComparisonPanel } from "./features/comparison/ComparisonPanel";
 import { SettingsPanel } from "./features/settings/SettingsPanel";
 import { DriverDirectory } from "./features/verification/DriverDirectory";
@@ -555,25 +555,7 @@ export function App({
         );
 
       case "trips":
-        return (
-          <TripsTracking
-            trips={trips}
-            activeTrip={activeTrip}
-            tripFlow={tripFlow}
-            nextTripStatus={nextTripStatus}
-            latestLocation={latestLocation}
-            locationTrail={locationTrail}
-            search={search}
-            canAct={canAct}
-            demoEnabled={demoEnabled && Boolean(demoApi)}
-            onSelectTrip={setActiveTrip}
-            onRefreshTrips={() => void refreshTripData()}
-            onMoveTrip={(next) => void moveTrip(next)}
-            onSimulateStep={() => void simulateStep()}
-            onReadLatest={() => void readLatestLocation()}
-            onResetSimulation={() => void resetSimulation()}
-          />
-        );
+        return <TripsManagement api={api} token={token} search={search} canAct={canAct} />;
 
       case "routes":
         return routeManagementEnabled ? (

@@ -125,6 +125,27 @@ return {
   requests: (token: string) => apiRequest<{ requests: PassengerRequest[] }>("/admin/requests", { token }),
   orders: (token: string) => apiRequest<{ orders: MerchantOrder[] }>("/admin/orders", { token }),
   routes: (token: string) => apiRequest<{ routes: DriverRoute[] }>("/admin/routes", { token }),
+  adminTrips: (
+    token: string,
+    status: TripStatus | "all" = "all",
+    kind: AdminTripKind | "all" = "all",
+    page = 1,
+    limit = 25,
+    search = "",
+  ) => {
+    const query = new URLSearchParams({ page: String(page), limit: String(limit), search });
+    if (status !== "all") query.set("status", status);
+    if (kind !== "all") query.set("kind", kind);
+    return apiRequest<AdminTripPage>(`/admin/trips?${query.toString()}`, { token });
+  },
+  adminTrip: (token: string, id: string) =>
+    apiRequest<{ trip: AdminTripDetail }>(`/admin/trips/${encodeURIComponent(id)}`, { token }),
+  advanceAdminTrip: (token: string, id: string, status: AdminForwardTripStatus, expectedStatus: TripStatus) =>
+    apiRequest<{ trip: AdminTripListItem }>(`/admin/trips/${encodeURIComponent(id)}/status`, {
+      method: "POST",
+      token,
+      body: { status, expected_status: expectedStatus },
+    }),
   trips: (token: string) => apiRequest<{ trips: Trip[] }>("/trips", { token }),
   trip: (token: string, id: string) => apiRequest<{ trip: Trip }>(`/trips/${id}`, { token }),
   latestLocation: (token: string, id: string) => apiRequest<{ location: LocationEvent | null }>(`/trips/${id}/location`, { token }),
@@ -394,6 +415,84 @@ export type Comparison = {
 };
 export type Trip = { id: string; status: string; driver_route_id: string; passenger_request_id?: string; merchant_order_id?: string; created_at?: string };
 export type LocationEvent = { id: string; lat: string; lng: string; source: string; sequence: number; recorded_at: string };
+
+export type TripStatus = "created" | "accepted" | "pickup_started" | "picked_up" | "in_transit" | "delivered" | "completed" | "cancelled";
+export type AdminForwardTripStatus = "pickup_started" | "picked_up" | "in_transit" | "delivered" | "completed";
+export type AdminTripKind = "legacy" | "canonical" | "shared";
+export type AdminTripPerson = { id: string; name: string; phone: string; demo_account: boolean };
+export type AdminTripManifestMember = {
+  id: string;
+  demand_type: string;
+  member_status: string;
+  member_sequence: number;
+  passenger_seats: number;
+  parcel_units: number;
+  passenger_request: { id: string; passenger_count: number; passenger: AdminTripPerson } | null;
+  merchant_order: { id: string; merchant: AdminTripPerson; _count: { parcels: number } } | null;
+};
+export type AdminTripListItem = {
+  id: string;
+  kind: AdminTripKind;
+  status: TripStatus;
+  driver_id: string;
+  driver_route_id: string;
+  passenger_request_id: string | null;
+  merchant_order_id: string | null;
+  parcel_batch_id: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+  operational_mode: string;
+  canonical_trip_version: string | null;
+  manifest_id: string | null;
+  route_version_id: string | null;
+  route_version: { id: string; version_number: number; status: string; name_ar: string; name_en: string } | null;
+  driver_route: {
+    id: string;
+    origin_label: string;
+    destination_label: string;
+    departure_at: string | null;
+    driver: { id: string; vehicle_type: string; seats_total: number; parcel_capacity: number; verified: boolean; trust_score: number; user: AdminTripPerson };
+  };
+  passenger_request: {
+    id: string;
+    pickup_label: string;
+    destination_label: string;
+    passenger_count: number;
+    passenger: AdminTripPerson;
+  } | null;
+  merchant_order: {
+    id: string;
+    pickup_label: string;
+    merchant: AdminTripPerson;
+    _count: { parcels: number };
+  } | null;
+  parcel_batch: { id: string; status: string } | null;
+  canonical_manifest: {
+    id: string;
+    lifecycle_status: string;
+    member_count: number;
+    passenger_request_count: number;
+    passenger_seat_count: number;
+    merchant_order_count: number;
+    parcel_unit_count: number;
+    members?: AdminTripManifestMember[];
+  } | null;
+  _count: { location_events: number };
+  has_stored_location: boolean;
+  demo_context: boolean;
+  supported_admin_transition: AdminForwardTripStatus | null;
+};
+export type AdminTripDetail = AdminTripListItem & {
+  latest_stored_location: {
+    lat: string;
+    lng: string;
+    source: string;
+    sequence: number;
+    recorded_at: string;
+  } | null;
+};
+export type AdminTripPage = { trips: AdminTripListItem[]; page: number; limit: number; total: number };
 
 export type CanonicalStop = {
   id: string;
