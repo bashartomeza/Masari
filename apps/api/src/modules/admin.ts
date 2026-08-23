@@ -50,7 +50,7 @@ const userDirectoryDetailSelect = {
       revision: true,
       submitted_at: true,
       reviewed_at: true,
-      reviewer: { select: { id: true, name: true } }
+      reviewed_by: { select: { id: true, name: true } }
     }
   }
 } as const;
@@ -139,7 +139,7 @@ function serializeUserDirectoryDetailRecord(user: UserDirectoryDetailRecord) {
           revision: user.driver_verification.revision,
           submitted_at: user.driver_verification.submitted_at,
           reviewed_at: user.driver_verification.reviewed_at,
-          reviewer: user.driver_verification.reviewer
+          reviewer: user.driver_verification.reviewed_by
         }
       : null
   };

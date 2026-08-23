@@ -4,7 +4,7 @@ import { useLocale } from "../../i18n/LocaleContext";
 import { AlertItem, BentoGrid, Button, Card, CardHeader, DataTable, EmptyState, Skeleton, StatusBadge, TechnicalValue, type Column } from "../../ui";
 
 type Props = { api: ApiClient; token: string; admin: User | null; search: string; canAct?: boolean };
-type DemoFilter = "all" | "demo" | "real";
+export type DemoFilter = "all" | "demo" | "real";
 const tone = (s: string) => s === "active" ? "success" : s === "pending" ? "warning" : "danger";
 const statusKey = (s: string) => `accountStatus_${s}` as any;
 const roleKey = (s: string) => `role_${s}` as any;
@@ -54,42 +54,99 @@ export function UsersDirectory({ api, token, admin, search, canAct = true }: Pro
     if (pending.nextStatus !== "active" && clean.length < 3) return;
     setBusy(true); setError(null);
     try { await api.updateUserStatus(token, pending.user.id, pending.nextStatus, clean || undefined, pending.user.account_status); setPending(null); setReason(""); await loadUsers(); if (selectedId === pending.user.id) await loadDetail(selectedId); }
-    catch (caught) { const e = caught as ApiError; const code = (e.details as { error?: string } | undefined)?.error; setError(code === "approval_required" ? (pending.user.role === "driver" ? t("pendingDriverApprovalUnavailable") : t("pendingMerchantApprovalUnavailable")) : code === "cannot_suspend_current_admin" ? t("selfAccountControlUnavailable") : t("resourceLoadErrorDescription")); }
+    catch (caught) {
+      const e = caught as ApiError;
+      const code = (e.details as { error?: string } | undefined)?.error;
+      if (e.status === 409) await Promise.all([loadUsers(), selectedId ? loadDetail(selectedId) : Promise.resolve()]);
+      setError(
+        code === "approval_required"
+          ? (pending.user.role === "driver" ? t("pendingDriverApprovalUnavailable") : t("pendingMerchantApprovalUnavailable"))
+          : code === "cannot_suspend_current_admin"
+            ? t("selfAccountControlUnavailable")
+            : code === "last_active_admin_required"
+              ? t("lastActiveAdminUnavailable")
+              : e.status === 409
+                ? t("accountStatusConflictReloaded")
+                : t("resourceLoadErrorDescription")
+      );
+    }
     finally { setBusy(false); }
   }
 
-  const columns: Column<UserListItem>[] = useMemo(() => [
-    { key: "user", header: t("columnPassenger"), cell: (u) => <div><p className="cell-stack__title">{u.name}</p><p className="cell-stack__sub technical">{u.phone}</p></div> },
+  const pages = Math.max(1, Math.ceil(data.total / data.limit));
+  return <UsersDirectoryView
+    phase={phase} data={data} page={page} pages={pages} query={query} role={role} accountStatus={accountStatus} demoAccount={demoAccount}
+    adminId={admin?.id ?? null} canAct={canAct} selectedId={selectedId} detail={detail} detailPhase={detailPhase} pending={pending}
+    reason={reason} busy={busy} error={error} onRoleChange={setRole} onStatusChange={setAccountStatus} onDemoChange={setDemoAccount}
+    onPageChange={setPage} onLoadDetail={(id) => void loadDetail(id)} onCloseDetail={() => { setSelectedId(null); setDetail(null); }}
+    onBeginStatus={setPending} onReasonChange={setReason} onSubmitStatus={() => void submit()} onCancelStatus={() => { setPending(null); setReason(""); setError(null); }}
+  />;
+}
+
+export type UsersDirectoryViewProps = {
+  phase: "loading" | "ready" | "error";
+  data: UserPage;
+  page: number;
+  pages: number;
+  query: string;
+  role: UserRoleFilter;
+  accountStatus: UserAccountStatus | "all";
+  demoAccount: DemoFilter;
+  adminId: string | null;
+  canAct: boolean;
+  selectedId: string | null;
+  detail: UserDetail | null;
+  detailPhase: "loading" | "ready" | "error";
+  pending: { user: UserListItem; nextStatus: AccountStatus } | null;
+  reason: string;
+  busy: boolean;
+  error: string | null;
+  onRoleChange: (value: UserRoleFilter) => void;
+  onStatusChange: (value: UserAccountStatus | "all") => void;
+  onDemoChange: (value: DemoFilter) => void;
+  onPageChange: (value: number) => void;
+  onLoadDetail: (id: string) => void;
+  onCloseDetail: () => void;
+  onBeginStatus: (value: { user: UserListItem; nextStatus: AccountStatus }) => void;
+  onReasonChange: (value: string) => void;
+  onSubmitStatus: () => void;
+  onCancelStatus: () => void;
+};
+
+export function UsersDirectoryView(props: UsersDirectoryViewProps) {
+  const { t, dateTime, number } = useLocale();
+  const { phase, data, page, pages, query, role, accountStatus, demoAccount, adminId, canAct, selectedId, detail, detailPhase, pending, reason, busy, error } = props;
+  const columns: Column<UserListItem>[] = [
+    { key: "user", header: t("columnPassenger"), cell: (u) => <div><p className="cell-stack__title">{u.name}</p><p className="cell-stack__sub"><TechnicalValue>{u.phone}</TechnicalValue></p></div> },
     { key: "role", header: t("columnRole"), cell: (u) => t(roleKey(u.role)) },
     { key: "status", header: t("columnAccountStatus"), cell: (u) => <StatusBadge tone={tone(u.account_status)}>{t(statusKey(u.account_status))}</StatusBadge> },
     { key: "context", header: t("verificationStatus"), cell: (u) => contextText(u, t) },
-    { key: "detail", header: t("reviewAction"), align: "end", cell: (u) => <Button size="sm" variant="secondary" icon="search" onClick={() => void loadDetail(u.id)}>{t("reviewDetails")}</Button> },
+    { key: "detail", header: t("reviewAction"), align: "end", cell: (u) => <Button size="sm" variant="secondary" icon="search" onClick={() => props.onLoadDetail(u.id)}>{t("reviewDetails")}</Button> },
     { key: "actions", header: t("accountControl"), align: "end", cell: (u) => {
-      if (u.id === admin?.id) return <span className="muted">{t("selfAccountControlUnavailable")}</span>;
+      if (u.id === adminId) return <span className="muted">{t("selfAccountControlUnavailable")}</span>;
       if (u.account_status === "pending") return <span className="muted">{u.role === "driver" ? t("pendingDriverApprovalUnavailable") : u.role === "merchant" ? t("pendingMerchantApprovalUnavailable") : t("pendingAccountControlUnavailable")}</span>;
       if (!canAct) return <span className="muted">{t("loading")}</span>;
-      if (u.account_status === "active") return <div className="card__actions"><Button size="sm" variant="ghost" icon="block" onClick={() => setPending({ user: u, nextStatus: "suspended" })}>{t("suspendAccount")}</Button><Button size="sm" variant="ghost" icon="block" onClick={() => setPending({ user: u, nextStatus: "disabled" })}>{t("disableAccount")}</Button></div>;
-      return <Button size="sm" variant="ghost" icon="check_circle" onClick={() => setPending({ user: u, nextStatus: "active" })}>{t("reactivateAccount")}</Button>;
+      if (u.account_status === "active") return <div className="card__actions"><Button size="sm" variant="ghost" icon="block" onClick={() => props.onBeginStatus({ user: u, nextStatus: "suspended" })}>{t("suspendAccount")}</Button><Button size="sm" variant="ghost" icon="block" onClick={() => props.onBeginStatus({ user: u, nextStatus: "disabled" })}>{t("disableAccount")}</Button></div>;
+      return <Button size="sm" variant="ghost" icon="check_circle" onClick={() => props.onBeginStatus({ user: u, nextStatus: "active" })}>{t("reactivateAccount")}</Button>;
     } }
-  ], [admin?.id, canAct, t]);
-  const pages = Math.max(1, Math.ceil(data.total / data.limit));
+  ];
   return <BentoGrid>
     <Card span={12} padded={false}><CardHeader title={t("userDirectory")} badge={<StatusBadge tone="info">{number(data.total)}</StatusBadge>} action={<div className="card__actions">
-      <label className="field field--inline">{t("columnRole")}<select value={role} onChange={(e) => setRole(e.target.value as UserRoleFilter)}><option value="all">{t("all")}</option><option value="passenger">{t("role_passenger")}</option><option value="driver">{t("role_driver")}</option><option value="merchant">{t("role_merchant")}</option><option value="admin">{t("role_admin")}</option></select></label>
-      <label className="field field--inline">{t("columnAccountStatus")}<select value={accountStatus} onChange={(e) => setAccountStatus(e.target.value as UserAccountStatus | "all")}><option value="all">{t("all")}</option><option value="active">{t("accountStatus_active")}</option><option value="pending">{t("accountStatus_pending")}</option><option value="suspended">{t("accountStatus_suspended")}</option><option value="disabled">{t("accountStatus_disabled")}</option></select></label>
-      <label className="field field--inline">{t("demo")}<select value={demoAccount} onChange={(e) => setDemoAccount(e.target.value as DemoFilter)}><option value="all">{t("all")}</option><option value="demo">{t("yes")}</option><option value="real">{t("no")}</option></select></label>
+      <label className="field field--inline">{t("columnRole")}<select value={role} onChange={(e) => props.onRoleChange(e.target.value as UserRoleFilter)}><option value="all">{t("all")}</option><option value="passenger">{t("role_passenger")}</option><option value="driver">{t("role_driver")}</option><option value="merchant">{t("role_merchant")}</option><option value="admin">{t("role_admin")}</option></select></label>
+      <label className="field field--inline">{t("columnAccountStatus")}<select value={accountStatus} onChange={(e) => props.onStatusChange(e.target.value as UserAccountStatus | "all")}><option value="all">{t("all")}</option><option value="active">{t("accountStatus_active")}</option><option value="pending">{t("accountStatus_pending")}</option><option value="suspended">{t("accountStatus_suspended")}</option><option value="disabled">{t("accountStatus_disabled")}</option></select></label>
+      <label className="field field--inline">{t("demo")}<select value={demoAccount} onChange={(e) => props.onDemoChange(e.target.value as DemoFilter)}><option value="all">{t("all")}</option><option value="demo">{t("yes")}</option><option value="real">{t("no")}</option></select></label>
     </div>} />
       {phase === "loading" && <div className="overview-resource-state" role="status"><Skeleton lines={4} /></div>}
       {phase === "error" && <EmptyState compact icon="report" title={t("resourceLoadError")} description={t("resourceLoadErrorDescription")} />}
-      {phase === "ready" && <><DataTable columns={columns} rows={data.users} rowKey={(u) => u.id} empty={<EmptyState compact icon="account_circle" title={query ? t("searchNoResults") : t("noData")} />} />{pages > 1 && <div className="card__actions"><Button size="sm" variant="ghost" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>{t("previousPage")}</Button><span className="muted">{t("pageOf", { page: number(page), pages: number(pages) })}</span><Button size="sm" variant="ghost" disabled={page >= pages} onClick={() => setPage((p) => p + 1)}>{t("nextPage")}</Button></div>}</>}
+      {phase === "ready" && <><DataTable columns={columns} rows={data.users} rowKey={(u) => u.id} empty={<EmptyState compact icon="account_circle" title={query ? t("searchNoResults") : t("noData")} />} />{pages > 1 && <div className="card__actions"><Button size="sm" variant="ghost" disabled={page <= 1} onClick={() => props.onPageChange(page - 1)}>{t("previousPage")}</Button><span className="muted">{t("pageOf", { page: number(page), pages: number(pages) })}</span><Button size="sm" variant="ghost" disabled={page >= pages} onClick={() => props.onPageChange(page + 1)}>{t("nextPage")}</Button></div>}</>}
     </Card>
     {selectedId && detailPhase === "loading" && <Card span={6}><Skeleton lines={5} /></Card>}
     {selectedId && detailPhase === "error" && <Card span={6}><EmptyState compact icon="report" title={t("verificationDetailLoadFailed")} description={t("resourceLoadErrorDescription")} /></Card>}
-    {detail && <Card span={6}><CardHeader title={t("userDetail")} action={<Button size="sm" variant="ghost" onClick={() => { setSelectedId(null); setDetail(null); }}>{t("closeReview")}</Button>} /><div className="stack stack--tight">
+    {detail && <Card span={6}><CardHeader title={t("userDetail")} action={<Button size="sm" variant="ghost" onClick={props.onCloseDetail}>{t("closeReview")}</Button>} /><div className="stack stack--tight">
       <p><strong>{t("profileName")}</strong> {detail.name}</p><p><strong>{t("phoneNumber")}</strong> <TechnicalValue>{detail.phone}</TechnicalValue></p><p><strong>{t("columnRole")}</strong> {t(roleKey(detail.role))}</p><p><strong>{t("columnAccountStatus")}</strong> <StatusBadge tone={tone(detail.account_status)}>{t(statusKey(detail.account_status))}</StatusBadge></p><p><strong>{t("createdAt")}</strong> {dateTime(detail.created_at)}</p><p><strong>{t("activeSessions")}</strong> {number(detail.active_session_count)}</p><p><strong>{t("lastActivity")}</strong> {detail.last_session_at ? dateTime(detail.last_session_at) : t("noData")}</p>
       {detail.role === "driver" && <>{detail.driver_verification?.status === "pending" && <AlertItem tone="info" title={t("pendingDriverApprovalUnavailable")} description={t("accountControlSeparateDescription")} />}<p><strong>{t("verificationStatus")}</strong> {detail.driver_verification ? t(`verificationStatus_${detail.driver_verification.status}` as any) : t("verificationStatus_no")}</p>{detail.driver_profile && <p><strong>{t("columnVerified")}</strong> {detail.driver_profile.verified ? t("yes") : t("no")} · {detail.driver_profile.vehicle_type}</p>}</>}
       {detail.role === "passenger" && <p><strong>{t("requestCount")}</strong> {number(detail.passenger_request_count)}</p>}{detail.role === "merchant" && <p><strong>{t("orderCount")}</strong> {number(detail.merchant_order_count)}</p>}
     </div></Card>}
-    {pending && <Card span={6}><CardHeader title={pending.nextStatus === "active" ? t("reactivateAccount") : t(statusKey(pending.nextStatus))} /><AlertItem tone="info" title={t("accountControl")} description={t("accountControlSeparateDescription")} /><p>{t("accountStatusConfirm", { name: pending.user.name, status: t(statusKey(pending.nextStatus)) })}</p>{pending.nextStatus !== "active" && <label className="field">{t("statusReason")}<input value={reason} maxLength={500} onChange={(e) => setReason(e.target.value)} /></label>}{error && <p role="alert" className="overview-resource-note overview-resource-note--error">{error}</p>}<div className="card__actions"><Button variant="primary" disabled={busy || (pending.nextStatus !== "active" && reason.trim().length < 3)} onClick={() => void submit()}>{busy ? t("saving") : t("confirm")}</Button><Button variant="ghost" disabled={busy} onClick={() => { setPending(null); setReason(""); setError(null); }}>{t("cancel")}</Button></div></Card>}
+    {pending && <Card span={6}><CardHeader title={pending.nextStatus === "active" ? t("reactivateAccount") : t(statusKey(pending.nextStatus))} /><AlertItem tone="info" title={t("accountControl")} description={t("accountControlSeparateDescription")} /><p>{t("accountStatusConfirm", { name: pending.user.name, status: t(statusKey(pending.nextStatus)) })}</p>{pending.nextStatus !== "active" && <label className="field">{t("statusReason")}<input value={reason} maxLength={500} onChange={(e) => props.onReasonChange(e.target.value)} /></label>}{error && <p role="alert" className="overview-resource-note overview-resource-note--error">{error}</p>}<div className="card__actions"><Button variant="primary" disabled={busy || (pending.nextStatus !== "active" && reason.trim().length < 3)} onClick={props.onSubmitStatus}>{busy ? t("saving") : t("confirm")}</Button><Button variant="ghost" disabled={busy} onClick={props.onCancelStatus}>{t("cancel")}</Button></div></Card>}
   </BentoGrid>;
 }
