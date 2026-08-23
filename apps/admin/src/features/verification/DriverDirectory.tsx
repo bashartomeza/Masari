@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import type { AccountStatus, ApiClient, ApiError, DriverProfile, DriverProfileDraft, DriverVerification, DriverVerificationStatus } from "../../api";
+import type { AccountStatus, ApiClient, ApiError, DriverProfile, DriverProfileDraft, DriverVerification, DriverVerificationStatus, UserAccountStatus } from "../../api";
 import { useLocale } from "../../i18n/LocaleContext";
 import { AlertItem, BentoGrid, Button, Card, CardHeader, DataTable, EmptyState, Skeleton, StatusBadge, TechnicalValue, type Column, type Tone } from "../../ui";
 import type { OverviewResourceState } from "../overview/overviewState";
@@ -7,6 +7,12 @@ import { matchesSearch } from "../search";
 
 type VerificationApi = Pick<ApiClient, "driverVerifications" | "driverVerification" | "approveDriverVerification" | "rejectDriverVerification">;
 type ProfileForm = { vehicle_type: string; seats_total: string; parcel_capacity: string };
+type DriverAccountChange = { driver: DriverProfile; status: AccountStatus; expectedStatus: UserAccountStatus };
+
+export function createDriverAccountChange(driver: DriverProfile, status: AccountStatus): DriverAccountChange {
+  if (!driver.user) throw new Error("Driver account snapshot is required");
+  return { driver, status, expectedStatus: driver.user.account_status };
+}
 
 function accountTone(status?: string): Tone {
   if (status === "active") return "success";
@@ -100,13 +106,13 @@ export function DriverDirectory({ api, token, drivers, search, busy, onUpdateSta
   drivers: DriverProfile[];
   search: string;
   busy: boolean;
-  onUpdateStatus: (userId: string, status: AccountStatus, reason?: string) => void;
+  onUpdateStatus: (userId: string, status: AccountStatus, reason: string | undefined, expectedStatus: UserAccountStatus) => void;
   state?: OverviewResourceState;
   onRefresh?: () => void;
   initialVerifications?: DriverVerification[];
 }) {
   const { t, number, dateTime } = useLocale();
-  const [accountChange, setAccountChange] = useState<{ driver: DriverProfile; status: AccountStatus } | null>(null);
+  const [accountChange, setAccountChange] = useState<DriverAccountChange | null>(null);
   const [accountReason, setAccountReason] = useState("");
   const [pending, setPending] = useState(initialVerifications ?? []);
   const [pendingTotal, setPendingTotal] = useState(initialVerifications?.length ?? 0);
@@ -181,7 +187,7 @@ export function DriverDirectory({ api, token, drivers, search, busy, onUpdateSta
     if (!accountChange) return;
     const trimmed = accountReason.trim();
     if (accountChange.status !== "active" && trimmed.length < 3) return;
-    onUpdateStatus(accountChange.driver.user!.id, accountChange.status, trimmed || undefined);
+    onUpdateStatus(accountChange.driver.user!.id, accountChange.status, trimmed || undefined, accountChange.expectedStatus);
     setAccountChange(null);
     setAccountReason("");
   }
@@ -203,7 +209,7 @@ export function DriverDirectory({ api, token, drivers, search, busy, onUpdateSta
       if (!driver.user) return <TechnicalValue>{driver.id}</TechnicalValue>;
       if (driver.user.account_status === "pending") return <span className="muted">{t("pendingAccountControlUnavailable")}</span>;
       const status: AccountStatus = driver.user.account_status === "active" ? "suspended" : "active";
-      return <Button variant="ghost" size="sm" icon={status === "active" ? "check_circle" : "block"} disabled={busy} onClick={() => { setAccountReason(""); setAccountChange({ driver, status }); }}>{status === "active" ? t("reactivateAccount") : t("suspendAccount")}</Button>;
+      return <Button variant="ghost" size="sm" icon={status === "active" ? "check_circle" : "block"} disabled={busy} onClick={() => { setAccountReason(""); setAccountChange(createDriverAccountChange(driver, status)); }}>{status === "active" ? t("reactivateAccount") : t("suspendAccount")}</Button>;
     } }
   ];
   const initialLoading = !state.hasData && (state.phase === "idle" || state.phase === "loading");

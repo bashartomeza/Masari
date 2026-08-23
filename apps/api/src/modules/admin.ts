@@ -498,9 +498,7 @@ adminRouter.post("/admin/driver-verifications/:userId/reject", async (req: Authe
 const accountStatusSchema = z
   .object({
     status: z.enum([AccountStatus.active, AccountStatus.suspended, AccountStatus.disabled]),
-    expected_status: z
-      .enum([AccountStatus.active, AccountStatus.pending, AccountStatus.suspended, AccountStatus.disabled])
-      .optional(),
+    expected_status: z.enum([AccountStatus.active, AccountStatus.pending, AccountStatus.suspended, AccountStatus.disabled]),
     reason: z
       .string()
       .max(500)
@@ -530,7 +528,7 @@ adminRouter.patch("/admin/users/:id/status", async (req: AuthenticatedRequest, r
       async (tx) => {
         const target = await tx.user.findUnique({ where: { id: targetId }, select: safeUserSelect });
         if (!target) throw new HttpError(404, "user_not_found");
-        if (input.expected_status && target.account_status !== input.expected_status) {
+        if (target.account_status !== input.expected_status) {
           throw new HttpError(409, "account_status_conflict");
         }
         if (target.account_status === AccountStatus.pending && input.status === AccountStatus.active && target.role !== "passenger") {

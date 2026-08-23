@@ -114,12 +114,14 @@ return {
    * than `active`, revokes every session the account holds, and writes an audit
    * event — so this is the one genuinely destructive control in the console.
    */
-  updateUserStatus: (token: string, id: string, status: AccountStatus, reason?: string, expectedStatus?: UserAccountStatus) =>
-    apiRequest<{ user: AdminUser }>(`/admin/users/${id}/status`, {
+  updateUserStatus: (token: string, id: string, status: AccountStatus, reason: string | undefined, expectedStatus: UserAccountStatus) => {
+    if (!expectedStatus) return Promise.reject(new Error("Expected account status is required"));
+    return apiRequest<{ user: AdminUser }>(`/admin/users/${id}/status`, {
       method: "PATCH",
       token,
-      body: reason || expectedStatus ? { status, reason, ...(expectedStatus ? { expected_status: expectedStatus } : {}) } : { status }
-    }),
+      body: { status, ...(reason ? { reason } : {}), expected_status: expectedStatus }
+    });
+  },
   requests: (token: string) => apiRequest<{ requests: PassengerRequest[] }>("/admin/requests", { token }),
   orders: (token: string) => apiRequest<{ orders: MerchantOrder[] }>("/admin/orders", { token }),
   routes: (token: string) => apiRequest<{ routes: DriverRoute[] }>("/admin/routes", { token }),

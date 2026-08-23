@@ -80,4 +80,15 @@ describe("Admin driver verification API client", () => {
     await api.updateUserStatus("admin-token", "user_1", "suspended", "policy breach", "active");
     expect(fetchMock).toHaveBeenNthCalledWith(2, "http://api.test/api/v1/admin/users/user_1/status", expect.objectContaining({ body: JSON.stringify({ status: "suspended", reason: "policy breach", expected_status: "active" }) }));
   });
+
+  it("refuses an Admin status mutation without the visible expected status", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(response({ user: { id: "user_1", account_status: "active" } }));
+    vi.stubGlobal("fetch", fetchMock);
+    const api = createApiClient("http://api.test");
+
+    await expect(
+      api.updateUserStatus("admin-token", "user_1", "active", undefined, undefined as never)
+    ).rejects.toThrow("Expected account status is required");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 });

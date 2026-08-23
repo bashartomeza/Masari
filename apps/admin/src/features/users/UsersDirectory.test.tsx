@@ -1,10 +1,10 @@
 import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
-import type { UserDetail, UserListItem, UserPage } from "../../api";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { createApiClient, type UserDetail, type UserListItem, type UserPage } from "../../api";
 import { LocaleProvider } from "../../i18n/LocaleContext";
-import type { Locale } from "../../i18n/translations";
-import { UsersDirectoryView, type UsersDirectoryViewProps } from "./UsersDirectory";
+import { translations, type Locale } from "../../i18n/translations";
+import { createUserStatusIntent, executeUserStatusMutation, UsersDirectoryView, type UsersDirectoryViewProps } from "./UsersDirectory";
 
 const passenger: UserListItem = { id: "passenger_1", name: "QA Active Passenger", phone: "+15550000101", role: "passenger", account_status: "active", status_reason: null, status_updated_at: "2026-08-23T10:00:00.000Z", last_login_at: null, demo_account: false, created_at: "2026-08-23T10:00:00.000Z", role_context: { kind: "passenger" } };
 const approvedDriver: UserListItem = { ...passenger, id: "driver_approved", name: "QA Approved Driver", role: "driver", role_context: { kind: "driver", driver_profile_exists: true, driver_profile_verified: true, driver_verification_status: "approved" } };
@@ -29,6 +29,23 @@ function props(overrides: Partial<UsersDirectoryViewProps> = {}): UsersDirectory
 }
 
 describe("User Management view", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("captures directory and detail snapshot statuses in account-change intents", () => {
+    expect(createUserStatusIntent(passenger, "suspended")).toEqual({
+      user: passenger,
+      nextStatus: "suspended",
+      expectedStatus: "active"
+    });
+
+    const suspendedDetail: UserDetail = { ...detail, account_status: "suspended" };
+    expect(createUserStatusIntent(suspendedDetail, "active")).toEqual({
+      user: suspendedDetail,
+      nextStatus: "active",
+      expectedStatus: "suspended"
+    });
+  });
+
   it("distinguishes loading, complete, empty, search-empty, and error states", () => {
     expect(render("en", <UsersDirectoryView {...props({ phase: "loading" })} />)).toContain('role="status"');
     const complete = render("en", <UsersDirectoryView {...props()} />);
@@ -54,15 +71,21 @@ describe("User Management view", () => {
 
   it("renders passenger and driver detail panels without edit fields", () => {
     const passengerMarkup = render("en", <UsersDirectoryView {...props({ selectedId: detail.id, detail })} />);
-    expect(passengerMarkup).toContain("User details"); expect(passengerMarkup).toContain("Passenger requests");
+    expect(passengerMarkup).toContain("User details"); expect(passengerMarkup).toContain("Passenger requests"); expect(passengerMarkup).toContain("Suspend account");
     const driverDetail: UserDetail = { ...detail, ...approvedDriver, role: "driver", driver_profile: { id: "profile_1", vehicle_type: "sedan", seats_total: 4, parcel_capacity: 3, verified: true, trust_score: 80, created_at: "2026-08-23T10:00:00.000Z" }, driver_verification: { id: "verification_1", revision: 2, status: "approved", rejection_reason: null, submitted_at: "2026-08-23T10:00:00.000Z", reviewed_at: "2026-08-23T10:00:00.000Z", reviewer: { id: "admin_1", name: "QA Admin" }, candidate: approvedDriver, driver_profile: null, evidence: { status: "not_collected" } } };
     const driverMarkup = render("en", <UsersDirectoryView {...props({ selectedId: driverDetail.id, detail: driverDetail })} />);
     expect(driverMarkup).toContain("sedan"); expect(driverMarkup).toContain("Approved"); expect(driverMarkup).not.toContain("password");
   });
 
+  it("offers detail-panel reactivation from the detail snapshot", () => {
+    const suspendedDetail: UserDetail = { ...detail, account_status: "suspended" };
+    const markup = render("en", <UsersDirectoryView {...props({ data: { ...page, users: [], total: 0 }, selectedId: suspendedDetail.id, detail: suspendedDetail })} />);
+    expect(markup).toContain("Reactivate");
+  });
+
   it("renders suspend, disable, and reactivate confirmations", () => {
-    expect(render("en", <UsersDirectoryView {...props({ pending: { user: passenger, nextStatus: "suspended" } })} />)).toContain("QA Active Passenger&#x27;s account will change to “Suspended”");
-    expect(render("en", <UsersDirectoryView {...props({ pending: { user: passenger, nextStatus: "disabled" } })} />)).toContain("Disabled");
+    expect(render("en", <UsersDirectoryView {...props({ pending: createUserStatusIntent(passenger, "suspended") })} />)).toContain("QA Active Passenger&#x27;s account will change to “Suspended”");
+    expect(render("en", <UsersDirectoryView {...props({ pending: createUserStatusIntent(passenger, "disabled") })} />)).toContain("Disabled");
     const suspended = { ...passenger, account_status: "suspended" as const };
     expect(render("en", <UsersDirectoryView {...props({ data: { ...page, users: [suspended], total: 1 } })} />)).toContain("Reactivate");
   });
@@ -80,7 +103,39 @@ describe("User Management view", () => {
   });
 
   it("shows stale conflict feedback while the authoritative reload is requested by the controller", () => {
-    const markup = render("en", <UsersDirectoryView {...props({ pending: { user: passenger, nextStatus: "suspended" }, error: "User state changed. The latest directory data was reloaded." })} />);
+    const markup = render("en", <UsersDirectoryView {...props({ pending: createUserStatusIntent(passenger, "suspended"), error: "User state changed. The latest directory data was reloaded." })} />);
     expect(markup).toContain('role="alert"'); expect(markup).toContain("latest directory data was reloaded");
+  });
+
+  it("localizes stale account conflicts as an external change followed by refresh", () => {
+    expect(translations.en.accountStatusConflictReloaded).toBe("Account status changed elsewhere. The current state has been refreshed.");
+    expect(translations.ar.accountStatusConflictReloaded).toBe("تم تغيير حالة الحساب من جلسة أخرى. تم تحديث البيانات الحالية.");
+  });
+
+  it("sends the stale snapshot, avoids success, and reloads authoritative list and detail after 409", async () => {
+    const authoritative = { ...passenger, account_status: "suspended" as const };
+    const authoritativeDetail: UserDetail = { ...detail, account_status: "suspended" };
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: "account_status_conflict" }), { status: 409, headers: { "Content-Type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ users: [authoritative], page: 1, limit: 25, total: 1 }), { status: 200, headers: { "Content-Type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ user: authoritativeDetail }), { status: 200, headers: { "Content-Type": "application/json" } }));
+    vi.stubGlobal("fetch", fetchMock);
+    const api = createApiClient("http://api.test");
+    const reloadedPages: UserPage[] = [];
+    const reloadedDetails: UserDetail[] = [];
+
+    const outcome = await executeUserStatusMutation({
+      api,
+      token: "admin-token",
+      intent: createUserStatusIntent(passenger, "disabled"),
+      reason: "Stale tab action",
+      reloadUsers: async () => { reloadedPages.push(await api.users("admin-token", "all", "all", 1, 25)); },
+      reloadDetail: async () => { reloadedDetails.push((await api.user("admin-token", passenger.id)).user); }
+    });
+
+    expect(outcome.kind).toBe("conflict");
+    expect(fetchMock).toHaveBeenNthCalledWith(1, "http://api.test/api/v1/admin/users/passenger_1/status", expect.objectContaining({ body: JSON.stringify({ status: "disabled", reason: "Stale tab action", expected_status: "active" }) }));
+    expect(reloadedPages[0]?.users[0]?.account_status).toBe("suspended");
+    expect(reloadedDetails[0]?.account_status).toBe("suspended");
   });
 });

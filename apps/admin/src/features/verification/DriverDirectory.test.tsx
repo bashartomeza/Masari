@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { DriverProfile, DriverVerification } from "../../api";
 import { LocaleProvider } from "../../i18n/LocaleContext";
 import type { Locale } from "../../i18n/translations";
-import { DriverDirectory, DriverReviewPanel } from "./DriverDirectory";
+import { createDriverAccountChange, DriverDirectory, DriverReviewPanel } from "./DriverDirectory";
 
 function withLocale(locale: Locale, children: ReactNode) {
   const storage = { getItem: () => locale, setItem: () => undefined };
@@ -153,6 +153,24 @@ describe("driver verification module", () => {
     expect(markup).toContain("Reactivate");
     expect(markup).toContain("documents expired");
     expect(markup).not.toContain("Suspend account");
+  });
+
+  it("captures the visible driver status for optimistic account concurrency", () => {
+    expect(createDriverAccountChange(driver, "suspended")).toEqual({
+      driver,
+      status: "suspended",
+      expectedStatus: "active"
+    });
+
+    const suspended: DriverProfile = {
+      ...driver,
+      user: { ...driver.user!, account_status: "suspended", status_reason: "documents expired" }
+    };
+    expect(createDriverAccountChange(suspended, "active")).toEqual({
+      driver: suspended,
+      status: "active",
+      expectedStatus: "suspended"
+    });
   });
 
   it("does not turn a pending account into a fake reactivation or approval action", () => {

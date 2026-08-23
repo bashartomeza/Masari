@@ -198,7 +198,7 @@ async function run() {
   await call(`/admin/users/${target.user.id}/status`, {
     token: administrator.token,
     method: "PATCH",
-    body: { status: "suspended", reason: "Automated integration suspension" }
+    body: { status: "suspended", reason: "Automated integration suspension", expected_status: "active" }
   });
   await expectRejected("/me", target.token, [403]);
   await call("/auth/login", {
@@ -209,7 +209,7 @@ async function run() {
   await call(`/admin/users/${target.user.id}/status`, {
     token: administrator.token,
     method: "PATCH",
-    body: { status: "active" }
+    body: { status: "active", expected_status: "suspended" }
   });
   await expectRejected("/me", target.token);
   const reactivated = await login(passengerCredentials, "integration-reactivated");
@@ -228,13 +228,13 @@ async function run() {
     call(`/admin/users/${secondAdminId}/status`, {
       token: concurrencyAdmin.token,
       method: "PATCH",
-      body: { status: "disabled", reason: "Concurrent admin invariant test" },
+      body: { status: "disabled", reason: "Concurrent admin invariant test", expected_status: "active" },
       expected: [200, 403, 409]
     }),
     call(`/admin/users/${safeDatabaseId(concurrencyAdmin.user.id, "primary admin")}/status`, {
       token: secondAdmin.token,
       method: "PATCH",
-      body: { status: "disabled", reason: "Concurrent admin invariant test" },
+      body: { status: "disabled", reason: "Concurrent admin invariant test", expected_status: "active" },
       expected: [200, 403, 409]
     })
   ]);
@@ -261,7 +261,7 @@ async function run() {
     call(`/admin/users/${safeDatabaseId(existingPassenger.user.id, "login-race passenger")}/status`, {
       token: raceAdministrator.token,
       method: "PATCH",
-      body: { status: "suspended", reason: "Concurrent login suspension test" }
+      body: { status: "suspended", reason: "Concurrent login suspension test", expected_status: "active" }
     })
   ]);
   assert(loginStatusRace[1].status === 200, "Concurrent suspension did not complete");

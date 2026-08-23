@@ -5,6 +5,45 @@ import { AlertItem, BentoGrid, Button, Card, CardHeader, DataTable, EmptyState, 
 
 type Props = { api: ApiClient; token: string; admin: User | null; search: string; canAct?: boolean };
 export type DemoFilter = "all" | "demo" | "real";
+type UserStatusSnapshot = UserListItem | UserDetail;
+export type UserStatusIntent = { user: UserStatusSnapshot; nextStatus: AccountStatus; expectedStatus: UserAccountStatus };
+
+export function createUserStatusIntent(user: UserStatusSnapshot, nextStatus: AccountStatus): UserStatusIntent {
+  return { user, nextStatus, expectedStatus: user.account_status };
+}
+
+export async function executeUserStatusMutation(options: {
+  api: ApiClient;
+  token: string;
+  intent: UserStatusIntent;
+  reason?: string;
+  reloadUsers: () => Promise<void>;
+  reloadDetail?: () => Promise<void>;
+}): Promise<{ kind: "success" } | { kind: "conflict" | "error"; error: ApiError }> {
+  const reloadAuthoritativeState = () => Promise.all([
+    options.reloadUsers(),
+    options.reloadDetail?.() ?? Promise.resolve()
+  ]);
+  try {
+    await options.api.updateUserStatus(
+      options.token,
+      options.intent.user.id,
+      options.intent.nextStatus,
+      options.reason,
+      options.intent.expectedStatus
+    );
+    await reloadAuthoritativeState();
+    return { kind: "success" };
+  } catch (caught) {
+    const error = caught as ApiError;
+    if (error.status === 409) {
+      await reloadAuthoritativeState();
+      return { kind: "conflict", error };
+    }
+    return { kind: "error", error };
+  }
+}
+
 const tone = (s: string) => s === "active" ? "success" : s === "pending" ? "warning" : "danger";
 const statusKey = (s: string) => `accountStatus_${s}` as any;
 const roleKey = (s: string) => `role_${s}` as any;
@@ -30,7 +69,7 @@ export function UsersDirectory({ api, token, admin, search, canAct = true }: Pro
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<UserDetail | null>(null);
   const [detailPhase, setDetailPhase] = useState<"loading" | "ready" | "error">("ready");
-  const [pending, setPending] = useState<{ user: UserListItem; nextStatus: AccountStatus } | null>(null);
+  const [pending, setPending] = useState<UserStatusIntent | null>(null);
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,11 +92,22 @@ export function UsersDirectory({ api, token, admin, search, canAct = true }: Pro
     const clean = reason.trim();
     if (pending.nextStatus !== "active" && clean.length < 3) return;
     setBusy(true); setError(null);
-    try { await api.updateUserStatus(token, pending.user.id, pending.nextStatus, clean || undefined, pending.user.account_status); setPending(null); setReason(""); await loadUsers(); if (selectedId === pending.user.id) await loadDetail(selectedId); }
-    catch (caught) {
-      const e = caught as ApiError;
+    try {
+      const outcome = await executeUserStatusMutation({
+        api,
+        token,
+        intent: pending,
+        reason: clean || undefined,
+        reloadUsers: loadUsers,
+        reloadDetail: selectedId === pending.user.id ? () => loadDetail(selectedId) : undefined
+      });
+      if (outcome.kind === "success") {
+        setPending(null);
+        setReason("");
+        return;
+      }
+      const e = outcome.error;
       const code = (e.details as { error?: string } | undefined)?.error;
-      if (e.status === 409) await Promise.all([loadUsers(), selectedId ? loadDetail(selectedId) : Promise.resolve()]);
       setError(
         code === "approval_required"
           ? (pending.user.role === "driver" ? t("pendingDriverApprovalUnavailable") : t("pendingMerchantApprovalUnavailable"))
@@ -97,7 +147,7 @@ export type UsersDirectoryViewProps = {
   selectedId: string | null;
   detail: UserDetail | null;
   detailPhase: "loading" | "ready" | "error";
-  pending: { user: UserListItem; nextStatus: AccountStatus } | null;
+  pending: UserStatusIntent | null;
   reason: string;
   busy: boolean;
   error: string | null;
@@ -107,7 +157,7 @@ export type UsersDirectoryViewProps = {
   onPageChange: (value: number) => void;
   onLoadDetail: (id: string) => void;
   onCloseDetail: () => void;
-  onBeginStatus: (value: { user: UserListItem; nextStatus: AccountStatus }) => void;
+  onBeginStatus: (value: UserStatusIntent) => void;
   onReasonChange: (value: string) => void;
   onSubmitStatus: () => void;
   onCancelStatus: () => void;
@@ -116,19 +166,20 @@ export type UsersDirectoryViewProps = {
 export function UsersDirectoryView(props: UsersDirectoryViewProps) {
   const { t, dateTime, number } = useLocale();
   const { phase, data, page, pages, query, role, accountStatus, demoAccount, adminId, canAct, selectedId, detail, detailPhase, pending, reason, busy, error } = props;
+  const accountControls = (user: UserStatusSnapshot) => {
+    if (user.id === adminId) return <span className="muted">{t("selfAccountControlUnavailable")}</span>;
+    if (user.account_status === "pending") return <span className="muted">{user.role === "driver" ? t("pendingDriverApprovalUnavailable") : user.role === "merchant" ? t("pendingMerchantApprovalUnavailable") : t("pendingAccountControlUnavailable")}</span>;
+    if (!canAct) return <span className="muted">{t("loading")}</span>;
+    if (user.account_status === "active") return <div className="card__actions"><Button size="sm" variant="ghost" icon="block" onClick={() => props.onBeginStatus(createUserStatusIntent(user, "suspended"))}>{t("suspendAccount")}</Button><Button size="sm" variant="ghost" icon="block" onClick={() => props.onBeginStatus(createUserStatusIntent(user, "disabled"))}>{t("disableAccount")}</Button></div>;
+    return <Button size="sm" variant="ghost" icon="check_circle" onClick={() => props.onBeginStatus(createUserStatusIntent(user, "active"))}>{t("reactivateAccount")}</Button>;
+  };
   const columns: Column<UserListItem>[] = [
     { key: "user", header: t("columnPassenger"), cell: (u) => <div><p className="cell-stack__title">{u.name}</p><p className="cell-stack__sub"><TechnicalValue>{u.phone}</TechnicalValue></p></div> },
     { key: "role", header: t("columnRole"), cell: (u) => t(roleKey(u.role)) },
     { key: "status", header: t("columnAccountStatus"), cell: (u) => <StatusBadge tone={tone(u.account_status)}>{t(statusKey(u.account_status))}</StatusBadge> },
     { key: "context", header: t("verificationStatus"), cell: (u) => contextText(u, t) },
     { key: "detail", header: t("reviewAction"), align: "end", cell: (u) => <Button size="sm" variant="secondary" icon="search" onClick={() => props.onLoadDetail(u.id)}>{t("reviewDetails")}</Button> },
-    { key: "actions", header: t("accountControl"), align: "end", cell: (u) => {
-      if (u.id === adminId) return <span className="muted">{t("selfAccountControlUnavailable")}</span>;
-      if (u.account_status === "pending") return <span className="muted">{u.role === "driver" ? t("pendingDriverApprovalUnavailable") : u.role === "merchant" ? t("pendingMerchantApprovalUnavailable") : t("pendingAccountControlUnavailable")}</span>;
-      if (!canAct) return <span className="muted">{t("loading")}</span>;
-      if (u.account_status === "active") return <div className="card__actions"><Button size="sm" variant="ghost" icon="block" onClick={() => props.onBeginStatus({ user: u, nextStatus: "suspended" })}>{t("suspendAccount")}</Button><Button size="sm" variant="ghost" icon="block" onClick={() => props.onBeginStatus({ user: u, nextStatus: "disabled" })}>{t("disableAccount")}</Button></div>;
-      return <Button size="sm" variant="ghost" icon="check_circle" onClick={() => props.onBeginStatus({ user: u, nextStatus: "active" })}>{t("reactivateAccount")}</Button>;
-    } }
+    { key: "actions", header: t("accountControl"), align: "end", cell: accountControls }
   ];
   return <BentoGrid>
     <Card span={12} padded={false}><CardHeader title={t("userDirectory")} badge={<StatusBadge tone="info">{number(data.total)}</StatusBadge>} action={<div className="card__actions">
@@ -142,7 +193,7 @@ export function UsersDirectoryView(props: UsersDirectoryViewProps) {
     </Card>
     {selectedId && detailPhase === "loading" && <Card span={6}><Skeleton lines={5} /></Card>}
     {selectedId && detailPhase === "error" && <Card span={6}><EmptyState compact icon="report" title={t("verificationDetailLoadFailed")} description={t("resourceLoadErrorDescription")} /></Card>}
-    {detail && <Card span={6}><CardHeader title={t("userDetail")} action={<Button size="sm" variant="ghost" onClick={props.onCloseDetail}>{t("closeReview")}</Button>} /><div className="stack stack--tight">
+    {detail && <Card span={6}><CardHeader title={t("userDetail")} action={<div className="card__actions">{accountControls(detail)}<Button size="sm" variant="ghost" onClick={props.onCloseDetail}>{t("closeReview")}</Button></div>} /><div className="stack stack--tight">
       <p><strong>{t("profileName")}</strong> {detail.name}</p><p><strong>{t("phoneNumber")}</strong> <TechnicalValue>{detail.phone}</TechnicalValue></p><p><strong>{t("columnRole")}</strong> {t(roleKey(detail.role))}</p><p><strong>{t("columnAccountStatus")}</strong> <StatusBadge tone={tone(detail.account_status)}>{t(statusKey(detail.account_status))}</StatusBadge></p><p><strong>{t("createdAt")}</strong> {dateTime(detail.created_at)}</p><p><strong>{t("activeSessions")}</strong> {number(detail.active_session_count)}</p><p><strong>{t("lastActivity")}</strong> {detail.last_session_at ? dateTime(detail.last_session_at) : t("noData")}</p>
       {detail.role === "driver" && <>{detail.driver_verification?.status === "pending" && <AlertItem tone="info" title={t("pendingDriverApprovalUnavailable")} description={t("accountControlSeparateDescription")} />}<p><strong>{t("verificationStatus")}</strong> {detail.driver_verification ? t(`verificationStatus_${detail.driver_verification.status}` as any) : t("verificationStatus_no")}</p>{detail.driver_profile && <p><strong>{t("columnVerified")}</strong> {detail.driver_profile.verified ? t("yes") : t("no")} · {detail.driver_profile.vehicle_type}</p>}</>}
       {detail.role === "passenger" && <p><strong>{t("requestCount")}</strong> {number(detail.passenger_request_count)}</p>}{detail.role === "merchant" && <p><strong>{t("orderCount")}</strong> {number(detail.merchant_order_count)}</p>}

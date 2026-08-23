@@ -443,7 +443,7 @@ async function main() {
   const suspended = await request(app)
     .patch(`/api/v1/admin/users/${driverUser.id}/status`)
     .set("authorization", `Bearer ${admin}`)
-    .send({ status: "suspended", reason: "Integration validation" });
+    .send({ status: "suspended", reason: "Integration validation", expected_status: "pending" });
   check(suspended.status === 200, "admin can suspend a pending onboarding account");
   check(
     (await request(app).get("/api/v1/onboarding/status").set("authorization", `Onboarding ${recovered.body.onboarding_status_token}`)).status === 401,
