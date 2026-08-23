@@ -135,7 +135,8 @@ describe("Admin trip management", () => {
     prismaMock.trip.update.mockImplementation(({ data }: { data: { status: string } }) => tripRow({ status: data.status }));
     prismaMock.auditEvent.create.mockResolvedValue({ id: "audit_1" });
     prismaMock.$transaction.mockImplementation(
-      (callback: (tx: typeof prismaMock) => unknown) => callback(prismaMock),
+      (operation: ((tx: typeof prismaMock) => unknown) | unknown[]) =>
+        Array.isArray(operation) ? Promise.all(operation) : operation(prismaMock),
     );
   });
 
@@ -173,6 +174,7 @@ describe("Admin trip management", () => {
       take: 25,
       orderBy: [{ created_at: "desc" }, { id: "asc" }],
     }));
+    expect(prismaMock.$transaction).toHaveBeenCalledWith(expect.any(Array), { isolationLevel: "RepeatableRead" });
 
     await request(createApp()).get("/api/v1/admin/trips?limit=101").set(authorization()).expect(400);
   });
@@ -226,7 +228,7 @@ describe("Admin trip management", () => {
     expect(prismaMock.trip.findUnique).toHaveBeenCalledWith(expect.objectContaining({
       where: { id: "trip_legacy" },
       select: expect.objectContaining({
-        location_events: { select: expect.any(Object), orderBy: [{ sequence: "desc" }, { id: "asc" }], take: 1 },
+        location_events: { select: expect.any(Object), orderBy: [{ recorded_at: "desc" }, { sequence: "desc" }, { id: "asc" }], take: 1 },
       }),
     }));
   });
@@ -300,12 +302,18 @@ describe("Admin trip management", () => {
   });
 
   it("advances legacy trips through the shared transaction and keeps canonical/shared read-only", async () => {
+    prismaMock.trip.update.mockResolvedValueOnce({
+      ...tripRow({ status: "pickup_started" }),
+      route_snapshot_json: { private: true },
+      route_snapshot_checksum: "must-not-leak",
+    });
     const response = await request(createApp())
       .post("/api/v1/admin/trips/trip_legacy/status")
       .set(authorization())
       .send({ status: "pickup_started", expected_status: "accepted" })
       .expect(200);
-    expect(response.body.trip.status).toBe("pickup_started");
+    expect(response.body.trip).toEqual({ id: "trip_legacy", status: "pickup_started" });
+    expect(JSON.stringify(response.body)).not.toMatch(/route_snapshot|checksum|private/);
     expect(prismaMock.trip.update).toHaveBeenCalledWith({
       where: { id: "trip_legacy", status: "accepted" },
       data: { status: "pickup_started", completed_at: undefined },

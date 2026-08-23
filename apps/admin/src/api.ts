@@ -141,7 +141,7 @@ return {
   adminTrip: (token: string, id: string) =>
     apiRequest<{ trip: AdminTripDetail }>(`/admin/trips/${encodeURIComponent(id)}`, { token }),
   advanceAdminTrip: (token: string, id: string, status: AdminForwardTripStatus, expectedStatus: TripStatus) =>
-    apiRequest<{ trip: AdminTripListItem }>(`/admin/trips/${encodeURIComponent(id)}/status`, {
+    apiRequest<{ trip: { id: string; status: TripStatus } }>(`/admin/trips/${encodeURIComponent(id)}/status`, {
       method: "POST",
       token,
       body: { status, expected_status: expectedStatus },

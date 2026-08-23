@@ -5,6 +5,7 @@ import { createApiClient, type AdminTripDetail, type AdminTripPage } from "../..
 import { LocaleProvider } from "../../i18n/LocaleContext";
 import type { Locale } from "../../i18n/translations";
 import {
+  createLatestRequestGate,
   createTripStatusIntent,
   executeTripStatusMutation,
   TripsManagementView,
@@ -129,6 +130,16 @@ function props(overrides: Partial<TripsManagementViewProps> = {}): TripsManageme
 
 describe("Admin Trips Management", () => {
   afterEach(() => vi.unstubAllGlobals());
+
+  it("allows only the latest overlapping request to commit", () => {
+    const gate = createLatestRequestGate();
+    const first = gate.begin();
+    const second = gate.begin();
+    expect(gate.isCurrent(first)).toBe(false);
+    expect(gate.isCurrent(second)).toBe(true);
+    gate.invalidate();
+    expect(gate.isCurrent(second)).toBe(false);
+  });
 
   it("renders all trip kinds with server filters, deterministic pagination controls, and responsive structure", () => {
     const markup = render("en", <TripsManagementView {...props({ pages: 3, page: 2, statusFilter: "accepted", kindFilter: "shared" })} />);

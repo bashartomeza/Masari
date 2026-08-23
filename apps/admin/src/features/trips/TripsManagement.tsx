@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   AdminForwardTripStatus,
   AdminTripDetail,
@@ -34,6 +34,15 @@ export type TripStatusIntent = {
 export function createTripStatusIntent(trip: AdminTripListItem): TripStatusIntent | null {
   if (trip.kind !== "legacy" || !trip.supported_admin_transition) return null;
   return { trip, expectedStatus: trip.status, nextStatus: trip.supported_admin_transition };
+}
+
+export function createLatestRequestGate() {
+  let latest = 0;
+  return {
+    begin: () => ++latest,
+    isCurrent: (request: number) => request === latest,
+    invalidate: () => { latest += 1; },
+  };
 }
 
 export async function executeTripStatusMutation(options: {
@@ -78,32 +87,52 @@ export function TripsManagement({ api, token, search, canAct = true }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const query = useMemo(() => search.trim().slice(0, 100), [search]);
+  const listRequests = useRef(createLatestRequestGate());
+  const detailRequests = useRef(createLatestRequestGate());
+  const criteriaKey = `${statusFilter}\u0000${kindFilter}\u0000${query}`;
+  const previousCriteria = useRef(criteriaKey);
 
   async function loadTrips() {
     if (!token) return;
+    const request = listRequests.current.begin();
     setPhase("loading");
     try {
-      setData(await api.adminTrips(token, statusFilter, kindFilter, page, limit, query));
+      const result = await api.adminTrips(token, statusFilter, kindFilter, page, limit, query);
+      if (!listRequests.current.isCurrent(request)) return;
+      setData(result);
       setPhase("ready");
     } catch {
+      if (!listRequests.current.isCurrent(request)) return;
       setPhase("error");
     }
   }
 
   async function loadDetail(id: string) {
+    const request = detailRequests.current.begin();
     setSelectedId(id);
     setDetailPhase("loading");
     try {
-      setDetail((await api.adminTrip(token, id)).trip);
+      const result = (await api.adminTrip(token, id)).trip;
+      if (!detailRequests.current.isCurrent(request)) return;
+      setDetail(result);
       setDetailPhase("ready");
     } catch {
+      if (!detailRequests.current.isCurrent(request)) return;
       setDetail(null);
       setDetailPhase("error");
     }
   }
 
-  useEffect(() => { setPage(1); }, [statusFilter, kindFilter, query]);
-  useEffect(() => { void loadTrips(); }, [token, statusFilter, kindFilter, page, query]);
+  useEffect(() => {
+    if (previousCriteria.current !== criteriaKey) {
+      previousCriteria.current = criteriaKey;
+      if (page !== 1) {
+        setPage(1);
+        return;
+      }
+    }
+    void loadTrips();
+  }, [token, criteriaKey, page]);
 
   async function submit() {
     if (!pending) return;
@@ -127,7 +156,7 @@ export function TripsManagement({ api, token, search, canAct = true }: Props) {
     phase={phase} data={data} page={page} pages={pages} query={query} statusFilter={statusFilter} kindFilter={kindFilter}
     selectedId={selectedId} detail={detail} detailPhase={detailPhase} pending={pending} busy={busy} error={error} canAct={canAct}
     onStatusFilterChange={setStatusFilter} onKindFilterChange={setKindFilter} onPageChange={setPage}
-    onLoadDetail={(id) => void loadDetail(id)} onCloseDetail={() => { setSelectedId(null); setDetail(null); setError(null); }}
+    onLoadDetail={(id) => void loadDetail(id)} onCloseDetail={() => { detailRequests.current.invalidate(); setSelectedId(null); setDetail(null); setError(null); }}
     onRefresh={() => void loadTrips()} onBeginStatus={(intent) => setPending(intent)} onSubmitStatus={() => void submit()}
     onCancelStatus={() => { setPending(null); setError(null); }}
   />;

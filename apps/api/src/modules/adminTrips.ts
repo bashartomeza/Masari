@@ -94,7 +94,7 @@ const tripDetailSelect = {
   ...tripBaseSelect,
   location_events: {
     select: { lat: true, lng: true, source: true, sequence: true, recorded_at: true },
-    orderBy: [{ sequence: "desc" as const }, { id: "asc" as const }],
+    orderBy: [{ recorded_at: "desc" as const }, { sequence: "desc" as const }, { id: "asc" as const }],
     take: 1,
   },
   canonical_manifest: {
@@ -200,7 +200,7 @@ adminTripsRouter.get("/admin/trips", async (req, res, next) => {
       ...(input.status ? { status: input.status } : {}),
       AND: [kindWhere(input.kind), searchWhere(input.search)],
     };
-    const [trips, total] = await Promise.all([
+    const [trips, total] = await prisma.$transaction([
       prisma.trip.findMany({
         where,
         select: tripBaseSelect,
@@ -209,7 +209,7 @@ adminTripsRouter.get("/admin/trips", async (req, res, next) => {
         take: input.limit,
       }),
       prisma.trip.count({ where }),
-    ]);
+    ], { isolationLevel: "RepeatableRead" });
     res.json({ trips: trips.map(serializeTrip), page: input.page, limit: input.limit, total });
   } catch (error) {
     next(error);
@@ -254,10 +254,11 @@ adminTripsRouter.post("/admin/trips/:id/status", async (req: AuthenticatedReques
       if (ADMIN_FORWARD_TRIP_TRANSITION[current.status] !== input.status) {
         throw new HttpError(409, "invalid_trip_status_transition");
       }
-      return advanceLegacyTrip(tx, current, input.status as TripStatus, {
+      const updated = await advanceLegacyTrip(tx, current, input.status as TripStatus, {
         actorId: req.user!.id,
         expectedStatus: input.expected_status as TripStatus,
       });
+      return { id: updated.id, status: updated.status };
     }, { isolationLevel: "Serializable" });
     res.json({ trip });
   } catch (error) {
