@@ -2,34 +2,55 @@ export type ApiError = Error & { status?: number; details?: unknown };
 export type ApiClientOptions = { onSessionEnded?: (error: ApiError, requestToken: string) => void };
 
 export function createApiClient(apiBaseUrl: string, clientOptions: ApiClientOptions = {}) {
-async function apiRequest<T>(path: string, options: { method?: string; token?: string; body?: unknown; idempotencyKey?: string } = {}) {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (options.token) headers.Authorization = `Bearer ${options.token}`;
-  if (options.idempotencyKey) headers["Idempotency-Key"] = options.idempotencyKey;
+  async function apiRequest<T>(path: string, options: { method?: string; token?: string; body?: unknown; idempotencyKey?: string } = {}) {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (options.token) headers.Authorization = `Bearer ${options.token}`;
+    if (options.idempotencyKey) headers["Idempotency-Key"] = options.idempotencyKey;
 
-  const response = await fetch(`${apiBaseUrl}/api/v1${path}`, {
-    method: options.method ?? "GET",
-    headers,
-    body: options.body === undefined ? undefined : JSON.stringify(options.body)
-  });
+    const response = await fetch(`${apiBaseUrl}/api/v1${path}`, {
+      method: options.method ?? "GET",
+      headers,
+      body: options.body === undefined ? undefined : JSON.stringify(options.body)
+    });
 
-  const text = await response.text();
-  const data = text ? JSON.parse(text) : null;
-  if (!response.ok) {
-    const error = new Error(data?.error ?? `Request failed with ${response.status}`) as ApiError;
-    error.status = response.status;
-    error.details = data;
-    if (options.token) clientOptions.onSessionEnded?.(error, options.token);
-    throw error;
+    const text = await response.text();
+    const data = text ? JSON.parse(text) : null;
+    if (!response.ok) {
+      const error = new Error(data?.error ?? `Request failed with ${response.status}`) as ApiError;
+      error.status = response.status;
+      error.details = data;
+      if (options.token) clientOptions.onSessionEnded?.(error, options.token);
+      throw error;
+    }
+    return data as T;
   }
-  return data as T;
-}
 
 return {
   login: (phone: string, password: string) => apiRequest<LoginResponse>("/auth/login", { method: "POST", body: { phone, password } }),
   me: (token: string) => apiRequest<MeResponse>("/me", { token }),
   capabilities: (token: string) => apiRequest<CapabilitiesResponse>("/capabilities", { token }),
   dashboard: (token: string) => apiRequest<DashboardResponse>("/admin/dashboard", { token }),
+  users: (
+    token: string,
+    role: UserRoleFilter = "all",
+    accountStatus: UserAccountStatus | "all" = "all",
+    page = 1,
+    limit = 50,
+    search = "",
+    demoAccount: "all" | "demo" | "real" = "all"
+  ) => {
+    const query = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+      search
+    });
+    if (role !== "all") query.set("role", role);
+    if (accountStatus !== "all") query.set("account_status", accountStatus);
+    if (search) query.set("search", search);
+    if (demoAccount !== "all") query.set("demo_account", demoAccount === "demo" ? "true" : "false");
+    return apiRequest<UserPage>(`/admin/users?${query.toString()}`, { token });
+  },
+  user: (token: string, id: string) => apiRequest<{ user: UserDetail }>(`/admin/users/${encodeURIComponent(id)}`, { token }),
   drivers: (token: string) => apiRequest<{ drivers: DriverProfile[] }>("/admin/drivers", { token }),
   driverVerifications: (token: string, status: DriverVerificationStatus = "pending", page = 1, limit = 50) =>
     apiRequest<DriverVerificationPage>(
@@ -93,12 +114,14 @@ return {
    * than `active`, revokes every session the account holds, and writes an audit
    * event — so this is the one genuinely destructive control in the console.
    */
-  updateUserStatus: (token: string, id: string, status: AccountStatus, reason?: string) =>
-    apiRequest<{ user: AdminUser }>(`/admin/users/${id}/status`, {
+  updateUserStatus: (token: string, id: string, status: AccountStatus, reason: string | undefined, expectedStatus: UserAccountStatus) => {
+    if (!expectedStatus) return Promise.reject(new Error("Expected account status is required"));
+    return apiRequest<{ user: AdminUser }>(`/admin/users/${id}/status`, {
       method: "PATCH",
       token,
-      body: reason ? { status, reason } : { status }
-    }),
+      body: { status, ...(reason ? { reason } : {}), expected_status: expectedStatus }
+    });
+  },
   requests: (token: string) => apiRequest<{ requests: PassengerRequest[] }>("/admin/requests", { token }),
   orders: (token: string) => apiRequest<{ orders: MerchantOrder[] }>("/admin/orders", { token }),
   routes: (token: string) => apiRequest<{ routes: DriverRoute[] }>("/admin/routes", { token }),
@@ -168,6 +191,18 @@ export type CapabilitiesResponse = { demo_reset_available: boolean };
 export type AccountStatus = "active" | "suspended" | "disabled";
 /** Every account state the read-only Admin APIs can return. */
 export type UserAccountStatus = AccountStatus | "pending";
+export type UserRoleFilter = "all" | "passenger" | "driver" | "merchant" | "admin";
+
+export type UserRoleContextDriver = {
+  kind: "driver";
+  driver_profile_exists: boolean;
+  driver_profile_verified: boolean;
+  driver_verification_status: DriverVerificationStatus | "none";
+};
+export type UserRoleContextMerchant = { kind: "merchant"; merchant_approval_connected: boolean };
+export type UserRoleContextPassenger = { kind: "passenger" };
+export type UserRoleContextAdmin = { kind: "admin" };
+export type UserRoleContext = UserRoleContextDriver | UserRoleContextMerchant | UserRoleContextPassenger | UserRoleContextAdmin;
 
 /**
  * A user as the admin endpoints serialise it — the `safeUserSelect` shape,
@@ -180,6 +215,28 @@ export type AdminUser = User & {
   last_login_at: string | null;
   demo_account: boolean;
   created_at: string;
+};
+export type UserListItem = AdminUser & { role_context: UserRoleContext };
+export type UserPage = { users: UserListItem[]; page: number; limit: number; total: number };
+
+export type UserDetail = {
+  id: string;
+  name: string;
+  phone: string;
+  role: "passenger" | "driver" | "merchant" | "admin";
+  account_status: UserAccountStatus;
+  status_reason: string | null;
+  status_updated_at: string;
+  last_login_at: string | null;
+  demo_account: boolean;
+  created_at: string;
+  role_context: UserRoleContext;
+  driver_profile: (DriverProfile & { created_at?: string }) | null;
+  driver_verification: DriverVerification | null;
+  active_session_count: number;
+  last_session_at: string | null;
+  passenger_request_count: number;
+  merchant_order_count: number;
 };
 
 /**

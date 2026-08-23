@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { createApiClient, createDemoApiClient, type AccountStatus, type BatchResponse, type Comparison, type DashboardResponse, type DriverProfile, type DriverRoute, type LocationEvent, type MatchRunResponse, type MerchantOrder, type PassengerRequest, type Trip, type User } from "./api";
+import { createApiClient, createDemoApiClient, type AccountStatus, type BatchResponse, type Comparison, type DashboardResponse, type DriverProfile, type DriverRoute, type LocationEvent, type MatchRunResponse, type MerchantOrder, type PassengerRequest, type Trip, type User, type UserAccountStatus } from "./api";
 import { demoUiEnabled, getAdminBuildConfig, routeManagementUiEnabled, type AdminBuildConfig } from "./config";
 import { useLocale } from "./i18n/LocaleContext";
 import type { TranslationKey } from "./i18n/translations";
@@ -226,10 +226,10 @@ export function App({
    * (the last active admin cannot be suspended), so the console shows what the
    * server actually decided.
    */
-  async function updateUserStatus(userId: string, status: AccountStatus, reason?: string) {
+  async function updateUserStatus(userId: string, status: AccountStatus, reason: string | undefined, expectedStatus: UserAccountStatus) {
     const result = await runAction(
       "user-status",
-      () => api.updateUserStatus(token, userId, status, reason),
+      () => api.updateUserStatus(token, userId, status, reason, expectedStatus),
       t("accountStatusUpdated")
     );
     if (result) await refreshOverview();
@@ -589,7 +589,7 @@ export function App({
         return <ProfilePanel admin={admin} />;
 
       case "users":
-        return <UsersDirectory drivers={drivers} requests={requests} orders={orders} search={search} />;
+        return <UsersDirectory api={api} token={token} admin={admin} search={search} canAct={canAct} />;
 
       case "drivers":
         return (
@@ -601,7 +601,7 @@ export function App({
             busy={Boolean(busy)}
             state={overviewResources.drivers}
             onRefresh={() => void refreshOverview()}
-            onUpdateStatus={(userId, status, reason) => void updateUserStatus(userId, status, reason)}
+            onUpdateStatus={(userId, status, reason, expectedStatus) => void updateUserStatus(userId, status, reason, expectedStatus)}
           />
         );
 

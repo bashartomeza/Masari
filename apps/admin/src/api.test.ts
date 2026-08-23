@@ -55,4 +55,40 @@ describe("Admin driver verification API client", () => {
       expect.objectContaining({ body: JSON.stringify({ expected_revision: 2, reason: "Documents are unclear" }) })
     );
   });
+
+  it("loads the bounded user directory with role, status, search, and demo filters", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(response({ users: [], page: 2, limit: 25, total: 0 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const api = createApiClient("http://api.test");
+
+    await api.users("admin-token", "driver", "pending", 2, 25, "QA driver", "real");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://api.test/api/v1/admin/users?page=2&limit=25&search=QA+driver&role=driver&account_status=pending&demo_account=false",
+      expect.objectContaining({ headers: expect.objectContaining({ Authorization: "Bearer admin-token" }) })
+    );
+  });
+
+  it("unwraps the safe user detail and sends an expected-status guard", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(response({ user: { id: "user_1", role: "passenger" } }))
+      .mockResolvedValueOnce(response({ user: { id: "user_1", account_status: "suspended" } }));
+    vi.stubGlobal("fetch", fetchMock);
+    const api = createApiClient("http://api.test");
+
+    await expect(api.user("admin-token", "user/1")).resolves.toEqual({ user: { id: "user_1", role: "passenger" } });
+    await api.updateUserStatus("admin-token", "user_1", "suspended", "policy breach", "active");
+    expect(fetchMock).toHaveBeenNthCalledWith(2, "http://api.test/api/v1/admin/users/user_1/status", expect.objectContaining({ body: JSON.stringify({ status: "suspended", reason: "policy breach", expected_status: "active" }) }));
+  });
+
+  it("refuses an Admin status mutation without the visible expected status", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(response({ user: { id: "user_1", account_status: "active" } }));
+    vi.stubGlobal("fetch", fetchMock);
+    const api = createApiClient("http://api.test");
+
+    await expect(
+      api.updateUserStatus("admin-token", "user_1", "active", undefined, undefined as never)
+    ).rejects.toThrow("Expected account status is required");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 });
