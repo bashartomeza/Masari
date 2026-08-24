@@ -93,6 +93,10 @@ function requestDigest(value: unknown) {
   return digest(JSON.stringify(value));
 }
 
+export function assertExpectedCurrentVersion(actual: string | null, expected: string | null) {
+  if (actual !== expected) throw new HttpError(409, "current_version_conflict");
+}
+
 async function claimWrite(tx: Database, operation: string, actor: Actor, payload: unknown) {
   if (!actor.idempotencyKey) throw new HttpError(400, "idempotency_key_required");
   const claim = await claimIdempotency(tx, {
@@ -542,7 +546,7 @@ export function createRouteManagementService(db: PrismaClient = prisma) {
         });
         await lockStops(tx, memberships.map((membership) => membership.stop_id));
         if (route.status !== "active") throw new HttpError(409, "service_route_retired");
-        if (route.current_version_id !== input.expectedCurrentVersionId) throw new HttpError(409, "current_version_conflict");
+        assertExpectedCurrentVersion(route.current_version_id, input.expectedCurrentVersionId);
         const draft = await tx.serviceRouteVersion.findUnique({ where: { id }, include: versionRelations });
         if (!draft) throw new HttpError(404, "route_version_not_found");
         if (draft.status !== "draft") throw new HttpError(409, "published_version_immutable");
@@ -591,9 +595,8 @@ export function createRouteManagementService(db: PrismaClient = prisma) {
         if (!version) throw new HttpError(404, "route_version_not_found");
         const route = await lockRoute(tx, version.service_route_id);
         const lockedVersion = await lockVersion(tx, id);
-        if (input.expectedCurrentVersionId !== id || route.current_version_id !== input.expectedCurrentVersionId) {
-          throw new HttpError(409, "current_version_conflict");
-        }
+        assertExpectedCurrentVersion(route.current_version_id, input.expectedCurrentVersionId);
+        assertExpectedCurrentVersion(id, input.expectedCurrentVersionId);
         if (lockedVersion.status !== "published") throw new HttpError(409, "route_version_not_pausable");
         const resource = await tx.serviceRouteVersion.update({
           where: { id },
@@ -623,9 +626,8 @@ export function createRouteManagementService(db: PrismaClient = prisma) {
         if (!version) throw new HttpError(404, "route_version_not_found");
         const route = await lockRoute(tx, version.service_route_id);
         const lockedVersion = await lockVersion(tx, id);
-        if (input.expectedCurrentVersionId !== id || route.current_version_id !== input.expectedCurrentVersionId) {
-          throw new HttpError(409, "current_version_conflict");
-        }
+        assertExpectedCurrentVersion(route.current_version_id, input.expectedCurrentVersionId);
+        assertExpectedCurrentVersion(id, input.expectedCurrentVersionId);
         if (route.status !== "active" || lockedVersion.status !== "paused") {
           throw new HttpError(409, "route_version_not_resumable");
         }
@@ -659,9 +661,7 @@ export function createRouteManagementService(db: PrismaClient = prisma) {
         if (!version) throw new HttpError(404, "route_version_not_found");
         const lockedRoute = await lockRoute(tx, version.service_route_id);
         const lockedVersion = await lockVersion(tx, id);
-        if (lockedRoute.current_version_id !== input.expectedCurrentVersionId) {
-          throw new HttpError(409, "current_version_conflict");
-        }
+        assertExpectedCurrentVersion(lockedRoute.current_version_id, input.expectedCurrentVersionId);
         if (lockedVersion.status === "retired") throw new HttpError(409, "route_version_already_retired");
         const activeUsage = await tx.driverRoute.count({
           where: {
@@ -702,9 +702,8 @@ export function createRouteManagementService(db: PrismaClient = prisma) {
         );
         if (replay) return { resource: replay, replayed: true };
         const lockedRoute = await lockRoute(tx, id);
-        if (lockedRoute.current_version_id !== input.expectedCurrentVersionId) {
-          throw new HttpError(409, "current_version_conflict");
-        }
+        assertExpectedCurrentVersion(input.expectedCurrentVersionId, null);
+        assertExpectedCurrentVersion(lockedRoute.current_version_id, null);
         const route = await tx.serviceRoute.findUnique({ where: { id }, include: { versions: true } });
         if (!route) throw new HttpError(404, "service_route_not_found");
         if (route.status === "retired") throw new HttpError(409, "service_route_already_retired");

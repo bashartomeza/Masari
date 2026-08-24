@@ -43,6 +43,21 @@ async function demoCounts() {
   return { routes, versions, stops, driverRoutes, linkedDriverRoutes };
 }
 
+async function lifecycleState(routeId: string, versionIds: string[]) {
+  const [route, versions, auditCount] = await Promise.all([
+    prisma.serviceRoute.findUniqueOrThrow({ where: { id: routeId }, select: { current_version_id: true } }),
+    prisma.serviceRouteVersion.findMany({
+      where: { id: { in: versionIds } },
+      orderBy: { version_number: "asc" },
+      select: { id: true, status: true }
+    }),
+    prisma.auditEvent.count({
+      where: { entity_type: "ServiceRouteVersion", entity_id: { in: versionIds } }
+    })
+  ]);
+  return { currentVersionId: route.current_version_id, versions, auditCount };
+}
+
 async function main() {
   const database = new URL(config.databaseUrl).pathname.replace(/^\//, "");
   assert(database.endsWith("_ci") || database.startsWith("masari_route_"), "Route integration requires a disposable database");
@@ -67,6 +82,15 @@ async function main() {
   assert(demoRoute.current_version?.geometry_status === "available", "Exact demo geometry readiness was not preserved");
 
   const admin = await prisma.user.findFirstOrThrow({ where: { role: "admin", demo_account: true } });
+  const adminB = await prisma.user.create({
+    data: {
+      name: "Route Integration Admin B",
+      phone: "+970599999998",
+      password_hash: admin.password_hash,
+      role: "admin",
+      demo_account: true
+    }
+  });
   const service = createRouteManagementService(prisma);
   const identity = {
     routeKey: "integration-hebron-bethlehem",
@@ -181,6 +205,104 @@ async function main() {
     activeFrom: null,
     activeUntil: null
   };
+
+  const staleFenceRoute = await service.createRoute(
+    {
+      routeKey: "integration-stale-current-fence",
+      routeGroupKey: "integration-stale-current-fence",
+      serviceRegionKey: identity.serviceRegionKey,
+      direction: "outbound"
+    },
+    actor(admin.id, "stale-fence-route")
+  );
+  const staleFenceV1Draft = await service.createVersion(
+    staleFenceRoute.resource.id,
+    versionDraft,
+    actor(admin.id, "stale-fence-v1-create")
+  );
+  const staleFenceV1WithStops = await service.replaceStops(
+    staleFenceV1Draft.resource.id,
+    staleFenceV1Draft.resource.draft_revision,
+    [membership(createdStops[0].id, 1), membership(createdStops[2].id, 2)],
+    { id: admin.id, requestId: "stale-fence-v1-stops" }
+  );
+  const staleFenceV1 = (await service.publishVersion(
+    staleFenceV1Draft.resource.id,
+    { expectedRevision: staleFenceV1WithStops.draft_revision, expectedCurrentVersionId: null },
+    actor(admin.id, "stale-fence-v1-publish")
+  )).resource;
+  const adminAObservedPointer = (await prisma.serviceRoute.findUniqueOrThrow({
+    where: { id: staleFenceRoute.resource.id },
+    select: { current_version_id: true }
+  })).current_version_id;
+  assert(adminAObservedPointer === staleFenceV1.id, "Admin A did not observe V1 as current");
+
+  const staleFenceV2Draft = await service.createVersion(
+    staleFenceRoute.resource.id,
+    { ...versionDraft, cloneFromVersionId: staleFenceV1.id },
+    actor(admin.id, "stale-fence-v2-create")
+  );
+  const staleFenceV2 = (await service.publishVersion(
+    staleFenceV2Draft.resource.id,
+    { expectedRevision: staleFenceV2Draft.resource.draft_revision, expectedCurrentVersionId: staleFenceV1.id },
+    actor(adminB.id, "stale-fence-v2-publish")
+  )).resource;
+  const staleFenceVersionIds = [staleFenceV1.id, staleFenceV2.id];
+  const rejectStaleLifecycleWithoutWrites = async (label: string, action: () => Promise<unknown>) => {
+    const before = await lifecycleState(staleFenceRoute.resource.id, staleFenceVersionIds);
+    await expectFailure(action, "current_version_conflict");
+    const after = await lifecycleState(staleFenceRoute.resource.id, staleFenceVersionIds);
+    assert(JSON.stringify(after) === JSON.stringify(before), `${label} stale rejection changed lifecycle state or audit count`);
+  };
+
+  await rejectStaleLifecycleWithoutWrites("pause", () => service.pauseVersion(
+    staleFenceV1.id,
+    { reason: "stale_admin_a_pause", expectedCurrentVersionId: adminAObservedPointer },
+    actor(admin.id, "stale-fence-pause-rejected")
+  ));
+  await service.pauseVersion(
+    staleFenceV2.id,
+    { reason: "fresh_admin_a_pause", expectedCurrentVersionId: staleFenceV2.id },
+    actor(admin.id, "stale-fence-pause-fresh")
+  );
+
+  await rejectStaleLifecycleWithoutWrites("resume", () => service.resumeVersion(
+    staleFenceV1.id,
+    { expectedCurrentVersionId: adminAObservedPointer },
+    actor(admin.id, "stale-fence-resume-rejected")
+  ));
+  await service.resumeVersion(
+    staleFenceV2.id,
+    { expectedCurrentVersionId: staleFenceV2.id },
+    actor(admin.id, "stale-fence-resume-fresh")
+  );
+
+  await rejectStaleLifecycleWithoutWrites("retire", () => service.retireVersion(
+    staleFenceV1.id,
+    { reason: "stale_admin_a_retire", expectedCurrentVersionId: adminAObservedPointer },
+    actor(admin.id, "stale-fence-retire-rejected")
+  ));
+  await service.retireVersion(
+    staleFenceV1.id,
+    { reason: "fresh_admin_a_retire", expectedCurrentVersionId: staleFenceV2.id },
+    actor(admin.id, "stale-fence-retire-fresh")
+  );
+  await service.pauseVersion(
+    staleFenceV2.id,
+    { reason: "integration_cleanup", expectedCurrentVersionId: staleFenceV2.id },
+    actor(admin.id, "stale-fence-v2-pause-cleanup")
+  );
+  await service.retireVersion(
+    staleFenceV2.id,
+    { reason: "integration_cleanup", expectedCurrentVersionId: staleFenceV2.id },
+    actor(admin.id, "stale-fence-v2-retire-cleanup")
+  );
+  await service.retireRoute(
+    staleFenceRoute.resource.id,
+    { reason: "integration_cleanup", expectedCurrentVersionId: null },
+    actor(admin.id, "stale-fence-route-retire-cleanup")
+  );
+
   const versionResults = await Promise.all([
     service.createVersion(createdRoute.resource.id, versionDraft, actor(admin.id, "version-create-001")),
     service.createVersion(createdRoute.resource.id, versionDraft, actor(admin.id, "version-create-002"))

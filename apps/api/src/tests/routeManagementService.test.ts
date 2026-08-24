@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { HttpError } from "../middleware/error.js";
-import { createRouteManagementService } from "../services/routeManagement.js";
+import { assertExpectedCurrentVersion, createRouteManagementService } from "../services/routeManagement.js";
 
 const actor = { id: "admin_1", requestId: "request_1", idempotencyKey: "route-lifecycle-001" };
 
@@ -60,6 +60,12 @@ async function expectCurrentVersionConflict(action: (service: ReturnType<typeof 
 }
 
 describe("RouteManagementService lifecycle fences", () => {
+  it("rejects a stale observed current pointer and accepts an unchanged null pointer", () => {
+    expect(() => assertExpectedCurrentVersion("version_2", "version_1"))
+      .toThrowError(expect.objectContaining({ statusCode: 409, message: "current_version_conflict" }));
+    expect(() => assertExpectedCurrentVersion(null, null)).not.toThrow();
+  });
+
   it("rejects a stale current pointer before pausing a version", async () => {
     await expectCurrentVersionConflict((service) => service.pauseVersion(
       "version_current",
@@ -111,6 +117,46 @@ describe("RouteManagementService lifecycle fences", () => {
     expect(tx.serviceRouteVersion.update).toHaveBeenCalledOnce();
     expect(tx.auditEvent.create).toHaveBeenCalledOnce();
     expect(tx.idempotencyRecord.updateMany).toHaveBeenCalledOnce();
+  });
+
+  it("rejects route retirement unless the caller and locked route both have a null current pointer", async () => {
+    const tx = {
+      $queryRaw: vi.fn().mockResolvedValueOnce([{
+        id: "route_1",
+        status: "active",
+        current_version_id: "version_current"
+      }]),
+      idempotencyRecord: {
+        create: vi.fn().mockResolvedValue({ id: "claim_1", claim_version: 1 }),
+        updateMany: vi.fn(),
+        findUniqueOrThrow: vi.fn()
+      },
+      serviceRoute: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: "route_1",
+          status: "active",
+          current_version_id: "version_current",
+          versions: [{ status: "published" }]
+        }),
+        update: vi.fn()
+      },
+      driverRoute: { count: vi.fn() },
+      auditEvent: { create: vi.fn() }
+    };
+    const db = {
+      $transaction: async (operation: (transaction: typeof tx) => Promise<unknown>) => operation(tx),
+      serviceRoute: tx.serviceRoute
+    };
+    const service = createRouteManagementService(db as never);
+
+    await expect(service.retireRoute(
+      "route_1",
+      { reason: "stale route retirement", expectedCurrentVersionId: "version_current" } as never,
+      actor
+    )).rejects.toEqual(new HttpError(409, "current_version_conflict"));
+    expect(tx.serviceRoute.update).not.toHaveBeenCalled();
+    expect(tx.auditEvent.create).not.toHaveBeenCalled();
+    expect(tx.idempotencyRecord.updateMany).not.toHaveBeenCalled();
   });
 });
 
