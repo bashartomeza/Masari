@@ -103,7 +103,7 @@ async function main() {
   assert(await prisma.serviceRoute.count({ where: { status: "active" } }) === 5, "Concurrent route cap exceeded five active routes");
   const capRoutes = await prisma.serviceRoute.findMany({ where: { route_key: { startsWith: "integration-cap-" } } });
   for (const route of capRoutes) {
-    await service.retireRoute(route.id, "integration_cleanup", actor(admin.id, `retire-${route.route_key}`));
+    await service.retireRoute(route.id, { reason: "integration_cleanup", expectedCurrentVersionId: null }, actor(admin.id, `retire-${route.route_key}`));
   }
 
   const routeKeyRace = await Promise.allSettled([0, 1].map((index) => service.createRoute(
@@ -117,7 +117,7 @@ async function main() {
   )));
   assert(routeKeyRace.filter((result) => result.status === "fulfilled").length === 1, "Route-key race did not have exactly one winner");
   const routeKeyWinner = await prisma.serviceRoute.findUniqueOrThrow({ where: { route_key: "integration-route-key-race" } });
-  await service.retireRoute(routeKeyWinner.id, "integration_cleanup", actor(admin.id, "retire-route-key-race"));
+  await service.retireRoute(routeKeyWinner.id, { reason: "integration_cleanup", expectedCurrentVersionId: null }, actor(admin.id, "retire-route-key-race"));
 
   const stopKeyRace = await Promise.allSettled([0, 1].map((index) => service.createStop(
     {
@@ -351,7 +351,7 @@ async function main() {
     where: { id: pointerProbeRoute.resource.id },
     data: { current_version_id: clones[0].resource.id }
   }));
-  await service.retireRoute(pointerProbeRoute.resource.id, "integration_cleanup", actor(admin.id, "retire-pointer-probe"));
+  await service.retireRoute(pointerProbeRoute.resource.id, { reason: "integration_cleanup", expectedCurrentVersionId: null }, actor(admin.id, "retire-pointer-probe"));
 
   await expectFailure(
     () => service.updateDraft(currentVersionId, { ...versionDraft, expectedRevision: currentVersion.draft_revision }, { id: admin.id, requestId: "published-edit" }),
@@ -361,8 +361,8 @@ async function main() {
   await expectFailure(() => prisma.stop.delete({ where: { id: createdStops[0].id } }));
 
   const concurrentLifecycle = await Promise.allSettled([
-    service.pauseVersion(currentVersionId, "integration_concurrent_pause", actor(admin.id, "pause-concurrent")),
-    service.resumeVersion(currentVersionId, actor(admin.id, "resume-concurrent"))
+    service.pauseVersion(currentVersionId, { reason: "integration_concurrent_pause", expectedCurrentVersionId: currentVersionId }, actor(admin.id, "pause-concurrent")),
+    service.resumeVersion(currentVersionId, { expectedCurrentVersionId: currentVersionId }, actor(admin.id, "resume-concurrent"))
   ]);
   assert(concurrentLifecycle.some((result) => result.status === "fulfilled"), "Concurrent pause/resume produced no committed transition");
   const afterConcurrentLifecycle = await service.getAdminVersion(currentVersionId);
@@ -372,18 +372,18 @@ async function main() {
     "Concurrent pause/resume left contradictory lifecycle metadata"
   );
   if (afterConcurrentLifecycle.status === "paused") {
-    await service.resumeVersion(currentVersionId, actor(admin.id, "resume-after-concurrent"));
+    await service.resumeVersion(currentVersionId, { expectedCurrentVersionId: currentVersionId }, actor(admin.id, "resume-after-concurrent"));
   }
 
-  await service.pauseVersion(currentVersionId, "integration_pause", actor(admin.id, "pause-current"));
+  await service.pauseVersion(currentVersionId, { reason: "integration_pause", expectedCurrentVersionId: currentVersionId }, actor(admin.id, "pause-current"));
   const pausedCatalog = await service.listPublishedRoutes(1, 50);
   assert(pausedCatalog.routes.some((route) => route.id === createdRoute.resource.id), "Paused current route disappeared from safe catalog");
-  await service.resumeVersion(currentVersionId, actor(admin.id, "resume-current"));
-  await service.pauseVersion(currentVersionId, "integration_retire", actor(admin.id, "pause-before-retire"));
-  await service.retireVersion(currentVersionId, "integration_retire", actor(admin.id, "retire-current"));
-  await expectFailure(() => service.resumeVersion(currentVersionId, actor(admin.id, "resume-retired")), "route_version_not_resumable");
+  await service.resumeVersion(currentVersionId, { expectedCurrentVersionId: currentVersionId }, actor(admin.id, "resume-current"));
+  await service.pauseVersion(currentVersionId, { reason: "integration_retire", expectedCurrentVersionId: currentVersionId }, actor(admin.id, "pause-before-retire"));
+  await service.retireVersion(currentVersionId, { reason: "integration_retire", expectedCurrentVersionId: currentVersionId }, actor(admin.id, "retire-current"));
+  await expectFailure(() => service.resumeVersion(currentVersionId, { expectedCurrentVersionId: currentVersionId }, actor(admin.id, "resume-retired")), "current_version_conflict");
   await expectFailure(
-    () => service.retireRoute(createdRoute.resource.id, "too_early", actor(admin.id, "retire-route-early")),
+    () => service.retireRoute(createdRoute.resource.id, { reason: "too_early", expectedCurrentVersionId: null }, actor(admin.id, "retire-route-early")),
     "service_route_versions_not_retired"
   );
   await service.retireStop(createdStops[0].id, "integration_retired_source", actor(admin.id, "retire-clone-source-stop"));
@@ -420,10 +420,10 @@ async function main() {
   const allVersions = await prisma.serviceRouteVersion.findMany({ where: { service_route_id: createdRoute.resource.id } });
   for (const version of allVersions) {
     if (version.status !== "retired") {
-      await service.retireVersion(version.id, "integration_cleanup", actor(admin.id, `retire-${version.version_number}`));
+      await service.retireVersion(version.id, { reason: "integration_cleanup", expectedCurrentVersionId: null }, actor(admin.id, `retire-${version.version_number}`));
     }
   }
-  await service.retireRoute(createdRoute.resource.id, "integration_cleanup", actor(admin.id, "retire-route-final"));
+  await service.retireRoute(createdRoute.resource.id, { reason: "integration_cleanup", expectedCurrentVersionId: null }, actor(admin.id, "retire-route-final"));
 
   const routeAudits = await prisma.auditEvent.findMany({
     where: { action: { in: [
