@@ -1,15 +1,17 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import adminPackage from "../../../package.json";
 import type { RouteStopDraft, ServiceRouteVersion } from "../../api";
 import {
   RouteManagement,
   ADMIN_ROUTE_RESPONSIVE_BREAKPOINT,
+  handleRouteMutationFailure,
   lifecycleActions,
   mutationFailureIsAuthoritative,
   mutationFingerprint,
   moveRouteStop,
   routeCatalogView,
+  routeConflictRequiresReload,
   routeUiText,
   routeUiError,
   reorderControlLabel,
@@ -127,6 +129,32 @@ describe("admin route management", () => {
     expect(routeUiError("ar", new Error("internal_database_detail"))).toBe(routeUiText("ar").genericError);
     expect(routeUiError("en", new Error("route_version_not_pausable"))).toBe(routeUiText("en").genericError);
     expect(routeUiError("en", new Error("route_version_not_pausable"))).not.toContain("route_version_not_pausable");
+  });
+
+  it("reloads authoritative route state for every conflict and returns bounded localized feedback", async () => {
+    const reload = vi.fn().mockResolvedValue(undefined);
+    const message = await handleRouteMutationFailure(
+      Object.assign(new Error("current_version_conflict"), { status: 409 }),
+      reload,
+      "en"
+    );
+
+    expect(routeConflictRequiresReload(Object.assign(new Error("idempotency_in_progress"), { status: 409 }))).toBe(true);
+    expect(reload).toHaveBeenCalledOnce();
+    expect(message).toContain("reload");
+  });
+
+  it("does not reload non-conflicts or expose unknown internal failure text", async () => {
+    const reload = vi.fn().mockResolvedValue(undefined);
+    const message = await handleRouteMutationFailure(
+      Object.assign(new Error("internal_database_detail"), { status: 500 }),
+      reload,
+      "en"
+    );
+
+    expect(reload).not.toHaveBeenCalled();
+    expect(message).toBe(routeUiText("en").genericError);
+    expect(message).not.toContain("internal_database_detail");
   });
 
   it("has no map dependency or demo-control leakage and retains accessible responsive controls", () => {
