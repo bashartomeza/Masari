@@ -6,6 +6,7 @@ import { DEMO_ROUTE_POINTS } from "../lib/geo.js";
 import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
 import { HttpError } from "../middleware/error.js";
 import { AuditAction, MatchStatus, TripStatus } from "../generated/prisma/enums.js";
+import { advanceLegacyTrip, isLegacyTripTransitionAllowed } from "../services/tripLifecycle.js";
 
 export const tripsRouter = Router();
 export const trackingSimulationRouter = Router();
@@ -16,19 +17,6 @@ const statusSchema = z.object({ status: z.enum(["pickup_started", "picked_up", "
 function routeParam(value: string | string[] | undefined) {
   if (typeof value !== "string") throw new HttpError(400, "invalid_route_param");
   return value;
-}
-
-function nextStatusAllowed(current: string, next: string) {
-  const transitions: Record<string, string[]> = {
-    accepted: ["pickup_started", "cancelled"],
-    pickup_started: ["picked_up", "cancelled"],
-    picked_up: ["in_transit", "cancelled"],
-    in_transit: ["delivered", "cancelled"],
-    delivered: ["completed"],
-    completed: [],
-    cancelled: []
-  };
-  return transitions[current]?.includes(next) ?? false;
 }
 
 async function getVisibleTrip(id: string, req: AuthenticatedRequest) {
@@ -181,51 +169,13 @@ tripsRouter.post("/trips/:id/status", requireAuth, async (req: AuthenticatedRequ
     if (req.user!.role !== "admin" && (req.user!.role !== "driver" || existing.driver_route.driver.user_id !== req.user!.id)) {
       throw new HttpError(403, "forbidden");
     }
-    if (!nextStatusAllowed(existing.status, input.status)) throw new HttpError(409, "invalid_trip_status_transition");
+    if (!isLegacyTripTransitionAllowed(existing.status, input.status)) throw new HttpError(409, "invalid_trip_status_transition");
 
     const trip = await prisma.$transaction(async (tx) => {
-      const updated = await tx.trip.update({
-        where: { id: tripId },
-        data: { status: input.status, completed_at: input.status === TripStatus.completed ? new Date() : undefined }
+      return advanceLegacyTrip(tx, existing, input.status, {
+        actorId: req.user!.id,
+        expectedStatus: existing.status,
       });
-
-      if (input.status === TripStatus.pickup_started) {
-        await tx.driverRoute.update({ where: { id: existing.driver_route_id }, data: { status: "on_trip" } });
-      }
-      if (input.status === TripStatus.picked_up) {
-        if (existing.passenger_request_id) await tx.passengerRequest.update({ where: { id: existing.passenger_request_id }, data: { status: "picked_up" } });
-        if (existing.parcel_batch_id) await tx.parcelBatch.update({ where: { id: existing.parcel_batch_id }, data: { status: "picked_up" } });
-        if (existing.merchant_order_id) await tx.parcel.updateMany({ where: { order_id: existing.merchant_order_id }, data: { status: "picked_up" } });
-      }
-      if (input.status === TripStatus.in_transit) {
-        if (existing.passenger_request_id) await tx.passengerRequest.update({ where: { id: existing.passenger_request_id }, data: { status: "in_transit" } });
-        if (existing.merchant_order_id) await tx.merchantOrder.update({ where: { id: existing.merchant_order_id }, data: { status: "in_transit" } });
-        if (existing.parcel_batch_id) await tx.parcelBatch.update({ where: { id: existing.parcel_batch_id }, data: { status: "in_transit" } });
-        if (existing.merchant_order_id) await tx.parcel.updateMany({ where: { order_id: existing.merchant_order_id }, data: { status: "in_transit" } });
-      }
-      if (input.status === TripStatus.delivered) {
-        if (existing.passenger_request_id) await tx.passengerRequest.update({ where: { id: existing.passenger_request_id }, data: { status: "delivered" } });
-        if (existing.parcel_batch_id) await tx.parcelBatch.update({ where: { id: existing.parcel_batch_id }, data: { status: "delivered" } });
-        if (existing.merchant_order_id) {
-          await tx.parcel.updateMany({ where: { order_id: existing.merchant_order_id }, data: { status: "delivered" } });
-          await tx.merchantOrder.update({ where: { id: existing.merchant_order_id }, data: { status: "completed" } });
-        }
-      }
-      if (input.status === TripStatus.completed) {
-        await tx.driverRoute.update({ where: { id: existing.driver_route_id }, data: { status: "completed", completed_at: new Date() } });
-      }
-
-      await tx.auditEvent.create({
-        data: {
-          user_id: req.user!.id,
-          action: AuditAction.trip_status_updated,
-          entity_type: "Trip",
-          entity_id: tripId,
-          metadata: { from: existing.status, to: input.status }
-        }
-      });
-
-      return updated;
     });
 
     res.json({ trip });

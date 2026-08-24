@@ -91,4 +91,28 @@ describe("Admin driver verification API client", () => {
     ).rejects.toThrow("Expected account status is required");
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  it("uses the dedicated bounded Admin trip APIs and sends the visible status snapshot", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(response({ trips: [], page: 2, limit: 25, total: 0 }))
+      .mockResolvedValueOnce(response({ trip: { id: "trip/1", status: "accepted" } }))
+      .mockResolvedValueOnce(response({ trip: { id: "trip/1", status: "pickup_started" } }));
+    vi.stubGlobal("fetch", fetchMock);
+    const api = createApiClient("http://api.test");
+
+    await api.adminTrips("admin-token", "accepted", "legacy", 2, 25, "QA driver");
+    await api.adminTrip("admin-token", "trip/1");
+    await api.advanceAdminTrip("admin-token", "trip/1", "pickup_started", "accepted");
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "http://api.test/api/v1/admin/trips?page=2&limit=25&search=QA+driver&status=accepted&kind=legacy",
+      expect.objectContaining({ headers: expect.objectContaining({ Authorization: "Bearer admin-token" }) }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(2, "http://api.test/api/v1/admin/trips/trip%2F1", expect.objectContaining({ method: "GET" }));
+    expect(fetchMock).toHaveBeenNthCalledWith(3, "http://api.test/api/v1/admin/trips/trip%2F1/status", expect.objectContaining({
+      method: "POST",
+      body: JSON.stringify({ status: "pickup_started", expected_status: "accepted" }),
+    }));
+  });
 });

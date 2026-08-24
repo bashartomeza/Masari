@@ -46,6 +46,7 @@ import { createRoutePreviewService, type RoutePreviewService } from "./maps/prev
 import { createRoutePreviewRouter } from "./modules/routePreview.js";
 import { createAdminConsentRouter } from "./modules/adminConsents.js";
 import type { ConsentReleaseService } from "./services/consentReleases.js";
+import { adminTripsRouter } from "./modules/adminTrips.js";
 
 export const HTTP_JSON_LIMIT = "64kb";
 export const CONSENT_RELEASE_JSON_LIMIT = "256kb";
@@ -154,6 +155,7 @@ export function createApp(
   });
   app.use("/api/v1", createRoutePreviewRouter(appConfig, routePreviewService));
   app.use("/api/v1", createAdminConsentRouter(dependencies.consentReleaseService));
+  app.use("/api/v1", adminTripsRouter);
   app.use("/api/v1", adminRouter);
 
   app.use(notFoundHandler);
