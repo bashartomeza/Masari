@@ -109,8 +109,18 @@ export function RouteActionMenu({
       setMenuOpen(false);
       triggerRef.current?.focus();
     };
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (triggerRef.current?.contains(target) || menuRef.current?.contains(target)) return;
+      setMenuOpen(false);
+    };
     document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("pointerdown", onPointerDown);
+    };
   }, [menuOpen]);
 
   useEffect(() => {

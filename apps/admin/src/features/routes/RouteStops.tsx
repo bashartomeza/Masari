@@ -192,6 +192,10 @@ export function RouteStops({
 
   function openDialog(nextDialog: Exclude<StopDialogMode, null>, stopId?: string) {
     setStopToAdd("");
+    if (nextDialog === "create-stop") {
+      setCreateDraft(emptyStop());
+      setCreateCoordinatesInvalid(false);
+    }
     onOpenDialog(nextDialog, stopId);
   }
 

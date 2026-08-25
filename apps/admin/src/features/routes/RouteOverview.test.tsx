@@ -413,6 +413,32 @@ describe("RouteActionMenu", () => {
     expect(document.activeElement).toBe(trigger);
   });
 
+  it("closes the menu on pointer interaction outside the trigger and menu", () => {
+    const menuHost = mount(
+      <RouteActionMenu
+        locale="en"
+        routeStatus="active"
+        version={version}
+        actions={["publish", "retire"]}
+        readinessIssues={[]}
+        dialogOpen={false}
+        onOpenDialog={vi.fn()}
+        onCloseDialog={vi.fn()}
+        {...callbacks()}
+      />
+    );
+    clickButton(menuHost, "Route actions");
+    const menu = menuHost.querySelector<HTMLElement>('[role="menu"]')!;
+    expect(menu.hidden).toBe(false);
+
+    act(() => menu.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })));
+    expect(menu.hidden).toBe(false);
+
+    act(() => document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })));
+
+    expect(menu.hidden).toBe(true);
+  });
+
   it("returns focus to the action trigger after dismissing confirmation", () => {
     const menuHost = mount(
       <RouteActionMenu

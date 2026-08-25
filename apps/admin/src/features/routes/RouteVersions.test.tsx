@@ -180,6 +180,38 @@ describe("RouteVersions", () => {
     root.unmount();
   });
 
+  it("discards an unfinished create draft whenever the create form closes", async () => {
+    host = document.createElement("div");
+    document.body.append(host);
+    const root = createRoot(host);
+    const createButton = () => [...host!.querySelectorAll<HTMLButtonElement>("button")]
+      .find((button) => button.textContent?.trim() === "Create version")!;
+    const cancelButton = () => [...host!.querySelectorAll<HTMLButtonElement>("button")]
+      .find((button) => button.textContent?.trim() === "Cancel")!;
+    const enterName = (value: string) => {
+      const input = host!.querySelector<HTMLInputElement>('.route-version-create input[name="name_en"]')!;
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+      act(() => {
+        setter.call(input, value);
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+    };
+
+    await act(async () => { root.render(renderVersions()); });
+    act(() => createButton().click());
+    enterName("Discard on cancel");
+    act(() => cancelButton().click());
+    act(() => createButton().click());
+    expect(host.querySelector<HTMLInputElement>('.route-version-create input[name="name_en"]')?.value).toBe("");
+
+    enterName("Discard on version change");
+    await act(async () => { root.render(renderVersions({ selectedVersion: versions[1] })); });
+    expect(host.querySelector(".route-version-create")).toBeNull();
+    act(() => createButton().click());
+    expect(host.querySelector<HTMLInputElement>('.route-version-create input[name="name_en"]')?.value).toBe("");
+    root.unmount();
+  });
+
   it("keeps a draft read-only until explicit Edit draft, then exposes six fields plus explicit Save changes and Cancel", () => {
     const readOnly = renderToStaticMarkup(renderVersions());
     const editing = renderToStaticMarkup(renderVersions({ editing: true }));

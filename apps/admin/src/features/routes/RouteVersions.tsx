@@ -74,6 +74,17 @@ function historyText(template: string, shown: number, total: number) {
   return template.replace("{shown}", String(shown)).replace("{total}", String(total));
 }
 
+function emptyCreateDraft(): RouteVersionDraft {
+  return {
+    name_ar: "",
+    name_en: "",
+    description_ar: "",
+    description_en: "",
+    active_from: "",
+    active_until: ""
+  };
+}
+
 export function RouteVersions({
   locale,
   route,
@@ -91,17 +102,15 @@ export function RouteVersions({
   const versions = route.versions ?? [];
   const truncated = route.version_count > versions.length;
   const [creating, setCreating] = useState(false);
-  const [createDraft, setCreateDraft] = useState<RouteVersionDraft>({
-    name_ar: "",
-    name_en: "",
-    description_ar: "",
-    description_en: "",
-    active_from: "",
-    active_until: ""
-  });
+  const [createDraft, setCreateDraft] = useState<RouteVersionDraft>(emptyCreateDraft);
+
+  function closeCreate() {
+    setCreating(false);
+    setCreateDraft(emptyCreateDraft());
+  }
 
   useEffect(() => {
-    setCreating(false);
+    closeCreate();
   }, [selectedVersion?.id]);
 
   function submitCreate(event: FormEvent) {
@@ -121,7 +130,7 @@ export function RouteVersions({
         <label className="field">{text.activeFrom}<input name="active_from" type="datetime-local" value={createDraft.active_from ?? ""} onChange={(event) => setCreateDraft({ ...createDraft, active_from: event.target.value })} disabled={busy} /></label>
         <label className="field">{text.activeUntil}<input name="active_until" type="datetime-local" value={createDraft.active_until ?? ""} onChange={(event) => setCreateDraft({ ...createDraft, active_until: event.target.value })} disabled={busy} /></label>
         <div className="button-row">
-          <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => setCreating(false)}>{text.cancel}</Button>
+          <Button type="button" variant="outline" size="sm" disabled={busy} onClick={closeCreate}>{text.cancel}</Button>
           <Button type="submit" size="sm" disabled={busy}>{text.createDraft}</Button>
         </div>
       </form>

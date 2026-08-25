@@ -339,6 +339,38 @@ describe("RouteStops", () => {
     root.unmount();
   });
 
+  it("reopens create-stop with a blank draft and no stale coordinate error", async () => {
+    function Harness() {
+      const [dialog, setDialog] = useState<StopDialogMode>(null);
+      return renderStops({
+        dialog,
+        onOpenDialog: (nextDialog) => setDialog(nextDialog),
+        onCloseDialog: () => setDialog(null)
+      });
+    }
+
+    mountedHost = document.createElement("div");
+    document.body.append(mountedHost);
+    const root = createRoot(mountedHost);
+    await act(async () => { root.render(<Harness />); });
+
+    act(() => buttonNamed(mountedHost!, "Create new stop").click());
+    enterValue(mountedHost.querySelector<HTMLInputElement>('input[name="name_en"]')!, "Discard me");
+    const form = mountedHost.querySelector<HTMLFormElement>('[role="dialog"] form')!;
+    await act(async () => {
+      form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      await Promise.resolve();
+    });
+    expect(form.textContent).toContain("Enter valid latitude (-90 to 90) and longitude (-180 to 180).");
+
+    act(() => buttonNamed(form, "Cancel").click());
+    act(() => buttonNamed(mountedHost!, "Create new stop").click());
+    const reopened = mountedHost.querySelector<HTMLFormElement>('[role="dialog"] form')!;
+    expect([...reopened.querySelectorAll<HTMLInputElement>("input")].map((input) => input.value)).toEqual(["", "", "", "", "", ""]);
+    expect(reopened.textContent).not.toContain("Enter valid latitude (-90 to 90) and longitude (-180 to 180).");
+    root.unmount();
+  });
+
   it.each([
     { field: "latitude", value: "", label: "blank latitude" },
     { field: "longitude", value: "", label: "blank longitude" },

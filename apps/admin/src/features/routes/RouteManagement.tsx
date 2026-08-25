@@ -803,8 +803,8 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
       settleMutation(mutation.fingerprint);
       setSelectedRoute(null);
       selectVersion(null);
-      if (!await loadCatalog(page)) return;
       dispatch({ type: "back-to-directory" });
+      if (!await loadCatalog(page)) return;
       dispatch({ type: "feedback", scope: "page", kind: "success", text: text.saved });
     } catch (error) {
       settleMutation(mutation.fingerprint, error);

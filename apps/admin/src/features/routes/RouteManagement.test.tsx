@@ -919,6 +919,31 @@ describe("admin route management", () => {
     expect(host.querySelectorAll(".notice")).toHaveLength(1);
   });
 
+  it("returns to the directory error surface when post-retirement catalog reload fails", async () => {
+    const published = {
+      ...readyVersion,
+      id: "version_retire_reload_failure",
+      service_route_id: "route_retire_reload_failure",
+      status: "published" as const
+    };
+    const route = routeFixture({ id: published.service_route_id, versions: [published], currentVersion: published });
+    const serviceRoutes = vi.fn()
+      .mockResolvedValueOnce({ routes: [route], page: 1, limit: 25, total: 1 })
+      .mockRejectedValueOnce(new Error("catalog_reload_failed"));
+    const retireServiceRoute = vi.fn().mockResolvedValue({ route: { ...route, status: "retired" as const } });
+    const host = await mountManagement(routeApi(route, { serviceRoutes, retireServiceRoute }));
+    await openOnlyRoute(host);
+
+    await confirmLifecycleAction(host, "Retire route", "Service withdrawn");
+
+    expect(retireServiceRoute).toHaveBeenCalledOnce();
+    expect(host.querySelector(".route-directory")).not.toBeNull();
+    expect(host.querySelector(".route-directory__results")?.textContent).toContain("The route catalog could not be loaded.");
+    expect(host.querySelector('[data-selected-route-id="route_retire_reload_failure"]')).toBeNull();
+    expect(host.textContent).not.toContain("Saved successfully.");
+    expect(host.textContent).not.toContain("catalog_reload_failed");
+  });
+
   it("shows a create-draft reload failure beside the Versions workspace instead of page-wide", async () => {
     const initialRoute: ServiceRoute = {
       id: "route_create_reload",
