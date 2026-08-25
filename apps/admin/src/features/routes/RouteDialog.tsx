@@ -1,6 +1,22 @@
 import { useEffect, useId, useRef, type MouseEvent, type ReactNode } from "react";
 import { translations } from "../../i18n/translations";
 
+const focusableSelector = "button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex='-1'])";
+
+function focusableElements(dialog: HTMLElement) {
+  return [...dialog.querySelectorAll<HTMLElement>(focusableSelector)];
+}
+
+function autofocusElement(dialog: HTMLElement) {
+  const currentFocus = document.activeElement;
+  if (currentFocus instanceof HTMLElement && dialog.contains(currentFocus) && focusableElements(dialog).includes(currentFocus)) {
+    return currentFocus;
+  }
+  return focusableElements(dialog).find((element) =>
+    element.hasAttribute("autofocus") || ("autofocus" in element && Boolean((element as HTMLInputElement).autofocus))
+  );
+}
+
 export type RouteDialogProps = {
   open: boolean;
   title: string;
@@ -34,18 +50,36 @@ export function RouteDialog({
     if (!open || typeof document === "undefined") return;
 
     const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const focusTarget = dialogRef.current?.querySelector<HTMLElement>(
-      "[autofocus], button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex='-1'])"
-    );
-    focusTarget?.focus();
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    (autofocusElement(dialog) ?? focusableElements(dialog)[0] ?? dialog).focus();
 
-    const closeOnEscape = (event: KeyboardEvent) => {
+    const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape" && !busy) onClose();
+      if (event.key !== "Tab") return;
+
+      const controls = focusableElements(dialog);
+      if (controls.length === 0) {
+        event.preventDefault();
+        dialog.focus();
+        return;
+      }
+
+      const first = controls[0];
+      const last = controls.at(-1)!;
+      const active = document.activeElement;
+      if (event.shiftKey && (active === first || active === dialog)) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (active === last || active === dialog || !dialog.contains(active))) {
+        event.preventDefault();
+        first.focus();
+      }
     };
-    document.addEventListener("keydown", closeOnEscape);
+    document.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      document.removeEventListener("keydown", closeOnEscape);
+      document.removeEventListener("keydown", handleKeyDown);
       if (previouslyFocused?.isConnected) previouslyFocused.focus();
     };
   }, [busy, onClose, open]);
@@ -66,13 +100,14 @@ export function RouteDialog({
         aria-labelledby={titleId}
         aria-describedby={description ? descriptionId : undefined}
         dir={dir}
+        tabIndex={-1}
       >
         <header className="route-dialog__header">
           <div>
             <h2 id={titleId}>{title}</h2>
             {description && <p id={descriptionId} className="muted">{description}</p>}
           </div>
-          <button type="button" className="route-dialog__close" aria-label={closeLabel} disabled={busy} onClick={onClose}>
+          <button type="button" className="route-dialog__close" aria-label={closeLabel} disabled={busy} onClick={() => { if (!busy) onClose(); }}>
             {closeLabel}
           </button>
         </header>
