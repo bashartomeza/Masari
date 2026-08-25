@@ -696,7 +696,7 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
         type: "feedback",
         scope: "stops",
         kind: "error",
-        text: await handleRouteMutationFailure(error, () => loadRoute(selectedVersion.service_route_id, true), locale, "stops")
+        text: await handleRouteMutationFailure(error, () => loadRoute(selectedVersion.service_route_id, true, false), locale, "stops")
       });
     } finally {
       endBusy();
@@ -716,7 +716,10 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
         mutation.key
       );
       settleMutation(mutation.fingerprint);
-      if (!await loadRoute(selectedRoute.id, true)) return;
+      if (!await loadRoute(selectedRoute.id, true, false)) {
+        dispatch({ type: "feedback", scope: "lifecycle", kind: "error", text: text.reloadFailed });
+        return;
+      }
       selectVersion(response.version);
       dispatch({ type: "feedback", scope: "page", kind: "success", text: text.saved });
     } catch (error) {
@@ -725,7 +728,7 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
         type: "feedback",
         scope: "lifecycle",
         kind: "error",
-        text: await handleRouteMutationFailure(error, () => loadRoute(selectedRoute.id, true), locale, "lifecycle")
+        text: await handleRouteMutationFailure(error, () => loadRoute(selectedRoute.id, true, false), locale, "lifecycle")
       });
     } finally {
       endBusy();
@@ -761,7 +764,10 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
             mutation.key
           );
       settleMutation(mutation.fingerprint);
-      if (!await loadRoute(selectedRoute.id, true)) return;
+      if (!await loadRoute(selectedRoute.id, true, false)) {
+        dispatch({ type: "feedback", scope: "lifecycle", kind: "error", text: text.reloadFailed });
+        return;
+      }
       selectVersion(response.version);
       dispatch({ type: "feedback", scope: "page", kind: "success", text: text.saved });
     } catch (error) {
@@ -770,7 +776,7 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
         type: "feedback",
         scope: "lifecycle",
         kind: "error",
-        text: await handleRouteMutationFailure(error, () => loadRoute(selectedRoute.id, true), locale, "lifecycle")
+        text: await handleRouteMutationFailure(error, () => loadRoute(selectedRoute.id, true, false), locale, "lifecycle")
       });
     } finally {
       endBusy();

@@ -13,15 +13,29 @@ export type StopEditorProps = {
   onSave: (id: string, draft: CanonicalStopDraft) => void | boolean | Promise<void | boolean>;
 };
 
-function draftFromStop(stop: CanonicalStop): CanonicalStopDraft {
+type StopEditorDraft = Omit<CanonicalStopDraft, "latitude" | "longitude"> & {
+  latitude: string;
+  longitude: string;
+};
+
+function draftFromStop(stop: CanonicalStop): StopEditorDraft {
   return {
     stop_key: stop.stop_key,
     service_region_key: stop.service_region_key,
     name_ar: stop.name_ar,
     name_en: stop.name_en,
-    latitude: stop.latitude,
-    longitude: stop.longitude
+    latitude: String(stop.latitude),
+    longitude: String(stop.longitude)
   };
+}
+
+function parsedDraft(draft: StopEditorDraft): CanonicalStopDraft | null {
+  if (!draft.latitude.trim() || !draft.longitude.trim()) return null;
+  const latitude = Number(draft.latitude);
+  const longitude = Number(draft.longitude);
+  if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) return null;
+  if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) return null;
+  return { ...draft, latitude, longitude };
 }
 
 export function StopEditor({ stop, used, busy, locale, onSave }: StopEditorProps) {
@@ -42,7 +56,9 @@ export function StopEditor({ stop, used, busy, locale, onSave }: StopEditorProps
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    await onSave(stop.id, draft);
+    const validatedDraft = parsedDraft(draft);
+    if (!validatedDraft) return;
+    await onSave(stop.id, validatedDraft);
   }
 
   return <form className="field-grid stop-editor-form" onSubmit={(event) => void submit(event)}>
@@ -51,8 +67,8 @@ export function StopEditor({ stop, used, busy, locale, onSave }: StopEditorProps
     <label className="field">{text.routeRegion}<input className="technical-value" name="service_region_key" dir="ltr" required disabled={busy} value={draft.service_region_key} onChange={(event) => setDraft({ ...draft, service_region_key: event.target.value })} /></label>
     <label className="field">{text.routeNameAr}<input name="name_ar" dir="rtl" required disabled={busy} value={draft.name_ar} onChange={(event) => setDraft({ ...draft, name_ar: event.target.value })} /></label>
     <label className="field">{text.routeNameEn}<input name="name_en" dir="ltr" required disabled={busy} value={draft.name_en} onChange={(event) => setDraft({ ...draft, name_en: event.target.value })} /></label>
-    <label className="field">{text.latitude}<input className="technical-value" name="latitude" type="number" min="-90" max="90" step="0.000001" dir="ltr" required disabled={busy} value={draft.latitude} onChange={(event) => setDraft({ ...draft, latitude: Number(event.target.value) })} /></label>
-    <label className="field">{text.longitude}<input className="technical-value" name="longitude" type="number" min="-180" max="180" step="0.000001" dir="ltr" required disabled={busy} value={draft.longitude} onChange={(event) => setDraft({ ...draft, longitude: Number(event.target.value) })} /></label>
+    <label className="field">{text.latitude}<input className="technical-value" name="latitude" type="number" min="-90" max="90" step="0.000001" dir="ltr" required disabled={busy} value={draft.latitude} onChange={(event) => setDraft({ ...draft, latitude: event.target.value })} /></label>
+    <label className="field">{text.longitude}<input className="technical-value" name="longitude" type="number" min="-180" max="180" step="0.000001" dir="ltr" required disabled={busy} value={draft.longitude} onChange={(event) => setDraft({ ...draft, longitude: event.target.value })} /></label>
     <div className="button-row">
       <Button type="submit" size="sm" disabled={busy}>{text.routeSaveStopEdit}</Button>
     </div>

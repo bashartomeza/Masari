@@ -926,6 +926,107 @@ describe("admin route management", () => {
     root.unmount();
   });
 
+  it("keeps a stop-order conflict reload failure in the Stops workspace", async () => {
+    const draft = {
+      ...readyVersion,
+      id: "version_stop_reload_failure",
+      service_route_id: "route_stop_reload_failure",
+      draft_revision: 5
+    };
+    const route = routeFixture({ id: draft.service_route_id, versions: [draft] });
+    const serviceRoute = vi.fn()
+      .mockResolvedValueOnce({ route })
+      .mockRejectedValueOnce(new Error("route_reload_failed"));
+    const replaceRouteStops = vi.fn()
+      .mockRejectedValue(Object.assign(new Error("draft_revision_conflict"), { status: 409 }));
+    const host = await mountManagement(routeApi(route, { serviceRoute, replaceRouteStops }));
+    await openOnlyRoute(host);
+    selectWorkspaceTab(host, "Stops");
+
+    await act(async () => {
+      buttonNamed(host, "Save order").click();
+      await Promise.resolve();
+    });
+    await settleUi();
+
+    expect(replaceRouteStops).toHaveBeenCalledWith("token", draft.id, {
+      expected_revision: 5,
+      stops: expect.any(Array)
+    });
+    expect(serviceRoute).toHaveBeenCalledTimes(2);
+    expect(host.querySelector(".route-stops__order .notice--error")?.textContent).toBe(routeUiText("en").reloadFailed);
+    expect(host.querySelectorAll(".notice--error")).toHaveLength(1);
+    expect(host.querySelector("section.stack > .notice")).toBeNull();
+  });
+
+  it.each(["success", "conflict"] as const)(
+    "keeps a clone %s reload failure in lifecycle feedback",
+    async (outcome) => {
+      const published = {
+        ...readyVersion,
+        id: `version_clone_reload_${outcome}`,
+        service_route_id: `route_clone_reload_${outcome}`,
+        status: "published" as const
+      };
+      const route = routeFixture({ id: published.service_route_id, versions: [published], currentVersion: published });
+      const serviceRoute = vi.fn()
+        .mockResolvedValueOnce({ route })
+        .mockRejectedValueOnce(new Error("route_reload_failed"));
+      const createRouteVersion = outcome === "success"
+        ? vi.fn().mockResolvedValue({ version: { ...published, id: `cloned_${outcome}`, status: "draft" as const } })
+        : vi.fn().mockRejectedValue(Object.assign(new Error("draft_revision_conflict"), { status: 409 }));
+      const host = await mountManagement(routeApi(route, { serviceRoute, createRouteVersion }));
+      await openOnlyRoute(host);
+
+      await confirmLifecycleAction(host, "Create new draft version");
+
+      expect(createRouteVersion).toHaveBeenCalledWith(
+        "token",
+        route.id,
+        { clone_from_version_id: published.id },
+        expect.any(String)
+      );
+      expect(serviceRoute).toHaveBeenCalledTimes(2);
+      expect(host.querySelector(".route-overview__section .notice--error")?.textContent).toBe(routeUiText("en").reloadFailed);
+      expect(host.querySelectorAll(".notice--error")).toHaveLength(1);
+      expect(host.querySelector("section.stack > .notice")).toBeNull();
+    }
+  );
+
+  it.each(["success", "conflict"] as const)(
+    "keeps a publish %s reload failure in lifecycle feedback",
+    async (outcome) => {
+      const draft = {
+        ...readyVersion,
+        id: `version_publish_reload_${outcome}`,
+        service_route_id: `route_publish_reload_${outcome}`,
+        draft_revision: 6
+      };
+      const route = routeFixture({ id: draft.service_route_id, versions: [draft] });
+      const serviceRoute = vi.fn()
+        .mockResolvedValueOnce({ route })
+        .mockRejectedValueOnce(new Error("route_reload_failed"));
+      const publishRouteVersion = outcome === "success"
+        ? vi.fn().mockResolvedValue({ version: { ...draft, status: "published" as const } })
+        : vi.fn().mockRejectedValue(Object.assign(new Error("draft_revision_conflict"), { status: 409 }));
+      const host = await mountManagement(routeApi(route, { serviceRoute, publishRouteVersion }));
+      await openOnlyRoute(host);
+
+      await confirmLifecycleAction(host, "Publish");
+
+      expect(publishRouteVersion).toHaveBeenCalledWith(
+        "token",
+        draft.id,
+        { expected_revision: 6, expected_current_version_id: null },
+        expect.any(String)
+      );
+      expect(serviceRoute).toHaveBeenCalledTimes(2);
+      expect(host.querySelector(".route-overview__section .notice--error")?.textContent).toBe(routeUiText("en").reloadFailed);
+      expect(host.querySelectorAll(".notice--error")).toHaveLength(1);
+      expect(host.querySelector("section.stack > .notice")).toBeNull();
+    }
+  );
+
   it("reorders stops deterministically and preserves contiguous server-authoritative sequence", () => {
     const moved = moveRouteStop(stops, 1, -1);
     expect(moved.map((stop) => [stop.stop_id, stop.sequence])).toEqual([

@@ -501,14 +501,14 @@ git diff --name-status HEAD...origin/production-readiness
 
 If production-readiness advanced, integrate only conflict-free changes without rebasing shared history or discarding teammate work. Rerun complete verification after integration.
 
-- [ ] **Step 6: Push normally and open the draft PR**
+- [ ] **Step 6: Push normally and update existing draft PR #30**
 
 ```powershell
+gh pr view 30 --json number,state,isDraft,headRefName,baseRefName,url
 git push -u origin admin/route-management
-gh pr create --draft --base production-readiness --head admin/route-management --title "feat(admin): complete route management" --body "Completes the existing feature-gated Admin ServiceRoute lifecycle with bounded detail projections, stale current-version fencing, Stop editing, accessible lifecycle readiness, disposable MySQL QA fixtures, and no Prisma or map/provider changes."
 ```
 
-Never force-push and never merge.
+The normal push updates existing PR #30. Never run `gh pr create`, force-push, or merge.
 
 - [ ] **Step 7: Verify exact-head hosted CI**
 

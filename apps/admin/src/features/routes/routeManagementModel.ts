@@ -32,14 +32,21 @@ type RouteVersionDraftSource = Pick<
   "name_ar" | "name_en" | "description_ar" | "description_en" | "active_from" | "active_until"
 >;
 
+function localDatetimeInput(value: string | null | undefined) {
+  if (!value) return "";
+  const instant = new Date(value);
+  const localInstant = new Date(instant.getTime() - instant.getTimezoneOffset() * 60_000);
+  return localInstant.toISOString().slice(0, 16);
+}
+
 export function routeVersionDraftFrom(version: RouteVersionDraftSource): Required<RouteVersionDraft> {
   return {
     name_ar: version.name_ar,
     name_en: version.name_en,
     description_ar: version.description_ar ?? "",
     description_en: version.description_en ?? "",
-    active_from: version.active_from ? version.active_from.slice(0, 16) : "",
-    active_until: version.active_until ? version.active_until.slice(0, 16) : ""
+    active_from: localDatetimeInput(version.active_from),
+    active_until: localDatetimeInput(version.active_until)
   };
 }
 

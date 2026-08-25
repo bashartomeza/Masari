@@ -118,19 +118,50 @@ describe("routeManagementModel", () => {
       active_until: null
     });
 
-    expect(draft).toEqual({
+    expect(draft).toMatchObject({
       name_ar: "مسار الخليل",
       name_en: "Hebron route",
       description_ar: "",
       description_en: "A draft",
-      active_from: "2026-08-25T06:00",
       active_until: ""
     });
     expect(normalizeRouteVersionDraft(draft)).toEqual({
       ...draft,
-      active_from: new Date("2026-08-25T06:00").toISOString(),
+      active_from: "2026-08-25T06:00:00.000Z",
       active_until: null
     });
+  });
+
+  it("round-trips UTC instants through local datetime inputs in multiple timezones", () => {
+    const originalTimezone = process.env.TZ;
+    const cases = [
+      { timezone: "UTC", activeFrom: "2026-08-25T06:00", activeUntil: "2026-08-25T20:00" },
+      { timezone: "Asia/Hebron", activeFrom: "2026-08-25T09:00", activeUntil: "2026-08-25T23:00" },
+      { timezone: "America/New_York", activeFrom: "2026-08-25T02:00", activeUntil: "2026-08-25T16:00" }
+    ];
+
+    try {
+      for (const { timezone, activeFrom, activeUntil } of cases) {
+        process.env.TZ = timezone;
+        const draft = routeVersionDraftFrom({
+          name_ar: "مسار الخليل",
+          name_en: "Hebron route",
+          description_ar: null,
+          description_en: null,
+          active_from: "2026-08-25T06:00:00.000Z",
+          active_until: "2026-08-25T20:00:00.000Z"
+        });
+
+        expect(draft).toMatchObject({ active_from: activeFrom, active_until: activeUntil });
+        expect(normalizeRouteVersionDraft(draft)).toMatchObject({
+          active_from: "2026-08-25T06:00:00.000Z",
+          active_until: "2026-08-25T20:00:00.000Z"
+        });
+      }
+    } finally {
+      if (originalTimezone === undefined) delete process.env.TZ;
+      else process.env.TZ = originalTimezone;
+    }
   });
 
   it("keeps a surviving version selection, then falls back to the authoritative current or newest version", () => {

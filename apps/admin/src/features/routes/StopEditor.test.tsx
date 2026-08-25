@@ -27,6 +27,31 @@ const activeStop: CanonicalStop = {
 describe("StopEditor", () => {
   afterEach(() => document.body.replaceChildren());
 
+  async function mountEditor(onSave: Parameters<typeof StopEditor>[0]["onSave"]) {
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root = createRoot(host);
+    await act(async () => {
+      root.render(<StopEditor stop={activeStop} used={false} busy={false} locale="en" onSave={onSave} />);
+    });
+    return { host, root };
+  }
+
+  function enterValue(input: HTMLInputElement, value: string) {
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+    act(() => {
+      setter.call(input, value);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+  }
+
+  async function submit(host: HTMLElement) {
+    await act(async () => {
+      host.querySelector<HTMLFormElement>("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      await Promise.resolve();
+    });
+  }
+
   it("renders a focused bilingual manual-coordinate form for an active unused stop", () => {
     const markup = renderToStaticMarkup(
       <StopEditor stop={activeStop} used={false} busy={false} locale="en" onSave={vi.fn()} />
@@ -38,8 +63,15 @@ describe("StopEditor", () => {
     expect(markup).toContain("Latitude");
     expect(markup).toContain("Longitude");
     expect(markup).toContain("Coordinates are supplied manually.");
-    expect(markup).toMatch(/<input(?=[^>]*name="stop_key")(?=[^>]*readOnly="")[^>]*>/);
-    expect(markup).toMatch(/<input(?=[^>]*name="service_region_key")(?![^>]*readOnly)[^>]*>/);
+    const parsed = document.createElement("div");
+    parsed.innerHTML = markup;
+    const stopKey = parsed.querySelector<HTMLInputElement>('input[name="stop_key"]')!;
+    const serviceRegion = parsed.querySelector<HTMLInputElement>('input[name="service_region_key"]')!;
+    expect(stopKey.readOnly).toBe(true);
+    expect(stopKey.hasAttribute("readonly")).toBe(true);
+    expect(serviceRegion.readOnly).toBe(false);
+    expect(serviceRegion.hasAttribute("readonly")).toBe(false);
+    expect(serviceRegion.disabled).toBe(false);
     expect(markup).toMatch(/<input(?=[^>]*name="latitude")(?=[^>]*type="number")(?=[^>]*min="-90")(?=[^>]*max="90")(?=[^>]*dir="ltr")[^>]*>/);
     expect(markup).toMatch(/<input(?=[^>]*name="longitude")(?=[^>]*type="number")(?=[^>]*min="-180")(?=[^>]*max="180")(?=[^>]*dir="ltr")[^>]*>/);
     expect(markup).toContain('dir="rtl"');
@@ -98,6 +130,46 @@ describe("StopEditor", () => {
     });
 
     expect(submitted).toEqual({ id: "stop_1", stopKey: "ppu-main", name: "PPU Main Gate" });
+    root.unmount();
+  });
+
+  it("keeps an emptied coordinate raw and rejects it before save", async () => {
+    const onSave = vi.fn();
+    const { host, root } = await mountEditor(onSave);
+    const latitude = host.querySelector<HTMLInputElement>('input[name="latitude"]')!;
+
+    enterValue(latitude, "");
+    expect(latitude.value).toBe("");
+    await submit(host);
+
+    expect(onSave).not.toHaveBeenCalled();
+    root.unmount();
+  });
+
+  it.each([
+    { field: "latitude", value: "1e999", label: "non-finite latitude" },
+    { field: "latitude", value: "90.000001", label: "latitude above 90" },
+    { field: "longitude", value: "-180.000001", label: "longitude below -180" }
+  ])("rejects $label before save", async ({ field, value }) => {
+    const onSave = vi.fn();
+    const { host, root } = await mountEditor(onSave);
+
+    enterValue(host.querySelector<HTMLInputElement>(`input[name="${field}"]`)!, value);
+    await submit(host);
+
+    expect(onSave).not.toHaveBeenCalled();
+    root.unmount();
+  });
+
+  it("preserves valid zero coordinates in the save payload", async () => {
+    const onSave = vi.fn();
+    const { host, root } = await mountEditor(onSave);
+
+    enterValue(host.querySelector<HTMLInputElement>('input[name="latitude"]')!, "0");
+    enterValue(host.querySelector<HTMLInputElement>('input[name="longitude"]')!, "0");
+    await submit(host);
+
+    expect(onSave).toHaveBeenCalledWith("stop_1", expect.objectContaining({ latitude: 0, longitude: 0 }));
     root.unmount();
   });
 });
