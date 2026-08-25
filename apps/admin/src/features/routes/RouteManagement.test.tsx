@@ -635,6 +635,35 @@ describe("admin route management", () => {
     expect(mountedHost.querySelector('[role="dialog"]')).toBeNull();
   });
 
+  it("keeps a create conflict and failed catalog reconciliation contextual without replacing the directory", async () => {
+    const existingRoute = routeFixture({ id: "route_existing_after_create_conflict" });
+    const api = routeApi(existingRoute, {
+      serviceRoutes: vi.fn()
+        .mockResolvedValueOnce({ routes: [existingRoute], page: 1, limit: 25, total: 1 })
+        .mockRejectedValueOnce(new Error("catalog_reconciliation_failed")),
+      createServiceRoute: vi.fn().mockRejectedValue(Object.assign(new Error("resource_conflict"), { status: 409 }))
+    });
+    const host = await mountManagement(api);
+    act(() => buttonNamed(host, "Create route").click());
+    const form = host.querySelector<HTMLFormElement>("#create-route-form")!;
+    enterValue(form.querySelector<HTMLInputElement>('input[name="route_key"]')!, "conflicting-route");
+    enterValue(form.querySelector<HTMLInputElement>('input[name="route_group_key"]')!, "conflicting-group");
+    enterValue(form.querySelector<HTMLInputElement>('input[name="service_region_key"]')!, "south-west-bank");
+
+    await act(async () => {
+      form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      await Promise.resolve();
+    });
+    await settleUi();
+
+    expect(host.querySelector("#create-route-form")).not.toBeNull();
+    expect(host.querySelector(".route-directory__row")).not.toBeNull();
+    expect(host.querySelector(".route-directory__error")).toBeNull();
+    expect(host.querySelectorAll(".notice--error")).toHaveLength(1);
+    expect(host.querySelector("#create-route-form .notice--error")?.textContent).toBe(routeUiText("en").reloadFailed);
+    expect(host.textContent).not.toContain("catalog_reconciliation_failed");
+  });
+
   it("does not carry route A lifecycle feedback through Back into route B", async () => {
     const draftA = { ...readyVersion, id: "version_a", service_route_id: "route_a", name_en: "Route Alpha" };
     const draftB = { ...readyVersion, id: "version_b", service_route_id: "route_b", name_en: "Route Beta" };

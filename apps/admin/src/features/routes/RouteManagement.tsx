@@ -481,9 +481,11 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
     if (error === undefined || mutationFailureIsAuthoritative(error)) mutationKeys.current.delete(fingerprint);
   }
 
-  async function loadCatalog(nextPage = page, requestedFilters?: RouteDirectoryFilters) {
-    setView("loading");
-    setMessage(null);
+  async function loadCatalog(nextPage = page, requestedFilters?: RouteDirectoryFilters, surfaceFailure = true) {
+    if (surfaceFailure) {
+      setView("loading");
+      setMessage(null);
+    }
     const catalogFilters = requestedFilters ?? {
       search,
       status: statusFilter,
@@ -515,8 +517,10 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
       setView(routePage.routes.length ? "ready" : "empty");
       return true;
     } catch (error) {
-      setView("error");
-      showError(error);
+      if (surfaceFailure) {
+        setView("error");
+        showError(error);
+      }
       return false;
     }
   }
@@ -571,7 +575,7 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
       dispatch({ type: "feedback", scope: "page", kind: "success", text: text.saved });
     } catch (error) {
       settleMutation(mutation.fingerprint, error);
-      dispatch({ type: "feedback", scope: "create-route", kind: "error", text: await handleRouteMutationFailure(error, () => loadCatalog(1), locale, "create-route") });
+      dispatch({ type: "feedback", scope: "create-route", kind: "error", text: await handleRouteMutationFailure(error, () => loadCatalog(1, undefined, false), locale, "create-route") });
     } finally {
       endBusy();
     }

@@ -266,7 +266,7 @@ describe("RouteActionMenu", () => {
       .find((button) => button.textContent?.trim() === "Confirm")!;
     const reason = pauseHost.querySelector<HTMLInputElement>('input[name="reason"]')!;
     expect(reason.required).toBe(true);
-    expect(confirm.disabled).toBe(true);
+    expect(confirm.disabled).toBe(false);
     const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
     act(() => {
       setter.call(reason, "  schedule change  ");
@@ -276,6 +276,120 @@ describe("RouteActionMenu", () => {
     expect(confirm.disabled).toBe(false);
     act(() => confirm.click());
     expect(pauseCallbacks.onPause).toHaveBeenCalledWith("schedule change");
+  });
+
+  it.each([
+    ["en", "Pause", "A reason is required for this action."],
+    ["ar", "إيقاف مؤقت", "السبب مطلوب لهذا الإجراء."]
+  ] as const)("reveals the %s reason error only after interaction and exposes it accessibly", (locale, action, errorText) => {
+    const actionCallbacks = callbacks();
+    const actionHost = mount(
+      <RouteActionMenu
+        locale={locale}
+        routeStatus="active"
+        version={{ ...version, status: "published" }}
+        actions={["pause"]}
+        readinessIssues={[]}
+        dialogOpen
+        onOpenDialog={vi.fn()}
+        onCloseDialog={vi.fn()}
+        {...actionCallbacks}
+      />
+    );
+    clickButton(actionHost, locale === "ar" ? "إجراءات المسار" : "Route actions");
+    clickButton(actionHost, action);
+    const reason = actionHost.querySelector<HTMLInputElement>('input[name="reason"]')!;
+
+    expect(actionHost.textContent).not.toContain(errorText);
+    expect(reason.hasAttribute("aria-invalid")).toBe(false);
+    expect(reason.hasAttribute("aria-describedby")).toBe(false);
+
+    act(() => {
+      reason.focus();
+      reason.blur();
+    });
+
+    const error = [...actionHost.querySelectorAll<HTMLElement>(".field__error")]
+      .find((candidate) => candidate.textContent === errorText)!;
+    expect(error).toBeTruthy();
+    expect(reason.getAttribute("aria-invalid")).toBe("true");
+    expect(reason.getAttribute("aria-describedby")).toBe(error.id);
+  });
+
+  it("rejects an attempted empty reason and clears interaction errors after close and reopen", () => {
+    const actionCallbacks = callbacks();
+    const actionHost = mount(
+      <RouteActionMenu
+        locale="en"
+        routeStatus="active"
+        version={{ ...version, status: "published" }}
+        actions={["pause"]}
+        readinessIssues={[]}
+        dialogOpen
+        onOpenDialog={vi.fn()}
+        onCloseDialog={vi.fn()}
+        {...actionCallbacks}
+      />
+    );
+    clickButton(actionHost, "Route actions");
+    clickButton(actionHost, "Pause");
+
+    clickButton(actionHost, "Confirm");
+
+    expect(actionCallbacks.onPause).not.toHaveBeenCalled();
+    expect(actionHost.textContent).toContain("A reason is required for this action.");
+    clickButton(actionHost, "Cancel");
+    clickButton(actionHost, "Route actions");
+    clickButton(actionHost, "Pause");
+    expect(actionHost.textContent).not.toContain("A reason is required for this action.");
+  });
+
+  it.each([
+    ["en", "Publish", ["publish", "retire"] as const, "Route version ID:"],
+    ["en", "Retire", ["retire"] as const, "Route version ID:"],
+    ["ar", "نشر", ["publish"] as const, "معرّف إصدار المسار:"]
+  ] as const)("labels the version identifier for the %s %s confirmation", (locale, action, actions, identifierLabel) => {
+    const actionHost = mount(
+      <RouteActionMenu
+        locale={locale}
+        routeStatus="active"
+        version={version}
+        actions={[...actions]}
+        readinessIssues={[]}
+        dialogOpen
+        onOpenDialog={vi.fn()}
+        onCloseDialog={vi.fn()}
+        {...callbacks()}
+      />
+    );
+    clickButton(actionHost, locale === "ar" ? "إجراءات المسار" : "Route actions");
+    clickButton(actionHost, action);
+
+    const dialog = actionHost.querySelector<HTMLElement>('[role="dialog"]')!;
+    expect(dialog.textContent).toContain(identifierLabel);
+    expect(dialog.textContent).toContain("version_1");
+  });
+
+  it("does not render a version identifier for route retirement", () => {
+    const actionHost = mount(
+      <RouteActionMenu
+        locale="en"
+        routeStatus="active"
+        version={version}
+        actions={[]}
+        readinessIssues={[]}
+        dialogOpen
+        onOpenDialog={vi.fn()}
+        onCloseDialog={vi.fn()}
+        {...callbacks()}
+      />
+    );
+    clickButton(actionHost, "Route actions");
+    clickButton(actionHost, "Retire route");
+
+    const dialog = actionHost.querySelector<HTMLElement>('[role="dialog"]')!;
+    expect(dialog.textContent).not.toContain("Route version ID:");
+    expect(dialog.textContent).not.toContain("version_1");
   });
 
   it("closes the menu on Escape and returns focus to its trigger", () => {
@@ -320,7 +434,7 @@ describe("RouteActionMenu", () => {
     expect(document.activeElement).toBe(trigger);
   });
 
-  it("discards a pending lifecycle action when the controlled dialog is closed by its parent", () => {
+  it("discards a pending lifecycle action and validation interaction when closed by its parent", () => {
     function Harness() {
       const [dialogOpen, setDialogOpen] = useState(false);
       return <>
@@ -329,8 +443,8 @@ describe("RouteActionMenu", () => {
         <RouteActionMenu
           locale="en"
           routeStatus="active"
-          version={version}
-          actions={["publish", "retire"]}
+          version={{ ...version, status: "published" }}
+          actions={["pause"]}
           readinessIssues={[]}
           dialogOpen={dialogOpen}
           onOpenDialog={() => setDialogOpen(true)}
@@ -342,13 +456,18 @@ describe("RouteActionMenu", () => {
 
     const menuHost = mount(<Harness />);
     clickButton(menuHost, "Route actions");
-    clickButton(menuHost, "Publish");
+    clickButton(menuHost, "Pause");
     expect(menuHost.querySelector('[role="dialog"]')).toBeTruthy();
+    clickButton(menuHost, "Confirm");
+    expect(menuHost.textContent).toContain("A reason is required for this action.");
 
     clickButton(menuHost, "Parent close");
     expect(menuHost.querySelector('[role="dialog"]')).toBeNull();
     clickButton(menuHost, "Parent reopen");
 
     expect(menuHost.querySelector('[role="dialog"]')).toBeNull();
+    clickButton(menuHost, "Route actions");
+    clickButton(menuHost, "Pause");
+    expect(menuHost.textContent).not.toContain("A reason is required for this action.");
   });
 });

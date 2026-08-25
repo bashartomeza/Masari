@@ -43,7 +43,8 @@ const copy = {
     cancel: "إلغاء",
     description: "هل تريد تنفيذ هذا الإجراء؟ سيُسجل في سجل التدقيق.",
     reason: "سبب الإجراء",
-    reasonRequired: "السبب مطلوب لهذا الإجراء."
+    reasonRequired: "السبب مطلوب لهذا الإجراء.",
+    routeVersionIdLabel: "معرّف إصدار المسار"
   },
   en: {
     clone: "Create new draft version",
@@ -57,7 +58,8 @@ const copy = {
     cancel: "Cancel",
     description: "Continue with this action? It will be recorded in the audit log.",
     reason: "Action reason",
-    reasonRequired: "A reason is required for this action."
+    reasonRequired: "A reason is required for this action.",
+    routeVersionIdLabel: "Route version ID"
   }
 } as const;
 
@@ -80,12 +82,16 @@ export function RouteActionMenu({
   onRetireRoute
 }: RouteActionMenuProps) {
   const text = copy[locale];
-  const triggerId = `route-action-menu-trigger-${useId().replaceAll(":", "")}`;
+  const instanceId = useId().replaceAll(":", "");
+  const triggerId = `route-action-menu-trigger-${instanceId}`;
+  const reasonErrorId = `route-action-reason-error-${instanceId}`;
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [pending, setPending] = useState<RouteLifecycleDialogAction | null>(null);
   const [reason, setReason] = useState("");
+  const [reasonTouched, setReasonTouched] = useState(false);
+  const [reasonAttempted, setReasonAttempted] = useState(false);
 
   const versionItems: Array<{ action: RouteLifecycleDialogAction; label: string; disabled?: boolean }> = [];
   if (actions.includes("publish")) versionItems.push({ action: "publish", label: text.publish, disabled: readinessIssues.length > 0 });
@@ -111,11 +117,15 @@ export function RouteActionMenu({
     if (dialogOpen) return;
     setPending(null);
     setReason("");
+    setReasonTouched(false);
+    setReasonAttempted(false);
   }, [dialogOpen]);
 
   function selectAction(action: RouteLifecycleDialogAction) {
     setPending(action);
     setReason("");
+    setReasonTouched(false);
+    setReasonAttempted(false);
     setMenuOpen(false);
     triggerRef.current?.focus();
     onOpenDialog();
@@ -124,13 +134,18 @@ export function RouteActionMenu({
   function closeDialog() {
     setPending(null);
     setReason("");
+    setReasonTouched(false);
+    setReasonAttempted(false);
     onCloseDialog();
   }
 
   function confirmAction() {
     if (!pending) return;
     const suppliedReason = reason.trim();
-    if (lifecycleActionRequiresReason(pending) && !suppliedReason) return;
+    if (lifecycleActionRequiresReason(pending) && !suppliedReason) {
+      setReasonAttempted(true);
+      return;
+    }
     if (pending === "clone") void onClone();
     if (pending === "publish") void onPublish();
     if (pending === "pause") void onPause(suppliedReason);
@@ -157,6 +172,8 @@ export function RouteActionMenu({
   }
 
   const requiresReason = pending ? lifecycleActionRequiresReason(pending) : false;
+  const showReasonError = requiresReason && !reason.trim() && (reasonTouched || reasonAttempted);
+  const targetsVersion = pending !== null && pending !== "retire-route";
 
   return (
     <div className="route-action-menu">
@@ -216,7 +233,7 @@ export function RouteActionMenu({
             <Button
               variant={pending === "retire-version" || pending === "retire-route" ? "destructive" : "action"}
               onClick={confirmAction}
-              disabled={busy || (requiresReason && !reason.trim())}
+              disabled={busy}
             >
               {text.confirm}
             </Button>
@@ -226,12 +243,26 @@ export function RouteActionMenu({
         {requiresReason && (
           <label className="field">
             {text.reason}
-            <input name="reason" value={reason} maxLength={500} required autoFocus onChange={(event) => setReason(event.target.value)} />
-            {!reason.trim() && <span className="field__error">{text.reasonRequired}</span>}
+            <input
+              name="reason"
+              value={reason}
+              maxLength={500}
+              required
+              autoFocus
+              aria-invalid={showReasonError || undefined}
+              aria-describedby={showReasonError ? reasonErrorId : undefined}
+              onBlur={() => setReasonTouched(true)}
+              onChange={(event) => setReason(event.target.value)}
+            />
+            {showReasonError && <span id={reasonErrorId} className="field__error">{text.reasonRequired}</span>}
           </label>
         )}
         {feedback && <p className="field__error" role="alert">{feedback}</p>}
-        {version && <span className="technical-value" dir="ltr">{version.id}</span>}
+        {version && targetsVersion && (
+          <p>
+            {text.routeVersionIdLabel}: <span className="technical-value" dir="ltr">{version.id}</span>
+          </p>
+        )}
       </RouteDialog>
     </div>
   );
