@@ -1,8 +1,33 @@
 import { describe, expect, it, vi } from "vitest";
 import { HttpError } from "../middleware/error.js";
+import { assertRouteQaDatabase, requireRouteQaAdminPassword } from "../scripts/routeManagementQa.js";
 import { assertExpectedCurrentVersion, createRouteManagementService } from "../services/routeManagement.js";
 
 const actor = { id: "admin_1", requestId: "request_1", idempotencyKey: "route-lifecycle-001" };
+
+describe("route management QA database guard", () => {
+  it("accepts only the exact disposable database on the two explicitly local hosts", () => {
+    expect(() => assertRouteQaDatabase("mysql://localhost:3306/masari_routes_qa")).not.toThrow();
+    expect(() => assertRouteQaDatabase("mysql://127.0.0.1:3306/masari_routes_qa")).not.toThrow();
+
+    for (const unsafeUrl of [
+      "mysql://localhost:3306/masari",
+      "mysql://database.internal:3306/masari_routes_qa",
+      "mysql://localhost:3306",
+      "mysql://localhost:3306/masari_routes_qa?database=masari",
+      "mysql://localhost:3306/masari?database=masari_routes_qa",
+      "mysql://localhost:3306/masari_routes_qa#masari"
+    ]) {
+      expect(() => assertRouteQaDatabase(unsafeUrl)).toThrow("route_qa_database_guard_rejected");
+    }
+  });
+
+  it("requires a process-local QA admin password without applying a default", () => {
+    expect(() => requireRouteQaAdminPassword(undefined)).toThrow("route_qa_admin_password_required");
+    expect(() => requireRouteQaAdminPassword("short")).toThrow("route_qa_admin_password_required");
+    expect(requireRouteQaAdminPassword("x".repeat(16))).toBe("x".repeat(16));
+  });
+});
 
 function lifecycleHarness(options: {
   targetVersionId: string;
