@@ -1530,6 +1530,68 @@
   .shell__canvas { padding: var(--space-sm); }
   .kpi-row { grid-template-columns: 1fr; }
   .stop-catalog > div { grid-template-columns: 1fr; }
+  .route-dialog .field-grid { grid-template-columns: 1fr; }
+}
+
+/* ----------------------------------------------------------- route dialog -- */
+
+.route-dialog-backdrop {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--space-base);
+  background: color-mix(in srgb, var(--scrim, #111827) 56%, transparent);
+}
+
+.route-dialog {
+  display: flex;
+  flex-direction: column;
+  inline-size: min(100%, 42rem);
+  max-block-size: min(90dvh, 760px);
+  overflow: hidden;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--elevation-3);
+}
+
+.route-dialog__header,
+.route-dialog__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-base);
+  padding: var(--space-base);
+}
+
+.route-dialog__header {
+  border-block-end: 1px solid var(--outline-variant);
+}
+
+.route-dialog__header h2 {
+  margin: 0;
+  font-size: var(--headline-sm-size);
+}
+
+.route-dialog__header p { margin: var(--space-xs) 0 0; }
+
+.route-dialog__close { flex: 0 0 auto; }
+
+.route-dialog__body {
+  min-block-size: 0;
+  overflow: auto;
+  padding: var(--space-base);
+}
+
+.route-dialog__footer {
+  border-block-start: 1px solid var(--outline-variant);
+}
+
+.route-dialog :focus-visible {
+  outline: 3px solid var(--focus-ring, var(--primary));
+  outline-offset: 2px;
 }
 
 @media (prefers-reduced-motion: reduce) {
