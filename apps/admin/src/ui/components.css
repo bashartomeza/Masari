@@ -1306,6 +1306,91 @@
   gap: var(--space-base);
 }
 
+.route-directory {
+  display: grid;
+  gap: var(--space-md);
+  min-inline-size: 0;
+}
+
+.route-directory__header,
+.route-directory__pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.route-directory__header h2,
+.route-directory__header p {
+  margin-block: 0;
+}
+
+.route-directory__header p { margin-block-start: var(--space-xs); }
+
+.route-directory__filters {
+  display: flex;
+  align-items: end;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  padding: var(--space-sm);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-lg);
+  background: var(--surface-container-low);
+}
+
+.route-directory__filters .field {
+  flex: 1 1 11rem;
+}
+
+.route-directory__results {
+  overflow: hidden;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-lg);
+  background: var(--surface-container-lowest);
+}
+
+.route-directory__results > .muted,
+.route-directory__results > .empty-state {
+  margin: var(--space-md);
+}
+
+.route-directory__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.route-directory__row {
+  display: grid;
+  grid-template-columns: minmax(12rem, 1.4fr) minmax(9rem, 1fr) minmax(7rem, .75fr) minmax(8rem, .9fr) minmax(10rem, 1fr) minmax(5rem, .55fr) auto;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm);
+  border-block-end: 1px solid color-mix(in srgb, var(--outline-variant) 60%, transparent);
+}
+
+.route-directory__row:last-child { border-block-end: 0; }
+
+.route-directory__identity,
+.route-directory__metadata {
+  display: grid;
+  gap: 2px;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.route-directory__metadata {
+  font-size: var(--label-sm-size);
+  color: var(--on-surface-variant);
+}
+
+.route-directory__metadata b {
+  color: var(--on-surface-variant);
+  font-size: var(--label-sm-size);
+  font-weight: 600;
+}
+
 .route-catalog__item {
   display: grid;
   gap: 2px;
@@ -1531,6 +1616,22 @@
   .kpi-row { grid-template-columns: 1fr; }
   .stop-catalog > div { grid-template-columns: 1fr; }
   .route-dialog .field-grid { grid-template-columns: 1fr; }
+
+  .route-directory__header > .btn,
+  .route-directory__filters > .btn,
+  .route-directory__row > .btn {
+    inline-size: 100%;
+  }
+
+  .route-directory__filters .field { flex-basis: 100%; }
+
+  .route-directory__row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-base);
+  }
+
+  .route-directory__identity { grid-column: 1 / -1; }
+  .route-directory__metadata b { display: block; }
 }
 
 /* ----------------------------------------------------------- route dialog -- */

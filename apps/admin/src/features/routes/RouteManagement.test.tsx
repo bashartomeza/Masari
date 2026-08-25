@@ -124,19 +124,23 @@ describe("admin route management", () => {
     expect(routeCatalogView({ loading: false, error: false, count: 1 })).toBe("ready");
   });
 
-  it("renders Arabic RTL-ready and English LTR-ready copy, loading state, and create forms", () => {
+  it("renders the directory-first Arabic and English landing surface without an inline create form", () => {
     const arabic = renderToStaticMarkup(<RouteManagement api={{} as never} token="token" locale="ar" />);
     const english = renderToStaticMarkup(<RouteManagement api={{} as never} token="token" locale="en" />);
     expect(arabic).toContain("إدارة المسارات");
     expect(arabic).toContain("جارٍ تحميل كتالوج المسارات");
-    expect(arabic).toContain("الاسم بالعربية");
-    expect(arabic).toContain("إنشاء محطة");
-    expect(arabic).toContain("سبب الإجراء");
+    expect(arabic).toContain("إنشاء مسار");
+    expect(arabic).toContain("تصفية منطقة الخدمة");
+    expect(arabic).not.toContain("الاسم بالعربية");
+    expect(arabic).not.toContain("معاينة الخريطة غير متاحة");
     expect(english).toContain("Route management");
     expect(english).toContain("Loading the route catalog");
-    expect(english).toContain("Arabic name");
-    expect(english).toContain("Create stop");
-    expect(english).toContain("Action reason");
+    expect(english).toContain("Create route");
+    expect(english).toContain("Service region filter");
+    expect(english).not.toContain("Arabic name");
+    expect(english).not.toContain("Create stop");
+    expect(english).not.toContain("Action reason");
+    expect(english).not.toContain("Map preview unavailable");
   });
 
   it("emits all bounded directory filters while preserving the fixed page size", () => {
@@ -260,23 +264,13 @@ describe("admin route management", () => {
     expect(fallback).toContain("stop_outside_both_bounds");
   });
 
-  it("renders distinct directory filters and truthful route, version, stop, history, and map labels", () => {
+  it("renders distinct localized directory filters without making map status part of the landing header", () => {
     const english = renderToStaticMarkup(<RouteManagement api={{} as never} token="token" locale="en" />);
     const arabic = renderToStaticMarkup(<RouteManagement api={{} as never} token="token" locale="ar" />);
 
-    for (const label of [
-      "Route status filter",
-      "Direction filter",
-      "Service region filter",
-      "Route status",
-      "Current version status",
-      "Selected version status",
-      "Stop status",
-      "Newest route history",
-      "Map preview unavailable"
-    ]) expect(english).toContain(label);
+    for (const label of ["Route status filter", "Direction filter", "Service region filter"]) expect(english).toContain(label);
     expect(arabic).toContain("تصفية حالة المسار");
-    expect(arabic).toContain("معاينة الخريطة غير متاحة");
+    expect(english).not.toContain("Map preview unavailable");
   });
 
   it("reorders stops deterministically and preserves contiguous server-authoritative sequence", () => {

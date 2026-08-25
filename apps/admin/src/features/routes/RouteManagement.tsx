@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import type {
   ApiError,
   CanonicalStop,
@@ -13,6 +13,9 @@ import type {
 import { translations } from "../../i18n/translations";
 import { Button, Card, CardHeader, EmptyState, Notice, Skeleton, StatusBadge } from "../../ui";
 import { StopEditor } from "./StopEditor";
+import { CreateRouteDialog } from "./CreateRouteDialog";
+import { RouteDirectory, type RouteDirectoryFilters } from "./RouteDirectory";
+import { initialRouteUiState, routeUiReducer } from "./routeManagementModel";
 
 type Api = ReturnType<typeof createApiClient>;
 type Locale = "ar" | "en";
@@ -401,10 +404,6 @@ export async function handleRouteMutationFailure(
   }
 }
 
-function emptyRoute(): RouteIdentityDraft {
-  return { route_key: "", route_group_key: "", service_region_key: "", direction: "outbound" };
-}
-
 function emptyVersion(): RouteVersionDraft {
   return { name_ar: "", name_en: "", description_ar: "", description_en: "", active_from: null, active_until: null };
 }
@@ -456,7 +455,7 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
   const [stops, setStops] = useState<CanonicalStop[]>([]);
   const [selectedRoute, setSelectedRoute] = useState<ServiceRoute | null>(null);
   const [selectedVersion, setSelectedVersion] = useState<ServiceRouteVersion | null>(null);
-  const [routeDraft, setRouteDraft] = useState<RouteIdentityDraft>(emptyRoute);
+  const [ui, dispatch] = useReducer(routeUiReducer, initialRouteUiState);
   const [versionDraft, setVersionDraft] = useState<RouteVersionDraft>(emptyVersion);
   const [stopDraft, setStopDraft] = useState<CanonicalStopDraft>(emptyStop);
   const [memberships, setMemberships] = useState<RouteStopDraft[]>([]);
@@ -509,16 +508,28 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
     if (error === undefined || mutationFailureIsAuthoritative(error)) mutationKeys.current.delete(fingerprint);
   }
 
-  async function loadCatalog(nextPage = page) {
+  async function loadCatalog(nextPage = page, requestedFilters?: RouteDirectoryFilters) {
     setView("loading");
     setMessage(null);
+    const catalogFilters = requestedFilters ?? {
+      search,
+      status: statusFilter,
+      direction: directionFilter,
+      serviceRegionKey: serviceRegionFilter
+    };
+    if (requestedFilters) {
+      setSearch(requestedFilters.search);
+      setStatusFilter(requestedFilters.status);
+      setDirectionFilter(requestedFilters.direction);
+      setServiceRegionFilter(requestedFilters.serviceRegionKey);
+    }
     try {
       const query = routeCatalogQuery({
         page: nextPage,
-        search,
-        status: statusFilter,
-        direction: directionFilter,
-        serviceRegionKey: serviceRegionFilter
+        search: catalogFilters.search,
+        status: catalogFilters.status,
+        direction: catalogFilters.direction,
+        serviceRegionKey: catalogFilters.serviceRegionKey
       });
       const [routePage, stopPage] = await Promise.all([
         api.serviceRoutes(token, `?${query}`),
@@ -570,23 +581,25 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
 
   function selectVersion(version: ServiceRouteVersion | null) {
     setSelectedVersion(version);
+    dispatch({ type: "select-version", versionId: version?.id ?? null });
     setVersionDraft(version ? draftFromVersion(version) : emptyVersion());
     setMemberships(version ? membershipsFromVersion(version) : []);
   }
 
-  async function submitRoute(event: FormEvent) {
-    event.preventDefault();
+  async function submitRoute(draft: RouteIdentityDraft) {
     if (!beginBusy("create-route")) return;
-    const mutation = pendingMutation("route_create", routeDraft);
+    const mutation = pendingMutation("route_create", draft);
     try {
-      const response = await api.createServiceRoute(token, routeDraft, mutation.key);
+      const response = await api.createServiceRoute(token, draft, mutation.key);
       settleMutation(mutation.fingerprint);
-      setRouteDraft(emptyRoute());
+      dispatch({ type: "clear-feedback" });
+      dispatch({ type: "close-dialog" });
       if (!await loadCatalog(1) || !await loadRoute(response.route.id, true)) return;
-      setMessage({ kind: "success", text: text.saved });
+      dispatch({ type: "open-route", routeId: response.route.id });
+      dispatch({ type: "feedback", scope: "page", kind: "success", text: text.saved });
     } catch (error) {
       settleMutation(mutation.fingerprint, error);
-      await showMutationError(error, () => loadCatalog(1));
+      dispatch({ type: "feedback", scope: "create-route", kind: "error", text: await handleRouteMutationFailure(error, () => loadCatalog(1), locale) });
     } finally {
       endBusy();
     }
@@ -805,6 +818,40 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
 
   const disabledUnlessDraft = selectedVersion ? selectedVersion.status !== "draft" : false;
 
+  if (ui.surface === "directory") {
+    return (
+      <section className="stack">
+        <RouteDirectory
+          locale={locale}
+          routes={routes}
+          view={view}
+          page={page}
+          total={total}
+          busy={Boolean(busy)}
+          filters={{ search, status: statusFilter, direction: directionFilter, serviceRegionKey: serviceRegionFilter }}
+          onSearch={(filters) => { void loadCatalog(1, filters); }}
+          onPage={(nextPage) => { void loadCatalog(nextPage); }}
+          onOpenRoute={(routeId) => {
+            dispatch({ type: "open-route", routeId });
+            void loadRoute(routeId);
+          }}
+          onCreateRoute={() => dispatch({ type: "open-dialog", dialog: "create-route" })}
+        />
+        <CreateRouteDialog
+          open={ui.dialog === "create-route"}
+          locale={locale}
+          busy={busy === "create-route"}
+          error={ui.feedback?.scope === "create-route" ? ui.feedback.text : null}
+          onSubmit={submitRoute}
+          onClose={() => {
+            dispatch({ type: "close-dialog" });
+            dispatch({ type: "clear-feedback" });
+          }}
+        />
+      </section>
+    );
+  }
+
   return (
     <section className="stack" aria-labelledby="route-management-title">
       <div className="split">
@@ -868,19 +915,6 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
         </aside>
 
         <div className="stack">
-          <Card>
-            <details className="disclosure">
-              <summary>{text.createRoute}</summary>
-              <form className="field-grid" onSubmit={submitRoute}>
-                <label className="field">{text.routeKey}<input className="technical-value" dir="ltr" required value={routeDraft.route_key} onChange={(event) => setRouteDraft({ ...routeDraft, route_key: event.target.value })} /></label>
-                <label className="field">{text.groupKey}<input className="technical-value" dir="ltr" required value={routeDraft.route_group_key} onChange={(event) => setRouteDraft({ ...routeDraft, route_group_key: event.target.value })} /></label>
-                <label className="field">{text.region}<input className="technical-value" dir="ltr" required value={routeDraft.service_region_key} onChange={(event) => setRouteDraft({ ...routeDraft, service_region_key: event.target.value })} /></label>
-                <label className="field">{text.direction}<select value={routeDraft.direction} onChange={(event) => setRouteDraft({ ...routeDraft, direction: event.target.value as RouteIdentityDraft["direction"] })}><option value="outbound">{text.outbound}</option><option value="inbound">{text.inbound}</option><option value="loop">{text.loop}</option></select></label>
-                <Button type="submit" icon="add" disabled={Boolean(busy)}>{text.create}</Button>
-              </form>
-            </details>
-          </Card>
-
           <Card>
             <label className="field">{text.reason}<input value={actionReason} maxLength={500} onChange={(event) => setActionReason(event.target.value)} disabled={Boolean(busy)} /></label>
           </Card>
