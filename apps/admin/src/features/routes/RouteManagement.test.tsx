@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import adminPackage from "../../../package.json";
-import type { RouteStopDraft, ServiceRouteVersion } from "../../api";
+import type { CanonicalStop, RouteStopDraft, ServiceRouteVersion } from "../../api";
 import {
   RouteManagement,
   ADMIN_ROUTE_RESPONSIVE_BREAKPOINT,
@@ -10,8 +10,11 @@ import {
   mutationFailureIsAuthoritative,
   mutationFingerprint,
   moveRouteStop,
+  publicationReadiness,
   routeCatalogView,
+  routeCatalogQuery,
   routeConflictRequiresReload,
+  routeStatusText,
   routeUiText,
   routeUiError,
   reorderControlLabel,
@@ -55,6 +58,61 @@ const stops: RouteStopDraft[] = [
   }
 ];
 
+const canonicalStops: CanonicalStop[] = [
+  {
+    id: "stop_1",
+    stop_key: "ppu-main",
+    service_region_key: "south-west-bank",
+    name_ar: "جامعة بوليتكنك فلسطين",
+    name_en: "Palestine Polytechnic University",
+    latitude: 31.507316,
+    longitude: 35.090893,
+    status: "active"
+  },
+  {
+    id: "stop_2",
+    stop_key: "bab-al-zawiya",
+    service_region_key: "south-west-bank",
+    name_ar: "باب الزاوية",
+    name_en: "Bab Al-Zawiya",
+    latitude: 31.527513,
+    longitude: 35.101859,
+    status: "active"
+  }
+];
+
+const readyVersion: ServiceRouteVersion & { service_region_key: string } = {
+  ...version,
+  service_region_key: "south-west-bank",
+  name_ar: "الخليل الداخلية",
+  name_en: "Hebron local",
+  active_from: "2026-08-25T06:00:00.000Z",
+  active_until: "2026-08-25T20:00:00.000Z",
+  stop_count: 2,
+  stops: [
+    {
+      id: "membership_1",
+      stop_id: "stop_1",
+      sequence: 1,
+      passenger_pickup_allowed: true,
+      passenger_dropoff_allowed: false,
+      parcel_pickup_allowed: true,
+      parcel_dropoff_allowed: false,
+      stop: canonicalStops[0]
+    },
+    {
+      id: "membership_2",
+      stop_id: "stop_2",
+      sequence: 2,
+      passenger_pickup_allowed: false,
+      passenger_dropoff_allowed: true,
+      parcel_pickup_allowed: false,
+      parcel_dropoff_allowed: true,
+      stop: canonicalStops[1]
+    }
+  ]
+};
+
 describe("admin route management", () => {
   it("models loading, empty, error, and populated catalog states", () => {
     expect(routeCatalogView({ loading: true, error: false, count: 0 })).toBe("loading");
@@ -76,6 +134,81 @@ describe("admin route management", () => {
     expect(english).toContain("Arabic name");
     expect(english).toContain("Create stop");
     expect(english).toContain("Action reason");
+  });
+
+  it("emits all bounded directory filters while preserving the fixed page size", () => {
+    expect(routeCatalogQuery({
+      page: 2,
+      search: "Hebron",
+      status: "active",
+      direction: "outbound",
+      serviceRegionKey: "south-west-bank"
+    }).toString()).toBe("page=2&limit=25&search=Hebron&status=active&direction=outbound&service_region_key=south-west-bank");
+  });
+
+  it("advises on missing bilingual names, minimum stops, and invalid date order", () => {
+    expect(publicationReadiness({ ...readyVersion, name_ar: " " }, canonicalStops)).toEqual(["readinessMissingNames"]);
+    expect(publicationReadiness({ ...readyVersion, stops: [readyVersion.stops[0]], stop_count: 1 }, canonicalStops)).toEqual([
+      "readinessMinimumStops",
+      "readinessPassengerPath",
+      "readinessParcelPath"
+    ]);
+    expect(publicationReadiness({
+      ...readyVersion,
+      active_from: "2026-08-25T20:00:00.000Z",
+      active_until: "2026-08-25T06:00:00.000Z"
+    }, canonicalStops)).toEqual(["readinessDateOrder"]);
+  });
+
+  it("advises when a route membership references an inactive or foreign-region stop", () => {
+    const inactive = { ...canonicalStops[1], status: "retired" as const };
+    expect(publicationReadiness({
+      ...readyVersion,
+      stops: [readyVersion.stops[0], { ...readyVersion.stops[1], stop: inactive }]
+    }, [canonicalStops[0], inactive])).toEqual(["readinessStopEligibility"]);
+
+    const foreign = { ...canonicalStops[1], service_region_key: "central-west-bank" };
+    expect(publicationReadiness({
+      ...readyVersion,
+      stops: [readyVersion.stops[0], { ...readyVersion.stops[1], stop: foreign }]
+    }, [canonicalStops[0], foreign])).toEqual(["readinessStopEligibility"]);
+  });
+
+  it("advises on absent downstream passenger and inconsistent parcel paths", () => {
+    const noPassengerPath = {
+      ...readyVersion,
+      stops: readyVersion.stops.map((membership) => ({ ...membership, passenger_dropoff_allowed: false }))
+    };
+    expect(publicationReadiness(noPassengerPath, canonicalStops)).toEqual(["readinessPassengerPath"]);
+
+    const inconsistentParcelPath = {
+      ...readyVersion,
+      stops: readyVersion.stops.map((membership, index) => ({
+        ...membership,
+        parcel_pickup_allowed: index === 1,
+        parcel_dropoff_allowed: index === 0
+      }))
+    };
+    expect(publicationReadiness(inconsistentParcelPath, canonicalStops)).toEqual(["readinessParcelPath"]);
+  });
+
+  it("renders distinct directory filters and truthful route, version, stop, history, and map labels", () => {
+    const english = renderToStaticMarkup(<RouteManagement api={{} as never} token="token" locale="en" />);
+    const arabic = renderToStaticMarkup(<RouteManagement api={{} as never} token="token" locale="ar" />);
+
+    for (const label of [
+      "Route status filter",
+      "Direction filter",
+      "Service region filter",
+      "Route status",
+      "Current version status",
+      "Selected version status",
+      "Stop status",
+      "Newest route history",
+      "Map preview unavailable"
+    ]) expect(english).toContain(label);
+    expect(arabic).toContain("تصفية حالة المسار");
+    expect(arabic).toContain("معاينة الخريطة غير متاحة");
   });
 
   it("reorders stops deterministically and preserves contiguous server-authoritative sequence", () => {
@@ -126,9 +259,17 @@ describe("admin route management", () => {
 
   it("localizes safe errors without rendering raw API or internal error codes", () => {
     expect(routeUiError("en", new Error("draft_revision_conflict"))).toContain("Another session");
+    expect(routeUiError("en", new Error("used_stop_immutable"))).toContain("already belongs to a route version");
     expect(routeUiError("ar", new Error("internal_database_detail"))).toBe(routeUiText("ar").genericError);
     expect(routeUiError("en", new Error("route_version_not_pausable"))).toBe(routeUiText("en").genericError);
     expect(routeUiError("en", new Error("route_version_not_pausable"))).not.toContain("route_version_not_pausable");
+  });
+
+  it("never renders an unknown raw route lifecycle status", () => {
+    expect(routeStatusText("en", "published")).toBe("Published");
+    expect(routeStatusText("ar", "retired")).toBe("متقاعد");
+    expect(routeStatusText("en", "internal_future_status")).toBe(routeUiText("en").status);
+    expect(routeStatusText("en", "internal_future_status")).not.toContain("internal_future_status");
   });
 
   it("reloads authoritative route state for every conflict and returns bounded localized feedback", async () => {

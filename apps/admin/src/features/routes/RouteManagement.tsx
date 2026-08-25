@@ -10,7 +10,9 @@ import type {
   ServiceRouteVersion,
   createApiClient
 } from "../../api";
+import { translations } from "../../i18n/translations";
 import { Button, Card, CardHeader, EmptyState, Notice, Skeleton, StatusBadge } from "../../ui";
+import { StopEditor } from "./StopEditor";
 
 type Api = ReturnType<typeof createApiClient>;
 type Locale = "ar" | "en";
@@ -21,7 +23,71 @@ type Permission = keyof Pick<
 
 export type RouteViewState = "loading" | "ready" | "empty" | "error";
 export type RouteLifecycleAction = "clone" | "publish" | "pause" | "resume" | "retire";
+export type PublicationReadinessIssue =
+  | "readinessMissingNames"
+  | "readinessMinimumStops"
+  | "readinessStopEligibility"
+  | "readinessDateOrder"
+  | "readinessPassengerPath"
+  | "readinessParcelPath";
 export const ADMIN_ROUTE_RESPONSIVE_BREAKPOINT = 880;
+
+type ReadinessVersion = ServiceRouteVersion & { service_region_key?: string };
+
+export function routeCatalogQuery(input: {
+  page: number;
+  search: string;
+  status: string;
+  direction: string;
+  serviceRegionKey: string;
+}) {
+  const query = new URLSearchParams({ page: String(input.page), limit: "25" });
+  if (input.search.trim()) query.set("search", input.search.trim());
+  if (input.status) query.set("status", input.status);
+  if (input.direction) query.set("direction", input.direction);
+  if (input.serviceRegionKey.trim()) query.set("service_region_key", input.serviceRegionKey.trim());
+  return query;
+}
+
+export function publicationReadiness(version: ReadinessVersion, stops: CanonicalStop[]) {
+  const issues: PublicationReadinessIssue[] = [];
+  if (!version.name_ar.trim() || !version.name_en.trim()) issues.push("readinessMissingNames");
+  if (version.stops.length < 2) issues.push("readinessMinimumStops");
+
+  const stopById = new Map(stops.map((stop) => [stop.id, stop]));
+  const routeRegion = version.service_region_key ?? version.stops[0]?.stop.service_region_key;
+  const hasIneligibleStop = version.stops.some((membership) => {
+    const stop = stopById.get(membership.stop_id) ?? membership.stop;
+    return stop.status !== "active" || Boolean(routeRegion && stop.service_region_key !== routeRegion);
+  });
+  if (hasIneligibleStop) issues.push("readinessStopEligibility");
+
+  if (version.active_from && version.active_until) {
+    const startsAt = Date.parse(version.active_from);
+    const endsAt = Date.parse(version.active_until);
+    if (!Number.isFinite(startsAt) || !Number.isFinite(endsAt) || endsAt <= startsAt) {
+      issues.push("readinessDateOrder");
+    }
+  }
+
+  const hasDownstreamPath = (
+    pickup: "passenger_pickup_allowed" | "parcel_pickup_allowed",
+    dropoff: "passenger_dropoff_allowed" | "parcel_dropoff_allowed"
+  ) => version.stops.some((candidate, pickupIndex) =>
+    candidate[pickup] && version.stops.some((later, dropoffIndex) => dropoffIndex > pickupIndex && later[dropoff])
+  );
+
+  if (!hasDownstreamPath("passenger_pickup_allowed", "passenger_dropoff_allowed")) {
+    issues.push("readinessPassengerPath");
+  }
+  const hasParcelPermission = version.stops.some((membership) =>
+    membership.parcel_pickup_allowed || membership.parcel_dropoff_allowed
+  );
+  if (hasParcelPermission && !hasDownstreamPath("parcel_pickup_allowed", "parcel_dropoff_allowed")) {
+    issues.push("readinessParcelPath");
+  }
+  return issues;
+}
 
 export function routeCatalogView(input: { loading: boolean; error: boolean; count: number }): RouteViewState {
   if (input.loading) return "loading";
@@ -203,7 +269,33 @@ const copy = {
 } as const;
 
 export function routeUiText(locale: Locale) {
-  return copy[locale];
+  const shared = translations[locale];
+  return {
+    ...copy[locale],
+    routeStatusFilter: shared.routeStatusFilter,
+    routeDirectionFilter: shared.routeDirectionFilter,
+    routeRegionFilter: shared.routeRegionFilter,
+    routeStatusHeading: shared.routeStatusHeading,
+    currentVersionStatusHeading: shared.currentVersionStatusHeading,
+    selectedVersionStatusHeading: shared.selectedVersionStatusHeading,
+    stopStatusHeading: shared.stopStatusHeading,
+    routeStatusLabels: shared.routeStatusLabels,
+    routeHistoryBounded: shared.routeHistoryBounded,
+    routeHistorySummary: shared.routeHistorySummary,
+    routeHistoryTruncated: shared.routeHistoryTruncated,
+    routeMapUnavailable: shared.routeMapUnavailable,
+    routeMapUnavailableDescription: shared.routeMapUnavailableDescription,
+    routeReadinessTitle: shared.routeReadinessTitle,
+    routeReadinessReady: shared.routeReadinessReady,
+    readinessMissingNames: shared.readinessMissingNames,
+    readinessMinimumStops: shared.readinessMinimumStops,
+    readinessStopEligibility: shared.readinessStopEligibility,
+    readinessDateOrder: shared.readinessDateOrder,
+    readinessPassengerPath: shared.readinessPassengerPath,
+    readinessParcelPath: shared.readinessParcelPath,
+    routeUsedStopImmutable: shared.routeUsedStopImmutable,
+    routeNoCurrentVersion: shared.routeNoCurrentVersion
+  };
 }
 
 function key(prefix: string) {
@@ -241,7 +333,14 @@ export function mutationFailureIsAuthoritative(error: unknown) {
 
 export function routeUiError(locale: Locale, error: unknown) {
   const value = error instanceof Error ? error.message : "unexpected_error";
-  return value === "draft_revision_conflict" ? routeUiText(locale).revisionConflict : routeUiText(locale).genericError;
+  if (value === "draft_revision_conflict") return routeUiText(locale).revisionConflict;
+  if (value === "used_stop_immutable") return routeUiText(locale).routeUsedStopImmutable;
+  return routeUiText(locale).genericError;
+}
+
+export function routeStatusText(locale: Locale, value: string) {
+  const text = routeUiText(locale);
+  return text[value as keyof typeof text] ?? text.status;
 }
 
 export function routeConflictRequiresReload(error: unknown) {
@@ -255,7 +354,11 @@ export async function handleRouteMutationFailure(
 ) {
   if (!routeConflictRequiresReload(error)) return routeUiError(locale, error);
   try {
-    return await reload() ? routeUiText(locale).conflictReloaded : routeUiText(locale).reloadFailed;
+    if (!await reload()) return routeUiText(locale).reloadFailed;
+    const safeError = routeUiError(locale, error);
+    return safeError === routeUiText(locale).genericError
+      ? routeUiText(locale).conflictReloaded
+      : `${safeError} ${routeUiText(locale).conflictReloaded}`;
   } catch {
     return routeUiText(locale).reloadFailed;
   }
@@ -279,6 +382,10 @@ function toApiDate(value: string | null | undefined) {
 
 function toInputDate(value: string | null | undefined) {
   return value ? value.slice(0, 16) : "";
+}
+
+function formatHistory(template: string, shown: number, total: number) {
+  return template.replace("{shown}", String(shown)).replace("{total}", String(total));
 }
 
 function draftFromVersion(version: ServiceRouteVersion): RouteVersionDraft {
@@ -319,6 +426,8 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
   const [stopToAdd, setStopToAdd] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [directionFilter, setDirectionFilter] = useState("");
+  const [serviceRegionFilter, setServiceRegionFilter] = useState("");
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [busy, setBusy] = useState("");
@@ -328,7 +437,13 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
   const mutationKeys = useRef(new Map<string, string>());
 
   const activeStops = useMemo(() => stops.filter((stop) => stop.status === "active"), [stops]);
+  const usedStopIds = useMemo(() => new Set(
+    selectedRoute?.versions?.flatMap((version) => version.stops.map((membership) => membership.stop_id)) ?? []
+  ), [selectedRoute]);
   const actions = lifecycleActions(selectedVersion);
+  const readinessIssues = selectedRoute && selectedVersion
+    ? publicationReadiness({ ...selectedVersion, service_region_key: selectedRoute.service_region_key }, stops)
+    : [];
 
   function showError(error: unknown) {
     setMessage({ kind: "error", text: routeUiError(locale, error) });
@@ -363,9 +478,13 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
     setView("loading");
     setMessage(null);
     try {
-      const query = new URLSearchParams({ page: String(nextPage), limit: "25" });
-      if (search.trim()) query.set("search", search.trim());
-      if (statusFilter) query.set("status", statusFilter);
+      const query = routeCatalogQuery({
+        page: nextPage,
+        search,
+        status: statusFilter,
+        direction: directionFilter,
+        serviceRegionKey: serviceRegionFilter
+      });
       const [routePage, stopPage] = await Promise.all([
         api.serviceRoutes(token, `?${query}`),
         api.canonicalStops(token, "?limit=50")
@@ -451,6 +570,22 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
     } catch (error) {
       settleMutation(mutation.fingerprint, error);
       await showMutationError(error, loadStops);
+    } finally {
+      endBusy();
+    }
+  }
+
+  async function saveStop(id: string, draft: CanonicalStopDraft) {
+    if (!beginBusy(`edit-stop-${id}`)) return false;
+    const { stop_key: _immutableStopKey, ...update } = draft;
+    try {
+      await api.updateCanonicalStop(token, id, update);
+      if (!await loadStops()) return false;
+      setMessage({ kind: "success", text: text.saved });
+      return true;
+    } catch (error) {
+      await showMutationError(error, loadStops);
+      return false;
     } finally {
       endBusy();
     }
@@ -630,7 +765,7 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
     }
   }
 
-  const statusText = (value: string) => text[value as keyof typeof text] ?? value;
+  const statusText = (value: string) => routeStatusText(locale, value);
 
   const disabledUnlessDraft = selectedVersion ? selectedVersion.status !== "draft" : false;
 
@@ -638,9 +773,21 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
     <section className="stack" aria-labelledby="route-management-title">
       <div className="split">
         <h2 id="route-management-title" className="page-header__title">{text.title}</h2>
-        <StatusBadge tone="warning">{text.geometryPending}</StatusBadge>
+        <StatusBadge tone="warning">{text.routeMapUnavailable}</StatusBadge>
       </div>
       <p className="muted">{text.subtitle}</p>
+      <div className="route-boundaries" role="status">
+        <div>
+          <strong>{text.routeMapUnavailable}</strong>
+          <p className="muted">{text.routeMapUnavailableDescription}</p>
+        </div>
+        <div>
+          <strong>{text.routeHistoryBounded}</strong>
+          <p className="muted" aria-label={text.routeStatusLabels}>
+            {text.routeStatusHeading} · {text.currentVersionStatusHeading} · {text.selectedVersionStatusHeading} · {text.stopStatusHeading}
+          </p>
+        </div>
+      </div>
 
       {message && <Notice kind={message.kind}>{message.text}</Notice>}
 
@@ -649,7 +796,9 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
           <Card>
             <form className="stack stack--tight" onSubmit={(event) => { event.preventDefault(); void loadCatalog(1); }}>
               <label className="field">{text.search}<input value={search} onChange={(event) => setSearch(event.target.value)} /></label>
-              <label className="field">{text.status}<select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="">—</option><option value="active">{text.active}</option><option value="retired">{text.retired}</option></select></label>
+              <label className="field">{text.routeStatusFilter}<select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="">—</option><option value="active">{text.active}</option><option value="retired">{text.retired}</option></select></label>
+              <label className="field">{text.routeDirectionFilter}<select value={directionFilter} onChange={(event) => setDirectionFilter(event.target.value)}><option value="">—</option><option value="outbound">{text.outbound}</option><option value="inbound">{text.inbound}</option><option value="loop">{text.loop}</option></select></label>
+              <label className="field">{text.routeRegionFilter}<input className="technical-value" dir="ltr" value={serviceRegionFilter} onChange={(event) => setServiceRegionFilter(event.target.value)} /></label>
               <Button type="submit" variant="primary" icon="search" disabled={Boolean(busy)}>{text.search}</Button>
             </form>
           </Card>
@@ -667,8 +816,9 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
                 disabled={Boolean(busy)}
               >
                 <strong>{locale === "ar" ? route.current_version?.name_ar ?? route.route_key : route.current_version?.name_en ?? route.route_key}</strong>
-                <span>{route.route_key}</span>
-                <small>{statusText(route.status)} · {text[route.direction]}</small>
+                <span className="technical-value" dir="ltr">{route.route_key}</span>
+                <small>{text.routeStatusHeading}: {statusText(route.status)} · {text[route.direction]}</small>
+                <small>{text.currentVersionStatusHeading}: {route.current_version ? statusText(route.current_version.status) : text.routeNoCurrentVersion}</small>
               </button>
             ))}</div>}
             <div className="route-pagination">
@@ -686,9 +836,9 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
             <details className="disclosure">
               <summary>{text.createRoute}</summary>
               <form className="field-grid" onSubmit={submitRoute}>
-                <label className="field">{text.routeKey}<input required value={routeDraft.route_key} onChange={(event) => setRouteDraft({ ...routeDraft, route_key: event.target.value })} /></label>
-                <label className="field">{text.groupKey}<input required value={routeDraft.route_group_key} onChange={(event) => setRouteDraft({ ...routeDraft, route_group_key: event.target.value })} /></label>
-                <label className="field">{text.region}<input required value={routeDraft.service_region_key} onChange={(event) => setRouteDraft({ ...routeDraft, service_region_key: event.target.value })} /></label>
+                <label className="field">{text.routeKey}<input className="technical-value" dir="ltr" required value={routeDraft.route_key} onChange={(event) => setRouteDraft({ ...routeDraft, route_key: event.target.value })} /></label>
+                <label className="field">{text.groupKey}<input className="technical-value" dir="ltr" required value={routeDraft.route_group_key} onChange={(event) => setRouteDraft({ ...routeDraft, route_group_key: event.target.value })} /></label>
+                <label className="field">{text.region}<input className="technical-value" dir="ltr" required value={routeDraft.service_region_key} onChange={(event) => setRouteDraft({ ...routeDraft, service_region_key: event.target.value })} /></label>
                 <label className="field">{text.direction}<select value={routeDraft.direction} onChange={(event) => setRouteDraft({ ...routeDraft, direction: event.target.value as RouteIdentityDraft["direction"] })}><option value="outbound">{text.outbound}</option><option value="inbound">{text.inbound}</option><option value="loop">{text.loop}</option></select></label>
                 <Button type="submit" icon="add" disabled={Boolean(busy)}>{text.create}</Button>
               </form>
@@ -703,12 +853,13 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
             <Card>
               <div className="split">
                 <div>
-                  <StatusBadge tone="neutral">{selectedRoute.route_key}</StatusBadge>
+                  <StatusBadge tone="neutral"><span dir="ltr">{selectedRoute.route_key}</span></StatusBadge>
                   <h3 className="card__title">{selectedRoute.current_version ? (locale === "ar" ? selectedRoute.current_version.name_ar : selectedRoute.current_version.name_en) : selectedRoute.route_key}</h3>
-                  <p className="muted">{selectedRoute.service_region_key} · {text[selectedRoute.direction]}</p>
+                  <p className="muted"><span className="technical-value" dir="ltr">{selectedRoute.service_region_key}</span> · {text[selectedRoute.direction]}</p>
                 </div>
                 <div className="button-row">
-                  <StatusBadge status={selectedRoute.status}>{statusText(selectedRoute.status)}</StatusBadge>
+                  <span className="labeled-status"><span>{text.routeStatusHeading}</span><StatusBadge status={selectedRoute.status}>{statusText(selectedRoute.status)}</StatusBadge></span>
+                  <span className="labeled-status"><span>{text.currentVersionStatusHeading}</span><StatusBadge status={selectedRoute.current_version?.status ?? "neutral"}>{selectedRoute.current_version ? statusText(selectedRoute.current_version.status) : text.routeNoCurrentVersion}</StatusBadge></span>
                   <Button variant="destructive" icon="close" onClick={() => void retireRoute()} disabled={Boolean(busy)}>{text.retireRoute}</Button>
                 </div>
               </div>
@@ -719,6 +870,15 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
                 title={text.versions}
                 action={<Button variant="secondary" icon="add" onClick={() => selectVersion(null)} disabled={Boolean(busy)}>{text.newVersion}</Button>}
               />
+              <p className="muted">
+                {formatHistory(
+                  (selectedRoute.versions?.length ?? 0) < selectedRoute.version_count
+                    ? text.routeHistoryTruncated
+                    : text.routeHistorySummary,
+                  selectedRoute.versions?.length ?? 0,
+                  selectedRoute.version_count
+                )}
+              </p>
               <div className="version-tabs">{selectedRoute.versions?.map((version) => (
                 <Button
                   key={version.id}
@@ -741,8 +901,14 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
                 {(!selectedVersion || selectedVersion.status === "draft") && <Button type="submit" icon="check" disabled={Boolean(busy)}>{selectedVersion ? text.saveDraft : text.createDraft}</Button>}
               </form>
               {selectedVersion && <div className="route-lifecycle">
-                <StatusBadge status={selectedVersion.status}>{statusText(selectedVersion.status)}</StatusBadge>
+                <span className="labeled-status"><span>{text.selectedVersionStatusHeading}</span><StatusBadge status={selectedVersion.status}>{statusText(selectedVersion.status)}</StatusBadge></span>
                 <StatusBadge tone={selectedVersion.geometry.ready ? "success" : "warning"}>{selectedVersion.geometry.ready ? text.geometryReady : text.geometryPending}</StatusBadge>
+                {actions.includes("publish") && <div className="route-readiness" role="status">
+                  <strong>{text.routeReadinessTitle}</strong>
+                  {readinessIssues.length === 0
+                    ? <p className="muted">{text.routeReadinessReady}</p>
+                    : <ul>{readinessIssues.map((issue) => <li key={issue}>{text[issue]}</li>)}</ul>}
+                </div>}
                 {actions.includes("clone") && <Button variant="outline" size="sm" onClick={() => void cloneVersion()} disabled={Boolean(busy)}>{text.clone}</Button>}
                 {actions.includes("publish") && <Button variant="action" size="sm" icon="check" onClick={() => void versionAction("publish")} disabled={Boolean(busy)}>{text.publish}</Button>}
                 {actions.includes("pause") && <Button variant="outline" size="sm" onClick={() => void versionAction("pause")} disabled={Boolean(busy)}>{text.pause}</Button>}
@@ -785,21 +951,27 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
               <summary>{text.createStop}</summary>
               <p className="muted">{text.stopHelp}</p>
               <form className="field-grid" onSubmit={submitStop}>
-                <label className="field">{text.stopKey}<input required value={stopDraft.stop_key} onChange={(event) => setStopDraft({ ...stopDraft, stop_key: event.target.value })} /></label>
-                <label className="field">{text.region}<input required value={stopDraft.service_region_key} onChange={(event) => setStopDraft({ ...stopDraft, service_region_key: event.target.value })} /></label>
+                <label className="field">{text.stopKey}<input className="technical-value" dir="ltr" required value={stopDraft.stop_key} onChange={(event) => setStopDraft({ ...stopDraft, stop_key: event.target.value })} /></label>
+                <label className="field">{text.region}<input className="technical-value" dir="ltr" required value={stopDraft.service_region_key} onChange={(event) => setStopDraft({ ...stopDraft, service_region_key: event.target.value })} /></label>
                 <label className="field">{text.nameAr}<input dir="rtl" required value={stopDraft.name_ar} onChange={(event) => setStopDraft({ ...stopDraft, name_ar: event.target.value })} /></label>
                 <label className="field">{text.nameEn}<input dir="ltr" required value={stopDraft.name_en} onChange={(event) => setStopDraft({ ...stopDraft, name_en: event.target.value })} /></label>
-                <label className="field">{text.latitude}<input type="number" step="0.000001" min="-90" max="90" required value={stopDraft.latitude} onChange={(event) => setStopDraft({ ...stopDraft, latitude: Number(event.target.value) })} /></label>
-                <label className="field">{text.longitude}<input type="number" step="0.000001" min="-180" max="180" required value={stopDraft.longitude} onChange={(event) => setStopDraft({ ...stopDraft, longitude: Number(event.target.value) })} /></label>
+                <label className="field">{text.latitude}<input className="technical-value" dir="ltr" type="number" step="0.000001" min="-90" max="90" required value={stopDraft.latitude} onChange={(event) => setStopDraft({ ...stopDraft, latitude: Number(event.target.value) })} /></label>
+                <label className="field">{text.longitude}<input className="technical-value" dir="ltr" type="number" step="0.000001" min="-180" max="180" required value={stopDraft.longitude} onChange={(event) => setStopDraft({ ...stopDraft, longitude: Number(event.target.value) })} /></label>
                 <Button type="submit" icon="add" disabled={Boolean(busy)}>{text.createStop}</Button>
               </form>
               <div className="stop-catalog">{stops.map((stop) => <div key={stop.id}>
-                <div>
-                  <strong>{locale === "ar" ? stop.name_ar : stop.name_en}</strong>
-                  <span>{stop.stop_key} · {stop.latitude.toFixed(6)}, {stop.longitude.toFixed(6)}</span>
+                <div className="split stop-catalog__status">
+                  <span className="labeled-status"><span>{text.stopStatusHeading}</span><StatusBadge status={stop.status}>{statusText(stop.status)}</StatusBadge></span>
+                  {stop.status === "active" && <Button variant="destructive" size="sm" onClick={() => void retireStop(stop)} disabled={Boolean(busy)}>{text.retire}</Button>}
                 </div>
-                <StatusBadge status={stop.status}>{statusText(stop.status)}</StatusBadge>
-                {stop.status === "active" && <Button variant="destructive" size="sm" onClick={() => void retireStop(stop)} disabled={Boolean(busy)}>{text.retire}</Button>}
+                <StopEditor
+                  key={`${stop.id}-${stop.name_ar}-${stop.name_en}-${stop.latitude}-${stop.longitude}`}
+                  stop={stop}
+                  used={usedStopIds.has(stop.id)}
+                  busy={Boolean(busy)}
+                  locale={locale}
+                  onSave={saveStop}
+                />
               </div>)}</div>
             </details>
           </Card>
