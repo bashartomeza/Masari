@@ -467,6 +467,99 @@ describe("admin route management", () => {
     root.unmount();
   });
 
+  it("shows a create-draft reload failure beside the Versions workspace instead of page-wide", async () => {
+    const initialRoute: ServiceRoute = {
+      id: "route_create_reload",
+      route_key: "create-reload-route",
+      route_group_key: "create-reload-route",
+      service_region_key: "south-west-bank",
+      direction: "outbound",
+      status: "active",
+      current_version_id: null,
+      current_version: null,
+      versions: [],
+      version_count: 0,
+      created_at: "2026-08-25T00:00:00.000Z",
+      updated_at: "2026-08-25T00:00:00.000Z"
+    };
+    const createdVersion = { ...readyVersion, id: "version_created", service_route_id: initialRoute.id, name_en: "Created before reload failure" };
+    const api = {
+      serviceRoutes: vi.fn().mockResolvedValue({ routes: [initialRoute], page: 1, limit: 25, total: 1 }),
+      canonicalStops: vi.fn().mockResolvedValue({ stops: canonicalStops, page: 1, limit: 50, total: 2 }),
+      serviceRoute: vi.fn().mockResolvedValueOnce({ route: initialRoute }).mockRejectedValueOnce(new Error("route_reload_failed")),
+      createRouteVersion: vi.fn().mockResolvedValue({ version: createdVersion })
+    };
+    mountedHost = document.createElement("div");
+    document.body.append(mountedHost);
+    const root = createRoot(mountedHost);
+
+    await act(async () => { root.render(<RouteManagement api={api as never} token="token" locale="en" />); });
+    await act(async () => { await Promise.resolve(); });
+    const row = mountedHost.querySelector<HTMLElement>(".route-directory__row")!;
+    await act(async () => { row.querySelector<HTMLButtonElement>("button")!.click(); await Promise.resolve(); });
+    act(() => [...mountedHost!.querySelectorAll<HTMLButtonElement>('[role="tab"]')].find((tab) => tab.textContent === "Versions")!.click());
+    act(() => [...mountedHost!.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent?.trim() === "Create version")!.click());
+    const form = mountedHost.querySelector<HTMLFormElement>(".route-version-create form")!;
+    const arabic = form.querySelector<HTMLInputElement>('input[name="name_ar"]')!;
+    const english = form.querySelector<HTMLInputElement>('input[name="name_en"]')!;
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+    act(() => {
+      setter.call(arabic, "مسودة جديدة");
+      arabic.dispatchEvent(new Event("input", { bubbles: true }));
+      setter.call(english, "New draft");
+      english.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => { form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); await Promise.resolve(); await Promise.resolve(); });
+
+    const workspaceNotice = mountedHost.querySelector(".route-versions__workspace .notice--error");
+    expect(workspaceNotice).not.toBeNull();
+    expect(workspaceNotice?.textContent).toContain(routeUiText("en").reloadFailed);
+    expect(mountedHost.querySelector("section.stack > .notice")).toBeNull();
+    root.unmount();
+  });
+
+  it("shows a saved-draft reload failure beside the Versions workspace instead of page-wide", async () => {
+    const draft = { ...readyVersion, id: "version_save_reload", service_route_id: "route_save_reload", name_en: "Before save reload failure", draft_revision: 7 };
+    const initialRoute: ServiceRoute = {
+      id: "route_save_reload",
+      route_key: "save-reload-route",
+      route_group_key: "save-reload-route",
+      service_region_key: "south-west-bank",
+      direction: "outbound",
+      status: "active",
+      current_version_id: null,
+      current_version: null,
+      versions: [draft],
+      version_count: 1,
+      created_at: "2026-08-25T00:00:00.000Z",
+      updated_at: "2026-08-25T00:00:00.000Z"
+    };
+    const api = {
+      serviceRoutes: vi.fn().mockResolvedValue({ routes: [initialRoute], page: 1, limit: 25, total: 1 }),
+      canonicalStops: vi.fn().mockResolvedValue({ stops: canonicalStops, page: 1, limit: 50, total: 2 }),
+      serviceRoute: vi.fn().mockResolvedValueOnce({ route: initialRoute }).mockRejectedValueOnce(new Error("route_reload_failed")),
+      updateRouteVersion: vi.fn().mockResolvedValue({ version: { ...draft, draft_revision: 8 } })
+    };
+    mountedHost = document.createElement("div");
+    document.body.append(mountedHost);
+    const root = createRoot(mountedHost);
+
+    await act(async () => { root.render(<RouteManagement api={api as never} token="token" locale="en" />); });
+    await act(async () => { await Promise.resolve(); });
+    const row = mountedHost.querySelector<HTMLElement>(".route-directory__row")!;
+    await act(async () => { row.querySelector<HTMLButtonElement>("button")!.click(); await Promise.resolve(); });
+    act(() => [...mountedHost!.querySelectorAll<HTMLButtonElement>('[role="tab"]')].find((tab) => tab.textContent === "Versions")!.click());
+    act(() => [...mountedHost!.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent?.trim() === "Edit draft")!.click());
+    const form = mountedHost.querySelector<HTMLFormElement>(".route-version-editor form")!;
+    await act(async () => { form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); await Promise.resolve(); await Promise.resolve(); });
+
+    const workspaceNotice = mountedHost.querySelector(".route-versions__workspace .notice--error");
+    expect(workspaceNotice).not.toBeNull();
+    expect(workspaceNotice?.textContent).toContain(routeUiText("en").reloadFailed);
+    expect(mountedHost.querySelector("section.stack > .notice")).toBeNull();
+    root.unmount();
+  });
+
   it("reorders stops deterministically and preserves contiguous server-authoritative sequence", () => {
     const moved = moveRouteStop(stops, 1, -1);
     expect(moved.map((stop) => [stop.stop_id, stop.sequence])).toEqual([

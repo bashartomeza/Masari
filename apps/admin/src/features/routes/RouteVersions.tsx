@@ -12,7 +12,7 @@ export type RouteVersionsProps = {
   selectedVersion: ServiceRouteVersion | null;
   editing: boolean;
   busy: boolean;
-  feedback: string | null;
+  feedback: { kind: "success" | "error"; text: string } | null;
   onSelectVersion: (version: ServiceRouteVersion) => void;
   onCreateDraft: (draft: RouteVersionDraft) => void | Promise<void>;
   onBeginEdit: () => void;
@@ -142,7 +142,7 @@ export function RouteVersions({
       </article>)}
     </div>}
     <div className="route-versions__workspace">
-      {feedback && <Notice kind="error">{feedback}</Notice>}
+      {feedback && <Notice kind={feedback.kind}>{feedback.text}</Notice>}
       {selectedVersion ? <>
         <RouteVersionEditor
           locale={locale}

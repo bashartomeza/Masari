@@ -131,6 +131,15 @@ describe("RouteVersions", () => {
     expect(markup).not.toContain("Showing the newest");
   });
 
+  it("renders successful version-editor feedback as a success notice", () => {
+    const markup = renderToStaticMarkup(renderVersions({
+      feedback: { kind: "success", text: "Saved successfully." }
+    }));
+
+    expect(markup).toContain("notice--success");
+    expect(markup).toContain("Saved successfully.");
+  });
+
   it("selects exactly one version workspace from its Open control", () => {
     const onSelectVersion = vi.fn();
     host = document.createElement("div");

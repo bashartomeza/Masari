@@ -538,7 +538,7 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
     void loadCatalog(1);
   }, []);
 
-  async function loadRoute(routeId: string, nested = false) {
+  async function loadRoute(routeId: string, nested = false, surfaceFailure = true) {
     if (!nested && !beginBusy("route-detail")) return false;
     try {
       const response = await api.serviceRoute(token, routeId);
@@ -549,7 +549,7 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
       selectVersion(version ?? null);
       return true;
     } catch (error) {
-      showError(error);
+      if (surfaceFailure) showError(error);
       return false;
     } finally {
       if (!nested) endBusy();
@@ -623,7 +623,10 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
     try {
       const response = await api.createRouteVersion(token, selectedRoute.id, payload, mutation.key);
       settleMutation(mutation.fingerprint);
-      if (!await loadRoute(selectedRoute.id, true)) return;
+      if (!await loadRoute(selectedRoute.id, true, false)) {
+        dispatch({ type: "feedback", scope: "version-editor", kind: "error", text: text.reloadFailed });
+        return;
+      }
       selectVersion(response.version);
       dispatch({ type: "feedback", scope: "version-editor", kind: "success", text: text.saved });
     } catch (error) {
@@ -632,7 +635,7 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
         type: "feedback",
         scope: "version-editor",
         kind: "error",
-        text: await handleRouteMutationFailure(error, () => loadRoute(selectedRoute.id, true), locale)
+        text: await handleRouteMutationFailure(error, () => loadRoute(selectedRoute.id, true, false), locale)
       });
     } finally {
       endBusy();
@@ -645,14 +648,17 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
     try {
       const payload = normalizeRouteVersionDraft(draft);
       await api.updateRouteVersion(token, selectedVersion.id, { ...payload, expected_revision: selectedVersion.draft_revision });
-      if (!await loadRoute(selectedRoute.id, true)) return;
+      if (!await loadRoute(selectedRoute.id, true, false)) {
+        dispatch({ type: "feedback", scope: "version-editor", kind: "error", text: text.reloadFailed });
+        return;
+      }
       dispatch({ type: "feedback", scope: "version-editor", kind: "success", text: text.saved });
     } catch (error) {
       dispatch({
         type: "feedback",
         scope: "version-editor",
         kind: "error",
-        text: await handleRouteMutationFailure(error, () => loadRoute(selectedRoute.id, true), locale)
+        text: await handleRouteMutationFailure(error, () => loadRoute(selectedRoute.id, true, false), locale)
       });
     } finally {
       endBusy();
@@ -881,7 +887,7 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
     selectedVersion={selectedVersion}
     editing={ui.versionEditMode}
     busy={Boolean(busy)}
-    feedback={ui.feedback?.scope === "version-editor" ? ui.feedback.text : null}
+    feedback={ui.feedback?.scope === "version-editor" ? ui.feedback : null}
     onSelectVersion={selectVersion}
     onCreateDraft={(draft) => void createDraft(draft)}
     onBeginEdit={() => {
