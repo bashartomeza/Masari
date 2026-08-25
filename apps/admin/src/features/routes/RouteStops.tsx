@@ -128,7 +128,7 @@ const copy = {
 } as const;
 
 function emptyStop(): StopCreationDraft {
-  return { stop_key: "", service_region_key: "", name_ar: "", name_en: "", latitude: "31.5", longitude: "35.1" };
+  return { stop_key: "", service_region_key: "", name_ar: "", name_en: "", latitude: "", longitude: "" };
 }
 
 function parseCreationDraft(draft: StopCreationDraft): CanonicalStopDraft | null {

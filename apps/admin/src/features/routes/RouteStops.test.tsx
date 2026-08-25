@@ -221,6 +221,7 @@ describe("RouteStops", () => {
     const longitude = dialog.querySelector<HTMLInputElement>('input[name="longitude"]')!;
     expect([latitude.type, latitude.min, latitude.max, latitude.dir]).toEqual(["number", "-90", "90", "ltr"]);
     expect([longitude.type, longitude.min, longitude.max, longitude.dir]).toEqual(["number", "-180", "180", "ltr"]);
+    expect([latitude.value, longitude.value]).toEqual(["", ""]);
     expect(dialog.textContent).not.toMatch(/geocod|provider|GPS|road.?snapp|map/i);
 
     act(() => button("Close").click());
@@ -419,6 +420,8 @@ describe("RouteStops", () => {
     await act(async () => { root.render(<Harness />); });
 
     let form = mountedHost.querySelector<HTMLFormElement>('[role="dialog"] form')!;
+    enterValue(form.querySelector<HTMLInputElement>('input[name="latitude"]')!, "0");
+    enterValue(form.querySelector<HTMLInputElement>('input[name="longitude"]')!, "0");
     await act(async () => { form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); await Promise.resolve(); });
     expect(createAttempts).toBe(1);
     expect(mountedHost.querySelector('[role="dialog"]')).not.toBeNull();

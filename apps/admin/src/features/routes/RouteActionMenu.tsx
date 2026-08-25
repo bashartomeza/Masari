@@ -107,6 +107,12 @@ export function RouteActionMenu({
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [menuOpen]);
 
+  useEffect(() => {
+    if (dialogOpen) return;
+    setPending(null);
+    setReason("");
+  }, [dialogOpen]);
+
   function selectAction(action: RouteLifecycleDialogAction) {
     setPending(action);
     setReason("");

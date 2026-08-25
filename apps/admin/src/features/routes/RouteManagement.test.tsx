@@ -491,6 +491,8 @@ describe("admin route management", () => {
         selectWorkspaceTab(host, "Stops");
         act(() => buttonNamed(host, "Create new stop").click());
         const form = host.querySelector<HTMLFormElement>(".route-stops__create-form")!;
+        enterValue(form.querySelector<HTMLInputElement>('input[name="latitude"]')!, "0");
+        enterValue(form.querySelector<HTMLInputElement>('input[name="longitude"]')!, "0");
         await act(async () => {
           form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
           await Promise.resolve();

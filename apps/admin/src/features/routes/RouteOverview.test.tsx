@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act } from "react";
+import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -318,5 +318,37 @@ describe("RouteActionMenu", () => {
     clickButton(menuHost, "Cancel");
 
     expect(document.activeElement).toBe(trigger);
+  });
+
+  it("discards a pending lifecycle action when the controlled dialog is closed by its parent", () => {
+    function Harness() {
+      const [dialogOpen, setDialogOpen] = useState(false);
+      return <>
+        <button type="button" onClick={() => setDialogOpen(false)}>Parent close</button>
+        <button type="button" onClick={() => setDialogOpen(true)}>Parent reopen</button>
+        <RouteActionMenu
+          locale="en"
+          routeStatus="active"
+          version={version}
+          actions={["publish", "retire"]}
+          readinessIssues={[]}
+          dialogOpen={dialogOpen}
+          onOpenDialog={() => setDialogOpen(true)}
+          onCloseDialog={() => setDialogOpen(false)}
+          {...callbacks()}
+        />
+      </>;
+    }
+
+    const menuHost = mount(<Harness />);
+    clickButton(menuHost, "Route actions");
+    clickButton(menuHost, "Publish");
+    expect(menuHost.querySelector('[role="dialog"]')).toBeTruthy();
+
+    clickButton(menuHost, "Parent close");
+    expect(menuHost.querySelector('[role="dialog"]')).toBeNull();
+    clickButton(menuHost, "Parent reopen");
+
+    expect(menuHost.querySelector('[role="dialog"]')).toBeNull();
   });
 });

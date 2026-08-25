@@ -3,14 +3,15 @@ import type { PublicationReadinessIssue } from "./RouteManagement";
 
 type Locale = "ar" | "en";
 
-const checks: PublicationReadinessIssue[] = [
-  "readinessMissingNames",
-  "readinessMinimumStops",
-  "readinessStopEligibility",
-  "readinessDateOrder",
-  "readinessPassengerPath",
-  "readinessParcelPath"
-];
+const checkOrder: Record<PublicationReadinessIssue, PublicationReadinessIssue> = {
+  readinessMissingNames: "readinessMissingNames",
+  readinessMinimumStops: "readinessMinimumStops",
+  readinessStopEligibility: "readinessStopEligibility",
+  readinessDateOrder: "readinessDateOrder",
+  readinessPassengerPath: "readinessPassengerPath",
+  readinessParcelPath: "readinessParcelPath"
+};
+const checks = Object.values(checkOrder);
 
 const copy = {
   ar: { ready: "جاهز", failed: "يحتاج إلى معالجة" },
