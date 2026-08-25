@@ -76,6 +76,19 @@ const memberships: RouteStopDraft[] = version.stops.map(({ id: _id, stop: _stop,
 
 const noop = () => undefined;
 
+function buttonNamed(host: ParentNode, name: string) {
+  return [...host.querySelectorAll<HTMLButtonElement>("button")]
+    .find((button) => button.textContent?.trim() === name)!;
+}
+
+function enterValue(input: HTMLInputElement, value: string) {
+  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+  act(() => {
+    setter.call(input, value);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+}
+
 function renderStops(overrides: Partial<React.ComponentProps<typeof RouteStops>> = {}) {
   return <RouteStops
     locale="en"
@@ -278,6 +291,53 @@ describe("RouteStops", () => {
     root.unmount();
   });
 
+  it("cancels retirement, add-stop, and create-stop forms without submitting their mutations", async () => {
+    const onRetireStop = vi.fn().mockResolvedValue(true);
+    const onMembershipsChange = vi.fn();
+    const onCreateStop = vi.fn().mockResolvedValue(true);
+    const onCloseDialog = vi.fn();
+
+    mountedHost = document.createElement("div");
+    document.body.append(mountedHost);
+    const root = createRoot(mountedHost);
+
+    await act(async () => {
+      root.render(renderStops({ onRetireStop, onMembershipsChange, onCreateStop, onCloseDialog }));
+    });
+    const catalogStop = mountedHost.querySelector<HTMLElement>('.route-stops__catalog-item[data-stop-id="stop_1"]')!;
+    act(() => buttonNamed(catalogStop, "Retire").click());
+    const retirementForm = catalogStop.querySelector<HTMLFormElement>(".route-stops__retirement")!;
+    enterValue(retirementForm.querySelector("input")!, "Duplicate stop");
+    const retirementCancel = buttonNamed(retirementForm, "Cancel");
+    expect(retirementCancel.type).toBe("button");
+    act(() => retirementCancel.click());
+    expect(onRetireStop).not.toHaveBeenCalled();
+
+    await act(async () => {
+      root.render(renderStops({ dialog: "add-stop", onRetireStop, onMembershipsChange, onCreateStop, onCloseDialog }));
+    });
+    const addStopCancel = buttonNamed(mountedHost!, "Cancel");
+    expect(addStopCancel.type).toBe("button");
+    act(() => addStopCancel.click());
+    expect(onMembershipsChange).not.toHaveBeenCalled();
+
+    await act(async () => {
+      root.render(renderStops({ dialog: "create-stop", onRetireStop, onMembershipsChange, onCreateStop, onCloseDialog }));
+    });
+    for (const [name, value] of Object.entries({
+      stop_key: "new-stop",
+      service_region_key: "south-west-bank",
+      name_ar: "محطة جديدة",
+      name_en: "New stop"
+    })) enterValue(mountedHost.querySelector<HTMLInputElement>(`input[name="${name}"]`)!, value);
+    const createStopCancel = buttonNamed(mountedHost!, "Cancel");
+    expect(createStopCancel.type).toBe("button");
+    act(() => createStopCancel.click());
+    expect(onCreateStop).not.toHaveBeenCalled();
+    expect(onCloseDialog).toHaveBeenCalledTimes(2);
+    root.unmount();
+  });
+
   it("closes create and edit dialogs only after their mutations succeed", async () => {
     let createSucceeds: boolean | undefined;
     let editSucceeds = false;
@@ -330,9 +390,13 @@ describe("RouteStops", () => {
     root.unmount();
   });
 
-  it("keeps a used active stop immutable for editing while retaining reasoned confirmed retirement", async () => {
+  it("keeps a used active stop immutable and treats the reasoned inline form as its single retirement confirmation", async () => {
     let retirement: { stopId: string; reason: string } | null = null;
-    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    const onRetireStop = vi.fn(async (stop: CanonicalStop, reason: string) => {
+      retirement = { stopId: stop.id, reason };
+      return true;
+    });
 
     mountedHost = document.createElement("div");
     document.body.append(mountedHost);
@@ -340,10 +404,7 @@ describe("RouteStops", () => {
     await act(async () => {
       root.render(renderStops({
         usedStopIds: new Set(["stop_1"]),
-        onRetireStop: async (stop, reason) => {
-          retirement = { stopId: stop.id, reason };
-          return true;
-        }
+        onRetireStop
       }));
     });
 
@@ -359,6 +420,7 @@ describe("RouteStops", () => {
       .find((button) => button.textContent?.trim() === "Confirm retirement")!;
     expect(reason.required).toBe(true);
     expect(submit.disabled).toBe(true);
+    expect(form.textContent).toContain("Retire this stop? The action will be recorded in the audit log.");
 
     await act(async () => {
       form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
@@ -377,15 +439,8 @@ describe("RouteStops", () => {
       form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
       await Promise.resolve();
     });
-    expect(confirm).toHaveBeenCalledOnce();
-    expect(retirement).toBeNull();
-    expect(usedStop.querySelector(".route-stops__retirement")).not.toBeNull();
-
-    confirm.mockReturnValue(true);
-    await act(async () => {
-      form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
-      await Promise.resolve();
-    });
+    expect(confirm).not.toHaveBeenCalled();
+    expect(onRetireStop).toHaveBeenCalledTimes(1);
     expect(retirement).toEqual({ stopId: "stop_1", reason: "Duplicate operational stop" });
     expect(usedStop.querySelector(".route-stops__retirement")).toBeNull();
     root.unmount();

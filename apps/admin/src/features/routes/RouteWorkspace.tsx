@@ -75,7 +75,7 @@ export function RouteWorkspace({
       ? 0
       : event.key === "End"
         ? tabs.length - 1
-        : event.key === "ArrowRight"
+        : event.key === (locale === "ar" ? "ArrowLeft" : "ArrowRight")
           ? (index + 1) % tabs.length
           : (index - 1 + tabs.length) % tabs.length;
     onSelectTab(tabs[targetIndex].id);

@@ -215,7 +215,7 @@ export function RouteStops({
   async function retireStop(event: FormEvent, stop: CanonicalStop) {
     event.preventDefault();
     const reason = retirementReason.trim();
-    if (!reason || !window.confirm(text.confirm)) return;
+    if (!reason) return;
     const retired = await onRetireStop(stop, reason);
     if (!retired) return;
     setRetiringStopId(null);
@@ -328,6 +328,7 @@ export function RouteStops({
               </div>}
             </div>
             {canRetire && retiringStopId === stop.id && <form className="route-stops__retirement" onSubmit={(event) => void retireStop(event, stop)}>
+              <p className="muted">{text.confirm}</p>
               <label className="field">{text.retirementReason}<input required maxLength={500} value={retirementReason} disabled={busy} onChange={(event) => setRetirementReason(event.target.value)} /></label>
               <div className="button-row">
                 <Button variant="outline" size="sm" disabled={busy} onClick={() => setRetiringStopId(null)}>{text.cancel}</Button>

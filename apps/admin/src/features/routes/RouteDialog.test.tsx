@@ -118,6 +118,41 @@ describe("RouteDialog", () => {
     expect(onBusyClose).not.toHaveBeenCalled();
   });
 
+  it("preserves current focus across busy and callback rerenders while using their latest values", () => {
+    const originalClose = vi.fn();
+    const latestClose = vi.fn();
+    const dialogHost = renderDialog(
+      <RouteDialog open title="Create route" onClose={originalClose}>
+        <input autoFocus aria-label="First field" />
+        <input aria-label="Current field" />
+      </RouteDialog>
+    );
+    const current = dialogHost.querySelector<HTMLInputElement>('[aria-label="Current field"]')!;
+    current.focus();
+
+    act(() => root?.render(
+      <RouteDialog open title="Create route" busy onClose={latestClose}>
+        <input autoFocus aria-label="First field" />
+        <input aria-label="Current field" />
+      </RouteDialog>
+    ));
+    expect(document.activeElement).toBe(current);
+    act(() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
+    expect(originalClose).not.toHaveBeenCalled();
+    expect(latestClose).not.toHaveBeenCalled();
+
+    act(() => root?.render(
+      <RouteDialog open title="Create route" onClose={latestClose}>
+        <input autoFocus aria-label="First field" />
+        <input aria-label="Current field" />
+      </RouteDialog>
+    ));
+    expect(document.activeElement).toBe(current);
+    act(() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
+    expect(originalClose).not.toHaveBeenCalled();
+    expect(latestClose).toHaveBeenCalledTimes(1);
+  });
+
   it("dismisses only backdrop clicks and suppresses busy close events", () => {
     const onClose = vi.fn();
     const dialogHost = renderDialog(<RouteDialog open title="Create route" onClose={onClose}>Content</RouteDialog>);

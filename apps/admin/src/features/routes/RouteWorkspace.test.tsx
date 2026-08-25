@@ -136,7 +136,10 @@ describe("RouteWorkspace", () => {
     expect(onBack).toHaveBeenCalledOnce();
   });
 
-  it("supports arrow-key tab selection and focus", () => {
+  it.each([
+    { locale: "en" as const, rightIndex: 1 },
+    { locale: "ar" as const, rightIndex: 2 }
+  ])("supports direction-aware arrow keys plus absolute Home and End navigation in $locale", ({ locale, rightIndex }) => {
     function Harness() {
       const [state, dispatch] = useReducer(routeUiReducer, {
         ...initialRouteUiState,
@@ -145,7 +148,7 @@ describe("RouteWorkspace", () => {
       });
       return (
         <RouteWorkspace
-          locale="en"
+          locale={locale}
           route={route}
           selectedVersion={version}
           tab={state.tab}
@@ -163,11 +166,21 @@ describe("RouteWorkspace", () => {
     root = createRoot(host);
     act(() => root?.render(<Harness />));
     const tabs = [...host.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
-    tabs[0].focus();
-    act(() => tabs[0].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, cancelable: true })));
+    const press = (tab: HTMLButtonElement, key: string) => act(() => tab.dispatchEvent(
+      new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true })
+    ));
 
-    expect(host.textContent).toContain("Versions panel content");
-    expect(document.activeElement).toBe(tabs[1]);
+    tabs[0].focus();
+    press(tabs[0], "ArrowRight");
+    expect(document.activeElement).toBe(tabs[rightIndex]);
+
+    press(tabs[rightIndex], "ArrowLeft");
+    expect(document.activeElement).toBe(tabs[0]);
+
+    press(tabs[0], "End");
+    expect(document.activeElement).toBe(tabs[2]);
+    press(tabs[2], "Home");
+    expect(document.activeElement).toBe(tabs[0]);
   });
 
   it("reflows workspace status, overview facts, and lifecycle controls for narrow screens", () => {

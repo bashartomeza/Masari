@@ -42,9 +42,13 @@ export function RouteDialog({
   dir = "ltr"
 }: RouteDialogProps & RouteDialogDirectionProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
+  const busyRef = useRef(busy);
+  const onCloseRef = useRef(onClose);
   const titleId = useId();
   const descriptionId = useId();
   const closeLabel = dir === "rtl" ? translations.ar.routeDialogClose : translations.en.routeDialogClose;
+  busyRef.current = busy;
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!open || typeof document === "undefined") return;
@@ -55,7 +59,7 @@ export function RouteDialog({
     (autofocusElement(dialog) ?? focusableElements(dialog)[0] ?? dialog).focus();
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !busy) onClose();
+      if (event.key === "Escape" && !busyRef.current) onCloseRef.current();
       if (event.key !== "Tab") return;
 
       const controls = focusableElements(dialog);
@@ -82,7 +86,7 @@ export function RouteDialog({
       document.removeEventListener("keydown", handleKeyDown);
       if (previouslyFocused?.isConnected) previouslyFocused.focus();
     };
-  }, [busy, onClose, open]);
+  }, [open]);
 
   if (!open) return null;
 

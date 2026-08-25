@@ -606,9 +606,9 @@ describe("admin route management", () => {
     };
     mountedHost = document.createElement("div");
     document.body.append(mountedHost);
-    const root = createRoot(mountedHost);
+    mountedRoot = createRoot(mountedHost);
 
-    await act(async () => { root.render(<RouteManagement api={api as never} token="token" locale="en" />); });
+    await act(async () => { mountedRoot?.render(<RouteManagement api={api as never} token="token" locale="en" />); });
     await act(async () => { await Promise.resolve(); });
     const create = [...mountedHost.querySelectorAll("button")].find((button) => button.textContent?.trim() === "Create route")!;
     act(() => create.click());
@@ -631,7 +631,6 @@ describe("admin route management", () => {
     expect(mountedHost.textContent).toContain("Created Hebron route");
     expect(mountedHost.textContent).toContain("Saved successfully.");
     expect(mountedHost.querySelector('[role="dialog"]')).toBeNull();
-    root.unmount();
   });
 
   it("does not carry route A lifecycle feedback through Back into route B", async () => {
@@ -668,9 +667,9 @@ describe("admin route management", () => {
     };
     mountedHost = document.createElement("div");
     document.body.append(mountedHost);
-    const root = createRoot(mountedHost);
+    mountedRoot = createRoot(mountedHost);
 
-    await act(async () => { root.render(<RouteManagement api={api as never} token="token" locale="en" />); });
+    await act(async () => { mountedRoot?.render(<RouteManagement api={api as never} token="token" locale="en" />); });
     await act(async () => { await Promise.resolve(); });
     const alphaRow = [...mountedHost.querySelectorAll<HTMLElement>(".route-directory__row")]
       .find((row) => row.textContent?.includes("Route Alpha"))!;
@@ -696,7 +695,6 @@ describe("admin route management", () => {
 
     expect(mountedHost.textContent).toContain("Route Beta");
     expect(mountedHost.textContent).not.toContain("Saved successfully.");
-    root.unmount();
   });
 
   it("keeps the Versions tab focused and reloads the authoritative selected draft after a save conflict", async () => {
@@ -725,9 +723,9 @@ describe("admin route management", () => {
     };
     mountedHost = document.createElement("div");
     document.body.append(mountedHost);
-    const root = createRoot(mountedHost);
+    mountedRoot = createRoot(mountedHost);
 
-    await act(async () => { root.render(<RouteManagement api={api as never} token="token" locale="en" />); });
+    await act(async () => { mountedRoot?.render(<RouteManagement api={api as never} token="token" locale="en" />); });
     await act(async () => { await Promise.resolve(); });
     const routeRow = mountedHost.querySelector<HTMLElement>(".route-directory__row")!;
     await act(async () => { routeRow.querySelector<HTMLButtonElement>("button")!.click(); await Promise.resolve(); });
@@ -759,7 +757,6 @@ describe("admin route management", () => {
     expect(mountedHost.textContent).toContain("The latest authoritative version was reloaded");
     expect(mountedHost.textContent).not.toContain("Saved successfully.");
     expect(mountedHost.textContent).not.toContain("Save changes");
-    root.unmount();
   });
 
   it("keeps the Stops tab and selected draft while reconciling authoritative order after one 409 reload", async () => {
@@ -915,9 +912,9 @@ describe("admin route management", () => {
     };
     mountedHost = document.createElement("div");
     document.body.append(mountedHost);
-    const root = createRoot(mountedHost);
+    mountedRoot = createRoot(mountedHost);
 
-    await act(async () => { root.render(<RouteManagement api={api as never} token="token" locale="en" />); });
+    await act(async () => { mountedRoot?.render(<RouteManagement api={api as never} token="token" locale="en" />); });
     await act(async () => { await Promise.resolve(); });
     const row = mountedHost.querySelector<HTMLElement>(".route-directory__row")!;
     await act(async () => { row.querySelector<HTMLButtonElement>("button")!.click(); await Promise.resolve(); });
@@ -939,7 +936,6 @@ describe("admin route management", () => {
     expect(workspaceNotice).not.toBeNull();
     expect(workspaceNotice?.textContent).toContain(routeUiText("en").reloadFailed);
     expect(mountedHost.querySelector("section.stack > .notice")).toBeNull();
-    root.unmount();
   });
 
   it("shows a saved-draft reload failure beside the Versions workspace instead of page-wide", async () => {
@@ -966,9 +962,9 @@ describe("admin route management", () => {
     };
     mountedHost = document.createElement("div");
     document.body.append(mountedHost);
-    const root = createRoot(mountedHost);
+    mountedRoot = createRoot(mountedHost);
 
-    await act(async () => { root.render(<RouteManagement api={api as never} token="token" locale="en" />); });
+    await act(async () => { mountedRoot?.render(<RouteManagement api={api as never} token="token" locale="en" />); });
     await act(async () => { await Promise.resolve(); });
     const row = mountedHost.querySelector<HTMLElement>(".route-directory__row")!;
     await act(async () => { row.querySelector<HTMLButtonElement>("button")!.click(); await Promise.resolve(); });
@@ -981,7 +977,6 @@ describe("admin route management", () => {
     expect(workspaceNotice).not.toBeNull();
     expect(workspaceNotice?.textContent).toContain(routeUiText("en").reloadFailed);
     expect(mountedHost.querySelector("section.stack > .notice")).toBeNull();
-    root.unmount();
   });
 
   it("keeps a stop-order conflict reload failure in the Stops workspace", async () => {
