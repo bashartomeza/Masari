@@ -41,10 +41,12 @@ function parsedDraft(draft: StopEditorDraft): CanonicalStopDraft | null {
 export function StopEditor({ stop, used, busy, locale, onSave }: StopEditorProps) {
   const text = translations[locale];
   const [draft, setDraft] = useState(() => draftFromStop(stop));
+  const [coordinateError, setCoordinateError] = useState(false);
   const editable = stop.status === "active" && !used;
 
   useEffect(() => {
     setDraft(draftFromStop(stop));
+    setCoordinateError(false);
   }, [stop]);
 
   if (!editable) {
@@ -57,8 +59,18 @@ export function StopEditor({ stop, used, busy, locale, onSave }: StopEditorProps
   async function submit(event: FormEvent) {
     event.preventDefault();
     const validatedDraft = parsedDraft(draft);
-    if (!validatedDraft) return;
+    if (!validatedDraft) {
+      setCoordinateError(true);
+      return;
+    }
+    setCoordinateError(false);
     await onSave(stop.id, validatedDraft);
+  }
+
+  function updateCoordinate(field: "latitude" | "longitude", value: string) {
+    const nextDraft = { ...draft, [field]: value };
+    setDraft(nextDraft);
+    if (parsedDraft(nextDraft)) setCoordinateError(false);
   }
 
   return <form className="field-grid stop-editor-form" onSubmit={(event) => void submit(event)}>
@@ -67,8 +79,11 @@ export function StopEditor({ stop, used, busy, locale, onSave }: StopEditorProps
     <label className="field">{text.routeRegion}<input className="technical-value" name="service_region_key" dir="ltr" required disabled={busy} value={draft.service_region_key} onChange={(event) => setDraft({ ...draft, service_region_key: event.target.value })} /></label>
     <label className="field">{text.routeNameAr}<input name="name_ar" dir="rtl" required disabled={busy} value={draft.name_ar} onChange={(event) => setDraft({ ...draft, name_ar: event.target.value })} /></label>
     <label className="field">{text.routeNameEn}<input name="name_en" dir="ltr" required disabled={busy} value={draft.name_en} onChange={(event) => setDraft({ ...draft, name_en: event.target.value })} /></label>
-    <label className="field">{text.latitude}<input className="technical-value" name="latitude" type="number" min="-90" max="90" step="0.000001" dir="ltr" required disabled={busy} value={draft.latitude} onChange={(event) => setDraft({ ...draft, latitude: event.target.value })} /></label>
-    <label className="field">{text.longitude}<input className="technical-value" name="longitude" type="number" min="-180" max="180" step="0.000001" dir="ltr" required disabled={busy} value={draft.longitude} onChange={(event) => setDraft({ ...draft, longitude: event.target.value })} /></label>
+    <label className="field">{text.latitude}<input className="technical-value" name="latitude" type="number" min="-90" max="90" step="0.000001" dir="ltr" required disabled={busy} value={draft.latitude} onChange={(event) => updateCoordinate("latitude", event.target.value)} /></label>
+    <label className="field">{text.longitude}<input className="technical-value" name="longitude" type="number" min="-180" max="180" step="0.000001" dir="ltr" required disabled={busy} value={draft.longitude} onChange={(event) => updateCoordinate("longitude", event.target.value)} /></label>
+    {coordinateError && <p className="field__error" role="alert">{locale === "ar"
+      ? "أدخل خط عرض صالحاً (من -90 إلى 90) وخط طول صالحاً (من -180 إلى 180)."
+      : "Enter valid latitude (-90 to 90) and longitude (-180 to 180)."}</p>}
     <div className="button-row">
       <Button type="submit" size="sm" disabled={busy}>{text.routeSaveStopEdit}</Button>
     </div>

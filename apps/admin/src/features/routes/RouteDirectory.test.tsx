@@ -72,6 +72,32 @@ describe("RouteDirectory", () => {
     expect(markup).not.toMatch(/Arabic name|English name|New draft version|Add existing stop|>Publish<|>Pause<|Action reason/i);
   });
 
+  it.each([
+    { locale: "en" as const, fallback: "Status", direction: "Outbound", versionStatus: "Published" },
+    { locale: "ar" as const, fallback: "الحالة", direction: "ذهاب", versionStatus: "منشور" }
+  ])("renders the localized generic fallback for an unknown $locale route status", ({ locale, fallback, direction, versionStatus }) => {
+    const unknownStatus = "future_route_state";
+    const markup = renderToStaticMarkup(
+      <RouteDirectory
+        locale={locale}
+        routes={[{ ...route, status: unknownStatus as ServiceRoute["status"] }]}
+        view="ready"
+        page={1}
+        total={1}
+        filters={{ search: "", status: "", direction: "", serviceRegionKey: "" }}
+        onSearch={vi.fn()}
+        onPage={vi.fn()}
+        onOpenRoute={vi.fn()}
+        onCreateRoute={vi.fn()}
+      />
+    );
+
+    expect(markup).toContain(fallback);
+    expect(markup).toContain(direction);
+    expect(markup).toContain(versionStatus);
+    expect(markup).not.toContain(unknownStatus);
+  });
+
   it("switches result rows by available container width before fixed desktop columns can clip", () => {
     const styles = readFileSync(new URL("../../ui/components.css", import.meta.url), "utf8");
 

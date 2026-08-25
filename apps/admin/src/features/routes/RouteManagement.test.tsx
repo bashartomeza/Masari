@@ -271,6 +271,34 @@ describe("admin route management", () => {
     expect(english).not.toContain("Map preview unavailable");
   });
 
+  it("shows one sanitized page notice when the directory load fails", async () => {
+    const host = await mountManagement({
+      serviceRoutes: vi.fn().mockRejectedValue(new Error("private_catalog_load_detail")),
+      canonicalStops: vi.fn().mockResolvedValue({ stops: [], page: 1, limit: 50, total: 0 })
+    });
+
+    const notice = host.querySelector(".route-management > .notice--error");
+    expect(notice?.textContent).toBe("The action could not be completed. Retry or use the request ID for support.");
+    expect(host.querySelectorAll(".notice--error")).toHaveLength(1);
+    expect(host.textContent).not.toContain("private_catalog_load_detail");
+  });
+
+  it("retains a sanitized route-detail load failure after returning to the directory", async () => {
+    const route = routeFixture({ id: "route_detail_load_failure" });
+    const host = await mountManagement(routeApi(route, {
+      serviceRoute: vi.fn().mockRejectedValue(new Error("private_route_detail_load"))
+    }));
+
+    await openOnlyRoute(host);
+    act(() => buttonNamed(host, "Back to routes").click());
+
+    expect(host.querySelector(".route-directory")).not.toBeNull();
+    expect(host.querySelector(".route-management > .notice--error")?.textContent)
+      .toBe("The action could not be completed. Retry or use the request ID for support.");
+    expect(host.querySelectorAll(".notice--error")).toHaveLength(1);
+    expect(host.textContent).not.toContain("private_route_detail_load");
+  });
+
   it("emits all bounded directory filters while preserving the fixed page size", () => {
     expect(routeCatalogQuery({
       page: 2,
@@ -831,6 +859,36 @@ describe("admin route management", () => {
     expect(host.querySelector(".route-overview__section .notice--error")?.textContent)
       .toBe("The route status changed. The latest authoritative route data was reloaded.");
     expect(host.textContent).not.toContain("Saved successfully.");
+  });
+
+  it("shows retirement success only after returning to the refreshed directory", async () => {
+    const published = {
+      ...readyVersion,
+      id: "version_retire_success",
+      service_route_id: "route_retire_success",
+      status: "published" as const
+    };
+    const route = routeFixture({ id: published.service_route_id, versions: [published], currentVersion: published });
+    const serviceRoutes = vi.fn()
+      .mockResolvedValueOnce({ routes: [route], page: 1, limit: 25, total: 1 })
+      .mockResolvedValueOnce({ routes: [], page: 1, limit: 25, total: 0 });
+    const retireServiceRoute = vi.fn().mockResolvedValue({ route: { ...route, status: "retired" as const } });
+    const host = await mountManagement(routeApi(route, { serviceRoutes, retireServiceRoute }));
+    await openOnlyRoute(host);
+
+    await confirmLifecycleAction(host, "Retire route", "Service withdrawn");
+
+    expect(retireServiceRoute).toHaveBeenCalledWith(
+      "token",
+      route.id,
+      { reason: "Service withdrawn", expected_current_version_id: null },
+      expect.any(String)
+    );
+    expect(serviceRoutes).toHaveBeenCalledTimes(2);
+    expect(host.querySelector(".route-directory")).not.toBeNull();
+    expect(host.querySelector('[data-selected-route-id="route_retire_success"]')).toBeNull();
+    expect(host.querySelector(".route-management > .notice--success")?.textContent).toBe("Saved successfully.");
+    expect(host.querySelectorAll(".notice")).toHaveLength(1);
   });
 
   it("shows a create-draft reload failure beside the Versions workspace instead of page-wide", async () => {

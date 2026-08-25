@@ -44,6 +44,7 @@ const copy = {
     previous: "السابق",
     next: "التالي",
     page: "صفحة",
+    status: "الحالة",
     loading: "جارٍ تحميل كتالوج المسارات…",
     empty: "لا توجد مسارات مطابقة.",
     active: "نشط",
@@ -73,6 +74,7 @@ const copy = {
     previous: "Previous",
     next: "Next",
     page: "Page",
+    status: "Status",
     loading: "Loading the route catalog…",
     empty: "No routes match these filters.",
     active: "Active",
@@ -89,7 +91,7 @@ const copy = {
 
 function statusLabel(locale: Locale, status: string) {
   const text = copy[locale];
-  return text[status as keyof typeof text] ?? status;
+  return text[status as keyof typeof text] ?? text.status;
 }
 
 export function RouteDirectory({

@@ -27,12 +27,12 @@ const activeStop: CanonicalStop = {
 describe("StopEditor", () => {
   afterEach(() => document.body.replaceChildren());
 
-  async function mountEditor(onSave: Parameters<typeof StopEditor>[0]["onSave"]) {
+  async function mountEditor(onSave: Parameters<typeof StopEditor>[0]["onSave"], locale: "ar" | "en" = "en") {
     const host = document.createElement("div");
     document.body.append(host);
     const root = createRoot(host);
     await act(async () => {
-      root.render(<StopEditor stop={activeStop} used={false} busy={false} locale="en" onSave={onSave} />);
+      root.render(<StopEditor stop={activeStop} used={false} busy={false} locale={locale} onSave={onSave} />);
     });
     return { host, root };
   }
@@ -143,6 +143,39 @@ describe("StopEditor", () => {
     await submit(host);
 
     expect(onSave).not.toHaveBeenCalled();
+    root.unmount();
+  });
+
+  it.each([
+    { locale: "en" as const, message: "Enter valid latitude (-90 to 90) and longitude (-180 to 180)." },
+    { locale: "ar" as const, message: "أدخل خط عرض صالحاً (من -90 إلى 90) وخط طول صالحاً (من -180 إلى 180)." }
+  ])("shows a localized $locale coordinate error and blocks save", async ({ locale, message }) => {
+    const onSave = vi.fn();
+    const { host, root } = await mountEditor(onSave, locale);
+
+    enterValue(host.querySelector<HTMLInputElement>('input[name="latitude"]')!, "");
+    await submit(host);
+
+    expect(host.querySelector('.stop-editor-form [role="alert"]')?.textContent).toBe(message);
+    expect(onSave).not.toHaveBeenCalled();
+    root.unmount();
+  });
+
+  it("clears coordinate feedback as soon as the draft becomes valid and submits it", async () => {
+    const onSave = vi.fn();
+    const { host, root } = await mountEditor(onSave);
+    const latitude = host.querySelector<HTMLInputElement>('input[name="latitude"]')!;
+
+    enterValue(latitude, "");
+    await submit(host);
+    expect(host.querySelector('.stop-editor-form [role="alert"]')).not.toBeNull();
+
+    enterValue(latitude, "31.5");
+    expect(host.querySelector('.stop-editor-form [role="alert"]')).toBeNull();
+    await submit(host);
+
+    expect(onSave).toHaveBeenCalledWith("stop_1", expect.objectContaining({ latitude: 31.5, longitude: 35.090893 }));
+    expect(host.querySelector('.stop-editor-form [role="alert"]')).toBeNull();
     root.unmount();
   });
 

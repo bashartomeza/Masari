@@ -801,6 +801,7 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
       selectVersion(null);
       if (!await loadCatalog(page)) return;
       dispatch({ type: "back-to-directory" });
+      dispatch({ type: "feedback", scope: "page", kind: "success", text: text.saved });
     } catch (error) {
       settleMutation(mutation.fingerprint, error);
       dispatch({
@@ -855,6 +856,8 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
   if (ui.surface === "directory") {
     return (
       <section className="route-management stack" dir={locale === "ar" ? "rtl" : "ltr"} lang={locale}>
+        {ui.feedback?.scope === "page" && <Notice kind={ui.feedback.kind}>{ui.feedback.text}</Notice>}
+        {message && <Notice kind={message.kind}>{message.text}</Notice>}
         <RouteDirectory
           locale={locale}
           routes={routes}
