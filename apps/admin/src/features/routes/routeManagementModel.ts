@@ -1,5 +1,17 @@
 export type RouteWorkspaceTab = "overview" | "versions" | "stops";
 
+export type RouteLifecycleDialogAction =
+  | "clone"
+  | "publish"
+  | "pause"
+  | "resume"
+  | "retire-version"
+  | "retire-route";
+
+export function lifecycleActionRequiresReason(action: RouteLifecycleDialogAction) {
+  return action === "pause" || action === "retire-version" || action === "retire-route";
+}
+
 export type RouteDialogName =
   | "create-route"
   | "create-version"

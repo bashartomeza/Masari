@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { initialRouteUiState, routeUiReducer } from "./routeManagementModel";
+import { initialRouteUiState, lifecycleActionRequiresReason, routeUiReducer } from "./routeManagementModel";
 
 describe("routeManagementModel", () => {
   it("opens a selected route in its overview workspace", () => {
@@ -79,5 +79,14 @@ describe("routeManagementModel", () => {
       tab: "stops",
       feedback: { scope: "stops", kind: "error" }
     });
+  });
+
+  it("requires reasons only for the existing pause and retirement semantics", () => {
+    expect(lifecycleActionRequiresReason("pause")).toBe(true);
+    expect(lifecycleActionRequiresReason("retire-version")).toBe(true);
+    expect(lifecycleActionRequiresReason("retire-route")).toBe(true);
+    expect(lifecycleActionRequiresReason("clone")).toBe(false);
+    expect(lifecycleActionRequiresReason("publish")).toBe(false);
+    expect(lifecycleActionRequiresReason("resume")).toBe(false);
   });
 });

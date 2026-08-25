@@ -15,6 +15,8 @@ import { Button, Card, CardHeader, EmptyState, Notice, Skeleton, StatusBadge } f
 import { StopEditor } from "./StopEditor";
 import { CreateRouteDialog } from "./CreateRouteDialog";
 import { RouteDirectory, type RouteDirectoryFilters } from "./RouteDirectory";
+import { RouteOverview } from "./RouteOverview";
+import { RouteWorkspace } from "./RouteWorkspace";
 import { initialRouteUiState, routeUiReducer } from "./routeManagementModel";
 
 type Api = ReturnType<typeof createApiClient>;
@@ -711,22 +713,27 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
       settleMutation(mutation.fingerprint);
       if (!await loadRoute(selectedRoute.id, true)) return;
       selectVersion(response.version);
-      setMessage({ kind: "success", text: text.saved });
+      dispatch({ type: "feedback", scope: "page", kind: "success", text: text.saved });
     } catch (error) {
       settleMutation(mutation.fingerprint, error);
-      await showMutationError(error, () => loadRoute(selectedRoute.id, true));
+      dispatch({
+        type: "feedback",
+        scope: "lifecycle",
+        kind: "error",
+        text: await handleRouteMutationFailure(error, () => loadRoute(selectedRoute.id, true), locale)
+      });
     } finally {
       endBusy();
     }
   }
 
-  async function versionAction(action: "publish" | "pause" | "resume" | "retire") {
-    const reason = actionReason.trim();
+  async function versionAction(action: "publish" | "pause" | "resume" | "retire", suppliedReason = actionReason) {
+    const reason = suppliedReason.trim();
     if ((action === "pause" || action === "retire") && !reason) {
-      setMessage({ kind: "error", text: text.reasonRequired });
+      dispatch({ type: "feedback", scope: "lifecycle", kind: "error", text: text.reasonRequired });
       return;
     }
-    if (!selectedRoute || !selectedVersion || !window.confirm(text.confirm)) return;
+    if (!selectedRoute || !selectedVersion) return;
     if (!beginBusy(action)) return;
     const lifecycleExpectation = { expected_current_version_id: selectedRoute.current_version_id };
     const payload = action === "publish"
@@ -752,22 +759,27 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
       if (!await loadRoute(selectedRoute.id, true)) return;
       selectVersion(response.version);
       setActionReason("");
-      setMessage({ kind: "success", text: text.saved });
+      dispatch({ type: "feedback", scope: "page", kind: "success", text: text.saved });
     } catch (error) {
       settleMutation(mutation.fingerprint, error);
-      await showMutationError(error, () => loadRoute(selectedRoute.id, true));
+      dispatch({
+        type: "feedback",
+        scope: "lifecycle",
+        kind: "error",
+        text: await handleRouteMutationFailure(error, () => loadRoute(selectedRoute.id, true), locale)
+      });
     } finally {
       endBusy();
     }
   }
 
-  async function retireRoute() {
-    const reason = actionReason.trim();
+  async function retireRoute(suppliedReason = actionReason) {
+    const reason = suppliedReason.trim();
     if (!reason) {
-      setMessage({ kind: "error", text: text.reasonRequired });
+      dispatch({ type: "feedback", scope: "lifecycle", kind: "error", text: text.reasonRequired });
       return;
     }
-    if (!selectedRoute || !window.confirm(text.confirm)) return;
+    if (!selectedRoute) return;
     if (!beginBusy("retire-route")) return;
     const retirement = { reason, expected_current_version_id: null as null };
     const payload = { id: selectedRoute.id, ...retirement };
@@ -779,11 +791,17 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
       selectVersion(null);
       setActionReason("");
       if (!await loadCatalog(page)) return;
+      dispatch({ type: "back-to-directory" });
     } catch (error) {
       settleMutation(mutation.fingerprint, error);
-      await showMutationError(error, async () => {
-        if (!await loadCatalog(page)) return false;
-        return loadRoute(selectedRoute.id, true);
+      dispatch({
+        type: "feedback",
+        scope: "lifecycle",
+        kind: "error",
+        text: await handleRouteMutationFailure(error, async () => {
+          if (!await loadCatalog(page)) return false;
+          return loadRoute(selectedRoute.id, true);
+        }, locale)
       });
     } finally {
       endBusy();
@@ -852,201 +870,162 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
     );
   }
 
-  return (
-    <section className="stack" aria-labelledby="route-management-title">
-      <div className="split">
-        <h2 id="route-management-title" className="page-header__title">{text.title}</h2>
-        <StatusBadge tone="warning">{text.routeMapUnavailable}</StatusBadge>
-      </div>
-      <p className="muted">{text.subtitle}</p>
-      {ui.feedback?.scope === "page" && <Notice kind={ui.feedback.kind}>{ui.feedback.text}</Notice>}
-      <div className="route-boundaries" role="status">
-        <div>
-          <strong>{text.routeMapUnavailable}</strong>
-          <p className="muted">{text.routeMapUnavailableDescription}</p>
+  if (!selectedRoute) {
+    return (
+      <section className="stack">
+        <Button variant="ghost" size="sm" onClick={() => dispatch({ type: "back-to-directory" })}>
+          {locale === "ar" ? "العودة إلى المسارات" : "Back to routes"}
+        </Button>
+        {message && <Notice kind={message.kind}>{message.text}</Notice>}
+        <Card><p className="muted">{text.loading}</p><Skeleton /></Card>
+      </section>
+    );
+  }
+
+  const versionsPanel = (
+    <Card>
+      <CardHeader
+        title={text.versions}
+        action={<Button variant="secondary" icon="add" onClick={() => selectVersion(null)} disabled={Boolean(busy)}>{text.newVersion}</Button>}
+      />
+      <p className="muted">
+        {formatHistory(
+          (selectedRoute.versions?.length ?? 0) < selectedRoute.version_count
+            ? text.routeHistoryTruncated
+            : text.routeHistorySummary,
+          selectedRoute.versions?.length ?? 0,
+          selectedRoute.version_count
+        )}
+      </p>
+      <div className="version-tabs">{selectedRoute.versions?.map((version) => (
+        <Button
+          key={version.id}
+          variant="outline"
+          size="sm"
+          className={selectedVersion?.id === version.id ? "is-selected" : undefined}
+          onClick={() => selectVersion(version)}
+          disabled={Boolean(busy)}
+        >
+          {`v${version.version_number} · ${statusText(version.status)}`}
+        </Button>
+      ))}</div>
+      <form className="field-grid" onSubmit={submitVersion}>
+        <label className="field">{text.nameAr}<input dir="rtl" required value={versionDraft.name_ar} onChange={(event) => setVersionDraft({ ...versionDraft, name_ar: event.target.value })} disabled={disabledUnlessDraft} /></label>
+        <label className="field">{text.nameEn}<input dir="ltr" required value={versionDraft.name_en} onChange={(event) => setVersionDraft({ ...versionDraft, name_en: event.target.value })} disabled={disabledUnlessDraft} /></label>
+        <label className="field">{text.descriptionAr}<textarea dir="rtl" value={versionDraft.description_ar ?? ""} onChange={(event) => setVersionDraft({ ...versionDraft, description_ar: event.target.value })} disabled={disabledUnlessDraft} /></label>
+        <label className="field">{text.descriptionEn}<textarea dir="ltr" value={versionDraft.description_en ?? ""} onChange={(event) => setVersionDraft({ ...versionDraft, description_en: event.target.value })} disabled={disabledUnlessDraft} /></label>
+        <label className="field">{text.activeFrom}<input type="datetime-local" value={versionDraft.active_from ?? ""} onChange={(event) => setVersionDraft({ ...versionDraft, active_from: event.target.value })} disabled={disabledUnlessDraft} /></label>
+        <label className="field">{text.activeUntil}<input type="datetime-local" value={versionDraft.active_until ?? ""} onChange={(event) => setVersionDraft({ ...versionDraft, active_until: event.target.value })} disabled={disabledUnlessDraft} /></label>
+        {(!selectedVersion || selectedVersion.status === "draft") && <Button type="submit" icon="check" disabled={Boolean(busy)}>{selectedVersion ? text.saveDraft : text.createDraft}</Button>}
+      </form>
+    </Card>
+  );
+
+  const stopsPanel = (
+    <div className="stack">
+      {stops.some((stop) => stop.status === "active") && <Card>
+        <label className="field">{text.reason}<input value={actionReason} maxLength={500} onChange={(event) => setActionReason(event.target.value)} disabled={Boolean(busy)} /></label>
+      </Card>}
+      {selectedVersion?.status === "draft" && <Card>
+        <CardHeader title={text.orderedStops} />
+        <div className="button-row">
+          <select className="input" aria-label={text.addStop} value={stopToAdd} onChange={(event) => setStopToAdd(event.target.value)} disabled={Boolean(busy)}>
+            <option value="">{text.addStop}</option>
+            {activeStops.filter((stop) => !memberships.some((membership) => membership.stop_id === stop.id)).map((stop) => <option value={stop.id} key={stop.id}>{locale === "ar" ? stop.name_ar : stop.name_en}</option>)}
+          </select>
+          <Button variant="secondary" icon="add" onClick={addExistingStop} disabled={!stopToAdd || Boolean(busy)}>{text.addStop}</Button>
         </div>
-        <div>
-          <strong>{text.routeHistoryBounded}</strong>
-          <p className="muted" aria-label={text.routeStatusLabels}>
-            {text.routeStatusHeading} · {text.currentVersionStatusHeading} · {text.selectedVersionStatusHeading} · {text.stopStatusHeading}
-          </p>
-        </div>
-      </div>
-
-      {message && <Notice kind={message.kind}>{message.text}</Notice>}
-
-      <div className="route-layout">
-        <aside className="route-sidebar" aria-label={text.routes}>
-          <Card>
-            <form className="stack stack--tight" onSubmit={(event) => { event.preventDefault(); void loadCatalog(1); }}>
-              <label className="field">{text.search}<input value={search} onChange={(event) => setSearch(event.target.value)} /></label>
-              <label className="field">{text.routeStatusFilter}<select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="">—</option><option value="active">{text.active}</option><option value="retired">{text.retired}</option></select></label>
-              <label className="field">{text.routeDirectionFilter}<select value={directionFilter} onChange={(event) => setDirectionFilter(event.target.value)}><option value="">—</option><option value="outbound">{text.outbound}</option><option value="inbound">{text.inbound}</option><option value="loop">{text.loop}</option></select></label>
-              <label className="field">{text.routeRegionFilter}<input className="technical-value" dir="ltr" value={serviceRegionFilter} onChange={(event) => setServiceRegionFilter(event.target.value)} /></label>
-              <Button type="submit" variant="primary" icon="search" disabled={Boolean(busy)}>{text.search}</Button>
-            </form>
-          </Card>
-
-          <Card>
-            {view === "loading" && <div aria-live="polite"><p className="muted">{text.loading}</p><Skeleton /></div>}
-            {view === "error" && <EmptyState compact icon="warning" title={text.error} action={<Button variant="outline" icon="refresh" onClick={() => void loadCatalog(page)} disabled={Boolean(busy)}>{text.retry}</Button>} />}
-            {view === "empty" && <EmptyState compact icon="edit_road" title={text.empty} />}
-            {view === "ready" && <div className="route-catalog">{routes.map((route) => (
-              <button
-                type="button"
-                className={selectedRoute?.id === route.id ? "route-catalog__item is-selected" : "route-catalog__item"}
-                key={route.id}
-                onClick={() => void loadRoute(route.id)}
-                disabled={Boolean(busy)}
-              >
-                <strong>{locale === "ar" ? route.current_version?.name_ar ?? route.route_key : route.current_version?.name_en ?? route.route_key}</strong>
-                <span className="technical-value" dir="ltr">{route.route_key}</span>
-                <small>{text.routeStatusHeading}: {statusText(route.status)} · {text[route.direction]}</small>
-                <small>{text.currentVersionStatusHeading}: {route.current_version ? statusText(route.current_version.status) : text.routeNoCurrentVersion}</small>
-              </button>
-            ))}</div>}
-            <div className="route-pagination">
-              <span>{text.pagination} {page} · {total}</span>
+        {memberships.length === 0 && <EmptyState compact icon="location_on" title={text.noStops} />}
+        <ol className="stop-editor">{memberships.map((membership, index) => (
+          <li key={membership.stop_id}>
+            <div className="stop-editor__title">
+              <StatusBadge tone="info">{index + 1}</StatusBadge>
+              <RouteMembershipStopLabel membership={membership} version={selectedVersion} stops={stops} locale={locale} />
               <div className="button-row">
-                <Button variant="outline" size="sm" disabled={page <= 1 || Boolean(busy)} onClick={() => void loadCatalog(page - 1)}>‹</Button>
-                <Button variant="outline" size="sm" disabled={page * 25 >= total || Boolean(busy)} onClick={() => void loadCatalog(page + 1)}>›</Button>
+                <Button variant="outline" size="sm" aria-label={reorderControlLabel(text.moveUp, index)} disabled={index === 0 || Boolean(busy)} onClick={() => setMemberships(moveRouteStop(memberships, index, -1))}>↑</Button>
+                <Button variant="outline" size="sm" aria-label={reorderControlLabel(text.moveDown, index)} disabled={index === memberships.length - 1 || Boolean(busy)} onClick={() => setMemberships(moveRouteStop(memberships, index, 1))}>↓</Button>
+                <Button variant="destructive" size="sm" aria-label={reorderControlLabel(text.remove, index)} disabled={Boolean(busy)} onClick={() => setMemberships(memberships.filter((_, current) => current !== index).map((item, current) => ({ ...item, sequence: current + 1 })))}>×</Button>
               </div>
             </div>
-          </Card>
-        </aside>
+            <div className="permission-grid">{(["passenger_pickup_allowed", "passenger_dropoff_allowed", "parcel_pickup_allowed", "parcel_dropoff_allowed"] as Permission[]).map((permission) => <label key={permission}><input type="checkbox" checked={membership[permission]} disabled={Boolean(busy)} onChange={() => setMemberships(toggleRouteStopPermission(memberships, index, permission))} />{permission === "passenger_pickup_allowed" ? text.passengerPickup : permission === "passenger_dropoff_allowed" ? text.passengerDropoff : permission === "parcel_pickup_allowed" ? text.parcelPickup : text.parcelDropoff}</label>)}</div>
+          </li>
+        ))}</ol>
+        <Button icon="check" onClick={() => void saveStops()} disabled={memberships.length < 2 || Boolean(busy)}>{text.saveOrder}</Button>
+      </Card>}
 
-        <div className="stack">
-          <Card>
-            <label className="field">{text.reason}<input value={actionReason} maxLength={500} onChange={(event) => setActionReason(event.target.value)} disabled={Boolean(busy)} /></label>
-          </Card>
+      <Card>
+        <details className="disclosure">
+          <summary>{text.createStop}</summary>
+          <p className="muted">{text.stopHelp}</p>
+          <form className="field-grid" onSubmit={submitStop}>
+            <label className="field">{text.stopKey}<input className="technical-value" dir="ltr" required value={stopDraft.stop_key} onChange={(event) => setStopDraft({ ...stopDraft, stop_key: event.target.value })} /></label>
+            <label className="field">{text.region}<input className="technical-value" dir="ltr" required value={stopDraft.service_region_key} onChange={(event) => setStopDraft({ ...stopDraft, service_region_key: event.target.value })} /></label>
+            <label className="field">{text.nameAr}<input dir="rtl" required value={stopDraft.name_ar} onChange={(event) => setStopDraft({ ...stopDraft, name_ar: event.target.value })} /></label>
+            <label className="field">{text.nameEn}<input dir="ltr" required value={stopDraft.name_en} onChange={(event) => setStopDraft({ ...stopDraft, name_en: event.target.value })} /></label>
+            <label className="field">{text.latitude}<input className="technical-value" dir="ltr" type="number" step="0.000001" min="-90" max="90" required value={stopDraft.latitude} onChange={(event) => setStopDraft({ ...stopDraft, latitude: Number(event.target.value) })} /></label>
+            <label className="field">{text.longitude}<input className="technical-value" dir="ltr" type="number" step="0.000001" min="-180" max="180" required value={stopDraft.longitude} onChange={(event) => setStopDraft({ ...stopDraft, longitude: Number(event.target.value) })} /></label>
+            <Button type="submit" icon="add" disabled={Boolean(busy)}>{text.createStop}</Button>
+          </form>
+          <div className="stop-catalog">{stops.map((stop) => <div key={stop.id}>
+            <div className="split stop-catalog__status">
+              <span className="labeled-status"><span>{text.stopStatusHeading}</span><StatusBadge status={stop.status}>{statusText(stop.status)}</StatusBadge></span>
+              {stop.status === "active" && <Button variant="destructive" size="sm" onClick={() => void retireStop(stop)} disabled={Boolean(busy)}>{text.retire}</Button>}
+            </div>
+            <StopEditor
+              key={`${stop.id}-${stop.name_ar}-${stop.name_en}-${stop.latitude}-${stop.longitude}`}
+              stop={stop}
+              used={usedStopIds.has(stop.id)}
+              busy={Boolean(busy)}
+              locale={locale}
+              onSave={saveStop}
+            />
+          </div>)}</div>
+        </details>
+      </Card>
+    </div>
+  );
 
-          {!selectedRoute ? <Card><EmptyState icon="edit_road" title={text.chooseRoute} /></Card> : <>
-            <Card>
-              <div className="split">
-                <div>
-                  <StatusBadge tone="neutral"><span dir="ltr">{selectedRoute.route_key}</span></StatusBadge>
-                  <h3 className="card__title">{selectedRoute.current_version ? (locale === "ar" ? selectedRoute.current_version.name_ar : selectedRoute.current_version.name_en) : selectedRoute.route_key}</h3>
-                  <p className="muted"><span className="technical-value" dir="ltr">{selectedRoute.service_region_key}</span> · {text[selectedRoute.direction]}</p>
-                </div>
-                <div className="button-row">
-                  <span className="labeled-status"><span>{text.routeStatusHeading}</span><StatusBadge status={selectedRoute.status}>{statusText(selectedRoute.status)}</StatusBadge></span>
-                  <span className="labeled-status"><span>{text.currentVersionStatusHeading}</span><StatusBadge status={selectedRoute.current_version?.status ?? "neutral"}>{selectedRoute.current_version ? statusText(selectedRoute.current_version.status) : text.routeNoCurrentVersion}</StatusBadge></span>
-                  <Button variant="destructive" icon="close" onClick={() => void retireRoute()} disabled={Boolean(busy)}>{text.retireRoute}</Button>
-                </div>
-              </div>
-            </Card>
-
-            <Card>
-              <CardHeader
-                title={text.versions}
-                action={<Button variant="secondary" icon="add" onClick={() => selectVersion(null)} disabled={Boolean(busy)}>{text.newVersion}</Button>}
-              />
-              <p className="muted">
-                {formatHistory(
-                  (selectedRoute.versions?.length ?? 0) < selectedRoute.version_count
-                    ? text.routeHistoryTruncated
-                    : text.routeHistorySummary,
-                  selectedRoute.versions?.length ?? 0,
-                  selectedRoute.version_count
-                )}
-              </p>
-              <div className="version-tabs">{selectedRoute.versions?.map((version) => (
-                <Button
-                  key={version.id}
-                  variant="outline"
-                  size="sm"
-                  className={selectedVersion?.id === version.id ? "is-selected" : undefined}
-                  onClick={() => selectVersion(version)}
-                  disabled={Boolean(busy)}
-                >
-                  {`v${version.version_number} · ${statusText(version.status)}`}
-                </Button>
-              ))}</div>
-              <form className="field-grid" onSubmit={submitVersion}>
-                <label className="field">{text.nameAr}<input dir="rtl" required value={versionDraft.name_ar} onChange={(event) => setVersionDraft({ ...versionDraft, name_ar: event.target.value })} disabled={disabledUnlessDraft} /></label>
-                <label className="field">{text.nameEn}<input dir="ltr" required value={versionDraft.name_en} onChange={(event) => setVersionDraft({ ...versionDraft, name_en: event.target.value })} disabled={disabledUnlessDraft} /></label>
-                <label className="field">{text.descriptionAr}<textarea dir="rtl" value={versionDraft.description_ar ?? ""} onChange={(event) => setVersionDraft({ ...versionDraft, description_ar: event.target.value })} disabled={disabledUnlessDraft} /></label>
-                <label className="field">{text.descriptionEn}<textarea dir="ltr" value={versionDraft.description_en ?? ""} onChange={(event) => setVersionDraft({ ...versionDraft, description_en: event.target.value })} disabled={disabledUnlessDraft} /></label>
-                <label className="field">{text.activeFrom}<input type="datetime-local" value={versionDraft.active_from ?? ""} onChange={(event) => setVersionDraft({ ...versionDraft, active_from: event.target.value })} disabled={disabledUnlessDraft} /></label>
-                <label className="field">{text.activeUntil}<input type="datetime-local" value={versionDraft.active_until ?? ""} onChange={(event) => setVersionDraft({ ...versionDraft, active_until: event.target.value })} disabled={disabledUnlessDraft} /></label>
-                {(!selectedVersion || selectedVersion.status === "draft") && <Button type="submit" icon="check" disabled={Boolean(busy)}>{selectedVersion ? text.saveDraft : text.createDraft}</Button>}
-              </form>
-              {selectedVersion && <div className="route-lifecycle">
-                <span className="labeled-status"><span>{text.selectedVersionStatusHeading}</span><StatusBadge status={selectedVersion.status}>{statusText(selectedVersion.status)}</StatusBadge></span>
-                <StatusBadge tone={selectedVersion.geometry.ready ? "success" : "warning"}>{selectedVersion.geometry.ready ? text.geometryReady : text.geometryPending}</StatusBadge>
-                {actions.includes("publish") && <div className="route-readiness" role="status">
-                  <strong>{text.routeReadinessTitle}</strong>
-                  {readinessIssues.length === 0
-                    ? <p className="muted">{text.routeReadinessReady}</p>
-                    : <ul>{readinessIssues.map((issue) => <li key={issue}>{text[issue]}</li>)}</ul>}
-                </div>}
-                {actions.includes("clone") && <Button variant="outline" size="sm" onClick={() => void cloneVersion()} disabled={Boolean(busy)}>{text.clone}</Button>}
-                {actions.includes("publish") && <Button variant="action" size="sm" icon="check" onClick={() => void versionAction("publish")} disabled={Boolean(busy)}>{text.publish}</Button>}
-                {actions.includes("pause") && <Button variant="outline" size="sm" onClick={() => void versionAction("pause")} disabled={Boolean(busy)}>{text.pause}</Button>}
-                {actions.includes("resume") && <Button variant="secondary" size="sm" onClick={() => void versionAction("resume")} disabled={Boolean(busy)}>{text.resume}</Button>}
-                {actions.includes("retire") && <Button variant="destructive" size="sm" onClick={() => void versionAction("retire")} disabled={Boolean(busy)}>{text.retire}</Button>}
-              </div>}
-            </Card>
-
-            {selectedVersion?.status === "draft" && <Card>
-              <CardHeader title={text.orderedStops} />
-              <div className="button-row">
-                <select className="input" aria-label={text.addStop} value={stopToAdd} onChange={(event) => setStopToAdd(event.target.value)} disabled={Boolean(busy)}>
-                  <option value="">{text.addStop}</option>
-                  {activeStops.filter((stop) => !memberships.some((membership) => membership.stop_id === stop.id)).map((stop) => <option value={stop.id} key={stop.id}>{locale === "ar" ? stop.name_ar : stop.name_en}</option>)}
-                </select>
-                <Button variant="secondary" icon="add" onClick={addExistingStop} disabled={!stopToAdd || Boolean(busy)}>{text.addStop}</Button>
-              </div>
-              {memberships.length === 0 && <EmptyState compact icon="location_on" title={text.noStops} />}
-              <ol className="stop-editor">{memberships.map((membership, index) => (
-                <li key={membership.stop_id}>
-                  <div className="stop-editor__title">
-                    <StatusBadge tone="info">{index + 1}</StatusBadge>
-                    <RouteMembershipStopLabel membership={membership} version={selectedVersion} stops={stops} locale={locale} />
-                    <div className="button-row">
-                      <Button variant="outline" size="sm" aria-label={reorderControlLabel(text.moveUp, index)} disabled={index === 0 || Boolean(busy)} onClick={() => setMemberships(moveRouteStop(memberships, index, -1))}>↑</Button>
-                      <Button variant="outline" size="sm" aria-label={reorderControlLabel(text.moveDown, index)} disabled={index === memberships.length - 1 || Boolean(busy)} onClick={() => setMemberships(moveRouteStop(memberships, index, 1))}>↓</Button>
-                      <Button variant="destructive" size="sm" aria-label={reorderControlLabel(text.remove, index)} disabled={Boolean(busy)} onClick={() => setMemberships(memberships.filter((_, current) => current !== index).map((item, current) => ({ ...item, sequence: current + 1 })))}>×</Button>
-                    </div>
-                  </div>
-                  <div className="permission-grid">{(["passenger_pickup_allowed", "passenger_dropoff_allowed", "parcel_pickup_allowed", "parcel_dropoff_allowed"] as Permission[]).map((permission) => <label key={permission}><input type="checkbox" checked={membership[permission]} disabled={Boolean(busy)} onChange={() => setMemberships(toggleRouteStopPermission(memberships, index, permission))} />{permission === "passenger_pickup_allowed" ? text.passengerPickup : permission === "passenger_dropoff_allowed" ? text.passengerDropoff : permission === "parcel_pickup_allowed" ? text.parcelPickup : text.parcelDropoff}</label>)}</div>
-                </li>
-              ))}</ol>
-              <Button icon="check" onClick={() => void saveStops()} disabled={memberships.length < 2 || Boolean(busy)}>{text.saveOrder}</Button>
-            </Card>}
-          </>}
-
-          <Card>
-            <details className="disclosure">
-              <summary>{text.createStop}</summary>
-              <p className="muted">{text.stopHelp}</p>
-              <form className="field-grid" onSubmit={submitStop}>
-                <label className="field">{text.stopKey}<input className="technical-value" dir="ltr" required value={stopDraft.stop_key} onChange={(event) => setStopDraft({ ...stopDraft, stop_key: event.target.value })} /></label>
-                <label className="field">{text.region}<input className="technical-value" dir="ltr" required value={stopDraft.service_region_key} onChange={(event) => setStopDraft({ ...stopDraft, service_region_key: event.target.value })} /></label>
-                <label className="field">{text.nameAr}<input dir="rtl" required value={stopDraft.name_ar} onChange={(event) => setStopDraft({ ...stopDraft, name_ar: event.target.value })} /></label>
-                <label className="field">{text.nameEn}<input dir="ltr" required value={stopDraft.name_en} onChange={(event) => setStopDraft({ ...stopDraft, name_en: event.target.value })} /></label>
-                <label className="field">{text.latitude}<input className="technical-value" dir="ltr" type="number" step="0.000001" min="-90" max="90" required value={stopDraft.latitude} onChange={(event) => setStopDraft({ ...stopDraft, latitude: Number(event.target.value) })} /></label>
-                <label className="field">{text.longitude}<input className="technical-value" dir="ltr" type="number" step="0.000001" min="-180" max="180" required value={stopDraft.longitude} onChange={(event) => setStopDraft({ ...stopDraft, longitude: Number(event.target.value) })} /></label>
-                <Button type="submit" icon="add" disabled={Boolean(busy)}>{text.createStop}</Button>
-              </form>
-              <div className="stop-catalog">{stops.map((stop) => <div key={stop.id}>
-                <div className="split stop-catalog__status">
-                  <span className="labeled-status"><span>{text.stopStatusHeading}</span><StatusBadge status={stop.status}>{statusText(stop.status)}</StatusBadge></span>
-                  {stop.status === "active" && <Button variant="destructive" size="sm" onClick={() => void retireStop(stop)} disabled={Boolean(busy)}>{text.retire}</Button>}
-                </div>
-                <StopEditor
-                  key={`${stop.id}-${stop.name_ar}-${stop.name_en}-${stop.latitude}-${stop.longitude}`}
-                  stop={stop}
-                  used={usedStopIds.has(stop.id)}
-                  busy={Boolean(busy)}
-                  locale={locale}
-                  onSave={saveStop}
-                />
-              </div>)}</div>
-            </details>
-          </Card>
-        </div>
-      </div>
+  return (
+    <section className="stack">
+      {ui.feedback?.scope === "page" && <Notice kind={ui.feedback.kind}>{ui.feedback.text}</Notice>}
+      {message && <Notice kind={message.kind}>{message.text}</Notice>}
+      <RouteWorkspace
+        locale={locale}
+        route={selectedRoute}
+        selectedVersion={selectedVersion}
+        tab={ui.tab}
+        onBack={() => {
+          setSelectedRoute(null);
+          selectVersion(null);
+          dispatch({ type: "back-to-directory" });
+        }}
+        onSelectTab={(tab) => dispatch({ type: "select-tab", tab })}
+        overview={
+          <RouteOverview
+            locale={locale}
+            route={selectedRoute}
+            version={selectedVersion}
+            readinessIssues={readinessIssues}
+            actions={actions}
+            lifecycleDialogOpen={ui.dialog === "lifecycle"}
+            lifecycleFeedback={ui.feedback?.scope === "lifecycle" ? ui.feedback.text : null}
+            busy={Boolean(busy)}
+            onOpenLifecycleDialog={() => {
+              dispatch({ type: "clear-feedback" });
+              dispatch({ type: "open-dialog", dialog: "lifecycle" });
+            }}
+            onCloseLifecycleDialog={() => dispatch({ type: "close-dialog" })}
+            onClone={() => void cloneVersion()}
+            onPublish={() => void versionAction("publish")}
+            onPause={(reason) => void versionAction("pause", reason)}
+            onResume={() => void versionAction("resume")}
+            onRetireVersion={(reason) => void versionAction("retire", reason)}
+            onRetireRoute={(reason) => void retireRoute(reason)}
+          />
+        }
+        versions={versionsPanel}
+        stops={stopsPanel}
+      />
     </section>
   );
 }
