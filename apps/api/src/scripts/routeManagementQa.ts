@@ -32,8 +32,10 @@ type RouteQaMembershipSnapshot = {
   passengerDropoff: boolean;
   parcelPickup: boolean;
   parcelDropoff: boolean;
+  distanceFromOriginMeters: number | null;
   scheduledOffsetSeconds: number | null;
   dwellSeconds: number | null;
+  createdAtPresent: boolean;
 };
 
 type RouteQaVersionSnapshot = {
@@ -42,7 +44,32 @@ type RouteQaVersionSnapshot = {
   status: "draft" | "published" | "paused" | "retired";
   nameAr: string;
   nameEn: string;
+  descriptionAr: string | null;
   descriptionEn: string | null;
+  originStopId: string | null;
+  destinationStopId: string | null;
+  activeFrom: string | null;
+  activeUntil: string | null;
+  encodedGeometry: string | null;
+  geometryEncoding: string | null;
+  geometryProvider: string | null;
+  geometryChecksum: string | null;
+  geometryPrecision: number | null;
+  estimatedDistanceMeters: number | null;
+  estimatedDurationSeconds: number | null;
+  geometryStatus: "pending" | "available" | "unavailable";
+  draftRevision: number;
+  createdByUserId: string;
+  publishedByUserId: string | null;
+  pausedByUserId: string | null;
+  retiredByUserId: string | null;
+  publishedAtPresent: boolean;
+  pausedAtPresent: boolean;
+  retiredAtPresent: boolean;
+  pauseReason: string | null;
+  retirementReason: string | null;
+  createdAtPresent: boolean;
+  updatedAtPresent: boolean;
   stops: RouteQaMembershipSnapshot[];
 };
 
@@ -103,6 +130,11 @@ export function requireRouteQaAdminPassword(value: string | undefined) {
   return value;
 }
 
+export async function assertRouteQaAdminPassword(password: string, passwordHash: string) {
+  const { compare } = await import("bcryptjs");
+  if (!(await compare(password, passwordHash))) throw new Error("route_qa_admin_password_mismatch");
+}
+
 function actor(operation: string) {
   return {
     id: QA_ACTOR_ID,
@@ -148,8 +180,10 @@ function assertMemberships(
       membership.passengerDropoff === wanted.passengerDropoff &&
       membership.parcelPickup === wanted.parcelPickup &&
       membership.parcelDropoff === wanted.parcelDropoff &&
+      membership.distanceFromOriginMeters === wanted.distanceFromOriginMeters &&
       membership.scheduledOffsetSeconds === wanted.scheduledOffsetSeconds &&
-      membership.dwellSeconds === wanted.dwellSeconds,
+      membership.dwellSeconds === wanted.dwellSeconds &&
+      membership.createdAtPresent === wanted.createdAtPresent,
       scenario
     );
   }
@@ -163,8 +197,10 @@ function expectedMemberships(keys: string[], parcelEnabled: boolean) {
     passengerDropoff: index > 0,
     parcelPickup: parcelEnabled && index < keys.length - 1,
     parcelDropoff: parcelEnabled && index > 0,
+    distanceFromOriginMeters: null,
     scheduledOffsetSeconds: index * 600,
-    dwellSeconds: index === 0 || index === keys.length - 1 ? 60 : 120
+    dwellSeconds: index === 0 || index === keys.length - 1 ? 60 : 120,
+    createdAtPresent: true
   }));
 }
 
@@ -178,6 +214,12 @@ function assertVersion(
     descriptionEn: string;
     stopKeys: string[];
     parcelEnabled: boolean;
+    draftRevision: number;
+    published: boolean;
+    paused: boolean;
+    retired: boolean;
+    pauseReason: string | null;
+    retirementReason: string | null;
   },
   stopIds: Map<string, string>,
   scenario: string
@@ -187,7 +229,32 @@ function assertVersion(
     version.status === expected.status &&
     version.nameAr === expected.nameAr &&
     version.nameEn === expected.nameEn &&
-    version.descriptionEn === expected.descriptionEn,
+    version.descriptionAr === null &&
+    version.descriptionEn === expected.descriptionEn &&
+    version.originStopId === (expected.stopKeys.length > 0 ? stopIds.get(expected.stopKeys[0]) : null) &&
+    version.destinationStopId === (expected.stopKeys.length > 0 ? stopIds.get(expected.stopKeys.at(-1)!) : null) &&
+    version.activeFrom === null &&
+    version.activeUntil === null &&
+    version.encodedGeometry === null &&
+    version.geometryEncoding === null &&
+    version.geometryProvider === null &&
+    version.geometryChecksum === null &&
+    version.geometryPrecision === null &&
+    version.estimatedDistanceMeters === null &&
+    version.estimatedDurationSeconds === null &&
+    version.geometryStatus === "pending" &&
+    version.draftRevision === expected.draftRevision &&
+    version.createdByUserId === QA_ACTOR_ID &&
+    version.publishedByUserId === (expected.published ? QA_ACTOR_ID : null) &&
+    version.pausedByUserId === (expected.paused ? QA_ACTOR_ID : null) &&
+    version.retiredByUserId === (expected.retired ? QA_ACTOR_ID : null) &&
+    version.publishedAtPresent === expected.published &&
+    version.pausedAtPresent === expected.paused &&
+    version.retiredAtPresent === expected.retired &&
+    version.pauseReason === expected.pauseReason &&
+    version.retirementReason === expected.retirementReason &&
+    version.createdAtPresent &&
+    version.updatedAtPresent,
     scenario
   );
   assertMemberships(version.stops, expectedMemberships(expected.stopKeys, expected.parcelEnabled), stopIds, scenario);
@@ -223,6 +290,13 @@ export function assertRouteQaFixtureSnapshot(snapshot: RouteQaFixtureSnapshot) {
     stopIds.set(key, stop.id);
   }
   assertReady(new Set(stopIds.values()).size === expectedStops.length, "stops");
+  const noLifecycle = {
+    published: false,
+    paused: false,
+    retired: false,
+    pauseReason: null,
+    retirementReason: null
+  } as const;
 
   assertReady(snapshot.routes.length === Object.keys(routeKeys).length, "routes");
   const routeByKey = new Map(snapshot.routes.map((route) => [route.routeKey, route]));
@@ -250,14 +324,16 @@ export function assertRouteQaFixtureSnapshot(snapshot: RouteQaFixtureSnapshot) {
   assertReady(draft.currentVersionId === null, "d");
   assertVersion(draft.versions[0], {
     number: 1, status: "draft", nameAr: "مسودة صالحة للاختبار", nameEn: "Valid QA draft",
-    descriptionEn: `${FIXTURE_PREFIX}d-valid-draft`, stopKeys: [stopKeys.active, stopKeys.destination], parcelEnabled: false
+    descriptionEn: `${FIXTURE_PREFIX}d-valid-draft`, stopKeys: [stopKeys.active, stopKeys.destination], parcelEnabled: false,
+    draftRevision: 2, ...noLifecycle
   }, stopIds, "d");
 
   const invalid = identity(routeKeys.invalid, `${FIXTURE_PREFIX}invalid-group`, "inbound", "active", 1, "e");
   assertReady(invalid.currentVersionId === null, "e");
   assertVersion(invalid.versions[0], {
     number: 1, status: "draft", nameAr: " ", nameEn: "Invalid publication QA draft",
-    descriptionEn: `${FIXTURE_PREFIX}e-invalid-publication`, stopKeys: [], parcelEnabled: false
+    descriptionEn: `${FIXTURE_PREFIX}e-invalid-publication`, stopKeys: [], parcelEnabled: false,
+    draftRevision: 1, ...noLifecycle
   }, stopIds, "e");
 
   const current = identity(routeKeys.current, `${FIXTURE_PREFIX}history-group`, "outbound", "active", 3, "f");
@@ -268,15 +344,26 @@ export function assertRouteQaFixtureSnapshot(snapshot: RouteQaFixtureSnapshot) {
     stopKeys: [stopKeys.active, stopKeys.middle, stopKeys.destination],
     parcelEnabled: true
   };
-  assertVersion(current.versions[0], { number: 1, status: "retired", ...currentMetadata }, stopIds, "h");
-  assertVersion(current.versions[1], { number: 2, status: "published", ...currentMetadata }, stopIds, "f");
-  assertVersion(current.versions[2], { number: 3, status: "draft", ...currentMetadata }, stopIds, "k");
+  assertVersion(current.versions[0], {
+    number: 1, status: "retired", ...currentMetadata, draftRevision: 2,
+    published: true, paused: true, retired: true,
+    pauseReason: "superseded_by_new_version", retirementReason: "qa_fixture_historical_version"
+  }, stopIds, "h");
+  assertVersion(current.versions[1], {
+    number: 2, status: "published", ...currentMetadata, draftRevision: 1,
+    published: true, paused: false, retired: false, pauseReason: null, retirementReason: null
+  }, stopIds, "f");
+  assertVersion(current.versions[2], {
+    number: 3, status: "draft", ...currentMetadata, draftRevision: 1, ...noLifecycle
+  }, stopIds, "k");
   assertReady(current.currentVersionId === current.versions[1].id, "f");
 
   const paused = identity(routeKeys.paused, `${FIXTURE_PREFIX}paused-group`, "inbound", "active", 1, "g");
   assertVersion(paused.versions[0], {
     number: 1, status: "paused", nameAr: "مسار متوقف مؤقتا", nameEn: "Paused QA route",
-    descriptionEn: `${FIXTURE_PREFIX}g-paused-current`, stopKeys: [stopKeys.active, stopKeys.destination], parcelEnabled: false
+    descriptionEn: `${FIXTURE_PREFIX}g-paused-current`, stopKeys: [stopKeys.active, stopKeys.destination], parcelEnabled: false,
+    draftRevision: 2, published: true, paused: true, retired: false,
+    pauseReason: "qa_fixture_paused_version", retirementReason: null
   }, stopIds, "g");
   assertReady(paused.currentVersionId === paused.versions[0].id, "g");
 
@@ -465,7 +552,7 @@ async function prepareFixtures(prisma: PrismaClient, service: RouteManagementSer
   console.log("route QA prepare complete: 12 scenarios ready; fixtures preserved");
 }
 
-async function verifyFixtures(prisma: PrismaClient) {
+async function verifyFixtures(prisma: PrismaClient, qaAdminPassword: string) {
   const [actorRow, stops, routes] = await Promise.all([
     prisma.user.findUnique({
       where: { id: QA_ACTOR_ID },
@@ -491,13 +578,21 @@ async function verifyFixtures(prisma: PrismaClient) {
           orderBy: { version_number: "asc" },
           take: 4,
           select: {
-            id: true, version_number: true, status: true, name_ar: true, name_en: true, description_en: true,
+            id: true, version_number: true, status: true, name_ar: true, name_en: true,
+            description_ar: true, description_en: true, origin_stop_id: true, destination_stop_id: true,
+            active_from: true, active_until: true, encoded_geometry: true, geometry_encoding: true,
+            geometry_provider: true, geometry_checksum: true, geometry_precision: true,
+            estimated_distance_meters: true, estimated_duration_seconds: true, geometry_status: true,
+            draft_revision: true, created_by_user_id: true, published_by_user_id: true,
+            paused_by_user_id: true, retired_by_user_id: true, published_at: true, paused_at: true,
+            pause_reason: true, retired_at: true, retirement_reason: true, created_at: true, updated_at: true,
             stops: {
               orderBy: { sequence: "asc" },
               take: 4,
               select: {
                 stop_id: true, sequence: true, passenger_pickup: true, passenger_dropoff: true,
-                parcel_pickup: true, parcel_dropoff: true, scheduled_offset_seconds: true, dwell_seconds: true
+                parcel_pickup: true, parcel_dropoff: true, distance_from_origin_meters: true,
+                scheduled_offset_seconds: true, dwell_seconds: true, created_at: true
               }
             }
           }
@@ -505,6 +600,8 @@ async function verifyFixtures(prisma: PrismaClient) {
       }
     })
   ]);
+
+  if (actorRow) await assertRouteQaAdminPassword(qaAdminPassword, actorRow.password_hash);
 
   assertRouteQaFixtureSnapshot({
     actor: actorRow ? {
@@ -538,7 +635,32 @@ async function verifyFixtures(prisma: PrismaClient) {
         status: version.status,
         nameAr: version.name_ar,
         nameEn: version.name_en,
+        descriptionAr: version.description_ar,
         descriptionEn: version.description_en,
+        originStopId: version.origin_stop_id,
+        destinationStopId: version.destination_stop_id,
+        activeFrom: version.active_from?.toISOString() ?? null,
+        activeUntil: version.active_until?.toISOString() ?? null,
+        encodedGeometry: version.encoded_geometry,
+        geometryEncoding: version.geometry_encoding,
+        geometryProvider: version.geometry_provider,
+        geometryChecksum: version.geometry_checksum,
+        geometryPrecision: version.geometry_precision,
+        estimatedDistanceMeters: version.estimated_distance_meters,
+        estimatedDurationSeconds: version.estimated_duration_seconds,
+        geometryStatus: version.geometry_status,
+        draftRevision: version.draft_revision,
+        createdByUserId: version.created_by_user_id,
+        publishedByUserId: version.published_by_user_id,
+        pausedByUserId: version.paused_by_user_id,
+        retiredByUserId: version.retired_by_user_id,
+        publishedAtPresent: version.published_at !== null,
+        pausedAtPresent: version.paused_at !== null,
+        retiredAtPresent: version.retired_at !== null,
+        pauseReason: version.pause_reason,
+        retirementReason: version.retirement_reason,
+        createdAtPresent: version.created_at instanceof Date,
+        updatedAtPresent: version.updated_at instanceof Date,
         stops: version.stops.map((stop) => ({
           stopId: stop.stop_id,
           sequence: stop.sequence,
@@ -546,8 +668,10 @@ async function verifyFixtures(prisma: PrismaClient) {
           passengerDropoff: stop.passenger_dropoff,
           parcelPickup: stop.parcel_pickup,
           parcelDropoff: stop.parcel_dropoff,
+          distanceFromOriginMeters: stop.distance_from_origin_meters,
           scheduledOffsetSeconds: stop.scheduled_offset_seconds,
-          dwellSeconds: stop.dwell_seconds
+          dwellSeconds: stop.dwell_seconds,
+          createdAtPresent: stop.created_at instanceof Date
         }))
       }))
     }))
@@ -599,7 +723,7 @@ async function main() {
   if (!databaseUrl) throw new Error("route_qa_database_guard_rejected");
 
   assertRouteQaDatabase(databaseUrl);
-  const qaAdminPassword = mode === "prepare"
+  const qaAdminPassword = mode === "prepare" || mode === "verify"
     ? requireRouteQaAdminPassword(process.env.ROUTE_QA_ADMIN_PASSWORD)
     : undefined;
 
@@ -610,7 +734,7 @@ async function main() {
   const service = createRouteManagementService(prisma);
   try {
     if (mode === "prepare") await prepareFixtures(prisma, service, qaAdminPassword!);
-    if (mode === "verify") await verifyFixtures(prisma);
+    if (mode === "verify") await verifyFixtures(prisma, qaAdminPassword!);
     if (mode === "cleanup") await cleanupFixtures(prisma);
   } finally {
     await prisma.$disconnect();

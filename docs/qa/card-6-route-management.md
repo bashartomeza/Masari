@@ -92,7 +92,7 @@ Authenticate with the synthetic QA administrator and the locally supplied passwo
 11. Confirm route preview reports unavailable while maps/providers remain disabled.
 12. Rerun verification and confirm all 12 fixture categories remain ready before handoff.
 
-Manual edits can intentionally change fixture state. Use cleanup followed by prepare to restore the canonical A-L set.
+Manual edits can intentionally change fixture state. Exact `verify` is expected to fail after such mutations until an operator deliberately restores the canonical A-L set with guarded cleanup followed by guarded prepare. Do not run cleanup while the current fixture set is being preserved for handoff.
 
 ## Cleanup
 
