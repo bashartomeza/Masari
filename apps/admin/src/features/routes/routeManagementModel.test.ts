@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
+import type { ServiceRoute, ServiceRouteVersion } from "../../api";
 import {
   initialRouteUiState,
   lifecycleActionRequiresReason,
   normalizeRouteVersionDraft,
   routeUiReducer,
-  routeVersionDraftFrom
+  routeVersionDraftFrom,
+  selectAuthoritativeRouteVersion
 } from "./routeManagementModel";
 
 describe("routeManagementModel", () => {
@@ -129,6 +131,45 @@ describe("routeManagementModel", () => {
       active_from: new Date("2026-08-25T06:00").toISOString(),
       active_until: null
     });
+  });
+
+  it("keeps a surviving version selection, then falls back to the authoritative current or newest version", () => {
+    const preferred: ServiceRouteVersion = {
+      id: "version-preferred",
+      service_route_id: "route-1",
+      version_number: 1,
+      status: "draft",
+      name_ar: "المسودة المحددة",
+      name_en: "Preferred draft",
+      description_ar: null,
+      description_en: null,
+      active_from: null,
+      active_until: null,
+      draft_revision: 1,
+      stop_count: 0,
+      stops: [],
+      geometry: { status: "pending", ready: false }
+    };
+    const current: ServiceRouteVersion = { ...preferred, id: "version-current", version_number: 2, status: "published" };
+    const newest: ServiceRouteVersion = { ...preferred, id: "version-newest", version_number: 3 };
+    const route: ServiceRoute = {
+      id: "route-1",
+      route_key: "route-1-key",
+      route_group_key: "route-1-group",
+      service_region_key: "south-west-bank",
+      direction: "outbound",
+      status: "active",
+      versions: [newest, current, preferred],
+      version_count: 3,
+      current_version_id: current.id,
+      current_version: current,
+      created_at: "2026-08-25T00:00:00.000Z",
+      updated_at: "2026-08-25T00:00:00.000Z"
+    };
+
+    expect(selectAuthoritativeRouteVersion(route, preferred.id)).toBe(preferred);
+    expect(selectAuthoritativeRouteVersion({ ...route, versions: [newest, current] }, preferred.id)).toBe(current);
+    expect(selectAuthoritativeRouteVersion({ ...route, versions: [newest], current_version_id: null, current_version: null }, preferred.id)).toBe(newest);
   });
 
   it("preserves the logical workspace when a stale mutation is reloaded", () => {

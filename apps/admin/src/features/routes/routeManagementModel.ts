@@ -1,4 +1,4 @@
-import type { RouteStopDraft, RouteVersionDraft } from "../../api";
+import type { RouteStopDraft, RouteVersionDraft, ServiceRoute } from "../../api";
 
 export type RouteWorkspaceTab = "overview" | "versions" | "stops";
 export type RouteStopPermission = keyof Pick<
@@ -52,6 +52,20 @@ export function normalizeRouteVersionDraft(draft: RouteVersionDraft): Required<R
     active_from: draft.active_from ? new Date(draft.active_from).toISOString() : null,
     active_until: draft.active_until ? new Date(draft.active_until).toISOString() : null
   };
+}
+
+export function selectAuthoritativeRouteVersion(route: ServiceRoute, preferredVersionId: string | null) {
+  const versions = route.versions ?? [];
+  const preferred = preferredVersionId
+    ? versions.find((version) => version.id === preferredVersionId)
+      ?? (route.current_version?.id === preferredVersionId ? route.current_version : null)
+    : null;
+  if (preferred) return preferred;
+
+  const current = route.current_version_id
+    ? versions.find((version) => version.id === route.current_version_id) ?? route.current_version
+    : route.current_version;
+  return current ?? versions[0] ?? null;
 }
 
 export type RouteLifecycleDialogAction =

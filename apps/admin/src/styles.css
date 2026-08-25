@@ -73,6 +73,15 @@
   max-inline-size: 100%;
 }
 
+.route-management {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.route-management > * {
+  min-inline-size: 0;
+}
+
 .technical-value,
 [dir="rtl"] .technical-value {
   direction: ltr;

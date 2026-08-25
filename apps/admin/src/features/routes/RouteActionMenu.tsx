@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import type { ServiceRouteVersion } from "../../api";
 import { translations } from "../../i18n/translations";
 import { Button } from "../../ui";
@@ -78,6 +78,7 @@ export function RouteActionMenu({
   onRetireRoute
 }: RouteActionMenuProps) {
   const text = copy[locale];
+  const triggerId = `route-action-menu-trigger-${useId().replaceAll(":", "")}`;
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -153,10 +154,12 @@ export function RouteActionMenu({
     <div className="route-action-menu">
       <button
         ref={triggerRef}
+        id={triggerId}
         type="button"
         className="btn btn--outline btn--md"
         aria-haspopup="menu"
         aria-expanded={menuOpen}
+        aria-controls={`${triggerId}-menu`}
         onClick={() => setMenuOpen((current) => !current)}
         disabled={busy}
       >
@@ -164,8 +167,10 @@ export function RouteActionMenu({
       </button>
       <div
         ref={menuRef}
+        id={`${triggerId}-menu`}
         className="route-action-menu__items"
         role="menu"
+        aria-labelledby={triggerId}
         hidden={!menuOpen}
         onKeyDown={moveMenuFocus}
       >

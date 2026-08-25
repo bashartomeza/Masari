@@ -2103,12 +2103,15 @@
 
   .route-directory__filters .field { flex-basis: 100%; }
 
-  .route-directory__row {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .route-directory__row,
+  .route-stops__item {
+    display: grid;
+    grid-template-columns: 1fr;
     gap: var(--space-base);
+    inline-size: 100%;
   }
 
-  .route-directory__identity { grid-column: 1 / -1; }
+  .route-directory__identity { grid-column: auto; }
   .route-directory__metadata b { display: block; }
 
   .route-workspace__statuses,

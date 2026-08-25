@@ -23,8 +23,10 @@ import {
   moveRouteStop,
   normalizeRouteVersionDraft,
   routeUiReducer,
+  selectAuthoritativeRouteVersion,
   toggleRouteStopPermission
 } from "./routeManagementModel";
+import type { RouteFeedbackScope } from "./routeManagementModel";
 
 export { moveRouteStop, toggleRouteStopPermission } from "./routeManagementModel";
 
@@ -327,7 +329,12 @@ export function routeUiText(locale: Locale) {
     readinessPassengerPath: shared.readinessPassengerPath,
     readinessParcelPath: shared.readinessParcelPath,
     routeUsedStopImmutable: shared.routeUsedStopImmutable,
-    routeNoCurrentVersion: shared.routeNoCurrentVersion
+    routeNoCurrentVersion: shared.routeNoCurrentVersion,
+    routeConflictCreateRoute: shared.routeConflictCreateRoute,
+    routeConflictVersionEditor: shared.routeConflictVersionEditor,
+    routeConflictStops: shared.routeConflictStops,
+    routeConflictStopEditor: shared.routeConflictStopEditor,
+    routeConflictLifecycle: shared.routeConflictLifecycle
   };
 }
 
@@ -383,15 +390,28 @@ export function routeConflictRequiresReload(error: unknown) {
 export async function handleRouteMutationFailure(
   error: unknown,
   reload: () => Promise<boolean>,
-  locale: Locale
+  locale: Locale,
+  scope?: Exclude<RouteFeedbackScope, "page">
 ) {
   if (!routeConflictRequiresReload(error)) return routeUiError(locale, error);
   try {
     if (!await reload()) return routeUiText(locale).reloadFailed;
+    const text = routeUiText(locale);
+    const scopedConflict = scope === "create-route"
+      ? text.routeConflictCreateRoute
+      : scope === "version-editor"
+        ? text.routeConflictVersionEditor
+        : scope === "stops"
+          ? text.routeConflictStops
+          : scope === "stop-editor"
+            ? text.routeConflictStopEditor
+            : scope === "lifecycle"
+              ? text.routeConflictLifecycle
+              : text.conflictReloaded;
     const safeError = routeUiError(locale, error);
     return safeError === routeUiText(locale).genericError
-      ? routeUiText(locale).conflictReloaded
-      : `${safeError} ${routeUiText(locale).conflictReloaded}`;
+      ? scopedConflict
+      : `${safeError} ${scopedConflict}`;
   } catch {
     return routeUiText(locale).reloadFailed;
   }
@@ -521,9 +541,7 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
     try {
       const response = await api.serviceRoute(token, routeId);
       setSelectedRoute(response.route);
-      const version = response.route.versions?.find((candidate) => candidate.id === selectedVersion?.id)
-        ?? response.route.versions?.[0]
-        ?? response.route.current_version;
+      const version = selectAuthoritativeRouteVersion(response.route, selectedVersion?.id ?? ui.selectedVersionId);
       selectVersion(version ?? null);
       return true;
     } catch (error) {
@@ -553,7 +571,7 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
       dispatch({ type: "feedback", scope: "page", kind: "success", text: text.saved });
     } catch (error) {
       settleMutation(mutation.fingerprint, error);
-      dispatch({ type: "feedback", scope: "create-route", kind: "error", text: await handleRouteMutationFailure(error, () => loadCatalog(1), locale) });
+      dispatch({ type: "feedback", scope: "create-route", kind: "error", text: await handleRouteMutationFailure(error, () => loadCatalog(1), locale, "create-route") });
     } finally {
       endBusy();
     }
@@ -578,7 +596,7 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
         type: "feedback",
         scope: "stop-editor",
         kind: "error",
-        text: await handleRouteMutationFailure(error, () => loadStops(false), locale)
+        text: await handleRouteMutationFailure(error, () => loadStops(false), locale, "stop-editor")
       });
       return false;
     } finally {
@@ -603,7 +621,7 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
         type: "feedback",
         scope: "stop-editor",
         kind: "error",
-        text: await handleRouteMutationFailure(error, () => loadStops(false), locale)
+        text: await handleRouteMutationFailure(error, () => loadStops(false), locale, "stop-editor")
       });
       return false;
     } finally {
@@ -631,7 +649,7 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
         type: "feedback",
         scope: "version-editor",
         kind: "error",
-        text: await handleRouteMutationFailure(error, () => loadRoute(selectedRoute.id, true, false), locale)
+        text: await handleRouteMutationFailure(error, () => loadRoute(selectedRoute.id, true, false), locale, "version-editor")
       });
     } finally {
       endBusy();
@@ -654,7 +672,7 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
         type: "feedback",
         scope: "version-editor",
         kind: "error",
-        text: await handleRouteMutationFailure(error, () => loadRoute(selectedRoute.id, true, false), locale)
+        text: await handleRouteMutationFailure(error, () => loadRoute(selectedRoute.id, true, false), locale, "version-editor")
       });
     } finally {
       endBusy();
@@ -678,7 +696,7 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
         type: "feedback",
         scope: "stops",
         kind: "error",
-        text: await handleRouteMutationFailure(error, () => loadRoute(selectedVersion.service_route_id, true), locale)
+        text: await handleRouteMutationFailure(error, () => loadRoute(selectedVersion.service_route_id, true), locale, "stops")
       });
     } finally {
       endBusy();
@@ -707,7 +725,7 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
         type: "feedback",
         scope: "lifecycle",
         kind: "error",
-        text: await handleRouteMutationFailure(error, () => loadRoute(selectedRoute.id, true), locale)
+        text: await handleRouteMutationFailure(error, () => loadRoute(selectedRoute.id, true), locale, "lifecycle")
       });
     } finally {
       endBusy();
@@ -752,7 +770,7 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
         type: "feedback",
         scope: "lifecycle",
         kind: "error",
-        text: await handleRouteMutationFailure(error, () => loadRoute(selectedRoute.id, true), locale)
+        text: await handleRouteMutationFailure(error, () => loadRoute(selectedRoute.id, true), locale, "lifecycle")
       });
     } finally {
       endBusy();
@@ -783,10 +801,12 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
         type: "feedback",
         scope: "lifecycle",
         kind: "error",
-        text: await handleRouteMutationFailure(error, async () => {
-          if (!await loadCatalog(page)) return false;
-          return loadRoute(selectedRoute.id, true);
-        }, locale)
+        text: await handleRouteMutationFailure(
+          error,
+          () => loadRoute(selectedRoute.id, true, false),
+          locale,
+          "lifecycle"
+        )
       });
     } finally {
       endBusy();
@@ -818,7 +838,7 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
         type: "feedback",
         scope: "stops",
         kind: "error",
-        text: await handleRouteMutationFailure(error, () => loadStops(false), locale)
+        text: await handleRouteMutationFailure(error, () => loadStops(false), locale, "stops")
       });
       return false;
     } finally {
@@ -828,7 +848,7 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
 
   if (ui.surface === "directory") {
     return (
-      <section className="stack">
+      <section className="route-management stack" dir={locale === "ar" ? "rtl" : "ltr"} lang={locale}>
         <RouteDirectory
           locale={locale}
           routes={routes}
@@ -862,7 +882,7 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
 
   if (!selectedRoute) {
     return (
-      <section className="stack">
+      <section className="route-management stack" dir={locale === "ar" ? "rtl" : "ltr"} lang={locale}>
         <Button variant="ghost" size="sm" onClick={() => dispatch({ type: "back-to-directory" })}>
           {locale === "ar" ? "العودة إلى المسارات" : "Back to routes"}
         </Button>
@@ -922,7 +942,12 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
   />;
 
   return (
-    <section className="stack">
+    <section
+      className="route-management stack"
+      dir={locale === "ar" ? "rtl" : "ltr"}
+      lang={locale}
+      data-selected-route-id={selectedRoute.id}
+    >
       {ui.feedback?.scope === "page" && <Notice kind={ui.feedback.kind}>{ui.feedback.text}</Notice>}
       {message && <Notice kind={message.kind}>{message.text}</Notice>}
       <RouteWorkspace

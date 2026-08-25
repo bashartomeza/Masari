@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
 
+import { readFileSync } from "node:fs";
 import { act } from "react";
-import { createRoot } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import adminPackage from "../../../package.json";
 import type { CanonicalStop, RouteStopDraft, ServiceRoute, ServiceRouteVersion } from "../../api";
+import { translations } from "../../i18n/translations";
 import {
   RouteManagement,
   RouteMembershipStopLabel,
@@ -94,6 +96,17 @@ const canonicalStops: CanonicalStop[] = [
   }
 ];
 
+const unusedStop: CanonicalStop = {
+  id: "stop_3",
+  stop_key: "al-haras",
+  service_region_key: "south-west-bank",
+  name_ar: "الحرس",
+  name_en: "Al Haras",
+  latitude: 31.5204,
+  longitude: 35.0991,
+  status: "active"
+};
+
 const readyVersion: ServiceRouteVersion & { service_region_key: string } = {
   ...version,
   service_region_key: "south-west-bank",
@@ -127,12 +140,109 @@ const readyVersion: ServiceRouteVersion & { service_region_key: string } = {
 };
 
 let mountedHost: HTMLDivElement | null = null;
+let mountedRoot: Root | null = null;
 
 afterEach(() => {
+  if (mountedRoot) act(() => mountedRoot?.unmount());
   mountedHost?.remove();
+  mountedRoot = null;
   mountedHost = null;
   document.body.replaceChildren();
 });
+
+function routeFixture({
+  id = "route_context",
+  versions = [{ ...readyVersion, id: "version_context", service_route_id: id }],
+  currentVersion = null
+}: {
+  id?: string;
+  versions?: ServiceRouteVersion[];
+  currentVersion?: ServiceRouteVersion | null;
+} = {}): ServiceRoute {
+  return {
+    id,
+    route_key: `${id}-key`,
+    route_group_key: `${id}-group`,
+    service_region_key: "south-west-bank",
+    direction: "outbound",
+    status: "active",
+    current_version_id: currentVersion?.id ?? null,
+    current_version: currentVersion,
+    versions,
+    version_count: versions.length,
+    created_at: "2026-08-25T00:00:00.000Z",
+    updated_at: "2026-08-25T00:00:00.000Z"
+  };
+}
+
+function routeApi(route: ServiceRoute, overrides: Record<string, unknown> = {}) {
+  return {
+    serviceRoutes: vi.fn().mockResolvedValue({ routes: [route], page: 1, limit: 25, total: 1 }),
+    canonicalStops: vi.fn().mockResolvedValue({ stops: [...canonicalStops, unusedStop], page: 1, limit: 50, total: 3 }),
+    serviceRoute: vi.fn().mockResolvedValue({ route }),
+    ...overrides
+  };
+}
+
+async function mountManagement(api: Record<string, unknown>, locale: "ar" | "en" = "en") {
+  mountedHost = document.createElement("div");
+  document.body.append(mountedHost);
+  mountedRoot = createRoot(mountedHost);
+  await act(async () => {
+    mountedRoot?.render(<RouteManagement api={api as never} token="token" locale={locale} />);
+    await Promise.resolve();
+  });
+  await act(async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+  return mountedHost;
+}
+
+async function settleUi() {
+  await act(async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+}
+
+function buttonNamed(host: ParentNode, name: string) {
+  return [...host.querySelectorAll<HTMLButtonElement>("button")]
+    .find((button) => button.textContent?.trim() === name)!;
+}
+
+function enterValue(input: HTMLInputElement, value: string) {
+  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+  act(() => {
+    setter.call(input, value);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+}
+
+async function openOnlyRoute(host: HTMLElement) {
+  const row = host.querySelector<HTMLElement>(".route-directory__row")!;
+  await act(async () => {
+    row.querySelector<HTMLButtonElement>("button")!.click();
+    await Promise.resolve();
+  });
+  await settleUi();
+}
+
+function selectWorkspaceTab(host: HTMLElement, name: string) {
+  act(() => buttonNamed(host.querySelector('[role="tablist"]')!, name).click());
+}
+
+async function confirmLifecycleAction(host: HTMLElement, action: string, reason?: string) {
+  act(() => buttonNamed(host, "Route actions").click());
+  act(() => buttonNamed(host.querySelector('[role="menu"]')!, action).click());
+  if (reason) enterValue(host.querySelector<HTMLInputElement>('input[name="reason"]')!, reason);
+  await act(async () => {
+    buttonNamed(host.querySelector('[role="dialog"]')!, "Confirm").click();
+    await Promise.resolve();
+  });
+  await settleUi();
+}
 
 describe("admin route management", () => {
   it("models loading, empty, error, and populated catalog states", () => {
@@ -290,6 +400,160 @@ describe("admin route management", () => {
     expect(arabic).toContain("تصفية حالة المسار");
     expect(english).not.toContain("Map preview unavailable");
   });
+
+  const contextualFailureCases: Array<{
+    operation: string;
+    scope: "create-route" | "version-editor" | "stop-editor" | "stops" | "lifecycle";
+    container: string;
+    exercise: () => Promise<HTMLElement>;
+  }> = [
+    {
+      operation: "route create",
+      scope: "create-route",
+      container: "#create-route-form",
+      exercise: async () => {
+        const route = routeFixture();
+        const host = await mountManagement(routeApi(route, {
+          createServiceRoute: vi.fn().mockRejectedValue(new Error("private_route_create_detail"))
+        }));
+        act(() => buttonNamed(host, "Create route").click());
+        const form = host.querySelector<HTMLFormElement>("#create-route-form")!;
+        enterValue(form.querySelector<HTMLInputElement>('input[name="route_key"]')!, "scope-route");
+        enterValue(form.querySelector<HTMLInputElement>('input[name="route_group_key"]')!, "scope-group");
+        enterValue(form.querySelector<HTMLInputElement>('input[name="service_region_key"]')!, "south-west-bank");
+        await act(async () => {
+          form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+          await Promise.resolve();
+        });
+        await settleUi();
+        return host;
+      }
+    },
+    {
+      operation: "draft save",
+      scope: "version-editor",
+      container: ".route-versions__workspace",
+      exercise: async () => {
+        const route = routeFixture();
+        const host = await mountManagement(routeApi(route, {
+          updateRouteVersion: vi.fn().mockRejectedValue(new Error("private_draft_save_detail"))
+        }));
+        await openOnlyRoute(host);
+        selectWorkspaceTab(host, "Versions");
+        act(() => buttonNamed(host, "Edit draft").click());
+        const form = host.querySelector<HTMLFormElement>(".route-version-editor form")!;
+        await act(async () => {
+          form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+          await Promise.resolve();
+        });
+        await settleUi();
+        return host;
+      }
+    },
+    {
+      operation: "stop create",
+      scope: "stop-editor",
+      container: '[role="dialog"]',
+      exercise: async () => {
+        const route = routeFixture();
+        const host = await mountManagement(routeApi(route, {
+          createCanonicalStop: vi.fn().mockRejectedValue(new Error("private_stop_create_detail"))
+        }));
+        await openOnlyRoute(host);
+        selectWorkspaceTab(host, "Stops");
+        act(() => buttonNamed(host, "Create new stop").click());
+        const form = host.querySelector<HTMLFormElement>(".route-stops__create-form")!;
+        await act(async () => {
+          form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+          await Promise.resolve();
+        });
+        await settleUi();
+        return host;
+      }
+    },
+    {
+      operation: "stop edit",
+      scope: "stop-editor",
+      container: '[role="dialog"]',
+      exercise: async () => {
+        const route = routeFixture();
+        const host = await mountManagement(routeApi(route, {
+          updateCanonicalStop: vi.fn().mockRejectedValue(new Error("private_stop_edit_detail"))
+        }));
+        await openOnlyRoute(host);
+        selectWorkspaceTab(host, "Stops");
+        const unusedStopCard = host.querySelector<HTMLElement>('[data-stop-id="stop_3"]')!;
+        act(() => buttonNamed(unusedStopCard, "Edit").click());
+        const form = host.querySelector<HTMLFormElement>(".stop-editor-form")!;
+        await act(async () => {
+          form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+          await Promise.resolve();
+        });
+        await settleUi();
+        return host;
+      }
+    },
+    {
+      operation: "stop order",
+      scope: "stops",
+      container: ".route-stops__order",
+      exercise: async () => {
+        const route = routeFixture();
+        const host = await mountManagement(routeApi(route, {
+          replaceRouteStops: vi.fn().mockRejectedValue(new Error("private_stop_order_detail"))
+        }));
+        await openOnlyRoute(host);
+        selectWorkspaceTab(host, "Stops");
+        await act(async () => {
+          buttonNamed(host, "Save order").click();
+          await Promise.resolve();
+        });
+        await settleUi();
+        return host;
+      }
+    },
+    {
+      operation: "readiness publish",
+      scope: "lifecycle",
+      container: ".route-overview__section",
+      exercise: async () => {
+        const route = routeFixture();
+        const host = await mountManagement(routeApi(route, {
+          publishRouteVersion: vi.fn().mockRejectedValue(new Error("private_publish_detail"))
+        }));
+        await openOnlyRoute(host);
+        await confirmLifecycleAction(host, "Publish");
+        return host;
+      }
+    },
+    {
+      operation: "current-version lifecycle",
+      scope: "lifecycle",
+      container: ".route-overview__section",
+      exercise: async () => {
+        const published = { ...readyVersion, id: "version_published_scope", service_route_id: "route_lifecycle_scope", status: "published" as const };
+        const route = routeFixture({ id: "route_lifecycle_scope", versions: [published], currentVersion: published });
+        const host = await mountManagement(routeApi(route, {
+          routeVersionAction: vi.fn().mockRejectedValue(new Error("private_lifecycle_detail"))
+        }));
+        await openOnlyRoute(host);
+        await confirmLifecycleAction(host, "Pause", "Scheduled service review");
+        return host;
+      }
+    }
+  ];
+
+  it.each(contextualFailureCases)(
+    "$operation failure stays in the hand-selected $scope feedback scope",
+    async ({ container, exercise }) => {
+      const host = await exercise();
+      const scopedNotice = host.querySelector(`${container} .notice--error`);
+
+      expect(scopedNotice?.textContent).toBe("The action could not be completed. Retry or use the request ID for support.");
+      expect(host.querySelectorAll(".notice--error")).toHaveLength(1);
+      expect(host.textContent).not.toMatch(/private_(route_create|draft_save|stop_create|stop_edit|stop_order|publish|lifecycle)_detail/);
+    }
+  );
 
   it("shows successful create feedback in the opened route workspace", async () => {
     const createdRoute: ServiceRoute = {
@@ -460,11 +724,113 @@ describe("admin route management", () => {
       name_en: "Unsaved local edit",
       expected_revision: 4
     }));
+    expect(api.serviceRoute).toHaveBeenCalledTimes(2);
+    expect(mountedHost.querySelector('[data-selected-route-id="route_conflict"]')).not.toBeNull();
     expect(versionsTab.getAttribute("aria-selected")).toBe("true");
     expect(mountedHost.textContent).toContain("After conflict");
-    expect(mountedHost.textContent).toContain("latest authoritative data was reloaded");
+    expect(mountedHost.textContent).toContain("The latest authoritative version was reloaded");
+    expect(mountedHost.textContent).not.toContain("Saved successfully.");
     expect(mountedHost.textContent).not.toContain("Save changes");
     root.unmount();
+  });
+
+  it("keeps the Stops tab and selected draft while reconciling authoritative order after one 409 reload", async () => {
+    const selectedDraft = {
+      ...readyVersion,
+      id: "version_stop_conflict",
+      service_route_id: "route_stop_conflict",
+      name_en: "Stop conflict draft",
+      draft_revision: 8
+    };
+    const authoritativeDraft = {
+      ...selectedDraft,
+      draft_revision: 9,
+      stops: [selectedDraft.stops[1], selectedDraft.stops[0]].map((membership, index) => ({ ...membership, sequence: index + 1 }))
+    };
+    const initialRoute = routeFixture({ id: "route_stop_conflict", versions: [selectedDraft] });
+    const authoritativeRoute = routeFixture({ id: "route_stop_conflict", versions: [authoritativeDraft] });
+    const serviceRoute = vi.fn()
+      .mockResolvedValueOnce({ route: initialRoute })
+      .mockResolvedValueOnce({ route: authoritativeRoute });
+    const api = routeApi(initialRoute, {
+      serviceRoute,
+      replaceRouteStops: vi.fn().mockRejectedValue(Object.assign(new Error("draft_revision_conflict"), { status: 409 }))
+    });
+    const host = await mountManagement(api);
+    await openOnlyRoute(host);
+    selectWorkspaceTab(host, "Stops");
+
+    await act(async () => {
+      buttonNamed(host, "Save order").click();
+      await Promise.resolve();
+    });
+    await settleUi();
+
+    const stopsTab = buttonNamed(host.querySelector('[role="tablist"]')!, "Stops");
+    const renderedStops = [...host.querySelectorAll<HTMLElement>(".route-stops__item")];
+    expect(serviceRoute).toHaveBeenCalledTimes(2);
+    expect(host.querySelector('[data-selected-route-id="route_stop_conflict"]')).not.toBeNull();
+    expect(stopsTab.getAttribute("aria-selected")).toBe("true");
+    expect(host.querySelector(".route-workspace__identity")?.textContent).toContain("version_stop_conflict");
+    expect(renderedStops.map((item) => item.dataset.stopId)).toEqual(["stop_2", "stop_1"]);
+    expect(host.querySelector(".route-stops__order .notice--error")?.textContent)
+      .toContain("The latest authoritative stop order was reloaded");
+    expect(host.textContent).not.toContain("Saved successfully.");
+  });
+
+  it("keeps the Overview tab and selects the authoritative current version after one route-lifecycle 409 reload", async () => {
+    const staleDraft = {
+      ...readyVersion,
+      id: "version_stale_publish",
+      service_route_id: "route_lifecycle_conflict",
+      name_en: "Stale publish draft",
+      draft_revision: 3
+    };
+    const newestDraft = {
+      ...readyVersion,
+      id: "version_newest_draft",
+      service_route_id: "route_lifecycle_conflict",
+      version_number: 3,
+      name_en: "Newer draft",
+      draft_revision: 1
+    };
+    const authoritativeCurrent = {
+      ...readyVersion,
+      id: "version_authoritative_current",
+      service_route_id: "route_lifecycle_conflict",
+      version_number: 2,
+      name_en: "Authoritative published version",
+      status: "published" as const
+    };
+    const initialRoute = routeFixture({ id: "route_lifecycle_conflict", versions: [staleDraft] });
+    const authoritativeRoute = routeFixture({
+      id: "route_lifecycle_conflict",
+      versions: [newestDraft, authoritativeCurrent],
+      currentVersion: authoritativeCurrent
+    });
+    const serviceRoute = vi.fn()
+      .mockResolvedValueOnce({ route: initialRoute })
+      .mockResolvedValueOnce({ route: authoritativeRoute });
+    const api = routeApi(initialRoute, {
+      serviceRoute,
+      retireServiceRoute: vi.fn().mockRejectedValue(Object.assign(new Error("current_version_conflict"), { status: 409 }))
+    });
+    const host = await mountManagement(api);
+    await openOnlyRoute(host);
+
+    await confirmLifecycleAction(host, "Retire route", "Route ownership changed");
+
+    const overviewTab = buttonNamed(host.querySelector('[role="tablist"]')!, "Overview");
+    expect(serviceRoute).toHaveBeenCalledTimes(2);
+    expect(api.serviceRoutes).toHaveBeenCalledOnce();
+    expect(api.canonicalStops).toHaveBeenCalledOnce();
+    expect(host.querySelector('[data-selected-route-id="route_lifecycle_conflict"]')).not.toBeNull();
+    expect(overviewTab.getAttribute("aria-selected")).toBe("true");
+    expect(host.querySelector(".route-workspace__identity")?.textContent).toContain("version_authoritative_current");
+    expect(host.querySelector(".route-workspace__identity")?.textContent).not.toContain("version_newest_draft");
+    expect(host.querySelector(".route-overview__section .notice--error")?.textContent)
+      .toBe("The route status changed. The latest authoritative route data was reloaded.");
+    expect(host.textContent).not.toContain("Saved successfully.");
   });
 
   it("shows a create-draft reload failure beside the Versions workspace instead of page-wide", async () => {
@@ -659,6 +1025,114 @@ describe("admin route management", () => {
     expect(reload).not.toHaveBeenCalled();
     expect(message).toBe(routeUiText("en").genericError);
     expect(message).not.toContain("internal_database_detail");
+  });
+
+  const routeTranslationKeys = [
+    "routeStatusFilter",
+    "routeDirectionFilter",
+    "routeRegionFilter",
+    "routeStatusHeading",
+    "currentVersionStatusHeading",
+    "selectedVersionStatusHeading",
+    "stopStatusHeading",
+    "routeStatusLabels",
+    "routeHistoryBounded",
+    "routeHistorySummary",
+    "routeHistoryTruncated",
+    "routeMapUnavailable",
+    "routeMapUnavailableDescription",
+    "routeManualCoordinates",
+    "routeStopKey",
+    "routeRegion",
+    "routeNameAr",
+    "routeNameEn",
+    "routeEditStop",
+    "routeCancelStopEdit",
+    "routeSaveStopEdit",
+    "routeDialogClose",
+    "routeDialogCancel",
+    "routeTabOverview",
+    "routeTabVersions",
+    "routeTabStops",
+    "routeActionMenu",
+    "routeCreateRoute",
+    "routeCreateVersion",
+    "routeAddStop",
+    "routeCreateStop",
+    "routeEditVersion",
+    "routeEditStopAction",
+    "routeConflictPage",
+    "routeConflictCreateRoute",
+    "routeConflictVersionEditor",
+    "routeConflictStops",
+    "routeConflictStopEditor",
+    "routeConflictLifecycle",
+    "routeReadinessLabel",
+    "routeReady",
+    "routeEmptyDirectory",
+    "routeEmptyVersions",
+    "routeEmptyStops",
+    "routeReadinessTitle",
+    "routeReadinessReady",
+    "readinessMissingNames",
+    "readinessMinimumStops",
+    "readinessStopEligibility",
+    "readinessDateOrder",
+    "readinessPassengerPath",
+    "readinessParcelPath",
+    "routeUsedStopImmutable",
+    "routeNoCurrentVersion"
+  ] as const;
+
+  it.each(routeTranslationKeys)("provides complete Arabic and English route copy for %s", (key) => {
+    expect(translations.ar[key].trim()).not.toBe("");
+    expect(translations.en[key].trim()).not.toBe("");
+    expect(translations.ar[key]).not.toBe(translations.en[key]);
+  });
+
+  it.each([
+    { locale: "ar" as const, direction: "rtl", tab: "نظرة عامة", status: "نشط" },
+    { locale: "en" as const, direction: "ltr", tab: "Overview", status: "Active" }
+  ])("renders a $direction route workspace boundary with textual status and isolated technical values", async ({ locale, direction, tab, status }) => {
+    const route = routeFixture();
+    const host = await mountManagement(routeApi(route), locale);
+    await openOnlyRoute(host);
+    const boundary = host.querySelector<HTMLElement>(`.route-management[dir="${direction}"]`)!;
+
+    expect(boundary).not.toBeNull();
+    expect(boundary.textContent).toContain(tab);
+    expect(boundary.textContent).toContain(status);
+    expect(boundary.querySelectorAll('.technical-value[dir="ltr"]').length).toBeGreaterThan(1);
+    expect(boundary.querySelector("table")).toBeNull();
+  });
+
+  it("labels the lifecycle menu with its visible trigger", async () => {
+    const route = routeFixture();
+    const host = await mountManagement(routeApi(route));
+    await openOnlyRoute(host);
+    const trigger = buttonNamed(host, "Route actions");
+    act(() => trigger.click());
+    const menu = host.querySelector<HTMLElement>('[role="menu"]')!;
+
+    expect(trigger.id).not.toBe("");
+    expect(menu.getAttribute("aria-labelledby")).toBe(trigger.id);
+  });
+
+  it("exposes scrollable tabs, one-column 560px cards, and bounded dialog overflow without a table dependency", async () => {
+    const componentStyles = readFileSync("src/ui/components.css", "utf8");
+    const pageStyles = readFileSync("src/styles.css", "utf8");
+    const route = routeFixture();
+    const host = await mountManagement(routeApi(route));
+    act(() => buttonNamed(host, "Create route").click());
+
+    expect(host.querySelector(".route-directory__row")).not.toBeNull();
+    expect(host.querySelector(".route-dialog .route-dialog__body")).not.toBeNull();
+    expect(host.querySelector("table")).toBeNull();
+    expect(componentStyles).toMatch(/\.route-workspace__tabs\s*\{[\s\S]*?overflow-x:\s*auto/);
+    expect(componentStyles).toMatch(/\.route-dialog\s*\{[\s\S]*?max-block-size:\s*min\(90dvh, 760px\)[\s\S]*?overflow:\s*hidden/);
+    expect(componentStyles).toMatch(/\.route-dialog__body\s*\{[\s\S]*?overflow:\s*auto/);
+    expect(componentStyles).toMatch(/@media \(max-width: 560px\)[\s\S]*?\.route-directory__row,[\s\S]*?\.route-stops__item\s*\{[\s\S]*?grid-template-columns:\s*1fr/);
+    expect(pageStyles).toMatch(/\.route-management\s*\{[\s\S]*?min-inline-size:\s*0/);
   });
 
   it("has no map dependency or demo-control leakage and retains accessible responsive controls", () => {

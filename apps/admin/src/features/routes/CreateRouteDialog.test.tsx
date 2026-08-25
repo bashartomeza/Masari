@@ -57,10 +57,21 @@ describe("CreateRouteDialog", () => {
     const onSubmit = vi.fn();
     const dialog = renderDialog({ onSubmit });
     const form = dialog.querySelector("form")!;
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+
+    for (const input of form.querySelectorAll<HTMLInputElement>("input")) {
+      act(() => {
+        setter.call(input, "   ");
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+    }
 
     act(() => form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
 
     expect(onSubmit).not.toHaveBeenCalled();
+    expect(new FormData(form).get("route_key")).toBe("   ");
+    expect(new FormData(form).get("route_group_key")).toBe("   ");
+    expect(new FormData(form).get("service_region_key")).toBe("   ");
     expect(dialog.textContent).toContain("Enter a route key, direction group, and service region.");
   });
 });
