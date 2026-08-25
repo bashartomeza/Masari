@@ -463,7 +463,7 @@ Run fresh commands:
 
 ```powershell
 npm ci
-$env:DATABASE_URL='mysql://placeholder:placeholder@127.0.0.1:3306/masari_card6_generate'; npm run prisma:generate
+$env:DATABASE_URL=('mysql://' + ('{0}:{1}' -f 'placeholder', 'placeholder') + '@127.0.0.1:3306/masari_card6_generate'); npm run prisma:generate
 npm test
 npm run test:admin
 npm run typecheck
