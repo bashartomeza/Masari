@@ -3,7 +3,7 @@
 import { act, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CanonicalStop, RouteStopDraft, ServiceRouteVersion } from "../../api";
 import { RouteStops, type StopDialogMode } from "./RouteStops";
 
@@ -102,6 +102,7 @@ function renderStops(overrides: Partial<React.ComponentProps<typeof RouteStops>>
 let mountedHost: HTMLDivElement | null = null;
 
 afterEach(() => {
+  vi.restoreAllMocks();
   mountedHost?.remove();
   mountedHost = null;
   document.body.replaceChildren();
@@ -326,6 +327,67 @@ describe("RouteStops", () => {
     editSucceeds = true;
     await act(async () => { form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); await Promise.resolve(); });
     expect(mountedHost.querySelector('[role="dialog"]')).toBeNull();
+    root.unmount();
+  });
+
+  it("keeps a used active stop immutable for editing while retaining reasoned confirmed retirement", async () => {
+    let retirement: { stopId: string; reason: string } | null = null;
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+
+    mountedHost = document.createElement("div");
+    document.body.append(mountedHost);
+    const root = createRoot(mountedHost);
+    await act(async () => {
+      root.render(renderStops({
+        usedStopIds: new Set(["stop_1"]),
+        onRetireStop: async (stop, reason) => {
+          retirement = { stopId: stop.id, reason };
+          return true;
+        }
+      }));
+    });
+
+    const usedStop = mountedHost.querySelector<HTMLElement>('.route-stops__catalog-item[data-stop-id="stop_1"]')!;
+    const labels = [...usedStop.querySelectorAll<HTMLButtonElement>("button")].map((button) => button.textContent?.trim());
+    expect(labels).not.toContain("Edit");
+    expect(labels).toContain("Retire");
+
+    act(() => [...usedStop.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent?.trim() === "Retire")!.click());
+    const form = usedStop.querySelector<HTMLFormElement>(".route-stops__retirement")!;
+    const reason = form.querySelector<HTMLInputElement>("input")!;
+    const submit = [...form.querySelectorAll<HTMLButtonElement>("button")]
+      .find((button) => button.textContent?.trim() === "Confirm retirement")!;
+    expect(reason.required).toBe(true);
+    expect(submit.disabled).toBe(true);
+
+    await act(async () => {
+      form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      await Promise.resolve();
+    });
+    expect(confirm).not.toHaveBeenCalled();
+    expect(retirement).toBeNull();
+
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+    act(() => {
+      setter.call(reason, "Duplicate operational stop");
+      reason.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(submit.disabled).toBe(false);
+    await act(async () => {
+      form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      await Promise.resolve();
+    });
+    expect(confirm).toHaveBeenCalledOnce();
+    expect(retirement).toBeNull();
+    expect(usedStop.querySelector(".route-stops__retirement")).not.toBeNull();
+
+    confirm.mockReturnValue(true);
+    await act(async () => {
+      form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      await Promise.resolve();
+    });
+    expect(retirement).toEqual({ stopId: "stop_1", reason: "Duplicate operational stop" });
+    expect(usedStop.querySelector(".route-stops__retirement")).toBeNull();
     root.unmount();
   });
 });

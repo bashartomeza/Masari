@@ -309,7 +309,8 @@ export function RouteStops({
       <CardHeader title={text.catalog} />
       <div className="route-stops__catalog-list">
         {stops.map((stop) => {
-          const editable = stop.status === "active" && !usedStopIds.has(stop.id);
+          const canRetire = stop.status === "active";
+          const canEdit = canRetire && !usedStopIds.has(stop.id);
           return <article className="route-stops__catalog-item" data-stop-id={stop.id} key={stop.id}>
             <div className="route-stops__catalog-summary">
               <div className="route-stops__identity">
@@ -318,15 +319,15 @@ export function RouteStops({
                 <span className="technical-value" dir="ltr">{stop.stop_key}</span>
               </div>
               <StatusBadge status={stop.status}>{stop.status === "active" ? text.active : text.retired}</StatusBadge>
-              {editable && <div className="button-row route-stops__catalog-actions">
-                {editButton(stop)}
+              {canRetire && <div className="button-row route-stops__catalog-actions">
+                {canEdit && editButton(stop)}
                 <Button variant="destructive" size="sm" disabled={busy} onClick={() => {
                   setRetiringStopId(stop.id);
                   setRetirementReason("");
                 }}>{text.retire}</Button>
               </div>}
             </div>
-            {editable && retiringStopId === stop.id && <form className="route-stops__retirement" onSubmit={(event) => void retireStop(event, stop)}>
+            {canRetire && retiringStopId === stop.id && <form className="route-stops__retirement" onSubmit={(event) => void retireStop(event, stop)}>
               <label className="field">{text.retirementReason}<input required maxLength={500} value={retirementReason} disabled={busy} onChange={(event) => setRetirementReason(event.target.value)} /></label>
               <div className="button-row">
                 <Button variant="outline" size="sm" disabled={busy} onClick={() => setRetiringStopId(null)}>{text.cancel}</Button>
