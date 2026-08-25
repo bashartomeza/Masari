@@ -342,6 +342,71 @@ describe("admin route management", () => {
     root.unmount();
   });
 
+  it("does not carry route A lifecycle feedback through Back into route B", async () => {
+    const draftA = { ...readyVersion, id: "version_a", service_route_id: "route_a", name_en: "Route Alpha" };
+    const draftB = { ...readyVersion, id: "version_b", service_route_id: "route_b", name_en: "Route Beta" };
+    const routeA: ServiceRoute = {
+      id: "route_a",
+      route_key: "route-alpha",
+      route_group_key: "route-alpha",
+      service_region_key: "south-west-bank",
+      direction: "outbound",
+      status: "active",
+      current_version_id: draftA.id,
+      current_version: draftA,
+      versions: [draftA],
+      version_count: 1,
+      created_at: "2026-08-25T00:00:00.000Z",
+      updated_at: "2026-08-25T00:00:00.000Z"
+    };
+    const routeB: ServiceRoute = {
+      ...routeA,
+      id: "route_b",
+      route_key: "route-beta",
+      route_group_key: "route-beta",
+      current_version_id: draftB.id,
+      current_version: draftB,
+      versions: [draftB]
+    };
+    const api = {
+      serviceRoutes: vi.fn().mockResolvedValue({ routes: [routeA, routeB], page: 1, limit: 25, total: 2 }),
+      canonicalStops: vi.fn().mockResolvedValue({ stops: canonicalStops, page: 1, limit: 50, total: 2 }),
+      serviceRoute: vi.fn().mockImplementation(async (_token: string, routeId: string) => ({ route: routeId === routeA.id ? routeA : routeB })),
+      publishRouteVersion: vi.fn().mockResolvedValue({ version: { ...draftA, status: "published" as const } })
+    };
+    mountedHost = document.createElement("div");
+    document.body.append(mountedHost);
+    const root = createRoot(mountedHost);
+
+    await act(async () => { root.render(<RouteManagement api={api as never} token="token" locale="en" />); });
+    await act(async () => { await Promise.resolve(); });
+    const alphaRow = [...mountedHost.querySelectorAll<HTMLElement>(".route-directory__row")]
+      .find((row) => row.textContent?.includes("Route Alpha"))!;
+    await act(async () => { alphaRow.querySelector<HTMLButtonElement>("button")!.click(); await Promise.resolve(); });
+
+    const actions = [...mountedHost.querySelectorAll<HTMLButtonElement>("button")]
+      .find((button) => button.textContent?.trim() === "Route actions")!;
+    act(() => actions.click());
+    const publish = [...mountedHost.querySelectorAll<HTMLButtonElement>("button")]
+      .find((button) => button.textContent?.trim() === "Publish")!;
+    act(() => publish.click());
+    const confirm = [...mountedHost.querySelectorAll<HTMLButtonElement>("button")]
+      .find((button) => button.textContent?.trim() === "Confirm")!;
+    await act(async () => { confirm.click(); await Promise.resolve(); await Promise.resolve(); });
+    expect(mountedHost.textContent).toContain("Saved successfully.");
+
+    const back = [...mountedHost.querySelectorAll<HTMLButtonElement>("button")]
+      .find((button) => button.textContent?.trim() === "Back to routes")!;
+    act(() => back.click());
+    const betaRow = [...mountedHost.querySelectorAll<HTMLElement>(".route-directory__row")]
+      .find((row) => row.textContent?.includes("Route Beta"))!;
+    await act(async () => { betaRow.querySelector<HTMLButtonElement>("button")!.click(); await Promise.resolve(); });
+
+    expect(mountedHost.textContent).toContain("Route Beta");
+    expect(mountedHost.textContent).not.toContain("Saved successfully.");
+    root.unmount();
+  });
+
   it("reorders stops deterministically and preserves contiguous server-authoritative sequence", () => {
     const moved = moveRouteStop(stops, 1, -1);
     expect(moved.map((stop) => [stop.stop_id, stop.sequence])).toEqual([

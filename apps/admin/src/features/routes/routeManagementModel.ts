@@ -66,10 +66,19 @@ export function routeUiReducer(state: RouteUiState, action: RouteUiAction): Rout
         selectedVersionId: null,
         tab: "overview",
         dialog: null,
-        versionEditMode: false
+        versionEditMode: false,
+        feedback: null
       };
     case "back-to-directory":
-      return { ...state, surface: "directory", selectedRouteId: null, selectedVersionId: null, dialog: null, versionEditMode: false };
+      return {
+        ...state,
+        surface: "directory",
+        selectedRouteId: null,
+        selectedVersionId: null,
+        dialog: null,
+        versionEditMode: false,
+        feedback: null
+      };
     case "select-tab":
       return { ...state, tab: action.tab };
     case "select-version":

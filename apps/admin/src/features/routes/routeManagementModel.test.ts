@@ -26,6 +26,22 @@ describe("routeManagementModel", () => {
     });
   });
 
+  it("clears route-scoped feedback when leaving or opening a route identity", () => {
+    const routeA = {
+      ...initialRouteUiState,
+      surface: "workspace" as const,
+      selectedRouteId: "route-a",
+      selectedVersionId: "version-a",
+      feedback: { scope: "lifecycle" as const, kind: "error" as const, text: "Route A changed" }
+    };
+
+    const directory = routeUiReducer(routeA, { type: "back-to-directory" });
+    const routeB = routeUiReducer(directory, { type: "open-route", routeId: "route-b" });
+
+    expect(directory).toMatchObject({ surface: "directory", selectedRouteId: null, feedback: null });
+    expect(routeB).toMatchObject({ surface: "workspace", selectedRouteId: "route-b", feedback: null });
+  });
+
   it.each(["create-route", "create-version", "add-stop", "create-stop", "edit-stop", "lifecycle"] as const)(
     "opens and closes %s without changing the selected route",
     (dialog) => {

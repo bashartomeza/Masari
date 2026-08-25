@@ -32,3 +32,16 @@
 ## Concerns
 
 None.
+
+## Fix round 1 — route-identity feedback isolation
+
+- Verified the review finding: `open-route` and `back-to-directory` retained reducer feedback, allowing a route A lifecycle success/conflict message to render after opening route B.
+- Updated both route-identity transitions to reset `feedback` while leaving create-route success semantics unchanged; create success still dispatches its workspace feedback after `open-route`.
+- Added a reducer regression for route A → Back → route B and a real `RouteManagement` interaction that publishes route A, returns to the directory, opens route B, and proves route A's success banner is absent.
+
+### Exact RED/GREEN evidence
+
+1. RED: `npm run test:admin -- --run src/features/routes/routeManagementModel.test.ts src/features/routes/RouteManagement.test.tsx` failed 2 tests: the reducer retained `{ scope: "lifecycle", text: "Route A changed" }`, and route B still rendered `Saved successfully.` from route A.
+2. GREEN: the same command passed 34/34 tests after clearing feedback in `open-route` and `back-to-directory`.
+3. Focused Task 3 verification passed 49/49 tests across `RouteWorkspace.test.tsx`, `RouteOverview.test.tsx`, `routeManagementModel.test.ts`, and `RouteManagement.test.tsx`.
+4. Full Admin verification passed 169/169 tests; Admin typecheck passed; the configured local non-demo Admin build passed.
