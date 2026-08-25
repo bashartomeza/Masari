@@ -134,6 +134,7 @@ export function RouteOverview({
           <h3>{text.lifecycle}</h3>
           <RouteActionMenu
             locale={locale}
+            routeStatus={route.status}
             version={version}
             actions={actions}
             readinessIssues={readinessIssues}

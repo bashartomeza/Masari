@@ -147,6 +147,30 @@ describe("RouteOverview", () => {
     expect(markup).toContain('role="alert"');
     expect(markup).toContain("The route status changed. The latest data was loaded.");
   });
+
+  it("does not offer route retirement after the route is already retired", () => {
+    const markup = renderToStaticMarkup(
+      <RouteOverview
+        locale="en"
+        route={{ ...route, status: "retired" }}
+        version={{ ...version, status: "retired" }}
+        readinessIssues={[]}
+        actions={[]}
+        lifecycleDialogOpen={false}
+        lifecycleFeedback={null}
+        busy={false}
+        onOpenLifecycleDialog={vi.fn()}
+        onCloseLifecycleDialog={vi.fn()}
+        {...callbacks()}
+      />
+    );
+
+    const documentHost = document.createElement("div");
+    documentHost.innerHTML = markup;
+    const menuLabels = [...documentHost.querySelectorAll<HTMLElement>('[role="menuitem"]')]
+      .map((item) => item.textContent?.trim());
+    expect(menuLabels).not.toContain("Retire route");
+  });
 });
 
 describe("RouteActionMenu", () => {
@@ -159,6 +183,7 @@ describe("RouteActionMenu", () => {
     const markup = renderToStaticMarkup(
       <RouteActionMenu
         locale="en"
+        routeStatus="active"
         version={{ ...version, status }}
         actions={status === "draft" ? ["publish", "retire"] : status === "published" ? ["clone", "pause", "retire"] : status === "paused" ? ["clone", "resume", "retire"] : []}
         readinessIssues={[]}
@@ -180,6 +205,7 @@ describe("RouteActionMenu", () => {
     const markup = renderToStaticMarkup(
       <RouteActionMenu
         locale="en"
+        routeStatus="active"
         version={version}
         actions={["publish", "retire"]}
         readinessIssues={["readinessMinimumStops"]}
@@ -197,6 +223,7 @@ describe("RouteActionMenu", () => {
     const publishHost = mount(
       <RouteActionMenu
         locale="en"
+        routeStatus="active"
         version={version}
         actions={["publish", "retire"]}
         readinessIssues={[]}
@@ -223,6 +250,7 @@ describe("RouteActionMenu", () => {
     const pauseHost = mount(
       <RouteActionMenu
         locale="en"
+        routeStatus="active"
         version={{ ...version, status: "published" }}
         actions={["clone", "pause", "retire"]}
         readinessIssues={[]}
@@ -254,6 +282,7 @@ describe("RouteActionMenu", () => {
     const menuHost = mount(
       <RouteActionMenu
         locale="en"
+        routeStatus="active"
         version={version}
         actions={["publish", "retire"]}
         readinessIssues={[]}
@@ -274,6 +303,7 @@ describe("RouteActionMenu", () => {
     const menuHost = mount(
       <RouteActionMenu
         locale="en"
+        routeStatus="active"
         version={version}
         actions={["publish", "retire"]}
         readinessIssues={[]}

@@ -14,6 +14,10 @@ type Locale = "ar" | "en";
 type Feedback = { kind: "success" | "error"; text: string } | null;
 type MutationResult = void | boolean | Promise<void | boolean>;
 type SaveOrderResult = void | Promise<void>;
+type StopCreationDraft = Omit<CanonicalStopDraft, "latitude" | "longitude"> & {
+  latitude: string;
+  longitude: string;
+};
 
 export type StopDialogMode = "add-stop" | "create-stop" | "edit-stop" | null;
 
@@ -76,6 +80,7 @@ const copy = {
     latitude: "خط العرض",
     longitude: "خط الطول",
     manualCoordinates: "الإحداثيات مُدخلة يدوياً.",
+    invalidCoordinates: "أدخل خط عرض صالحاً (-90 إلى 90) وخط طول صالحاً (-180 إلى 180).",
     retire: "إحالة للتقاعد",
     retirementReason: "سبب إحالة المحطة للتقاعد",
     confirmRetirement: "تأكيد الإحالة للتقاعد",
@@ -113,6 +118,7 @@ const copy = {
     latitude: "Latitude",
     longitude: "Longitude",
     manualCoordinates: "Coordinates are supplied manually.",
+    invalidCoordinates: "Enter valid latitude (-90 to 90) and longitude (-180 to 180).",
     retire: "Retire",
     retirementReason: "Stop retirement reason",
     confirmRetirement: "Confirm retirement",
@@ -121,8 +127,17 @@ const copy = {
   }
 } as const;
 
-function emptyStop(): CanonicalStopDraft {
-  return { stop_key: "", service_region_key: "", name_ar: "", name_en: "", latitude: 31.5, longitude: 35.1 };
+function emptyStop(): StopCreationDraft {
+  return { stop_key: "", service_region_key: "", name_ar: "", name_en: "", latitude: "31.5", longitude: "35.1" };
+}
+
+function parseCreationDraft(draft: StopCreationDraft): CanonicalStopDraft | null {
+  if (!draft.latitude.trim() || !draft.longitude.trim()) return null;
+  const latitude = Number(draft.latitude);
+  const longitude = Number(draft.longitude);
+  if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) return null;
+  if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) return null;
+  return { ...draft, latitude, longitude };
 }
 
 function stopForMembership(version: ServiceRouteVersion | null, stops: CanonicalStop[], stopId: string) {
@@ -165,7 +180,8 @@ export function RouteStops({
   const text = copy[locale];
   const editableMemberships = version?.status === "draft";
   const [stopToAdd, setStopToAdd] = useState("");
-  const [createDraft, setCreateDraft] = useState<CanonicalStopDraft>(emptyStop);
+  const [createDraft, setCreateDraft] = useState<StopCreationDraft>(emptyStop);
+  const [createCoordinatesInvalid, setCreateCoordinatesInvalid] = useState(false);
   const [retiringStopId, setRetiringStopId] = useState<string | null>(null);
   const [retirementReason, setRetirementReason] = useState("");
   const selectedIds = useMemo(() => new Set(memberships.map((membership) => membership.stop_id)), [memberships]);
@@ -200,9 +216,15 @@ export function RouteStops({
 
   async function createStop(event: FormEvent) {
     event.preventDefault();
-    const saved = await onCreateStop(createDraft);
+    const parsedDraft = parseCreationDraft(createDraft);
+    if (!parsedDraft) {
+      setCreateCoordinatesInvalid(true);
+      return;
+    }
+    const saved = await onCreateStop(parsedDraft);
     if (!saved) return;
     setCreateDraft(emptyStop());
+    setCreateCoordinatesInvalid(false);
     onCloseDialog();
   }
 
@@ -376,8 +398,15 @@ export function RouteStops({
         <label className="field">{text.region}<input className="technical-value" name="service_region_key" dir="ltr" required disabled={busy} value={createDraft.service_region_key} onChange={(event) => setCreateDraft({ ...createDraft, service_region_key: event.target.value })} /></label>
         <label className="field">{text.nameAr}<input name="name_ar" dir="rtl" required disabled={busy} value={createDraft.name_ar} onChange={(event) => setCreateDraft({ ...createDraft, name_ar: event.target.value })} /></label>
         <label className="field">{text.nameEn}<input name="name_en" dir="ltr" required disabled={busy} value={createDraft.name_en} onChange={(event) => setCreateDraft({ ...createDraft, name_en: event.target.value })} /></label>
-        <label className="field">{text.latitude}<input className="technical-value" name="latitude" type="number" min="-90" max="90" step="0.000001" dir="ltr" required disabled={busy} value={createDraft.latitude} onChange={(event) => setCreateDraft({ ...createDraft, latitude: Number(event.target.value) })} /></label>
-        <label className="field">{text.longitude}<input className="technical-value" name="longitude" type="number" min="-180" max="180" step="0.000001" dir="ltr" required disabled={busy} value={createDraft.longitude} onChange={(event) => setCreateDraft({ ...createDraft, longitude: Number(event.target.value) })} /></label>
+        <label className="field">{text.latitude}<input className="technical-value" name="latitude" type="number" min="-90" max="90" step="0.000001" dir="ltr" required disabled={busy} value={createDraft.latitude} onChange={(event) => {
+          setCreateCoordinatesInvalid(false);
+          setCreateDraft({ ...createDraft, latitude: event.target.value });
+        }} /></label>
+        <label className="field">{text.longitude}<input className="technical-value" name="longitude" type="number" min="-180" max="180" step="0.000001" dir="ltr" required disabled={busy} value={createDraft.longitude} onChange={(event) => {
+          setCreateCoordinatesInvalid(false);
+          setCreateDraft({ ...createDraft, longitude: event.target.value });
+        }} /></label>
+        {createCoordinatesInvalid && <p className="field__error" role="alert">{text.invalidCoordinates}</p>}
         <div className="button-row">
           <Button variant="outline" size="sm" disabled={busy} onClick={onCloseDialog}>{text.cancel}</Button>
           <Button type="submit" size="sm" disabled={busy}>{text.create}</Button>

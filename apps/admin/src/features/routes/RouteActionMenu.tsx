@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
-import type { ServiceRouteVersion } from "../../api";
+import type { ServiceRoute, ServiceRouteVersion } from "../../api";
 import { translations } from "../../i18n/translations";
 import { Button } from "../../ui";
 import type { PublicationReadinessIssue, RouteLifecycleAction } from "./RouteManagement";
@@ -13,6 +13,7 @@ type ReasonCallback = (reason: string) => void | Promise<void>;
 
 export type RouteActionMenuProps = {
   locale: Locale;
+  routeStatus: ServiceRoute["status"];
   version: ServiceRouteVersion | null;
   actions: RouteLifecycleAction[];
   readinessIssues: PublicationReadinessIssue[];
@@ -62,6 +63,7 @@ const copy = {
 
 export function RouteActionMenu({
   locale,
+  routeStatus,
   version,
   actions,
   readinessIssues,
@@ -187,10 +189,12 @@ export function RouteActionMenu({
           </button>
         ))}
         {versionItems.length === 0 && <span className="route-action-menu__empty">{locale === "ar" ? "لا توجد إجراءات متاحة للإصدار" : "No version actions available"}</span>}
-        <span className="route-action-menu__separator" role="separator" />
-        <button type="button" role="menuitem" className="is-destructive" disabled={busy} onClick={() => selectAction("retire-route")}>
-          {text.retireRoute}
-        </button>
+        {routeStatus === "active" && <>
+          <span className="route-action-menu__separator" role="separator" />
+          <button type="button" role="menuitem" className="is-destructive" disabled={busy} onClick={() => selectAction("retire-route")}>
+            {text.retireRoute}
+          </button>
+        </>}
       </div>
 
       <RouteDialog

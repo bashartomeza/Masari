@@ -338,6 +338,53 @@ describe("RouteStops", () => {
     root.unmount();
   });
 
+  it.each([
+    { field: "latitude", value: "", label: "blank latitude" },
+    { field: "longitude", value: "", label: "blank longitude" },
+    { field: "latitude", value: "90.000001", label: "latitude above 90" },
+    { field: "longitude", value: "-180.000001", label: "longitude below -180" }
+  ] as const)("blocks create-stop submission for $label", async ({ field, value }) => {
+    const onCreateStop = vi.fn().mockResolvedValue(true);
+    mountedHost = document.createElement("div");
+    document.body.append(mountedHost);
+    const root = createRoot(mountedHost);
+
+    await act(async () => {
+      root.render(renderStops({ dialog: "create-stop", onCreateStop }));
+    });
+    enterValue(mountedHost.querySelector<HTMLInputElement>(`input[name="${field}"]`)!, value);
+    const form = mountedHost.querySelector<HTMLFormElement>('[role="dialog"] form')!;
+    await act(async () => {
+      form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      await Promise.resolve();
+    });
+
+    expect(onCreateStop).not.toHaveBeenCalled();
+    expect(form.textContent).toContain("Enter valid latitude (-90 to 90) and longitude (-180 to 180).");
+    root.unmount();
+  });
+
+  it("submits explicit zero coordinates as numeric zero", async () => {
+    const onCreateStop = vi.fn().mockResolvedValue(true);
+    mountedHost = document.createElement("div");
+    document.body.append(mountedHost);
+    const root = createRoot(mountedHost);
+
+    await act(async () => {
+      root.render(renderStops({ dialog: "create-stop", onCreateStop }));
+    });
+    enterValue(mountedHost.querySelector<HTMLInputElement>('input[name="latitude"]')!, "0");
+    enterValue(mountedHost.querySelector<HTMLInputElement>('input[name="longitude"]')!, "0");
+    const form = mountedHost.querySelector<HTMLFormElement>('[role="dialog"] form')!;
+    await act(async () => {
+      form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      await Promise.resolve();
+    });
+
+    expect(onCreateStop).toHaveBeenCalledWith(expect.objectContaining({ latitude: 0, longitude: 0 }));
+    root.unmount();
+  });
+
   it("closes create and edit dialogs only after their mutations succeed", async () => {
     let createSucceeds: boolean | undefined;
     let editSucceeds = false;
