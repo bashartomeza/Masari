@@ -1,5 +1,9 @@
+// @vitest-environment jsdom
+
+import { act } from "react";
+import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import adminPackage from "../../../package.json";
 import type { CanonicalStop, RouteStopDraft, ServiceRoute, ServiceRouteVersion } from "../../api";
 import {
@@ -24,6 +28,12 @@ import {
   stableMutationKey,
   toggleRouteStopPermission
 } from "./RouteManagement";
+
+declare global {
+  var IS_REACT_ACT_ENVIRONMENT: boolean | undefined;
+}
+
+globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 const version: ServiceRouteVersion = {
   id: "version_1",
@@ -115,6 +125,14 @@ const readyVersion: ServiceRouteVersion & { service_region_key: string } = {
     }
   ]
 };
+
+let mountedHost: HTMLDivElement | null = null;
+
+afterEach(() => {
+  mountedHost?.remove();
+  mountedHost = null;
+  document.body.replaceChildren();
+});
 
 describe("admin route management", () => {
   it("models loading, empty, error, and populated catalog states", () => {
@@ -271,6 +289,57 @@ describe("admin route management", () => {
     for (const label of ["Route status filter", "Direction filter", "Service region filter"]) expect(english).toContain(label);
     expect(arabic).toContain("تصفية حالة المسار");
     expect(english).not.toContain("Map preview unavailable");
+  });
+
+  it("shows successful create feedback in the opened route workspace", async () => {
+    const createdRoute: ServiceRoute = {
+      id: "route_created",
+      route_key: "hebron-local",
+      route_group_key: "hebron",
+      service_region_key: "south-west-bank",
+      direction: "outbound",
+      status: "active",
+      current_version_id: version.id,
+      current_version: { ...version, service_route_id: "route_created", name_en: "Created Hebron route" },
+      versions: [{ ...version, service_route_id: "route_created", name_en: "Created Hebron route" }],
+      version_count: 1,
+      created_at: "2026-08-25T00:00:00.000Z",
+      updated_at: "2026-08-25T00:00:00.000Z"
+    };
+    const api = {
+      serviceRoutes: vi.fn().mockResolvedValue({ routes: [createdRoute], page: 1, limit: 25, total: 1 }),
+      canonicalStops: vi.fn().mockResolvedValue({ stops: [], page: 1, limit: 50, total: 0 }),
+      createServiceRoute: vi.fn().mockResolvedValue({ route: createdRoute }),
+      serviceRoute: vi.fn().mockResolvedValue({ route: createdRoute })
+    };
+    mountedHost = document.createElement("div");
+    document.body.append(mountedHost);
+    const root = createRoot(mountedHost);
+
+    await act(async () => { root.render(<RouteManagement api={api as never} token="token" locale="en" />); });
+    await act(async () => { await Promise.resolve(); });
+    const create = [...mountedHost.querySelectorAll("button")].find((button) => button.textContent?.trim() === "Create route")!;
+    act(() => create.click());
+    const form = mountedHost.querySelector<HTMLFormElement>("#create-route-form")!;
+
+    for (const [name, value] of Object.entries({ route_key: " hebron-local ", route_group_key: " hebron ", service_region_key: " south-west-bank " })) {
+      const input = form.querySelector<HTMLInputElement>(`input[name="${name}"]`)!;
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+      act(() => {
+        setter.call(input, value);
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+    }
+    expect(new FormData(form).get("route_key")).toBe(" hebron-local ");
+    expect(new FormData(form).get("route_group_key")).toBe(" hebron ");
+    expect(new FormData(form).get("service_region_key")).toBe(" south-west-bank ");
+    await act(async () => { form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); await Promise.resolve(); });
+
+    expect(mountedHost.textContent).toContain("Created Hebron route");
+    expect(mountedHost.textContent).toContain("Saved successfully.");
+    expect(mountedHost.querySelector('[role="dialog"]')).toBeNull();
+    root.unmount();
   });
 
   it("reorders stops deterministically and preserves contiguous server-authoritative sequence", () => {

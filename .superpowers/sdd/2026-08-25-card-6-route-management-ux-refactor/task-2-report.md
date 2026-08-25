@@ -24,3 +24,15 @@
 ## Note
 
 An unconfigured admin build correctly failed before verification because `VITE_APP_ENV` and `VITE_API_BASE_URL` are mandatory build configuration, not because of this change.
+
+## Fix round 1 — workspace feedback and responsive rows
+
+- Root cause: successful create feedback was stored in reducer state with `page` scope, but the workspace only rendered the legacy mutation message. The workspace now renders page-scoped reducer feedback.
+- Root cause: directory rows had fixed minimum desktop columns inside an overflow-hidden result container until the 560px media query. The directory is now an inline-size container with a 60rem container-query card layout and no fixed desktop minimums.
+
+### Witnessed RED/GREEN
+
+1. RED: the new RouteManagement successful-create integration test created and loaded the route but failed because `Saved successfully.` was absent from the workspace. The RouteDirectory responsive assertion also failed because the container query was absent.
+2. GREEN: `npm run test:admin -- --run src/features/routes/RouteManagement.test.tsx src/features/routes/RouteDirectory.test.tsx src/features/routes/CreateRouteDialog.test.tsx` passed 26/26 tests after rendering workspace feedback and replacing the clipped grid.
+
+Final verification: the full admin suite passed 151/151 tests, admin typecheck passed, and the configured local admin build passed.

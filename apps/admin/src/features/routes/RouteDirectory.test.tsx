@@ -1,3 +1,6 @@
+/// <reference types="node" />
+
+import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import type { ServiceRoute } from "../../api";
@@ -67,5 +70,13 @@ describe("RouteDirectory", () => {
     expect(markup).toContain("Previous");
     expect(markup).toContain("Next");
     expect(markup).not.toMatch(/Arabic name|English name|New draft version|Add existing stop|>Publish<|>Pause<|Action reason/i);
+  });
+
+  it("switches result rows by available container width before fixed desktop columns can clip", () => {
+    const styles = readFileSync(new URL("../../ui/components.css", import.meta.url), "utf8");
+
+    expect(styles).toContain("container-type: inline-size");
+    expect(styles).toMatch(/@container \(max-width: 60rem\)[\s\S]*?\.route-directory__row/);
+    expect(styles).not.toContain("grid-template-columns: minmax(12rem, 1.4fr)");
   });
 });

@@ -859,6 +859,7 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
         <StatusBadge tone="warning">{text.routeMapUnavailable}</StatusBadge>
       </div>
       <p className="muted">{text.subtitle}</p>
+      {ui.feedback?.scope === "page" && <Notice kind={ui.feedback.kind}>{ui.feedback.text}</Notice>}
       <div className="route-boundaries" role="status">
         <div>
           <strong>{text.routeMapUnavailable}</strong>
