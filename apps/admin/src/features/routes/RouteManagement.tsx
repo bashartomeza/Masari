@@ -89,6 +89,43 @@ export function publicationReadiness(version: ReadinessVersion, stops: Canonical
   return issues;
 }
 
+export function reconcileRouteVersionSnapshot(route: ServiceRoute, savedVersion: ServiceRouteVersion) {
+  const versions = route.versions ?? [];
+  const containsVersion = versions.some((version) => version.id === savedVersion.id);
+  const reconciledVersions = containsVersion
+    ? versions.map((version) => version.id === savedVersion.id ? savedVersion : version)
+    : [savedVersion, ...versions];
+  return {
+    ...route,
+    versions: reconciledVersions,
+    current_version: route.current_version?.id === savedVersion.id ? savedVersion : route.current_version
+  };
+}
+
+export function routeUsedStopIds(route: ServiceRoute | null) {
+  return new Set(
+    route?.versions?.flatMap((version) => version.stops.map((membership) => membership.stop_id)) ?? []
+  );
+}
+
+export function RouteMembershipStopLabel({
+  membership,
+  version,
+  stops,
+  locale
+}: {
+  membership: RouteStopDraft;
+  version: ServiceRouteVersion | null;
+  stops: CanonicalStop[];
+  locale: Locale;
+}) {
+  const embeddedStop = version?.stops.find((item) => item.stop_id === membership.stop_id)?.stop;
+  const stop = embeddedStop ?? stops.find((item) => item.id === membership.stop_id);
+  return stop
+    ? <strong>{locale === "ar" ? stop.name_ar : stop.name_en}</strong>
+    : <strong className="technical-value" dir="ltr">{membership.stop_id}</strong>;
+}
+
 export function routeCatalogView(input: { loading: boolean; error: boolean; count: number }): RouteViewState {
   if (input.loading) return "loading";
   if (input.error) return "error";
@@ -437,9 +474,7 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
   const mutationKeys = useRef(new Map<string, string>());
 
   const activeStops = useMemo(() => stops.filter((stop) => stop.status === "active"), [stops]);
-  const usedStopIds = useMemo(() => new Set(
-    selectedRoute?.versions?.flatMap((version) => version.stops.map((membership) => membership.stop_id)) ?? []
-  ), [selectedRoute]);
+  const usedStopIds = useMemo(() => routeUsedStopIds(selectedRoute), [selectedRoute]);
   const actions = lifecycleActions(selectedVersion);
   const readinessIssues = selectedRoute && selectedVersion
     ? publicationReadiness({ ...selectedVersion, service_region_key: selectedRoute.service_region_key }, stops)
@@ -638,6 +673,7 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
         expected_revision: selectedVersion.draft_revision,
         stops: memberships
       });
+      setSelectedRoute((current) => current ? reconcileRouteVersionSnapshot(current, response.version) : current);
       selectVersion(response.version);
       setMessage({ kind: "success", text: text.saved });
     } catch (error) {
@@ -927,12 +963,11 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
                 <Button variant="secondary" icon="add" onClick={addExistingStop} disabled={!stopToAdd || Boolean(busy)}>{text.addStop}</Button>
               </div>
               {memberships.length === 0 && <EmptyState compact icon="location_on" title={text.noStops} />}
-              <ol className="stop-editor">{memberships.map((membership, index) => {
-                const stop = stops.find((item) => item.id === membership.stop_id);
-                return <li key={membership.stop_id}>
+              <ol className="stop-editor">{memberships.map((membership, index) => (
+                <li key={membership.stop_id}>
                   <div className="stop-editor__title">
                     <StatusBadge tone="info">{index + 1}</StatusBadge>
-                    <strong>{stop ? (locale === "ar" ? stop.name_ar : stop.name_en) : membership.stop_id}</strong>
+                    <RouteMembershipStopLabel membership={membership} version={selectedVersion} stops={stops} locale={locale} />
                     <div className="button-row">
                       <Button variant="outline" size="sm" aria-label={reorderControlLabel(text.moveUp, index)} disabled={index === 0 || Boolean(busy)} onClick={() => setMemberships(moveRouteStop(memberships, index, -1))}>↑</Button>
                       <Button variant="outline" size="sm" aria-label={reorderControlLabel(text.moveDown, index)} disabled={index === memberships.length - 1 || Boolean(busy)} onClick={() => setMemberships(moveRouteStop(memberships, index, 1))}>↓</Button>
@@ -940,8 +975,8 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
                     </div>
                   </div>
                   <div className="permission-grid">{(["passenger_pickup_allowed", "passenger_dropoff_allowed", "parcel_pickup_allowed", "parcel_dropoff_allowed"] as Permission[]).map((permission) => <label key={permission}><input type="checkbox" checked={membership[permission]} disabled={Boolean(busy)} onChange={() => setMemberships(toggleRouteStopPermission(memberships, index, permission))} />{permission === "passenger_pickup_allowed" ? text.passengerPickup : permission === "passenger_dropoff_allowed" ? text.passengerDropoff : permission === "parcel_pickup_allowed" ? text.parcelPickup : text.parcelDropoff}</label>)}</div>
-                </li>;
-              })}</ol>
+                </li>
+              ))}</ol>
               <Button icon="check" onClick={() => void saveStops()} disabled={memberships.length < 2 || Boolean(busy)}>{text.saveOrder}</Button>
             </Card>}
           </>}

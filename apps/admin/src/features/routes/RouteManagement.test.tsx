@@ -1,9 +1,10 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import adminPackage from "../../../package.json";
-import type { CanonicalStop, RouteStopDraft, ServiceRouteVersion } from "../../api";
+import type { CanonicalStop, RouteStopDraft, ServiceRoute, ServiceRouteVersion } from "../../api";
 import {
   RouteManagement,
+  RouteMembershipStopLabel,
   ADMIN_ROUTE_RESPONSIVE_BREAKPOINT,
   handleRouteMutationFailure,
   lifecycleActions,
@@ -11,10 +12,12 @@ import {
   mutationFingerprint,
   moveRouteStop,
   publicationReadiness,
+  reconcileRouteVersionSnapshot,
   routeCatalogView,
   routeCatalogQuery,
   routeConflictRequiresReload,
   routeStatusText,
+  routeUsedStopIds,
   routeUiText,
   routeUiError,
   reorderControlLabel,
@@ -190,6 +193,71 @@ describe("admin route management", () => {
       }))
     };
     expect(publicationReadiness(inconsistentParcelPath, canonicalStops)).toEqual(["readinessParcelPath"]);
+  });
+
+  it("reconciles a saved stop replacement into version tabs and used-stop eligibility", () => {
+    const staleVersion = {
+      ...readyVersion,
+      draft_revision: 1,
+      stop_count: 1,
+      stops: [readyVersion.stops[0]]
+    };
+    const route: ServiceRoute = {
+      id: "route_1",
+      route_key: "hebron-local",
+      route_group_key: "hebron",
+      service_region_key: "south-west-bank",
+      direction: "loop",
+      status: "active",
+      current_version_id: null,
+      current_version: null,
+      versions: [staleVersion],
+      version_count: 1,
+      created_at: "2026-08-25T00:00:00.000Z",
+      updated_at: "2026-08-25T00:00:00.000Z"
+    };
+    const savedVersion = { ...readyVersion, draft_revision: 2 };
+
+    const reconciled = reconcileRouteVersionSnapshot(route, savedVersion);
+
+    expect(reconciled.versions?.[0]).toEqual(savedVersion);
+    expect(reconciled.versions?.[0].draft_revision).toBe(2);
+    expect(reconciled.versions?.[0].stops.map((membership) => membership.stop_id)).toEqual(["stop_1", "stop_2"]);
+    expect([...routeUsedStopIds(reconciled)]).toEqual(["stop_1", "stop_2"]);
+  });
+
+  it("renders embedded bilingual membership Stops beyond the bounded catalog with an isolated ID fallback", () => {
+    const english = renderToStaticMarkup(
+      <RouteMembershipStopLabel
+        membership={stops[1]}
+        version={readyVersion}
+        stops={[canonicalStops[0]]}
+        locale="en"
+      />
+    );
+    const arabic = renderToStaticMarkup(
+      <RouteMembershipStopLabel
+        membership={stops[1]}
+        version={readyVersion}
+        stops={[canonicalStops[0]]}
+        locale="ar"
+      />
+    );
+    const fallback = renderToStaticMarkup(
+      <RouteMembershipStopLabel
+        membership={{ ...stops[1], stop_id: "stop_outside_both_bounds" }}
+        version={{ ...readyVersion, stops: [] }}
+        stops={[]}
+        locale="en"
+      />
+    );
+
+    expect(english).toContain("Bab Al-Zawiya");
+    expect(arabic).toContain("باب الزاوية");
+    expect(english).not.toContain("stop_2");
+    expect(fallback).toContain('dir="ltr"');
+    expect(fallback).toContain('class="technical-value"');
+    expect(fallback).toContain("stop_outside_both_bounds");
   });
 
   it("renders distinct directory filters and truthful route, version, stop, history, and map labels", () => {
