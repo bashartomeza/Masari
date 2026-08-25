@@ -132,7 +132,7 @@ describe("admin route management", () => {
   });
 
   it("reloads authoritative route state for every conflict and returns bounded localized feedback", async () => {
-    const reload = vi.fn().mockResolvedValue(undefined);
+    const reload = vi.fn().mockResolvedValue(true);
     const message = await handleRouteMutationFailure(
       Object.assign(new Error("current_version_conflict"), { status: 409 }),
       reload,
@@ -142,6 +142,20 @@ describe("admin route management", () => {
     expect(routeConflictRequiresReload(Object.assign(new Error("idempotency_in_progress"), { status: 409 }))).toBe(true);
     expect(reload).toHaveBeenCalledOnce();
     expect(message).toContain("reload");
+  });
+
+  it("does not claim a conflict reload succeeded when reconciliation fails", async () => {
+    const reload = vi.fn().mockResolvedValue(false);
+    const message = await handleRouteMutationFailure(
+      Object.assign(new Error("current_version_conflict"), { status: 409 }),
+      reload,
+      "en"
+    );
+
+    expect(reload).toHaveBeenCalledOnce();
+    expect(message).toBe(routeUiText("en").reloadFailed);
+    expect(message).not.toBe(routeUiText("en").conflictReloaded);
+    expect(message).not.toBe(routeUiText("en").saved);
   });
 
   it("does not reload non-conflicts or expose unknown internal failure text", async () => {

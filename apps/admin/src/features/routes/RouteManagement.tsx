@@ -105,6 +105,7 @@ const copy = {
     geometryPending: "الهندسة معلّقة",
     revisionConflict: "عُدّلت المسودة من جلسة أخرى. أعد تحميلها قبل الحفظ.",
     conflictReloaded: "تغيّرت حالة المسار من جلسة أخرى. أُعيد تحميل أحدث البيانات المعتمدة؛ راجعها قبل المحاولة مرة أخرى.",
+    reloadFailed: "تعذّر إعادة تحميل أحدث بيانات المسار. أعد المحاولة أو استخدم معرّف الطلب للدعم.",
     saved: "تم الحفظ بنجاح.",
     confirm: "هل تريد تنفيذ هذا الإجراء؟ سيُسجل في سجل التدقيق.",
     stopKey: "مفتاح المحطة",
@@ -176,6 +177,7 @@ const copy = {
     geometryPending: "Geometry pending",
     revisionConflict: "Another session changed this draft. Reload it before saving.",
     conflictReloaded: "Another session changed the route state. The latest authoritative data was reloaded; review it before trying again.",
+    reloadFailed: "The latest route data could not be reloaded. Retry or use the request ID for support.",
     saved: "Saved successfully.",
     confirm: "Continue with this action? It will be recorded in the audit log.",
     stopKey: "Stop key",
@@ -248,15 +250,14 @@ export function routeConflictRequiresReload(error: unknown) {
 
 export async function handleRouteMutationFailure(
   error: unknown,
-  reload: () => Promise<unknown>,
+  reload: () => Promise<boolean>,
   locale: Locale
 ) {
   if (!routeConflictRequiresReload(error)) return routeUiError(locale, error);
   try {
-    await reload();
-    return routeUiText(locale).conflictReloaded;
+    return await reload() ? routeUiText(locale).conflictReloaded : routeUiText(locale).reloadFailed;
   } catch {
-    return routeUiText(locale).genericError;
+    return routeUiText(locale).reloadFailed;
   }
 }
 
@@ -333,7 +334,7 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
     setMessage({ kind: "error", text: routeUiError(locale, error) });
   }
 
-  async function showMutationError(error: unknown, reload: () => Promise<unknown>) {
+  async function showMutationError(error: unknown, reload: () => Promise<boolean>) {
     setMessage({ kind: "error", text: await handleRouteMutationFailure(error, reload, locale) });
   }
 
@@ -374,15 +375,23 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
       setTotal(routePage.total);
       setPage(nextPage);
       setView(routePage.routes.length ? "ready" : "empty");
+      return true;
     } catch (error) {
       setView("error");
       showError(error);
+      return false;
     }
   }
 
   async function loadStops() {
-    const stopPage = await api.canonicalStops(token, "?limit=50");
-    setStops(stopPage.stops);
+    try {
+      const stopPage = await api.canonicalStops(token, "?limit=50");
+      setStops(stopPage.stops);
+      return true;
+    } catch (error) {
+      showError(error);
+      return false;
+    }
   }
 
   useEffect(() => {
@@ -390,14 +399,16 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
   }, []);
 
   async function loadRoute(routeId: string, nested = false) {
-    if (!nested && !beginBusy("route-detail")) return;
+    if (!nested && !beginBusy("route-detail")) return false;
     try {
       const response = await api.serviceRoute(token, routeId);
       setSelectedRoute(response.route);
       const version = response.route.versions?.[0] ?? response.route.current_version;
       selectVersion(version ?? null);
+      return true;
     } catch (error) {
       showError(error);
+      return false;
     } finally {
       if (!nested) endBusy();
     }
@@ -417,8 +428,7 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
       const response = await api.createServiceRoute(token, routeDraft, mutation.key);
       settleMutation(mutation.fingerprint);
       setRouteDraft(emptyRoute());
-      await loadCatalog(1);
-      await loadRoute(response.route.id, true);
+      if (!await loadCatalog(1) || !await loadRoute(response.route.id, true)) return;
       setMessage({ kind: "success", text: text.saved });
     } catch (error) {
       settleMutation(mutation.fingerprint, error);
@@ -435,7 +445,7 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
     try {
       await api.createCanonicalStop(token, stopDraft, mutation.key);
       settleMutation(mutation.fingerprint);
-      await loadStops();
+      if (!await loadStops()) return;
       setStopDraft(emptyStop());
       setMessage({ kind: "success", text: text.saved });
     } catch (error) {
@@ -458,7 +468,7 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
         ? await api.updateRouteVersion(token, selectedVersion.id, { ...payload, expected_revision: selectedVersion.draft_revision })
         : await api.createRouteVersion(token, selectedRoute.id, payload, mutation!.key);
       if (mutation) settleMutation(mutation.fingerprint);
-      await loadRoute(selectedRoute.id, true);
+      if (!await loadRoute(selectedRoute.id, true)) return;
       selectVersion(response.version);
       setMessage({ kind: "success", text: text.saved });
     } catch (error) {
@@ -515,7 +525,7 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
         mutation.key
       );
       settleMutation(mutation.fingerprint);
-      await loadRoute(selectedRoute.id, true);
+      if (!await loadRoute(selectedRoute.id, true)) return;
       selectVersion(response.version);
       setMessage({ kind: "success", text: text.saved });
     } catch (error) {
@@ -555,7 +565,7 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
             mutation.key
           );
       settleMutation(mutation.fingerprint);
-      await loadRoute(selectedRoute.id, true);
+      if (!await loadRoute(selectedRoute.id, true)) return;
       selectVersion(response.version);
       setActionReason("");
       setMessage({ kind: "success", text: text.saved });
@@ -584,12 +594,12 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
       setSelectedRoute(null);
       selectVersion(null);
       setActionReason("");
-      await loadCatalog(page);
+      if (!await loadCatalog(page)) return;
     } catch (error) {
       settleMutation(mutation.fingerprint, error);
       await showMutationError(error, async () => {
-        await loadCatalog(page);
-        await loadRoute(selectedRoute.id, true);
+        if (!await loadCatalog(page)) return false;
+        return loadRoute(selectedRoute.id, true);
       });
     } finally {
       endBusy();
@@ -609,7 +619,7 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
     try {
       await api.retireCanonicalStop(token, stop.id, reason, mutation.key);
       settleMutation(mutation.fingerprint);
-      await loadStops();
+      if (!await loadStops()) return;
       setActionReason("");
       setMessage({ kind: "success", text: text.stopRetired });
     } catch (error) {
