@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { initialRouteUiState, lifecycleActionRequiresReason, routeUiReducer } from "./routeManagementModel";
+import {
+  initialRouteUiState,
+  lifecycleActionRequiresReason,
+  normalizeRouteVersionDraft,
+  routeUiReducer,
+  routeVersionDraftFrom
+} from "./routeManagementModel";
 
 describe("routeManagementModel", () => {
   it("opens a selected route in its overview workspace", () => {
@@ -72,6 +78,38 @@ describe("routeManagementModel", () => {
 
     expect(editing.versionEditMode).toBe(true);
     expect(next.versionEditMode).toBe(false);
+  });
+
+  it("exits draft edit mode when selection is reconciled to an authoritative version", () => {
+    const editing = { ...initialRouteUiState, versionEditMode: true, selectedVersionId: "version-before" };
+    const next = routeUiReducer(editing, { type: "select-version", versionId: "version-after" });
+
+    expect(next).toMatchObject({ selectedVersionId: "version-after", versionEditMode: false });
+  });
+
+  it("restores an authoritative draft shape and normalizes edited local dates for the update contract", () => {
+    const draft = routeVersionDraftFrom({
+      name_ar: "مسار الخليل",
+      name_en: "Hebron route",
+      description_ar: null,
+      description_en: "A draft",
+      active_from: "2026-08-25T06:00:00.000Z",
+      active_until: null
+    });
+
+    expect(draft).toEqual({
+      name_ar: "مسار الخليل",
+      name_en: "Hebron route",
+      description_ar: "",
+      description_en: "A draft",
+      active_from: "2026-08-25T06:00",
+      active_until: ""
+    });
+    expect(normalizeRouteVersionDraft(draft)).toEqual({
+      ...draft,
+      active_from: new Date("2026-08-25T06:00").toISOString(),
+      active_until: null
+    });
   });
 
   it("preserves the logical workspace when a stale mutation is reloaded", () => {

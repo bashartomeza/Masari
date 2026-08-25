@@ -1676,6 +1676,82 @@
   border-color: var(--primary);
 }
 
+.route-versions,
+.route-versions__list,
+.route-versions__workspace,
+.route-version-create,
+.route-version-editor,
+.route-version-editor__summary {
+  display: grid;
+  gap: var(--space-sm);
+}
+
+.route-versions__history {
+  margin: 0;
+}
+
+.route-versions__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-sm);
+  align-items: center;
+  padding: var(--space-sm);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-md);
+}
+
+.route-versions__row-main,
+.route-versions__metadata,
+.route-version-editor__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.route-versions__metadata {
+  grid-column: 1;
+  color: var(--on-surface-variant);
+  font-size: var(--label-sm-size);
+}
+
+.route-versions__row > .btn {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+
+.route-versions__current {
+  color: var(--primary);
+  font-size: var(--label-sm-size);
+  font-weight: 700;
+}
+
+.route-versions__workspace {
+  padding-block-start: var(--space-md);
+  border-block-start: 1px solid var(--outline-variant);
+}
+
+.route-version-editor__facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-sm);
+  margin: 0;
+}
+
+.route-version-editor__facts > div {
+  display: grid;
+  gap: var(--space-2xs);
+}
+
+.route-version-editor__facts dt {
+  color: var(--on-surface-variant);
+  font-size: var(--label-sm-size);
+}
+
+.route-version-editor__facts dd {
+  margin: 0;
+}
+
 .route-lifecycle {
   display: flex;
   flex-wrap: wrap;

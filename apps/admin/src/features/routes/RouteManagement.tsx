@@ -16,8 +16,9 @@ import { StopEditor } from "./StopEditor";
 import { CreateRouteDialog } from "./CreateRouteDialog";
 import { RouteDirectory, type RouteDirectoryFilters } from "./RouteDirectory";
 import { RouteOverview } from "./RouteOverview";
+import { RouteVersions } from "./RouteVersions";
 import { RouteWorkspace } from "./RouteWorkspace";
-import { initialRouteUiState, routeUiReducer } from "./routeManagementModel";
+import { initialRouteUiState, normalizeRouteVersionDraft, routeUiReducer } from "./routeManagementModel";
 
 type Api = ReturnType<typeof createApiClient>;
 type Locale = "ar" | "en";
@@ -406,35 +407,8 @@ export async function handleRouteMutationFailure(
   }
 }
 
-function emptyVersion(): RouteVersionDraft {
-  return { name_ar: "", name_en: "", description_ar: "", description_en: "", active_from: null, active_until: null };
-}
-
 function emptyStop(): CanonicalStopDraft {
   return { stop_key: "", service_region_key: "", name_ar: "", name_en: "", latitude: 31.5, longitude: 35.1 };
-}
-
-function toApiDate(value: string | null | undefined) {
-  return value ? new Date(value).toISOString() : null;
-}
-
-function toInputDate(value: string | null | undefined) {
-  return value ? value.slice(0, 16) : "";
-}
-
-function formatHistory(template: string, shown: number, total: number) {
-  return template.replace("{shown}", String(shown)).replace("{total}", String(total));
-}
-
-function draftFromVersion(version: ServiceRouteVersion): RouteVersionDraft {
-  return {
-    name_ar: version.name_ar,
-    name_en: version.name_en,
-    description_ar: version.description_ar ?? "",
-    description_en: version.description_en ?? "",
-    active_from: toInputDate(version.active_from),
-    active_until: toInputDate(version.active_until)
-  };
 }
 
 function membershipsFromVersion(version: ServiceRouteVersion): RouteStopDraft[] {
@@ -458,7 +432,6 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
   const [selectedRoute, setSelectedRoute] = useState<ServiceRoute | null>(null);
   const [selectedVersion, setSelectedVersion] = useState<ServiceRouteVersion | null>(null);
   const [ui, dispatch] = useReducer(routeUiReducer, initialRouteUiState);
-  const [versionDraft, setVersionDraft] = useState<RouteVersionDraft>(emptyVersion);
   const [stopDraft, setStopDraft] = useState<CanonicalStopDraft>(emptyStop);
   const [memberships, setMemberships] = useState<RouteStopDraft[]>([]);
   const [stopToAdd, setStopToAdd] = useState("");
@@ -570,7 +543,9 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
     try {
       const response = await api.serviceRoute(token, routeId);
       setSelectedRoute(response.route);
-      const version = response.route.versions?.[0] ?? response.route.current_version;
+      const version = response.route.versions?.find((candidate) => candidate.id === selectedVersion?.id)
+        ?? response.route.versions?.[0]
+        ?? response.route.current_version;
       selectVersion(version ?? null);
       return true;
     } catch (error) {
@@ -584,7 +559,6 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
   function selectVersion(version: ServiceRouteVersion | null) {
     setSelectedVersion(version);
     dispatch({ type: "select-version", versionId: version?.id ?? null });
-    setVersionDraft(version ? draftFromVersion(version) : emptyVersion());
     setMemberships(version ? membershipsFromVersion(version) : []);
   }
 
@@ -641,24 +615,45 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
     }
   }
 
-  async function submitVersion(event: FormEvent) {
-    event.preventDefault();
+  async function createDraft(draft: RouteVersionDraft) {
     if (!selectedRoute) return;
-    if (!beginBusy("save-version")) return;
-    let mutation: ReturnType<typeof pendingMutation> | undefined;
+    if (!beginBusy("create-version")) return;
+    const payload = normalizeRouteVersionDraft(draft);
+    const mutation = pendingMutation("route_version_create", { routeId: selectedRoute.id, ...payload });
     try {
-      const payload = { ...versionDraft, active_from: toApiDate(versionDraft.active_from), active_until: toApiDate(versionDraft.active_until) };
-      if (selectedVersion?.status !== "draft") mutation = pendingMutation("route_version_create", { routeId: selectedRoute.id, ...payload });
-      const response = selectedVersion?.status === "draft"
-        ? await api.updateRouteVersion(token, selectedVersion.id, { ...payload, expected_revision: selectedVersion.draft_revision })
-        : await api.createRouteVersion(token, selectedRoute.id, payload, mutation!.key);
-      if (mutation) settleMutation(mutation.fingerprint);
+      const response = await api.createRouteVersion(token, selectedRoute.id, payload, mutation.key);
+      settleMutation(mutation.fingerprint);
       if (!await loadRoute(selectedRoute.id, true)) return;
       selectVersion(response.version);
-      setMessage({ kind: "success", text: text.saved });
+      dispatch({ type: "feedback", scope: "version-editor", kind: "success", text: text.saved });
     } catch (error) {
-      if (mutation) settleMutation(mutation.fingerprint, error);
-      await showMutationError(error, () => loadRoute(selectedRoute.id, true));
+      settleMutation(mutation.fingerprint, error);
+      dispatch({
+        type: "feedback",
+        scope: "version-editor",
+        kind: "error",
+        text: await handleRouteMutationFailure(error, () => loadRoute(selectedRoute.id, true), locale)
+      });
+    } finally {
+      endBusy();
+    }
+  }
+
+  async function saveDraft(draft: RouteVersionDraft) {
+    if (!selectedRoute || !selectedVersion || selectedVersion.status !== "draft") return;
+    if (!beginBusy("save-version")) return;
+    try {
+      const payload = normalizeRouteVersionDraft(draft);
+      await api.updateRouteVersion(token, selectedVersion.id, { ...payload, expected_revision: selectedVersion.draft_revision });
+      if (!await loadRoute(selectedRoute.id, true)) return;
+      dispatch({ type: "feedback", scope: "version-editor", kind: "success", text: text.saved });
+    } catch (error) {
+      dispatch({
+        type: "feedback",
+        scope: "version-editor",
+        kind: "error",
+        text: await handleRouteMutationFailure(error, () => loadRoute(selectedRoute.id, true), locale)
+      });
     } finally {
       endBusy();
     }
@@ -834,8 +829,6 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
 
   const statusText = (value: string) => routeStatusText(locale, value);
 
-  const disabledUnlessDraft = selectedVersion ? selectedVersion.status !== "draft" : false;
-
   if (ui.surface === "directory") {
     return (
       <section className="stack">
@@ -882,44 +875,25 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
     );
   }
 
-  const versionsPanel = (
-    <Card>
-      <CardHeader
-        title={text.versions}
-        action={<Button variant="secondary" icon="add" onClick={() => selectVersion(null)} disabled={Boolean(busy)}>{text.newVersion}</Button>}
-      />
-      <p className="muted">
-        {formatHistory(
-          (selectedRoute.versions?.length ?? 0) < selectedRoute.version_count
-            ? text.routeHistoryTruncated
-            : text.routeHistorySummary,
-          selectedRoute.versions?.length ?? 0,
-          selectedRoute.version_count
-        )}
-      </p>
-      <div className="version-tabs">{selectedRoute.versions?.map((version) => (
-        <Button
-          key={version.id}
-          variant="outline"
-          size="sm"
-          className={selectedVersion?.id === version.id ? "is-selected" : undefined}
-          onClick={() => selectVersion(version)}
-          disabled={Boolean(busy)}
-        >
-          {`v${version.version_number} · ${statusText(version.status)}`}
-        </Button>
-      ))}</div>
-      <form className="field-grid" onSubmit={submitVersion}>
-        <label className="field">{text.nameAr}<input dir="rtl" required value={versionDraft.name_ar} onChange={(event) => setVersionDraft({ ...versionDraft, name_ar: event.target.value })} disabled={disabledUnlessDraft} /></label>
-        <label className="field">{text.nameEn}<input dir="ltr" required value={versionDraft.name_en} onChange={(event) => setVersionDraft({ ...versionDraft, name_en: event.target.value })} disabled={disabledUnlessDraft} /></label>
-        <label className="field">{text.descriptionAr}<textarea dir="rtl" value={versionDraft.description_ar ?? ""} onChange={(event) => setVersionDraft({ ...versionDraft, description_ar: event.target.value })} disabled={disabledUnlessDraft} /></label>
-        <label className="field">{text.descriptionEn}<textarea dir="ltr" value={versionDraft.description_en ?? ""} onChange={(event) => setVersionDraft({ ...versionDraft, description_en: event.target.value })} disabled={disabledUnlessDraft} /></label>
-        <label className="field">{text.activeFrom}<input type="datetime-local" value={versionDraft.active_from ?? ""} onChange={(event) => setVersionDraft({ ...versionDraft, active_from: event.target.value })} disabled={disabledUnlessDraft} /></label>
-        <label className="field">{text.activeUntil}<input type="datetime-local" value={versionDraft.active_until ?? ""} onChange={(event) => setVersionDraft({ ...versionDraft, active_until: event.target.value })} disabled={disabledUnlessDraft} /></label>
-        {(!selectedVersion || selectedVersion.status === "draft") && <Button type="submit" icon="check" disabled={Boolean(busy)}>{selectedVersion ? text.saveDraft : text.createDraft}</Button>}
-      </form>
-    </Card>
-  );
+  const versionsPanel = <RouteVersions
+    locale={locale}
+    route={selectedRoute}
+    selectedVersion={selectedVersion}
+    editing={ui.versionEditMode}
+    busy={Boolean(busy)}
+    feedback={ui.feedback?.scope === "version-editor" ? ui.feedback.text : null}
+    onSelectVersion={selectVersion}
+    onCreateDraft={(draft) => void createDraft(draft)}
+    onBeginEdit={() => {
+      dispatch({ type: "clear-feedback" });
+      dispatch({ type: "begin-version-edit" });
+    }}
+    onSaveDraft={(draft) => void saveDraft(draft)}
+    onCancelEdit={() => {
+      dispatch({ type: "cancel-version-edit" });
+      dispatch({ type: "clear-feedback" });
+    }}
+  />;
 
   const stopsPanel = (
     <div className="stack">

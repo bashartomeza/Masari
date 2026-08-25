@@ -1,4 +1,33 @@
+import type { RouteVersionDraft } from "../../api";
+
 export type RouteWorkspaceTab = "overview" | "versions" | "stops";
+
+type RouteVersionDraftSource = Pick<
+  RouteVersionDraft,
+  "name_ar" | "name_en" | "description_ar" | "description_en" | "active_from" | "active_until"
+>;
+
+export function routeVersionDraftFrom(version: RouteVersionDraftSource): Required<RouteVersionDraft> {
+  return {
+    name_ar: version.name_ar,
+    name_en: version.name_en,
+    description_ar: version.description_ar ?? "",
+    description_en: version.description_en ?? "",
+    active_from: version.active_from ? version.active_from.slice(0, 16) : "",
+    active_until: version.active_until ? version.active_until.slice(0, 16) : ""
+  };
+}
+
+export function normalizeRouteVersionDraft(draft: RouteVersionDraft): Required<RouteVersionDraft> {
+  return {
+    name_ar: draft.name_ar,
+    name_en: draft.name_en,
+    description_ar: draft.description_ar ?? "",
+    description_en: draft.description_en ?? "",
+    active_from: draft.active_from ? new Date(draft.active_from).toISOString() : null,
+    active_until: draft.active_until ? new Date(draft.active_until).toISOString() : null
+  };
+}
 
 export type RouteLifecycleDialogAction =
   | "clone"
@@ -82,7 +111,7 @@ export function routeUiReducer(state: RouteUiState, action: RouteUiAction): Rout
     case "select-tab":
       return { ...state, tab: action.tab };
     case "select-version":
-      return { ...state, selectedVersionId: action.versionId };
+      return { ...state, selectedVersionId: action.versionId, versionEditMode: false };
     case "open-dialog":
       return { ...state, dialog: action.dialog };
     case "close-dialog":

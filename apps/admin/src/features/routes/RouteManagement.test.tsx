@@ -407,6 +407,66 @@ describe("admin route management", () => {
     root.unmount();
   });
 
+  it("keeps the Versions tab focused and reloads the authoritative selected draft after a save conflict", async () => {
+    const initialDraft = { ...readyVersion, id: "version_conflict", service_route_id: "route_conflict", name_en: "Before conflict", draft_revision: 4 };
+    const authoritativeDraft = { ...initialDraft, name_en: "After conflict", draft_revision: 5 };
+    const initialRoute: ServiceRoute = {
+      id: "route_conflict",
+      route_key: "conflict-route",
+      route_group_key: "conflict-route",
+      service_region_key: "south-west-bank",
+      direction: "outbound",
+      status: "active",
+      current_version_id: null,
+      current_version: null,
+      versions: [initialDraft],
+      version_count: 1,
+      created_at: "2026-08-25T00:00:00.000Z",
+      updated_at: "2026-08-25T00:00:00.000Z"
+    };
+    const authoritativeRoute = { ...initialRoute, versions: [authoritativeDraft] };
+    const api = {
+      serviceRoutes: vi.fn().mockResolvedValue({ routes: [initialRoute], page: 1, limit: 25, total: 1 }),
+      canonicalStops: vi.fn().mockResolvedValue({ stops: canonicalStops, page: 1, limit: 50, total: 2 }),
+      serviceRoute: vi.fn().mockResolvedValueOnce({ route: initialRoute }).mockResolvedValueOnce({ route: authoritativeRoute }),
+      updateRouteVersion: vi.fn().mockRejectedValue(Object.assign(new Error("draft_revision_conflict"), { status: 409 }))
+    };
+    mountedHost = document.createElement("div");
+    document.body.append(mountedHost);
+    const root = createRoot(mountedHost);
+
+    await act(async () => { root.render(<RouteManagement api={api as never} token="token" locale="en" />); });
+    await act(async () => { await Promise.resolve(); });
+    const routeRow = mountedHost.querySelector<HTMLElement>(".route-directory__row")!;
+    await act(async () => { routeRow.querySelector<HTMLButtonElement>("button")!.click(); await Promise.resolve(); });
+    const versionsTab = [...mountedHost.querySelectorAll<HTMLButtonElement>('[role="tab"]')]
+      .find((tab) => tab.textContent === "Versions")!;
+    act(() => versionsTab.click());
+
+    const edit = [...mountedHost.querySelectorAll<HTMLButtonElement>("button")]
+      .find((button) => button.textContent?.trim() === "Edit draft")!;
+    act(() => edit.click());
+    const form = mountedHost.querySelector<HTMLFormElement>(".route-version-editor form")!;
+    const name = form.querySelector<HTMLInputElement>('input[name="name_en"]')!;
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+    act(() => {
+      setter.call(name, "Unsaved local edit");
+      name.dispatchEvent(new Event("input", { bubbles: true }));
+      name.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await act(async () => { form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); await Promise.resolve(); await Promise.resolve(); });
+
+    expect(api.updateRouteVersion).toHaveBeenCalledWith("token", "version_conflict", expect.objectContaining({
+      name_en: "Unsaved local edit",
+      expected_revision: 4
+    }));
+    expect(versionsTab.getAttribute("aria-selected")).toBe("true");
+    expect(mountedHost.textContent).toContain("After conflict");
+    expect(mountedHost.textContent).toContain("latest authoritative data was reloaded");
+    expect(mountedHost.textContent).not.toContain("Save changes");
+    root.unmount();
+  });
+
   it("reorders stops deterministically and preserves contiguous server-authoritative sequence", () => {
     const moved = moveRouteStop(stops, 1, -1);
     expect(moved.map((stop) => [stop.stop_id, stop.sequence])).toEqual([
