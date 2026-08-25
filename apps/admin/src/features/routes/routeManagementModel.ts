@@ -1,6 +1,31 @@
-import type { RouteVersionDraft } from "../../api";
+import type { RouteStopDraft, RouteVersionDraft } from "../../api";
 
 export type RouteWorkspaceTab = "overview" | "versions" | "stops";
+export type RouteStopPermission = keyof Pick<
+  RouteStopDraft,
+  "passenger_pickup_allowed" | "passenger_dropoff_allowed" | "parcel_pickup_allowed" | "parcel_dropoff_allowed"
+>;
+
+export function moveRouteStop(stops: RouteStopDraft[], index: number, direction: -1 | 1) {
+  const target = index + direction;
+  if (target < 0 || target >= stops.length) return stops;
+  const reordered = [...stops];
+  [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
+  return reordered.map((stop, current) => ({ ...stop, sequence: current + 1 }));
+}
+
+export function removeRouteStop(stops: RouteStopDraft[], index: number) {
+  if (index < 0 || index >= stops.length) return stops;
+  return stops
+    .filter((_, current) => current !== index)
+    .map((stop, current) => ({ ...stop, sequence: current + 1 }));
+}
+
+export function toggleRouteStopPermission(stops: RouteStopDraft[], index: number, permission: RouteStopPermission) {
+  return stops.map((stop, current) =>
+    current === index ? { ...stop, [permission]: !stop[permission] } : stop
+  );
+}
 
 type RouteVersionDraftSource = Pick<
   RouteVersionDraft,
@@ -57,6 +82,7 @@ export type RouteUiState = {
   surface: "directory" | "workspace";
   selectedRouteId: string | null;
   selectedVersionId: string | null;
+  selectedStopId: string | null;
   tab: RouteWorkspaceTab;
   dialog: RouteDialogName;
   versionEditMode: boolean;
@@ -67,6 +93,7 @@ export const initialRouteUiState: RouteUiState = {
   surface: "directory",
   selectedRouteId: null,
   selectedVersionId: null,
+  selectedStopId: null,
   tab: "overview",
   dialog: null,
   versionEditMode: false,
@@ -78,7 +105,7 @@ export type RouteUiAction =
   | { type: "back-to-directory" }
   | { type: "select-tab"; tab: RouteWorkspaceTab }
   | { type: "select-version"; versionId: string | null }
-  | { type: "open-dialog"; dialog: Exclude<RouteDialogName, null> }
+  | { type: "open-dialog"; dialog: Exclude<RouteDialogName, null>; stopId?: string }
   | { type: "close-dialog" }
   | { type: "begin-version-edit" }
   | { type: "cancel-version-edit" }
@@ -93,6 +120,7 @@ export function routeUiReducer(state: RouteUiState, action: RouteUiAction): Rout
         surface: "workspace",
         selectedRouteId: action.routeId,
         selectedVersionId: null,
+        selectedStopId: null,
         tab: "overview",
         dialog: null,
         versionEditMode: false,
@@ -104,6 +132,7 @@ export function routeUiReducer(state: RouteUiState, action: RouteUiAction): Rout
         surface: "directory",
         selectedRouteId: null,
         selectedVersionId: null,
+        selectedStopId: null,
         dialog: null,
         versionEditMode: false,
         feedback: null
@@ -113,9 +142,9 @@ export function routeUiReducer(state: RouteUiState, action: RouteUiAction): Rout
     case "select-version":
       return { ...state, selectedVersionId: action.versionId, versionEditMode: false };
     case "open-dialog":
-      return { ...state, dialog: action.dialog };
+      return { ...state, dialog: action.dialog, selectedStopId: action.dialog === "edit-stop" ? action.stopId ?? null : null };
     case "close-dialog":
-      return { ...state, dialog: null };
+      return { ...state, dialog: null, selectedStopId: null };
     case "begin-version-edit":
       return { ...state, versionEditMode: true };
     case "cancel-version-edit":

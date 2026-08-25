@@ -15,6 +15,7 @@ describe("routeManagementModel", () => {
       surface: "workspace",
       selectedRouteId: "route-1",
       selectedVersionId: null,
+      selectedStopId: null,
       tab: "overview"
     });
   });
@@ -71,6 +72,24 @@ describe("routeManagementModel", () => {
       });
     }
   );
+
+  it("keeps the selected stop only for the focused edit dialog and clears it on close", () => {
+    const workspace = {
+      ...initialRouteUiState,
+      surface: "workspace" as const,
+      selectedRouteId: "route-1",
+      selectedVersionId: "version-2",
+      tab: "stops" as const
+    };
+
+    const editing = routeUiReducer(workspace, { type: "open-dialog", dialog: "edit-stop", stopId: "stop-7" });
+    const closed = routeUiReducer(editing, { type: "close-dialog" });
+    const adding = routeUiReducer(closed, { type: "open-dialog", dialog: "add-stop" });
+
+    expect(editing).toMatchObject({ dialog: "edit-stop", selectedStopId: "stop-7", tab: "stops" });
+    expect(closed).toMatchObject({ dialog: null, selectedStopId: null, tab: "stops" });
+    expect(adding).toMatchObject({ dialog: "add-stop", selectedStopId: null, tab: "stops" });
+  });
 
   it("exits draft edit mode when an edit is cancelled", () => {
     const editing = routeUiReducer(initialRouteUiState, { type: "begin-version-edit" });

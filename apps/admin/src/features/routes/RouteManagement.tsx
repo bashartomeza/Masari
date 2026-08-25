@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import type {
   ApiError,
   CanonicalStop,
@@ -11,21 +11,25 @@ import type {
   createApiClient
 } from "../../api";
 import { translations } from "../../i18n/translations";
-import { Button, Card, CardHeader, EmptyState, Notice, Skeleton, StatusBadge } from "../../ui";
-import { StopEditor } from "./StopEditor";
+import { Button, Card, Notice, Skeleton } from "../../ui";
 import { CreateRouteDialog } from "./CreateRouteDialog";
 import { RouteDirectory, type RouteDirectoryFilters } from "./RouteDirectory";
 import { RouteOverview } from "./RouteOverview";
+import { RouteStops, type StopDialogMode } from "./RouteStops";
 import { RouteVersions } from "./RouteVersions";
 import { RouteWorkspace } from "./RouteWorkspace";
-import { initialRouteUiState, normalizeRouteVersionDraft, routeUiReducer } from "./routeManagementModel";
+import {
+  initialRouteUiState,
+  moveRouteStop,
+  normalizeRouteVersionDraft,
+  routeUiReducer,
+  toggleRouteStopPermission
+} from "./routeManagementModel";
+
+export { moveRouteStop, toggleRouteStopPermission } from "./routeManagementModel";
 
 type Api = ReturnType<typeof createApiClient>;
 type Locale = "ar" | "en";
-type Permission = keyof Pick<
-  RouteStopDraft,
-  "passenger_pickup_allowed" | "passenger_dropoff_allowed" | "parcel_pickup_allowed" | "parcel_dropoff_allowed"
->;
 
 export type RouteViewState = "loading" | "ready" | "empty" | "error";
 export type RouteLifecycleAction = "clone" | "publish" | "pause" | "resume" | "retire";
@@ -140,20 +144,6 @@ export function routeCatalogView(input: { loading: boolean; error: boolean; coun
 
 export function reorderControlLabel(label: string, index: number) {
   return `${label} ${index + 1}`;
-}
-
-export function moveRouteStop(stops: RouteStopDraft[], index: number, direction: -1 | 1) {
-  const target = index + direction;
-  if (target < 0 || target >= stops.length) return stops;
-  const reordered = [...stops];
-  [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
-  return reordered.map((stop, current) => ({ ...stop, sequence: current + 1 }));
-}
-
-export function toggleRouteStopPermission(stops: RouteStopDraft[], index: number, permission: Permission) {
-  return stops.map((stop, current) =>
-    current === index ? { ...stop, [permission]: !stop[permission] } : stop
-  );
 }
 
 export function lifecycleActions(version: ServiceRouteVersion | null) {
@@ -407,13 +397,9 @@ export async function handleRouteMutationFailure(
   }
 }
 
-function emptyStop(): CanonicalStopDraft {
-  return { stop_key: "", service_region_key: "", name_ar: "", name_en: "", latitude: 31.5, longitude: 35.1 };
-}
-
 function membershipsFromVersion(version: ServiceRouteVersion): RouteStopDraft[] {
   return version.stops.map((membership, index) => ({
-    stop_id: membership.stop.id,
+    stop_id: membership.stop_id,
     sequence: index + 1,
     passenger_pickup_allowed: membership.passenger_pickup_allowed,
     passenger_dropoff_allowed: membership.passenger_dropoff_allowed,
@@ -432,9 +418,7 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
   const [selectedRoute, setSelectedRoute] = useState<ServiceRoute | null>(null);
   const [selectedVersion, setSelectedVersion] = useState<ServiceRouteVersion | null>(null);
   const [ui, dispatch] = useReducer(routeUiReducer, initialRouteUiState);
-  const [stopDraft, setStopDraft] = useState<CanonicalStopDraft>(emptyStop);
   const [memberships, setMemberships] = useState<RouteStopDraft[]>([]);
-  const [stopToAdd, setStopToAdd] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [directionFilter, setDirectionFilter] = useState("");
@@ -442,12 +426,10 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [busy, setBusy] = useState("");
-  const [actionReason, setActionReason] = useState("");
   const [message, setMessage] = useState<{ kind: "success" | "error"; text: string } | null>(null);
   const busyRef = useRef("");
   const mutationKeys = useRef(new Map<string, string>());
 
-  const activeStops = useMemo(() => stops.filter((stop) => stop.status === "active"), [stops]);
   const usedStopIds = useMemo(() => routeUsedStopIds(selectedRoute), [selectedRoute]);
   const actions = lifecycleActions(selectedVersion);
   const readinessIssues = selectedRoute && selectedVersion
@@ -456,10 +438,6 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
 
   function showError(error: unknown) {
     setMessage({ kind: "error", text: routeUiError(locale, error) });
-  }
-
-  async function showMutationError(error: unknown, reload: () => Promise<boolean>) {
-    setMessage({ kind: "error", text: await handleRouteMutationFailure(error, reload, locale) });
   }
 
   function beginBusy(label: string) {
@@ -523,13 +501,13 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
     }
   }
 
-  async function loadStops() {
+  async function loadStops(surfaceFailure = true) {
     try {
       const stopPage = await api.canonicalStops(token, "?limit=50");
       setStops(stopPage.stops);
       return true;
     } catch (error) {
-      showError(error);
+      if (surfaceFailure) showError(error);
       return false;
     }
   }
@@ -581,19 +559,28 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
     }
   }
 
-  async function submitStop(event: FormEvent) {
-    event.preventDefault();
-    if (!beginBusy("create-stop")) return;
-    const mutation = pendingMutation("stop_create", stopDraft);
+  async function submitStop(draft: CanonicalStopDraft) {
+    if (!beginBusy("create-stop")) return false;
+    dispatch({ type: "clear-feedback" });
+    const mutation = pendingMutation("stop_create", draft);
     try {
-      await api.createCanonicalStop(token, stopDraft, mutation.key);
+      await api.createCanonicalStop(token, draft, mutation.key);
       settleMutation(mutation.fingerprint);
-      if (!await loadStops()) return;
-      setStopDraft(emptyStop());
-      setMessage({ kind: "success", text: text.saved });
+      if (!await loadStops(false)) {
+        dispatch({ type: "feedback", scope: "stop-editor", kind: "error", text: text.reloadFailed });
+        return false;
+      }
+      dispatch({ type: "feedback", scope: "stops", kind: "success", text: text.saved });
+      return true;
     } catch (error) {
       settleMutation(mutation.fingerprint, error);
-      await showMutationError(error, loadStops);
+      dispatch({
+        type: "feedback",
+        scope: "stop-editor",
+        kind: "error",
+        text: await handleRouteMutationFailure(error, () => loadStops(false), locale)
+      });
+      return false;
     } finally {
       endBusy();
     }
@@ -601,14 +588,23 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
 
   async function saveStop(id: string, draft: CanonicalStopDraft) {
     if (!beginBusy(`edit-stop-${id}`)) return false;
+    dispatch({ type: "clear-feedback" });
     const { stop_key: _immutableStopKey, ...update } = draft;
     try {
       await api.updateCanonicalStop(token, id, update);
-      if (!await loadStops()) return false;
-      setMessage({ kind: "success", text: text.saved });
+      if (!await loadStops(false)) {
+        dispatch({ type: "feedback", scope: "stop-editor", kind: "error", text: text.reloadFailed });
+        return false;
+      }
+      dispatch({ type: "feedback", scope: "stops", kind: "success", text: text.saved });
       return true;
     } catch (error) {
-      await showMutationError(error, loadStops);
+      dispatch({
+        type: "feedback",
+        scope: "stop-editor",
+        kind: "error",
+        text: await handleRouteMutationFailure(error, () => loadStops(false), locale)
+      });
       return false;
     } finally {
       endBusy();
@@ -665,35 +661,25 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
     }
   }
 
-  function addExistingStop() {
-    if (!stopToAdd || memberships.some((membership) => membership.stop_id === stopToAdd)) return;
-    setMemberships((current) => [
-      ...current,
-      {
-        stop_id: stopToAdd,
-        sequence: current.length + 1,
-        passenger_pickup_allowed: current.length === 0,
-        passenger_dropoff_allowed: false,
-        parcel_pickup_allowed: current.length === 0,
-        parcel_dropoff_allowed: false
-      }
-    ]);
-    setStopToAdd("");
-  }
-
-  async function saveStops() {
+  async function saveStops(nextMemberships: RouteStopDraft[]) {
     if (!selectedVersion || selectedVersion.status !== "draft") return;
     if (!beginBusy("save-stops")) return;
+    dispatch({ type: "clear-feedback" });
     try {
       const response = await api.replaceRouteStops(token, selectedVersion.id, {
         expected_revision: selectedVersion.draft_revision,
-        stops: memberships
+        stops: nextMemberships
       });
       setSelectedRoute((current) => current ? reconcileRouteVersionSnapshot(current, response.version) : current);
       selectVersion(response.version);
-      setMessage({ kind: "success", text: text.saved });
+      dispatch({ type: "feedback", scope: "stops", kind: "success", text: text.saved });
     } catch (error) {
-      await showMutationError(error, () => loadRoute(selectedVersion.service_route_id, true));
+      dispatch({
+        type: "feedback",
+        scope: "stops",
+        kind: "error",
+        text: await handleRouteMutationFailure(error, () => loadRoute(selectedVersion.service_route_id, true), locale)
+      });
     } finally {
       endBusy();
     }
@@ -728,7 +714,7 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
     }
   }
 
-  async function versionAction(action: "publish" | "pause" | "resume" | "retire", suppliedReason = actionReason) {
+  async function versionAction(action: "publish" | "pause" | "resume" | "retire", suppliedReason = "") {
     const reason = suppliedReason.trim();
     if ((action === "pause" || action === "retire") && !reason) {
       dispatch({ type: "feedback", scope: "lifecycle", kind: "error", text: text.reasonRequired });
@@ -759,7 +745,6 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
       settleMutation(mutation.fingerprint);
       if (!await loadRoute(selectedRoute.id, true)) return;
       selectVersion(response.version);
-      setActionReason("");
       dispatch({ type: "feedback", scope: "page", kind: "success", text: text.saved });
     } catch (error) {
       settleMutation(mutation.fingerprint, error);
@@ -774,7 +759,7 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
     }
   }
 
-  async function retireRoute(suppliedReason = actionReason) {
+  async function retireRoute(suppliedReason = "") {
     const reason = suppliedReason.trim();
     if (!reason) {
       dispatch({ type: "feedback", scope: "lifecycle", kind: "error", text: text.reasonRequired });
@@ -790,7 +775,6 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
       settleMutation(mutation.fingerprint);
       setSelectedRoute(null);
       selectVersion(null);
-      setActionReason("");
       if (!await loadCatalog(page)) return;
       dispatch({ type: "back-to-directory" });
     } catch (error) {
@@ -809,31 +793,38 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
     }
   }
 
-  async function retireStop(stop: CanonicalStop) {
-    const reason = actionReason.trim();
+  async function retireStop(stop: CanonicalStop, suppliedReason: string) {
+    const reason = suppliedReason.trim();
     if (!reason) {
-      setMessage({ kind: "error", text: text.reasonRequired });
-      return;
+      dispatch({ type: "feedback", scope: "stops", kind: "error", text: text.reasonRequired });
+      return false;
     }
-    if (!window.confirm(text.confirm)) return;
-    if (!beginBusy(`retire-stop-${stop.id}`)) return;
+    if (!beginBusy(`retire-stop-${stop.id}`)) return false;
+    dispatch({ type: "clear-feedback" });
     const payload = { id: stop.id, reason };
     const mutation = pendingMutation("stop_retire", payload);
     try {
       await api.retireCanonicalStop(token, stop.id, reason, mutation.key);
       settleMutation(mutation.fingerprint);
-      if (!await loadStops()) return;
-      setActionReason("");
-      setMessage({ kind: "success", text: text.stopRetired });
+      if (!await loadStops(false)) {
+        dispatch({ type: "feedback", scope: "stops", kind: "error", text: text.reloadFailed });
+        return false;
+      }
+      dispatch({ type: "feedback", scope: "stops", kind: "success", text: text.stopRetired });
+      return true;
     } catch (error) {
       settleMutation(mutation.fingerprint, error);
-      await showMutationError(error, loadStops);
+      dispatch({
+        type: "feedback",
+        scope: "stops",
+        kind: "error",
+        text: await handleRouteMutationFailure(error, () => loadStops(false), locale)
+      });
+      return false;
     } finally {
       endBusy();
     }
   }
-
-  const statusText = (value: string) => routeStatusText(locale, value);
 
   if (ui.surface === "directory") {
     return (
@@ -901,69 +892,34 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
     }}
   />;
 
-  const stopsPanel = (
-    <div className="stack">
-      {stops.some((stop) => stop.status === "active") && <Card>
-        <label className="field">{text.reason}<input value={actionReason} maxLength={500} onChange={(event) => setActionReason(event.target.value)} disabled={Boolean(busy)} /></label>
-      </Card>}
-      {selectedVersion?.status === "draft" && <Card>
-        <CardHeader title={text.orderedStops} />
-        <div className="button-row">
-          <select className="input" aria-label={text.addStop} value={stopToAdd} onChange={(event) => setStopToAdd(event.target.value)} disabled={Boolean(busy)}>
-            <option value="">{text.addStop}</option>
-            {activeStops.filter((stop) => !memberships.some((membership) => membership.stop_id === stop.id)).map((stop) => <option value={stop.id} key={stop.id}>{locale === "ar" ? stop.name_ar : stop.name_en}</option>)}
-          </select>
-          <Button variant="secondary" icon="add" onClick={addExistingStop} disabled={!stopToAdd || Boolean(busy)}>{text.addStop}</Button>
-        </div>
-        {memberships.length === 0 && <EmptyState compact icon="location_on" title={text.noStops} />}
-        <ol className="stop-editor">{memberships.map((membership, index) => (
-          <li key={membership.stop_id}>
-            <div className="stop-editor__title">
-              <StatusBadge tone="info">{index + 1}</StatusBadge>
-              <RouteMembershipStopLabel membership={membership} version={selectedVersion} stops={stops} locale={locale} />
-              <div className="button-row">
-                <Button variant="outline" size="sm" aria-label={reorderControlLabel(text.moveUp, index)} disabled={index === 0 || Boolean(busy)} onClick={() => setMemberships(moveRouteStop(memberships, index, -1))}>↑</Button>
-                <Button variant="outline" size="sm" aria-label={reorderControlLabel(text.moveDown, index)} disabled={index === memberships.length - 1 || Boolean(busy)} onClick={() => setMemberships(moveRouteStop(memberships, index, 1))}>↓</Button>
-                <Button variant="destructive" size="sm" aria-label={reorderControlLabel(text.remove, index)} disabled={Boolean(busy)} onClick={() => setMemberships(memberships.filter((_, current) => current !== index).map((item, current) => ({ ...item, sequence: current + 1 })))}>×</Button>
-              </div>
-            </div>
-            <div className="permission-grid">{(["passenger_pickup_allowed", "passenger_dropoff_allowed", "parcel_pickup_allowed", "parcel_dropoff_allowed"] as Permission[]).map((permission) => <label key={permission}><input type="checkbox" checked={membership[permission]} disabled={Boolean(busy)} onChange={() => setMemberships(toggleRouteStopPermission(memberships, index, permission))} />{permission === "passenger_pickup_allowed" ? text.passengerPickup : permission === "passenger_dropoff_allowed" ? text.passengerDropoff : permission === "parcel_pickup_allowed" ? text.parcelPickup : text.parcelDropoff}</label>)}</div>
-          </li>
-        ))}</ol>
-        <Button icon="check" onClick={() => void saveStops()} disabled={memberships.length < 2 || Boolean(busy)}>{text.saveOrder}</Button>
-      </Card>}
-
-      <Card>
-        <details className="disclosure">
-          <summary>{text.createStop}</summary>
-          <p className="muted">{text.stopHelp}</p>
-          <form className="field-grid" onSubmit={submitStop}>
-            <label className="field">{text.stopKey}<input className="technical-value" dir="ltr" required value={stopDraft.stop_key} onChange={(event) => setStopDraft({ ...stopDraft, stop_key: event.target.value })} /></label>
-            <label className="field">{text.region}<input className="technical-value" dir="ltr" required value={stopDraft.service_region_key} onChange={(event) => setStopDraft({ ...stopDraft, service_region_key: event.target.value })} /></label>
-            <label className="field">{text.nameAr}<input dir="rtl" required value={stopDraft.name_ar} onChange={(event) => setStopDraft({ ...stopDraft, name_ar: event.target.value })} /></label>
-            <label className="field">{text.nameEn}<input dir="ltr" required value={stopDraft.name_en} onChange={(event) => setStopDraft({ ...stopDraft, name_en: event.target.value })} /></label>
-            <label className="field">{text.latitude}<input className="technical-value" dir="ltr" type="number" step="0.000001" min="-90" max="90" required value={stopDraft.latitude} onChange={(event) => setStopDraft({ ...stopDraft, latitude: Number(event.target.value) })} /></label>
-            <label className="field">{text.longitude}<input className="technical-value" dir="ltr" type="number" step="0.000001" min="-180" max="180" required value={stopDraft.longitude} onChange={(event) => setStopDraft({ ...stopDraft, longitude: Number(event.target.value) })} /></label>
-            <Button type="submit" icon="add" disabled={Boolean(busy)}>{text.createStop}</Button>
-          </form>
-          <div className="stop-catalog">{stops.map((stop) => <div key={stop.id}>
-            <div className="split stop-catalog__status">
-              <span className="labeled-status"><span>{text.stopStatusHeading}</span><StatusBadge status={stop.status}>{statusText(stop.status)}</StatusBadge></span>
-              {stop.status === "active" && <Button variant="destructive" size="sm" onClick={() => void retireStop(stop)} disabled={Boolean(busy)}>{text.retire}</Button>}
-            </div>
-            <StopEditor
-              key={`${stop.id}-${stop.name_ar}-${stop.name_en}-${stop.latitude}-${stop.longitude}`}
-              stop={stop}
-              used={usedStopIds.has(stop.id)}
-              busy={Boolean(busy)}
-              locale={locale}
-              onSave={saveStop}
-            />
-          </div>)}</div>
-        </details>
-      </Card>
-    </div>
-  );
+  const stopDialog = (["add-stop", "create-stop", "edit-stop"] as StopDialogMode[]).includes(ui.dialog as StopDialogMode)
+    ? ui.dialog as StopDialogMode
+    : null;
+  const stopsPanel = <RouteStops
+    locale={locale}
+    version={selectedVersion}
+    memberships={memberships}
+    stops={stops}
+    usedStopIds={usedStopIds}
+    busy={Boolean(busy)}
+    feedback={ui.feedback?.scope === "stops" ? ui.feedback : null}
+    dialogFeedback={ui.feedback?.scope === "stop-editor" ? ui.feedback : null}
+    dialog={stopDialog}
+    selectedStopId={ui.selectedStopId}
+    onOpenDialog={(dialog, stopId) => {
+      dispatch({ type: "clear-feedback" });
+      dispatch({ type: "open-dialog", dialog, stopId });
+    }}
+    onCloseDialog={() => {
+      dispatch({ type: "close-dialog" });
+      if (ui.feedback?.scope === "stop-editor") dispatch({ type: "clear-feedback" });
+    }}
+    onMembershipsChange={setMemberships}
+    onSaveOrder={saveStops}
+    onCreateStop={submitStop}
+    onEditStop={saveStop}
+    onRetireStop={retireStop}
+  />;
 
   return (
     <section className="stack">

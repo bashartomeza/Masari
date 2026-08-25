@@ -66,6 +66,13 @@
   grid-column: 1 / -1;
 }
 
+.route-stops,
+.route-stops input,
+.route-stops select,
+.route-dialog__body {
+  max-inline-size: 100%;
+}
+
 .technical-value,
 [dir="rtl"] .technical-value {
   direction: ltr;
@@ -129,5 +136,21 @@
 
   .route-directory__pagination .btn {
     inline-size: 100%;
+  }
+
+  .route-stops__primary-actions,
+  .route-stops__row-actions,
+  .route-stops__catalog-actions {
+    direction: inherit;
+  }
+
+  .route-dialog {
+    inline-size: 100%;
+    max-block-size: calc(100dvh - (2 * var(--space-base)));
+  }
+
+  .route-dialog__body {
+    overflow-x: hidden;
+    overflow-y: auto;
   }
 }
