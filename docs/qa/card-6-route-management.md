@@ -47,6 +47,8 @@ npm run dev:api
 In a separate Admin terminal, run:
 
 ```powershell
+$env:VITE_APP_ENV = 'local'
+$env:VITE_ENABLE_DEMO_FEATURES = 'false'
 $env:VITE_API_BASE_URL = 'http://localhost:3100'
 $env:VITE_ROUTE_MANAGEMENT_ENABLED = 'true'
 npm run dev -w @masari/admin -- --port 5174

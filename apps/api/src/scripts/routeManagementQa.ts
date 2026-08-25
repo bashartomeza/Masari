@@ -25,7 +25,61 @@ const routeKeys = {
   retired: `${FIXTURE_PREFIX}l-retired-route`
 } as const;
 
+type RouteQaMembershipSnapshot = {
+  stopId: string;
+  sequence: number;
+  passengerPickup: boolean;
+  passengerDropoff: boolean;
+  parcelPickup: boolean;
+  parcelDropoff: boolean;
+  scheduledOffsetSeconds: number | null;
+  dwellSeconds: number | null;
+};
+
+type RouteQaVersionSnapshot = {
+  id: string;
+  versionNumber: number;
+  status: "draft" | "published" | "paused" | "retired";
+  nameAr: string;
+  nameEn: string;
+  descriptionEn: string | null;
+  stops: RouteQaMembershipSnapshot[];
+};
+
+export type RouteQaFixtureSnapshot = {
+  actor: {
+    id: string;
+    role: string;
+    accountStatus: string;
+    demoAccount: boolean;
+    hasPasswordHash: boolean;
+  } | null;
+  stops: Array<{
+    id: string;
+    stopKey: string;
+    serviceRegionKey: string;
+    nameAr: string;
+    nameEn: string;
+    latitude: string;
+    longitude: string;
+    status: "active" | "retired";
+  }>;
+  routes: Array<{
+    id: string;
+    routeKey: string;
+    routeGroupKey: string;
+    serviceRegionKey: string;
+    direction: "outbound" | "inbound" | "loop";
+    status: "active" | "retired";
+    currentVersionId: string | null;
+    versions: RouteQaVersionSnapshot[];
+  }>;
+};
+
 export function assertRouteQaDatabase(databaseUrl: string) {
+  if (databaseUrl.includes("?") || databaseUrl.includes("#")) {
+    throw new Error("route_qa_database_guard_rejected");
+  }
   let parsed: URL;
   try {
     parsed = new URL(databaseUrl);
@@ -72,6 +126,162 @@ function memberships(stopIds: string[], parcelEnabled: boolean): VersionStopInpu
 
 function assertReady(condition: unknown, scenario: string): asserts condition {
   if (!condition) throw new Error(`route_qa_scenario_${scenario}_not_ready`);
+}
+
+export function routeQaAuditDeleteWhere(resourceIds: string[]) {
+  return { entity_id: { in: resourceIds } };
+}
+
+function assertMemberships(
+  actual: RouteQaMembershipSnapshot[],
+  expected: Array<Omit<RouteQaMembershipSnapshot, "stopId"> & { stopKey: string }>,
+  stopIds: Map<string, string>,
+  scenario: string
+) {
+  assertReady(actual.length === expected.length, scenario);
+  for (const [index, wanted] of expected.entries()) {
+    const membership = actual[index];
+    assertReady(
+      membership.stopId === stopIds.get(wanted.stopKey) &&
+      membership.sequence === wanted.sequence &&
+      membership.passengerPickup === wanted.passengerPickup &&
+      membership.passengerDropoff === wanted.passengerDropoff &&
+      membership.parcelPickup === wanted.parcelPickup &&
+      membership.parcelDropoff === wanted.parcelDropoff &&
+      membership.scheduledOffsetSeconds === wanted.scheduledOffsetSeconds &&
+      membership.dwellSeconds === wanted.dwellSeconds,
+      scenario
+    );
+  }
+}
+
+function expectedMemberships(keys: string[], parcelEnabled: boolean) {
+  return keys.map((stopKey, index) => ({
+    stopKey,
+    sequence: index + 1,
+    passengerPickup: index < keys.length - 1,
+    passengerDropoff: index > 0,
+    parcelPickup: parcelEnabled && index < keys.length - 1,
+    parcelDropoff: parcelEnabled && index > 0,
+    scheduledOffsetSeconds: index * 600,
+    dwellSeconds: index === 0 || index === keys.length - 1 ? 60 : 120
+  }));
+}
+
+function assertVersion(
+  version: RouteQaVersionSnapshot | undefined,
+  expected: {
+    number: number;
+    status: RouteQaVersionSnapshot["status"];
+    nameAr: string;
+    nameEn: string;
+    descriptionEn: string;
+    stopKeys: string[];
+    parcelEnabled: boolean;
+  },
+  stopIds: Map<string, string>,
+  scenario: string
+) {
+  assertReady(
+    version?.versionNumber === expected.number &&
+    version.status === expected.status &&
+    version.nameAr === expected.nameAr &&
+    version.nameEn === expected.nameEn &&
+    version.descriptionEn === expected.descriptionEn,
+    scenario
+  );
+  assertMemberships(version.stops, expectedMemberships(expected.stopKeys, expected.parcelEnabled), stopIds, scenario);
+}
+
+export function assertRouteQaFixtureSnapshot(snapshot: RouteQaFixtureSnapshot) {
+  assertReady(
+    snapshot.actor?.id === QA_ACTOR_ID &&
+    snapshot.actor.role === "admin" &&
+    snapshot.actor.accountStatus === "active" &&
+    snapshot.actor.demoAccount === false &&
+    snapshot.actor.hasPasswordHash,
+    "actor"
+  );
+
+  const expectedStops = [
+    [stopKeys.active, "active", "محطة اختبار نشطة", "Active QA stop", "31.9038", "35.2034"],
+    [stopKeys.retired, "retired", "محطة اختبار متقاعدة", "Retired QA stop", "31.907", "35.206"],
+    [stopKeys.destination, "active", "محطة اختبار نهائية", "Destination QA stop", "31.915", "35.215"],
+    [stopKeys.middle, "active", "محطة اختبار وسطى", "Middle QA stop", "31.91", "35.21"]
+  ] as const;
+  assertReady(snapshot.stops.length === expectedStops.length, "stops");
+  const stopByKey = new Map(snapshot.stops.map((stop) => [stop.stopKey, stop]));
+  const stopIds = new Map<string, string>();
+  for (const [key, status, nameAr, nameEn, latitude, longitude] of expectedStops) {
+    const stop = stopByKey.get(key);
+    assertReady(
+      stop?.serviceRegionKey === QA_REGION && stop.status === status &&
+      stop.nameAr === nameAr && stop.nameEn === nameEn &&
+      stop.latitude === latitude && stop.longitude === longitude && Boolean(stop.id),
+      "stops"
+    );
+    stopIds.set(key, stop.id);
+  }
+  assertReady(new Set(stopIds.values()).size === expectedStops.length, "stops");
+
+  assertReady(snapshot.routes.length === Object.keys(routeKeys).length, "routes");
+  const routeByKey = new Map(snapshot.routes.map((route) => [route.routeKey, route]));
+  const identity = (
+    key: string,
+    groupKey: string,
+    direction: "outbound" | "inbound" | "loop",
+    status: "active" | "retired",
+    versionCount: number,
+    scenario: string
+  ) => {
+    const route = routeByKey.get(key);
+    assertReady(
+      route?.routeGroupKey === groupKey && route.serviceRegionKey === QA_REGION &&
+      route.direction === direction && route.status === status && route.versions.length === versionCount && Boolean(route.id),
+      scenario
+    );
+    return route;
+  };
+
+  const empty = identity(routeKeys.empty, `${FIXTURE_PREFIX}empty-group`, "loop", "active", 0, "c");
+  assertReady(empty.currentVersionId === null, "c");
+
+  const draft = identity(routeKeys.draft, `${FIXTURE_PREFIX}draft-group`, "outbound", "active", 1, "d");
+  assertReady(draft.currentVersionId === null, "d");
+  assertVersion(draft.versions[0], {
+    number: 1, status: "draft", nameAr: "مسودة صالحة للاختبار", nameEn: "Valid QA draft",
+    descriptionEn: `${FIXTURE_PREFIX}d-valid-draft`, stopKeys: [stopKeys.active, stopKeys.destination], parcelEnabled: false
+  }, stopIds, "d");
+
+  const invalid = identity(routeKeys.invalid, `${FIXTURE_PREFIX}invalid-group`, "inbound", "active", 1, "e");
+  assertReady(invalid.currentVersionId === null, "e");
+  assertVersion(invalid.versions[0], {
+    number: 1, status: "draft", nameAr: " ", nameEn: "Invalid publication QA draft",
+    descriptionEn: `${FIXTURE_PREFIX}e-invalid-publication`, stopKeys: [], parcelEnabled: false
+  }, stopIds, "e");
+
+  const current = identity(routeKeys.current, `${FIXTURE_PREFIX}history-group`, "outbound", "active", 3, "f");
+  const currentMetadata = {
+    nameAr: "المسار التجريبي الأول",
+    nameEn: "QA route version one",
+    descriptionEn: `${FIXTURE_PREFIX}h-retired-history`,
+    stopKeys: [stopKeys.active, stopKeys.middle, stopKeys.destination],
+    parcelEnabled: true
+  };
+  assertVersion(current.versions[0], { number: 1, status: "retired", ...currentMetadata }, stopIds, "h");
+  assertVersion(current.versions[1], { number: 2, status: "published", ...currentMetadata }, stopIds, "f");
+  assertVersion(current.versions[2], { number: 3, status: "draft", ...currentMetadata }, stopIds, "k");
+  assertReady(current.currentVersionId === current.versions[1].id, "f");
+
+  const paused = identity(routeKeys.paused, `${FIXTURE_PREFIX}paused-group`, "inbound", "active", 1, "g");
+  assertVersion(paused.versions[0], {
+    number: 1, status: "paused", nameAr: "مسار متوقف مؤقتا", nameEn: "Paused QA route",
+    descriptionEn: `${FIXTURE_PREFIX}g-paused-current`, stopKeys: [stopKeys.active, stopKeys.destination], parcelEnabled: false
+  }, stopIds, "g");
+  assertReady(paused.currentVersionId === paused.versions[0].id, "g");
+
+  const retired = identity(routeKeys.retired, `${FIXTURE_PREFIX}retired-group`, "outbound", "retired", 0, "l");
+  assertReady(retired.currentVersionId === null, "l");
 }
 
 async function assertFixturesAbsent(prisma: PrismaClient) {
@@ -255,53 +465,93 @@ async function prepareFixtures(prisma: PrismaClient, service: RouteManagementSer
   console.log("route QA prepare complete: 12 scenarios ready; fixtures preserved");
 }
 
-function hasForwardPermission(
-  stops: Array<{ passenger_pickup: boolean; passenger_dropoff: boolean; parcel_pickup: boolean; parcel_dropoff: boolean }>,
-  kind: "passenger" | "parcel"
-) {
-  const pickup = kind === "passenger" ? "passenger_pickup" : "parcel_pickup";
-  const dropoff = kind === "passenger" ? "passenger_dropoff" : "parcel_dropoff";
-  return stops.some((origin, originIndex) =>
-    origin[pickup] && stops.some((destination, destinationIndex) => destinationIndex > originIndex && destination[dropoff])
-  );
-}
-
 async function verifyFixtures(prisma: PrismaClient) {
-  const [stops, routes] = await Promise.all([
-    prisma.stop.findMany({ where: { stop_key: { startsWith: FIXTURE_PREFIX } } }),
+  const [actorRow, stops, routes] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: QA_ACTOR_ID },
+      select: { id: true, role: true, account_status: true, demo_account: true, password_hash: true }
+    }),
+    prisma.stop.findMany({
+      where: { stop_key: { startsWith: FIXTURE_PREFIX } },
+      orderBy: { stop_key: "asc" },
+      take: 5,
+      select: {
+        id: true, stop_key: true, service_region_key: true, name_ar: true, name_en: true,
+        latitude: true, longitude: true, status: true
+      }
+    }),
     prisma.serviceRoute.findMany({
       where: { route_key: { startsWith: FIXTURE_PREFIX } },
-      include: {
-        current_version: { include: { stops: { orderBy: { sequence: "asc" } } } },
-        versions: { include: { stops: { orderBy: { sequence: "asc" } } }, orderBy: { version_number: "asc" } }
+      orderBy: { route_key: "asc" },
+      take: 7,
+      select: {
+        id: true, route_key: true, route_group_key: true, service_region_key: true,
+        direction: true, status: true, current_version_id: true,
+        versions: {
+          orderBy: { version_number: "asc" },
+          take: 4,
+          select: {
+            id: true, version_number: true, status: true, name_ar: true, name_en: true, description_en: true,
+            stops: {
+              orderBy: { sequence: "asc" },
+              take: 4,
+              select: {
+                stop_id: true, sequence: true, passenger_pickup: true, passenger_dropoff: true,
+                parcel_pickup: true, parcel_dropoff: true, scheduled_offset_seconds: true, dwell_seconds: true
+              }
+            }
+          }
+        }
       }
     })
   ]);
-  const stopByKey = new Map(stops.map((stop) => [stop.stop_key, stop]));
-  const routeByKey = new Map(routes.map((route) => [route.route_key, route]));
-  const empty = routeByKey.get(routeKeys.empty);
-  const draft = routeByKey.get(routeKeys.draft);
-  const invalid = routeByKey.get(routeKeys.invalid);
-  const current = routeByKey.get(routeKeys.current);
-  const paused = routeByKey.get(routeKeys.paused);
-  const retired = routeByKey.get(routeKeys.retired);
 
-  assertReady(stopByKey.get(stopKeys.active)?.status === "active", "a");
-  assertReady(stopByKey.get(stopKeys.retired)?.status === "retired", "b");
-  assertReady(empty?.status === "active" && empty.current_version_id === null && empty.versions.length === 0, "c");
-  assertReady(draft?.versions.length === 1 && draft.versions[0].status === "draft" && draft.versions[0].stops.length === 2, "d");
-  assertReady(
-    invalid?.versions.length === 1 && invalid.versions[0].status === "draft" &&
-      invalid.versions[0].name_ar.trim() === "" && invalid.versions[0].stops.length === 0,
-    "e"
-  );
-  assertReady(current?.current_version?.status === "published" && hasForwardPermission(current.current_version.stops, "passenger"), "f");
-  assertReady(paused?.current_version?.status === "paused", "g");
-  assertReady(current?.versions.some((version) => version.status === "retired"), "h");
-  assertReady(current?.current_version && hasForwardPermission(current.current_version.stops, "parcel"), "i");
-  assertReady(current?.versions.length === 3, "j");
-  assertReady(current?.versions.some((version) => version.status === "draft" && version.stops.length === 3), "k");
-  assertReady(retired?.status === "retired" && retired.current_version_id === null, "l");
+  assertRouteQaFixtureSnapshot({
+    actor: actorRow ? {
+      id: actorRow.id,
+      role: actorRow.role,
+      accountStatus: actorRow.account_status,
+      demoAccount: actorRow.demo_account,
+      hasPasswordHash: actorRow.password_hash.startsWith("$2") && actorRow.password_hash.length >= 59
+    } : null,
+    stops: stops.map((stop) => ({
+      id: stop.id,
+      stopKey: stop.stop_key,
+      serviceRegionKey: stop.service_region_key,
+      nameAr: stop.name_ar,
+      nameEn: stop.name_en,
+      latitude: String(stop.latitude),
+      longitude: String(stop.longitude),
+      status: stop.status
+    })),
+    routes: routes.map((route) => ({
+      id: route.id,
+      routeKey: route.route_key,
+      routeGroupKey: route.route_group_key,
+      serviceRegionKey: route.service_region_key,
+      direction: route.direction,
+      status: route.status,
+      currentVersionId: route.current_version_id,
+      versions: route.versions.map((version) => ({
+        id: version.id,
+        versionNumber: version.version_number,
+        status: version.status,
+        nameAr: version.name_ar,
+        nameEn: version.name_en,
+        descriptionEn: version.description_en,
+        stops: version.stops.map((stop) => ({
+          stopId: stop.stop_id,
+          sequence: stop.sequence,
+          passengerPickup: stop.passenger_pickup,
+          passengerDropoff: stop.passenger_dropoff,
+          parcelPickup: stop.parcel_pickup,
+          parcelDropoff: stop.parcel_dropoff,
+          scheduledOffsetSeconds: stop.scheduled_offset_seconds,
+          dwellSeconds: stop.dwell_seconds
+        }))
+      }))
+    }))
+  });
 
   console.log("route QA verify complete: 12/12 scenarios ready; no mutations performed");
 }
@@ -327,9 +577,7 @@ async function cleanupFixtures(prisma: PrismaClient) {
       await tx.routeVersionStop.deleteMany({ where: { service_route_version_id: { in: versionIds } } });
     }
     if (resourceIds.length > 0) {
-      await tx.auditEvent.deleteMany({
-        where: { OR: [{ entity_id: { in: resourceIds } }, { user_id: QA_ACTOR_ID }] }
-      });
+      await tx.auditEvent.deleteMany({ where: routeQaAuditDeleteWhere(resourceIds) });
       await tx.idempotencyRecord.deleteMany({ where: { resource_id: { in: resourceIds } } });
     }
     if (versionIds.length > 0) {
