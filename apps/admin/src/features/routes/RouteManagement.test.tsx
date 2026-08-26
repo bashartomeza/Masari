@@ -1278,15 +1278,31 @@ describe("admin route management", () => {
   it("does not claim a conflict reload succeeded when reconciliation fails", async () => {
     const reload = vi.fn().mockResolvedValue(false);
     const message = await handleRouteMutationFailure(
-      Object.assign(new Error("current_version_conflict"), { status: 409 }),
+      Object.assign(new Error("current_version_conflict"), {
+        status: 409,
+        details: { error: "current_version_conflict", request_id: "request-reload-failed-1" }
+      }),
       reload,
       "en"
     );
 
     expect(reload).toHaveBeenCalledOnce();
-    expect(message).toBe(routeUiText("en").reloadFailed);
+    expect(message).toContain(routeUiText("en").reloadFailed);
+    expect(message).toContain("request-reload-failed-1");
     expect(message).not.toBe(routeUiText("en").conflictReloaded);
     expect(message).not.toBe(routeUiText("en").saved);
+
+    const reloadThrows = vi.fn().mockRejectedValue(new Error("network"));
+    const thrownMessage = await handleRouteMutationFailure(
+      Object.assign(new Error("current_version_conflict"), {
+        status: 409,
+        details: { error: "current_version_conflict", request_id: "request-reload-throws-1" }
+      }),
+      reloadThrows,
+      "en"
+    );
+    expect(thrownMessage).toContain(routeUiText("en").reloadFailed);
+    expect(thrownMessage).toContain("request-reload-throws-1");
   });
 
   it("does not reload non-conflicts or expose unknown internal failure text", async () => {

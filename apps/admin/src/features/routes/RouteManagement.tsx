@@ -478,9 +478,9 @@ export async function handleRouteMutationFailure(
   scope?: Exclude<RouteFeedbackScope, "page">
 ) {
   if (!routeConflictRequiresReload(error)) return routeUiError(locale, error);
+  const text = routeUiText(locale);
   try {
-    if (!await reload()) return routeUiText(locale).reloadFailed;
-    const text = routeUiText(locale);
+    if (!await reload()) return withRequestId(locale, text.reloadFailed, error);
     const scopedConflict = scope === "create-route"
       ? text.routeConflictCreateRoute
       : scope === "version-editor"
@@ -500,7 +500,7 @@ export async function handleRouteMutationFailure(
       ? scopedConflict
       : `${safeError} ${scopedConflict}`;
   } catch {
-    return routeUiText(locale).reloadFailed;
+    return withRequestId(locale, text.reloadFailed, error);
   }
 }
 
