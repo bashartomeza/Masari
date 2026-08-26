@@ -4,6 +4,7 @@ import type { AppConfig } from "../config.js";
 import { requireAuth, requireRole, type AuthenticatedRequest } from "../middleware/auth.js";
 import { HttpError, notFoundHandler } from "../middleware/error.js";
 import {
+  ADMIN_ROUTE_VERSION_HISTORY_LIMIT,
   routeManagementService,
   type RouteManagementService,
   type VersionStopInput
@@ -80,6 +81,14 @@ const publishSchema = z.strictObject({
   expected_revision: z.number().int().positive(),
   expected_current_version_id: id.nullable()
 });
+const currentVersionExpectation = z.strictObject({ expected_current_version_id: id.nullable() });
+const pauseSchema = currentVersionExpectation.extend({ reason: cleanText(500) });
+const resumeSchema = currentVersionExpectation;
+const retireVersionSchema = pauseSchema;
+const retireRouteSchema = z.strictObject({
+  reason: cleanText(500),
+  expected_current_version_id: z.null()
+});
 const reasonSchema = z.strictObject({ reason: cleanText(500) });
 const stopListSchema = z.strictObject({
   ...pagination,
@@ -138,6 +147,7 @@ function serializeStop(stop: Record<string, unknown>, admin = true) {
 function serializeMembership(membership: Record<string, unknown>, admin = true) {
   return {
     id: admin ? membership.id : undefined,
+    stop_id: admin ? membership.stop_id : undefined,
     sequence: membership.sequence,
     passenger_pickup_allowed: membership.passenger_pickup,
     passenger_dropoff_allowed: membership.passenger_dropoff,
@@ -151,25 +161,27 @@ function serializeMembership(membership: Record<string, unknown>, admin = true) 
   };
 }
 
-function serializeVersion(version: Record<string, unknown>, admin = true) {
+function serializeVersion(version: Record<string, unknown>, admin = true, detail = true) {
   const stops = Array.isArray(version.stops)
-    ? (version.stops as Array<Record<string, unknown>>).map((membership) => serializeMembership(membership, admin))
+    ? (version.stops as Array<Record<string, unknown>>)
+        .slice(0, 100)
+        .map((membership) => serializeMembership(membership, admin))
     : [];
   const count = version._count as { driver_routes?: number } | undefined;
   return {
     id: version.id,
-    service_route_id: admin ? version.service_route_id : undefined,
+    service_route_id: admin && detail ? version.service_route_id : undefined,
     version_number: version.version_number,
     status: version.status,
     name_ar: version.name_ar,
     name_en: version.name_en,
-    description_ar: admin ? version.description_ar : undefined,
-    description_en: admin ? version.description_en : undefined,
+    description_ar: admin && detail ? version.description_ar : undefined,
+    description_en: admin && detail ? version.description_en : undefined,
     active_from: version.active_from,
     active_until: version.active_until,
-    origin_stop_id: admin ? version.origin_stop_id : undefined,
-    destination_stop_id: admin ? version.destination_stop_id : undefined,
-    geometry: admin
+    origin_stop_id: admin && detail ? version.origin_stop_id : undefined,
+    destination_stop_id: admin && detail ? version.destination_stop_id : undefined,
+    geometry: admin && detail
       ? {
           status: version.geometry_status,
           ready: version.geometry_status === "available",
@@ -178,24 +190,28 @@ function serializeVersion(version: Record<string, unknown>, admin = true) {
           estimated_duration_s: version.estimated_duration_seconds
         }
       : undefined,
-    draft_revision: admin ? version.draft_revision : undefined,
+    draft_revision: admin && detail ? version.draft_revision : undefined,
     stop_count: admin ? stops.length : undefined,
-    stops,
-    driver_availability_count: admin ? (count?.driver_routes ?? 0) : undefined,
+    stops: detail ? stops : undefined,
+    driver_availability_count: admin && detail ? (count?.driver_routes ?? 0) : undefined,
     published_at: admin ? version.published_at : undefined,
     paused_at: admin ? version.paused_at : undefined,
-    pause_reason: admin ? version.pause_reason : undefined,
+    pause_reason: admin && detail ? version.pause_reason : undefined,
     retired_at: admin ? version.retired_at : undefined,
-    retirement_reason: admin ? version.retirement_reason : undefined,
-    created_at: admin ? version.created_at : undefined,
-    updated_at: admin ? version.updated_at : undefined
+    retirement_reason: admin && detail ? version.retirement_reason : undefined,
+    created_at: admin && detail ? version.created_at : undefined,
+    updated_at: admin && detail ? version.updated_at : undefined
   };
 }
 
-function serializeRoute(route: Record<string, unknown>, admin = true) {
+function serializeRoute(route: Record<string, unknown>, admin = true, detail = true) {
   const current = route.current_version as Record<string, unknown> | null | undefined;
   const versions = Array.isArray(route.versions)
-    ? (route.versions as Array<Record<string, unknown>>).map((version) => serializeVersion(version, true))
+    ? detail
+      ? (route.versions as Array<Record<string, unknown>>)
+        .slice(0, ADMIN_ROUTE_VERSION_HISTORY_LIMIT)
+        .map((version) => serializeVersion(version, true))
+      : undefined
     : undefined;
   const count = route._count as { versions?: number } | undefined;
   return {
@@ -206,7 +222,7 @@ function serializeRoute(route: Record<string, unknown>, admin = true) {
     direction: route.direction,
     status: route.status,
     current_version_id: admin ? route.current_version_id : undefined,
-    current_version: current ? serializeVersion(current, admin) : null,
+    current_version: current ? serializeVersion(current, admin, detail) : null,
     version_count: admin ? (count?.versions ?? versions?.length ?? 0) : undefined,
     versions: admin ? versions : undefined,
     retired_at: admin ? route.retired_at : undefined,
@@ -267,7 +283,7 @@ export function createAdminRouteManagementRouter(
         direction: input.direction,
         serviceRegionKey: input.service_region_key
       });
-      res.json({ ...result, routes: result.routes.map((route) => serializeRoute(route as unknown as Record<string, unknown>)) });
+      res.json({ ...result, routes: result.routes.map((route) => serializeRoute(route as unknown as Record<string, unknown>, true, false)) });
     } catch (error) {
       next(error);
     }
@@ -320,8 +336,12 @@ export function createAdminRouteManagementRouter(
 
   router.post("/admin/service-routes/:id/retire", async (req: AuthenticatedRequest, res, next) => {
     try {
-      const input = reasonSchema.parse(req.body);
-      const result = await service.retireRoute(pathId(req), input.reason, writeActor(req));
+      const input = retireRouteSchema.parse(req.body);
+      const result = await service.retireRoute(
+        pathId(req),
+        { reason: input.reason, expectedCurrentVersionId: input.expected_current_version_id },
+        writeActor(req)
+      );
       res.json({ route: serializeRoute(result.resource as unknown as Record<string, unknown>), replayed: result.replayed, request_id: req.requestId });
     } catch (error) {
       next(error);
@@ -395,8 +415,12 @@ export function createAdminRouteManagementRouter(
 
   router.post("/admin/route-versions/:id/pause", async (req: AuthenticatedRequest, res, next) => {
     try {
-      const input = reasonSchema.parse(req.body);
-      const result = await service.pauseVersion(pathId(req), input.reason, writeActor(req));
+      const input = pauseSchema.parse(req.body);
+      const result = await service.pauseVersion(
+        pathId(req),
+        { reason: input.reason, expectedCurrentVersionId: input.expected_current_version_id },
+        writeActor(req)
+      );
       res.json({ version: serializeVersion(result.resource as unknown as Record<string, unknown>), replayed: result.replayed, request_id: req.requestId });
     } catch (error) {
       next(error);
@@ -405,8 +429,12 @@ export function createAdminRouteManagementRouter(
 
   router.post("/admin/route-versions/:id/resume", async (req: AuthenticatedRequest, res, next) => {
     try {
-      z.strictObject({}).parse(req.body);
-      const result = await service.resumeVersion(pathId(req), writeActor(req));
+      const input = resumeSchema.parse(req.body);
+      const result = await service.resumeVersion(
+        pathId(req),
+        { expectedCurrentVersionId: input.expected_current_version_id },
+        writeActor(req)
+      );
       res.json({ version: serializeVersion(result.resource as unknown as Record<string, unknown>), replayed: result.replayed, request_id: req.requestId });
     } catch (error) {
       next(error);
@@ -415,8 +443,12 @@ export function createAdminRouteManagementRouter(
 
   router.post("/admin/route-versions/:id/retire", async (req: AuthenticatedRequest, res, next) => {
     try {
-      const input = reasonSchema.parse(req.body);
-      const result = await service.retireVersion(pathId(req), input.reason, writeActor(req));
+      const input = retireVersionSchema.parse(req.body);
+      const result = await service.retireVersion(
+        pathId(req),
+        { reason: input.reason, expectedCurrentVersionId: input.expected_current_version_id },
+        writeActor(req)
+      );
       res.json({ version: serializeVersion(result.resource as unknown as Record<string, unknown>), replayed: result.replayed, request_id: req.requestId });
     } catch (error) {
       next(error);

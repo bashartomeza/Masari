@@ -115,4 +115,56 @@ describe("Admin driver verification API client", () => {
       body: JSON.stringify({ status: "pickup_started", expected_status: "accepted" }),
     }));
   });
+
+  it("sends observed current-version expectations for every route lifecycle mutation", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(response({ version: { id: "version_1" } }))
+      .mockResolvedValueOnce(response({ version: { id: "version_1" } }))
+      .mockResolvedValueOnce(response({ version: { id: "version_1" } }))
+      .mockResolvedValueOnce(response({ route: { id: "route_1" } }));
+    vi.stubGlobal("fetch", fetchMock);
+    const api = createApiClient("http://api.test");
+
+    await api.routeVersionAction(
+      "admin-token",
+      "version_1",
+      "pause",
+      { reason: "review", expected_current_version_id: "version_1" },
+      "pause-key"
+    );
+    await api.routeVersionAction(
+      "admin-token",
+      "version_1",
+      "resume",
+      { expected_current_version_id: "version_1" },
+      "resume-key"
+    );
+    await api.routeVersionAction(
+      "admin-token",
+      "version_1",
+      "retire",
+      { reason: "superseded", expected_current_version_id: "version_1" },
+      "retire-key"
+    );
+    await api.retireServiceRoute(
+      "admin-token",
+      "route_1",
+      { reason: "service ended", expected_current_version_id: null },
+      "route-retire-key"
+    );
+
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+      reason: "review",
+      expected_current_version_id: "version_1"
+    });
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({ expected_current_version_id: "version_1" });
+    expect(JSON.parse(fetchMock.mock.calls[2][1].body)).toEqual({
+      reason: "superseded",
+      expected_current_version_id: "version_1"
+    });
+    expect(JSON.parse(fetchMock.mock.calls[3][1].body)).toEqual({
+      reason: "service ended",
+      expected_current_version_id: null
+    });
+  });
 });
