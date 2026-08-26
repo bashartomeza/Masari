@@ -151,7 +151,9 @@ async function main() {
   assert(await prisma.serviceRoute.count({ where: { status: "active" } }) === 5, "Concurrent route cap exceeded five active routes");
   const capRoutes = await prisma.serviceRoute.findMany({ where: { route_key: { startsWith: "integration-cap-" } } });
   for (const route of capRoutes) {
-    await service.retireRoute(route.id, { reason: "integration_cleanup", expectedCurrentVersionId: null }, actor(admin.id, `retire-${route.route_key}`));
+    if (route.status !== "retired") {
+      await service.retireRoute(route.id, { reason: "integration_cleanup", expectedCurrentVersionId: null }, actor(admin.id, `retire-${route.route_key}`));
+    }
   }
 
   const routeKeyRace = await Promise.allSettled([0, 1].map((index) => service.createRoute(
