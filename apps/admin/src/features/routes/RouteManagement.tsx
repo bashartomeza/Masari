@@ -334,7 +334,14 @@ export function routeUiText(locale: Locale) {
     routeConflictVersionEditor: shared.routeConflictVersionEditor,
     routeConflictStops: shared.routeConflictStops,
     routeConflictStopEditor: shared.routeConflictStopEditor,
-    routeConflictLifecycle: shared.routeConflictLifecycle
+    routeConflictLifecycle: shared.routeConflictLifecycle,
+    routeBetaLimitReached: shared.routeBetaLimitReached,
+    routeValidationError: shared.routeValidationError,
+    routeCurrentVersionConflict: shared.routeCurrentVersionConflict,
+    routeVersionInUse: shared.routeVersionInUse,
+    routeRouteInUse: shared.routeRouteInUse,
+    routeStopIdMissing: shared.routeStopIdMissing,
+    requestId: shared.requestId
   };
 }
 
@@ -371,11 +378,73 @@ export function mutationFailureIsAuthoritative(error: unknown) {
   );
 }
 
+function routeErrorPayload(error: unknown) {
+  const details = (error as ApiError | undefined)?.details;
+  return details && typeof details === "object" ? details as {
+    error?: unknown;
+    request_id?: unknown;
+    details?: unknown;
+  } : undefined;
+}
+
+function routeErrorCode(error: unknown) {
+  const payload = routeErrorPayload(error);
+  return typeof payload?.error === "string"
+    ? payload.error
+    : error instanceof Error ? error.message : "unexpected_error";
+}
+
+function routeRequestId(error: unknown) {
+  const value = routeErrorPayload(error)?.request_id;
+  return typeof value === "string" && value ? value : null;
+}
+
+function withRequestId(locale: Locale, message: string, error: unknown) {
+  const requestId = routeRequestId(error);
+  return requestId ? `${message} (${routeUiText(locale).requestId}: ${requestId})` : message;
+}
+
+function routeValidationMessage(locale: Locale, error: unknown) {
+  const payload = routeErrorPayload(error);
+  const details = Array.isArray(payload?.details) ? payload.details : [];
+  const text = routeUiText(locale);
+  const labels: Record<string, string> = {
+    name_ar: text.nameAr,
+    name_en: text.nameEn,
+    description_ar: text.descriptionAr,
+    description_en: text.descriptionEn,
+    active_from: text.activeFrom,
+    active_until: text.activeUntil
+  };
+  const fields = [...new Set(details.flatMap((detail) => {
+    if (!detail || typeof detail !== "object" || !("path" in detail) || !Array.isArray(detail.path)) return [];
+    const field = detail.path.map((value: unknown) => String(value)).find((value: string) => labels[value]);
+    return field ? [labels[field]] : [];
+  }))];
+  return fields.length > 0 ? `${text.routeValidationError} ${fields.join(", ")}` : text.routeValidationError;
+}
+
 export function routeUiError(locale: Locale, error: unknown) {
-  const value = error instanceof Error ? error.message : "unexpected_error";
-  if (value === "draft_revision_conflict") return routeUiText(locale).revisionConflict;
-  if (value === "used_stop_immutable") return routeUiText(locale).routeUsedStopImmutable;
-  return routeUiText(locale).genericError;
+  const code = routeErrorCode(error);
+  const text = routeUiText(locale);
+  const message = code === "draft_revision_conflict"
+    ? text.revisionConflict
+    : code === "current_version_conflict"
+      ? text.routeCurrentVersionConflict
+      : code === "beta_route_limit_reached"
+        ? text.routeBetaLimitReached
+        : code === "validation_error"
+          ? routeValidationMessage(locale, error)
+          : code === "used_stop_immutable"
+            ? text.routeUsedStopImmutable
+            : code === "route_version_has_active_usage"
+              ? text.routeVersionInUse
+              : code === "service_route_has_active_usage"
+                ? text.routeRouteInUse
+                : code === "route_stop_id_missing"
+                  ? text.routeStopIdMissing
+                  : text.genericError;
+  return withRequestId(locale, message, error);
 }
 
 export function routeStatusText(locale: Locale, value: string) {
@@ -384,7 +453,15 @@ export function routeStatusText(locale: Locale, value: string) {
 }
 
 export function routeConflictRequiresReload(error: unknown) {
-  return (error as ApiError | undefined)?.status === 409;
+  const code = routeErrorCode(error);
+  if ((error as ApiError | undefined)?.status !== 409) return false;
+  return !new Set([
+    "beta_route_limit_reached",
+    "used_stop_immutable",
+    "route_version_has_active_usage",
+    "service_route_has_active_usage",
+    "route_contains_inactive_stop"
+  ]).has(code);
 }
 
 export async function handleRouteMutationFailure(
@@ -408,6 +485,9 @@ export async function handleRouteMutationFailure(
             : scope === "lifecycle"
               ? text.routeConflictLifecycle
               : text.conflictReloaded;
+    if (routeErrorCode(error) === "current_version_conflict") {
+      return withRequestId(locale, scopedConflict, error);
+    }
     const safeError = routeUiError(locale, error);
     return safeError === routeUiText(locale).genericError
       ? scopedConflict
@@ -417,9 +497,9 @@ export async function handleRouteMutationFailure(
   }
 }
 
-function membershipsFromVersion(version: ServiceRouteVersion): RouteStopDraft[] {
+export function membershipsFromVersion(version: ServiceRouteVersion): RouteStopDraft[] {
   return version.stops.map((membership, index) => ({
-    stop_id: membership.stop_id,
+    stop_id: membership.stop_id ?? membership.stop?.id ?? (() => { throw new Error("route_stop_id_missing"); })(),
     sequence: index + 1,
     passenger_pickup_allowed: membership.passenger_pickup_allowed,
     passenger_dropoff_allowed: membership.passenger_dropoff_allowed,
@@ -688,6 +768,9 @@ export function RouteManagement({ api, token, locale }: { api: Api; token: strin
     if (!beginBusy("save-stops")) return;
     dispatch({ type: "clear-feedback" });
     try {
+      if (nextMemberships.some((membership) => !membership.stop_id?.trim())) {
+        throw new Error("route_stop_id_missing");
+      }
       const response = await api.replaceRouteStops(token, selectedVersion.id, {
         expected_revision: selectedVersion.draft_revision,
         stops: nextMemberships

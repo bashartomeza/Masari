@@ -26,6 +26,7 @@ import {
   routeUsedStopIds,
   routeUiText,
   routeUiError,
+  membershipsFromVersion,
   reorderControlLabel,
   stableMutationKey,
   toggleRouteStopPermission
@@ -630,6 +631,7 @@ describe("admin route management", () => {
     expect(new FormData(form).get("service_region_key")).toBe(" south-west-bank ");
     await act(async () => { form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); await Promise.resolve(); });
 
+    expect(api.createServiceRoute).toHaveBeenCalledOnce();
     expect(mountedHost.textContent).toContain("Created Hebron route");
     expect(mountedHost.textContent).toContain("Saved successfully.");
     expect(mountedHost.querySelector('[role="dialog"]')).toBeNull();
@@ -1188,6 +1190,56 @@ describe("admin route management", () => {
     expect(routeUiError("ar", new Error("internal_database_detail"))).toBe(routeUiText("ar").genericError);
     expect(routeUiError("en", new Error("route_version_not_pausable"))).toBe(routeUiText("en").genericError);
     expect(routeUiError("en", new Error("route_version_not_pausable"))).not.toContain("route_version_not_pausable");
+  });
+
+  it("maps route capacity and validation errors to scoped, bounded messages", () => {
+    const capacity = Object.assign(new Error("beta_route_limit_reached"), {
+      status: 409,
+      details: { error: "beta_route_limit_reached", request_id: "request-capacity-1" }
+    });
+    const validation = Object.assign(new Error("validation_error"), {
+      status: 400,
+      details: {
+        error: "validation_error",
+        request_id: "request-validation-1",
+        details: [{ path: ["description_en"], code: "too_small", message: "Invalid value" }]
+      }
+    });
+
+    expect(routeUiError("en", capacity)).toContain("beta limit for active routes");
+    expect(routeUiError("en", capacity)).toContain("request-capacity-1");
+    expect(routeUiError("en", validation)).toContain("English description");
+    expect(routeUiError("en", validation)).toContain("request-validation-1");
+  });
+
+  it("does not reload for the beta capacity conflict but reloads stale conflicts", async () => {
+    const reload = vi.fn().mockResolvedValue(true);
+    await handleRouteMutationFailure(
+      Object.assign(new Error("beta_route_limit_reached"), { status: 409 }),
+      reload,
+      "en",
+      "create-route"
+    );
+    expect(reload).not.toHaveBeenCalled();
+    await handleRouteMutationFailure(
+      Object.assign(new Error("draft_revision_conflict"), { status: 409 }),
+      reload,
+      "en",
+      "version-editor"
+    );
+    expect(reload).toHaveBeenCalledOnce();
+  });
+
+  it("normalizes nested-only stop responses and rejects a membership without any stop ID", () => {
+    const nestedOnly = {
+      ...version,
+      stops: [{ ...readyVersion.stops[0], stop_id: undefined }]
+    } as unknown as ServiceRouteVersion;
+    expect(membershipsFromVersion(nestedOnly)[0].stop_id).toBe("stop_1");
+    expect(() => membershipsFromVersion({
+      ...version,
+      stops: [{ ...readyVersion.stops[0], stop_id: undefined, stop: undefined }]
+    } as unknown as ServiceRouteVersion)).toThrow("route_stop_id_missing");
   });
 
   it("never renders an unknown raw route lifecycle status", () => {

@@ -83,7 +83,7 @@ function canonicalSnapshot(): RouteQaFixtureSnapshot {
         routeGroupKey: "qa-card6-empty-group",
         serviceRegionKey: "qa-card6-region",
         direction: "loop",
-        status: "active",
+        status: "retired",
         currentVersionId: null,
         versions: []
       },

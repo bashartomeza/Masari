@@ -127,9 +127,26 @@ describe("routeManagementModel", () => {
     });
     expect(normalizeRouteVersionDraft(draft)).toEqual({
       ...draft,
+      description_ar: null,
       active_from: "2026-08-25T06:00:00.000Z",
       active_until: null
     });
+  });
+
+  it.each([
+    ["", "", null, null],
+    ["   ", " \t", null, null],
+    ["وصف عربي", "", "وصف عربي", null],
+    ["", "English description", null, "English description"]
+  ])("normalizes optional descriptions without sending blank strings", (arabic, english, expectedArabic, expectedEnglish) => {
+    expect(normalizeRouteVersionDraft({
+      name_ar: "مسار",
+      name_en: "Route",
+      description_ar: arabic,
+      description_en: english,
+      active_from: "",
+      active_until: ""
+    })).toMatchObject({ description_ar: expectedArabic, description_en: expectedEnglish });
   });
 
   it("round-trips UTC instants through local datetime inputs in multiple timezones", () => {

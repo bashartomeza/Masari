@@ -317,8 +317,9 @@ export function assertRouteQaFixtureSnapshot(snapshot: RouteQaFixtureSnapshot) {
     return route;
   };
 
-  const empty = identity(routeKeys.empty, `${FIXTURE_PREFIX}empty-group`, "loop", "active", 0, "c");
+  const empty = identity(routeKeys.empty, `${FIXTURE_PREFIX}empty-group`, "loop", "retired", 0, "c");
   assertReady(empty.currentVersionId === null, "c");
+  assertReady(snapshot.routes.filter((route) => route.status === "active").length === 4, "route_create_slot");
 
   const draft = identity(routeKeys.draft, `${FIXTURE_PREFIX}draft-group`, "outbound", "active", 1, "d");
   assertReady(draft.currentVersionId === null, "d");
@@ -440,12 +441,17 @@ async function prepareFixtures(prisma: PrismaClient, service: RouteManagementSer
     actor("route-l-retire")
   );
 
-  await service.createRoute({
+  const emptyRoute = (await service.createRoute({
     routeKey: routeKeys.empty,
     routeGroupKey: `${FIXTURE_PREFIX}empty-group`,
     serviceRegionKey: QA_REGION,
     direction: "loop"
-  }, actor("route-c-create"));
+  }, actor("route-c-create"))).resource;
+  await service.retireRoute(
+    emptyRoute.id,
+    { reason: "qa_fixture_empty_route", expectedCurrentVersionId: null },
+    actor("route-c-retire")
+  );
 
   const draftRoute = (await service.createRoute({
     routeKey: routeKeys.draft,

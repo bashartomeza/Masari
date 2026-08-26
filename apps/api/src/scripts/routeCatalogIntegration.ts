@@ -112,6 +112,30 @@ async function main() {
     ));
   }
   assert(await prisma.serviceRoute.count({ where: { status: "active" } }) === 4, "Route cap setup was not deterministic");
+  const capSlot = await service.createRoute(
+    {
+      routeKey: "integration-cap-slot",
+      routeGroupKey: "integration-cap-slot",
+      serviceRegionKey: identity.serviceRegionKey,
+      direction: "outbound"
+    },
+    actor(admin.id, "route-cap-slot")
+  );
+  assert(await prisma.serviceRoute.count({ where: { status: "active" } }) === 5, "Route cap did not admit the fifth active route");
+  await expectFailure(
+    () => service.createRoute(
+      {
+        routeKey: "integration-cap-overflow",
+        routeGroupKey: "integration-cap-overflow",
+        serviceRegionKey: identity.serviceRegionKey,
+        direction: "outbound"
+      },
+      actor(admin.id, "route-cap-overflow")
+    ),
+    "beta_route_limit_reached"
+  );
+  assert(await prisma.serviceRoute.count({ where: { status: "active" } }) === 5, "Route cap overflow wrote a sixth active route");
+  await service.retireRoute(capSlot.resource.id, { reason: "integration_cleanup", expectedCurrentVersionId: null }, actor(admin.id, "retire-route-cap-slot"));
   const capRace = await Promise.allSettled(Array.from({ length: 8 }, (_, index) =>
     service.createRoute(
       {

@@ -83,6 +83,7 @@ const version = {
   published_by_user_id: "must-not-leak",
   stops: [{
     id: "membership_1",
+    stop_id: "stop_1",
     sequence: 1,
     passenger_pickup: true,
     passenger_dropoff: false,
@@ -499,6 +500,10 @@ describe("M7B route management APIs", () => {
     expect(response.body.route.version_count).toBe(51);
     expect(response.body.route.versions).toHaveLength(50);
     expect(response.body.route.versions[0].stops).toHaveLength(100);
+    expect(response.body.route.versions[0].stops[0]).toEqual(expect.objectContaining({
+      stop_id: expect.any(String),
+      stop: expect.objectContaining({ id: expect.any(String) })
+    }));
     const serialized = JSON.stringify(response.body);
     for (const forbidden of ["encoded_geometry", "geometry_provider", "created_by_user_id", "published_by_user_id", "geometry_checksum", ...forbiddenValues]) {
       expect(serialized).not.toContain(forbidden);

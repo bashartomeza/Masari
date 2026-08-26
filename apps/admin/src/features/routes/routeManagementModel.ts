@@ -39,6 +39,11 @@ function localDatetimeInput(value: string | null | undefined) {
   return localInstant.toISOString().slice(0, 16);
 }
 
+function normalizeOptionalDescription(value: string | null | undefined) {
+  const trimmed = value?.trim() ?? "";
+  return trimmed || null;
+}
+
 export function routeVersionDraftFrom(version: RouteVersionDraftSource): Required<RouteVersionDraft> {
   return {
     name_ar: version.name_ar,
@@ -54,8 +59,8 @@ export function normalizeRouteVersionDraft(draft: RouteVersionDraft): Required<R
   return {
     name_ar: draft.name_ar,
     name_en: draft.name_en,
-    description_ar: draft.description_ar ?? "",
-    description_en: draft.description_en ?? "",
+    description_ar: normalizeOptionalDescription(draft.description_ar),
+    description_en: normalizeOptionalDescription(draft.description_en),
     active_from: draft.active_from ? new Date(draft.active_from).toISOString() : null,
     active_until: draft.active_until ? new Date(draft.active_until).toISOString() : null
   };

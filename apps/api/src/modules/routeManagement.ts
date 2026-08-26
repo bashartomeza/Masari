@@ -147,6 +147,7 @@ function serializeStop(stop: Record<string, unknown>, admin = true) {
 function serializeMembership(membership: Record<string, unknown>, admin = true) {
   return {
     id: admin ? membership.id : undefined,
+    stop_id: admin ? membership.stop_id : undefined,
     sequence: membership.sequence,
     passenger_pickup_allowed: membership.passenger_pickup,
     passenger_dropoff_allowed: membership.passenger_dropoff,
