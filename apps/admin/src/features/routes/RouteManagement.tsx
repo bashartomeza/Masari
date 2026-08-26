@@ -409,12 +409,19 @@ function routeValidationMessage(locale: Locale, error: unknown) {
   const details = Array.isArray(payload?.details) ? payload.details : [];
   const text = routeUiText(locale);
   const labels: Record<string, string> = {
+    route_key: text.routeKey,
+    route_group_key: text.groupKey,
+    service_region_key: text.region,
+    direction: text.direction,
     name_ar: text.nameAr,
     name_en: text.nameEn,
     description_ar: text.descriptionAr,
     description_en: text.descriptionEn,
     active_from: text.activeFrom,
-    active_until: text.activeUntil
+    active_until: text.activeUntil,
+    stop_key: text.stopKey,
+    latitude: text.latitude,
+    longitude: text.longitude
   };
   const fields = [...new Set(details.flatMap((detail) => {
     if (!detail || typeof detail !== "object" || !("path" in detail) || !Array.isArray(detail.path)) return [];

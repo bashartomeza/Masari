@@ -1210,6 +1210,19 @@ describe("admin route management", () => {
     expect(routeUiError("en", capacity)).toContain("request-capacity-1");
     expect(routeUiError("en", validation)).toContain("English description");
     expect(routeUiError("en", validation)).toContain("request-validation-1");
+
+    const routeAndStopValidation = Object.assign(new Error("validation_error"), {
+      status: 400,
+      details: {
+        error: "validation_error",
+        details: [
+          { path: ["route_key"], code: "too_small", message: "Invalid value" },
+          { path: ["latitude"], code: "too_small", message: "Invalid value" }
+        ]
+      }
+    });
+    expect(routeUiError("en", routeAndStopValidation)).toContain("Route key");
+    expect(routeUiError("en", routeAndStopValidation)).toContain("Latitude");
   });
 
   it("does not reload for the beta capacity conflict but reloads stale conflicts", async () => {
