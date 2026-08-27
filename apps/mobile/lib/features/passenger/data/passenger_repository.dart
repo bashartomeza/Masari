@@ -25,10 +25,26 @@ class PassengerRepository {
   /// Returns an empty list when canonical entry is switched off — the endpoint
   /// 404s in that case, which means "this build has no driver supply to show",
   /// not an error worth asking the passenger to retry.
-  Future<List<AvailableDeparture>> availableDepartures({int limit = 25}) async {
+  Future<List<AvailableDeparture>> availableDepartures({
+    String? routeVersionId,
+    DateTime? departureFrom,
+    DateTime? departureUntil,
+    int? seats,
+    int limit = 25,
+  }) async {
     try {
+      final query = <String, String>{
+        'route_version_id': ?routeVersionId,
+        if (departureFrom != null)
+          'departure_from': departureFrom.toUtc().toIso8601String(),
+        if (departureUntil != null)
+          'departure_until': departureUntil.toUtc().toIso8601String(),
+        if (seats != null) 'seats': '$seats',
+        'limit': '$limit',
+      };
+      final encoded = Uri(queryParameters: query).query;
       final json = await apiClient.getJson(
-        '/passenger/available-departures?limit=$limit',
+        '/passenger/available-departures?$encoded',
       );
       final list = json['departures'];
       if (list is! List) throw const FormatException('Missing departures');

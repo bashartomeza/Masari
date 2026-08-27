@@ -6,11 +6,9 @@ import '../../../../core/theme/app_tokens.dart';
 
 /// The "where do you want to go?" entry point.
 ///
-/// The field is a button, not a text input: the corridor is fixed, so there is
-/// nothing to free-text search against. Tapping opens the request flow, which
-/// is where a destination is actually chosen. Styling it as a search field
-/// keeps the familiar affordance without implying a search API that does not
-/// exist.
+/// Tapping opens the natural-language request flow. That flow extracts the
+/// supported corridor fields, requires an editable review, and only then calls
+/// the real available-departures API.
 class DestinationSearchCard extends StatelessWidget {
   const DestinationSearchCard({required this.onTap, super.key});
 

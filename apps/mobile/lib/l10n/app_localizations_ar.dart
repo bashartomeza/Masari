@@ -1162,6 +1162,41 @@ class AppLocalizationsAr extends AppLocalizations {
   String get destinationSearchHint => 'مثال: من البوليتكنك إلى بيت لحم';
 
   @override
+  String get requestDescriptionLabel => 'اكتب طلب رحلتك';
+
+  @override
+  String get requestDescriptionHint =>
+      'مثال: من باب الزاوية إلى بيت لحم الساعة 3:00 مساءً، راكب واحد';
+
+  @override
+  String get extractRequest => 'فهم الطلب';
+
+  @override
+  String get reviewExtractedRequest => 'راجع تفاصيل الرحلة';
+
+  @override
+  String get reviewExtractedRequestBody =>
+      'هذه المعلومات التي فهمناها من طلبك. يمكنك تعديلها قبل بدء البحث.';
+
+  @override
+  String get confirmSearch => 'تأكيد والبحث عن رحلة';
+
+  @override
+  String get editOriginalRequest => 'تعديل الطلب المكتوب';
+
+  @override
+  String get searchResults => 'نتائج البحث';
+
+  @override
+  String get searchWindowHelp => 'سنبحث عن الرحلات القريبة من الوقت المحدد.';
+
+  @override
+  String get destinationUnsupported => 'الوجهة المتاحة حالياً هي بيت لحم.';
+
+  @override
+  String get requestTextRequired => 'اكتب تفاصيل رحلتك أولاً.';
+
+  @override
   String get quickDestinations => 'الوجهات السريعة';
 
   @override

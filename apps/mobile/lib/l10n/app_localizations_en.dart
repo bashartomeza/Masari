@@ -1170,6 +1170,43 @@ class AppLocalizationsEn extends AppLocalizations {
   String get destinationSearchHint => 'e.g. from PPU to Bethlehem';
 
   @override
+  String get requestDescriptionLabel => 'Describe your trip';
+
+  @override
+  String get requestDescriptionHint =>
+      'e.g. from Bab Al-Zawiya to Bethlehem at 3:00 PM, 1 passenger';
+
+  @override
+  String get extractRequest => 'Understand request';
+
+  @override
+  String get reviewExtractedRequest => 'Review trip details';
+
+  @override
+  String get reviewExtractedRequestBody =>
+      'This is what we understood from your request. You can edit it before searching.';
+
+  @override
+  String get confirmSearch => 'Confirm and search';
+
+  @override
+  String get editOriginalRequest => 'Edit original request';
+
+  @override
+  String get searchResults => 'Search results';
+
+  @override
+  String get searchWindowHelp =>
+      'We will search for departures close to the selected time.';
+
+  @override
+  String get destinationUnsupported =>
+      'Bethlehem is the only destination currently available.';
+
+  @override
+  String get requestTextRequired => 'Describe your trip first.';
+
+  @override
   String get quickDestinations => 'Quick destinations';
 
   @override

@@ -2300,6 +2300,72 @@ abstract class AppLocalizations {
   /// **'مثال: من البوليتكنك إلى بيت لحم'**
   String get destinationSearchHint;
 
+  /// No description provided for @requestDescriptionLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتب طلب رحلتك'**
+  String get requestDescriptionLabel;
+
+  /// No description provided for @requestDescriptionHint.
+  ///
+  /// In ar, this message translates to:
+  /// **'مثال: من باب الزاوية إلى بيت لحم الساعة 3:00 مساءً، راكب واحد'**
+  String get requestDescriptionHint;
+
+  /// No description provided for @extractRequest.
+  ///
+  /// In ar, this message translates to:
+  /// **'فهم الطلب'**
+  String get extractRequest;
+
+  /// No description provided for @reviewExtractedRequest.
+  ///
+  /// In ar, this message translates to:
+  /// **'راجع تفاصيل الرحلة'**
+  String get reviewExtractedRequest;
+
+  /// No description provided for @reviewExtractedRequestBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذه المعلومات التي فهمناها من طلبك. يمكنك تعديلها قبل بدء البحث.'**
+  String get reviewExtractedRequestBody;
+
+  /// No description provided for @confirmSearch.
+  ///
+  /// In ar, this message translates to:
+  /// **'تأكيد والبحث عن رحلة'**
+  String get confirmSearch;
+
+  /// No description provided for @editOriginalRequest.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعديل الطلب المكتوب'**
+  String get editOriginalRequest;
+
+  /// No description provided for @searchResults.
+  ///
+  /// In ar, this message translates to:
+  /// **'نتائج البحث'**
+  String get searchResults;
+
+  /// No description provided for @searchWindowHelp.
+  ///
+  /// In ar, this message translates to:
+  /// **'سنبحث عن الرحلات القريبة من الوقت المحدد.'**
+  String get searchWindowHelp;
+
+  /// No description provided for @destinationUnsupported.
+  ///
+  /// In ar, this message translates to:
+  /// **'الوجهة المتاحة حالياً هي بيت لحم.'**
+  String get destinationUnsupported;
+
+  /// No description provided for @requestTextRequired.
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتب تفاصيل رحلتك أولاً.'**
+  String get requestTextRequired;
+
   /// No description provided for @quickDestinations.
   ///
   /// In ar, this message translates to:

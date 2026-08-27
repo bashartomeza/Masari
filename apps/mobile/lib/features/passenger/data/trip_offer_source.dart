@@ -27,22 +27,20 @@ class ApiTripOfferSource implements TripOfferSource {
   @override
   Future<List<TripOffer>> availableOffers() async {
     final departures = await _repository.availableDepartures();
-    return departures.map(_toOffer).toList(growable: false);
-  }
-
-  TripOffer _toOffer(AvailableDeparture departure) {
-    return TripOffer(
-      id: departure.id,
-      driverName: departure.driverName,
-      fromLabel: departure.originLabel,
-      toLabel: departure.destinationLabel,
-      vehicleLabel: departure.vehicleType,
-      trustScore: departure.trustScore,
-      departureAt: departure.departureAt,
-      remainingSeats: departure.remainingSeats,
-    );
+    return departures.map(tripOfferFromDeparture).toList(growable: false);
   }
 }
+
+TripOffer tripOfferFromDeparture(AvailableDeparture departure) => TripOffer(
+  id: departure.id,
+  driverName: departure.driverName,
+  fromLabel: departure.originLabel,
+  toLabel: departure.destinationLabel,
+  vehicleLabel: departure.vehicleType,
+  trustScore: departure.trustScore,
+  departureAt: departure.departureAt,
+  remainingSeats: departure.remainingSeats,
+);
 
 final tripOfferSourceProvider = Provider<TripOfferSource>((ref) {
   return ApiTripOfferSource(ref.watch(passengerRepositoryProvider));
