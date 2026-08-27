@@ -74,6 +74,8 @@ class AvailableDeparture {
     required this.departureAt,
     required this.remainingSeats,
     required this.driverName,
+    this.availabilityWindowEnd,
+    this.stops = const [],
     this.vehicleType,
     this.trustScore,
   });
@@ -83,8 +85,10 @@ class AvailableDeparture {
   final String originLabel;
   final String destinationLabel;
   final DateTime departureAt;
+  final DateTime? availabilityWindowEnd;
   final int remainingSeats;
   final String driverName;
+  final List<AvailableDepartureStop> stops;
   final String? vehicleType;
   final int? trustScore;
 
@@ -93,16 +97,68 @@ class AvailableDeparture {
     final driverMap = driver is Map
         ? driver.map((key, value) => MapEntry(key.toString(), value))
         : const <String, dynamic>{};
+    final route = json['route'];
+    final routeMap = route is Map
+        ? route.map((key, value) => MapEntry(key.toString(), value))
+        : const <String, dynamic>{};
+    final rawStops = routeMap['stops'];
     return AvailableDeparture(
       id: _string(json, 'id'),
       routeVersionId: _string(json, 'route_version_id'),
       originLabel: _string(json, 'origin_label'),
       destinationLabel: _string(json, 'destination_label'),
       departureAt: DateTime.parse(_string(json, 'departure_at')).toLocal(),
+      availabilityWindowEnd: _optionalLocalDateTime(
+        json,
+        'availability_window_end',
+      ),
       remainingSeats: _int(json, 'remaining_seats'),
       driverName: driverMap['name'] as String? ?? '',
+      stops: rawStops is List
+          ? rawStops
+                .whereType<Map>()
+                .map(
+                  (value) => AvailableDepartureStop.fromJson(
+                    value.map((key, value) => MapEntry(key.toString(), value)),
+                  ),
+                )
+                .toList(growable: false)
+          : const [],
       vehicleType: driverMap['vehicle_type'] as String?,
       trustScore: (driverMap['trust_score'] as num?)?.toInt(),
+    );
+  }
+}
+
+/// A stop embedded in an available departure response.
+///
+/// These identifiers are kept so selecting a search result can prefill the
+/// existing canonical booking flow instead of starting an unrelated request.
+class AvailableDepartureStop {
+  const AvailableDepartureStop({
+    required this.id,
+    required this.nameAr,
+    required this.nameEn,
+    required this.sequence,
+    required this.passengerPickupAllowed,
+    required this.passengerDropoffAllowed,
+  });
+
+  final String id;
+  final String nameAr;
+  final String nameEn;
+  final int sequence;
+  final bool passengerPickupAllowed;
+  final bool passengerDropoffAllowed;
+
+  factory AvailableDepartureStop.fromJson(Map<String, dynamic> json) {
+    return AvailableDepartureStop(
+      id: _string(json, 'id'),
+      nameAr: _string(json, 'name_ar'),
+      nameEn: _string(json, 'name_en'),
+      sequence: _int(json, 'sequence'),
+      passengerPickupAllowed: json['passenger_pickup'] == true,
+      passengerDropoffAllowed: json['passenger_dropoff'] == true,
     );
   }
 }
@@ -139,4 +195,13 @@ int _int(Map<String, dynamic> json, String key) {
   if (value is int) return value;
   if (value is num) return value.toInt();
   throw FormatException('Missing $key');
+}
+
+DateTime? _optionalLocalDateTime(Map<String, dynamic> json, String key) {
+  final value = json[key];
+  if (value == null) return null;
+  if (value is! String) throw FormatException('Invalid $key');
+  final parsed = DateTime.tryParse(value);
+  if (parsed == null) throw FormatException('Invalid $key');
+  return parsed.toLocal();
 }

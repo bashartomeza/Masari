@@ -13,7 +13,9 @@ import '../domain/canonical_route_models.dart';
 import 'canonical_route_widgets.dart';
 
 class PassengerRouteRequestScreen extends ConsumerStatefulWidget {
-  const PassengerRouteRequestScreen({super.key});
+  const PassengerRouteRequestScreen({this.initialDraft, super.key});
+
+  final PassengerRouteRequestDraft? initialDraft;
 
   @override
   ConsumerState<PassengerRouteRequestScreen> createState() =>
@@ -35,6 +37,15 @@ class _PassengerRouteRequestScreenState
   @override
   void initState() {
     super.initState();
+    final draft = widget.initialDraft;
+    if (draft != null) {
+      _routeVersionId = draft.routeVersionId;
+      _pickupId = draft.pickupStopId;
+      _dropoffId = draft.dropoffStopId;
+      _from = draft.departureFrom;
+      _until = draft.departureUntil;
+      _passengers = draft.passengerCount;
+    }
     Future<void>(() async {
       final actorId = ref.read(authControllerProvider).value?.user?.id;
       if (actorId == null) return;

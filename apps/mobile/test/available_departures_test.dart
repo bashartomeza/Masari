@@ -20,7 +20,19 @@ void main() {
       }),
     );
 
-    final offers = await ApiTripOfferSource(repo).availableOffers();
+    final departures = await repo.availableDepartures();
+    final departure = departures.single;
+    final offers = [tripOfferFromDeparture(departure)];
+
+    expect(
+      departure.availabilityWindowEnd,
+      DateTime.parse('2026-08-01T17:30:00.000Z').toLocal(),
+    );
+    expect(departure.stops, hasLength(2));
+    expect(departure.stops.first.id, 'stop_bab');
+    expect(departure.stops.first.passengerPickupAllowed, isTrue);
+    expect(departure.stops.last.id, 'stop_bethlehem');
+    expect(departure.stops.last.passengerDropoffAllowed, isTrue);
 
     expect(offers, hasLength(1));
     final offer = offers.single;
@@ -79,4 +91,4 @@ AuthenticatedApiClient _client(
 }
 
 const _departuresJson =
-    '{"departures":[{"id":"availability_1","route_version_id":"version_1","origin_label":"Bab Al-Zawiya","destination_label":"Bethlehem Center","departure_at":"2026-08-01T17:00:00.000Z","availability_window_end":"2026-08-01T17:30:00.000Z","remaining_seats":3,"remaining_parcel_capacity":5,"driver":{"name":"Demo Driver Hebron Route","vehicle_type":"sedan","trust_score":86,"verified":true},"route":{"id":"version_1","name_ar":"الخليل","name_en":"Hebron -> Bethlehem","direction":"outbound","stops":[]}}],"server_now":"2026-08-01T12:00:00.000Z"}';
+    '{"departures":[{"id":"availability_1","route_version_id":"version_1","origin_label":"Bab Al-Zawiya","destination_label":"Bethlehem Center","departure_at":"2026-08-01T17:00:00.000Z","availability_window_end":"2026-08-01T17:30:00.000Z","remaining_seats":3,"remaining_parcel_capacity":5,"driver":{"name":"Demo Driver Hebron Route","vehicle_type":"sedan","trust_score":86,"verified":true},"route":{"id":"version_1","name_ar":"الخليل","name_en":"Hebron -> Bethlehem","direction":"outbound","stops":[{"id":"stop_bab","name_ar":"باب الزاوية","name_en":"Bab Al-Zawiya","sequence":1,"passenger_pickup":true,"passenger_dropoff":false},{"id":"stop_bethlehem","name_ar":"بيت لحم","name_en":"Bethlehem Center","sequence":2,"passenger_pickup":false,"passenger_dropoff":true}]}}],"server_now":"2026-08-01T12:00:00.000Z"}';

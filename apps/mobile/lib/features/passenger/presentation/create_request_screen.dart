@@ -8,11 +8,11 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/language_switch.dart';
 import '../../../core/widgets/masari_card.dart';
 import '../../../core/widgets/state_views.dart';
+import '../../canonical_routes/domain/canonical_route_models.dart';
 import '../data/passenger_models.dart';
 import '../data/passenger_repository.dart';
 import '../data/trip_offer_source.dart';
 import '../domain/smart_trip_request.dart';
-import '../domain/trip_offer.dart';
 import 'widgets/trip_offer_card.dart';
 
 enum _RequestStep { describe, review, results }
@@ -35,7 +35,7 @@ class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen> {
   int _count = 1;
   bool _loading = false;
   String? _error;
-  List<TripOffer> _results = const [];
+  List<AvailableDeparture> _results = const [];
 
   @override
   void dispose() {
@@ -308,10 +308,10 @@ class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen> {
             onAction: _loading ? null : _createRequest,
           )
         else
-          for (final offer in _results) ...[
+          for (final departure in _results) ...[
             TripOfferCard(
-              offer: offer,
-              onBook: _loading ? null : _createRequest,
+              offer: tripOfferFromDeparture(departure),
+              onBook: _loading ? null : () => _selectTrip(departure),
             ),
             const SizedBox(height: AppTokens.spaceMedium),
           ],
@@ -389,7 +389,7 @@ class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen> {
       });
       if (!mounted) return;
       setState(() {
-        _results = matching.map(tripOfferFromDeparture).toList(growable: false);
+        _results = matching.toList(growable: false);
         _step = _RequestStep.results;
       });
     } catch (_) {
@@ -397,6 +397,63 @@ class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  void _selectTrip(AvailableDeparture departure) {
+    final pickup = _findPickupStop(departure.stops);
+    final dropoff = _findDropoffStop(departure.stops, pickup?.sequence);
+    final now = DateTime.now();
+    final proposedFrom = departure.departureAt.subtract(
+      const Duration(minutes: 15),
+    );
+    final departureFrom = proposedFrom.isAfter(now)
+        ? proposedFrom
+        : departure.departureAt.isAfter(now)
+        ? departure.departureAt
+        : now.add(const Duration(minutes: 1));
+    final proposedUntil =
+        departure.availabilityWindowEnd ??
+        departure.departureAt.add(const Duration(minutes: 30));
+    final departureUntil = proposedUntil.isAfter(departureFrom)
+        ? proposedUntil
+        : departureFrom.add(const Duration(minutes: 30));
+
+    context.go(
+      '/passenger/routes/request/new',
+      extra: PassengerRouteRequestDraft(
+        routeVersionId: departure.routeVersionId,
+        pickupStopId: pickup?.id,
+        dropoffStopId: dropoff?.id,
+        departureFrom: departureFrom,
+        departureUntil: departureUntil,
+        passengerCount: _count,
+      ),
+    );
+  }
+
+  AvailableDepartureStop? _findPickupStop(List<AvailableDepartureStop> stops) {
+    for (final stop in stops) {
+      if (stop.passengerPickupAllowed &&
+          (_samePickup(stop.nameEn, _pickup.label) ||
+              _samePickup(stop.nameAr, _pickup.label))) {
+        return stop;
+      }
+    }
+    return null;
+  }
+
+  AvailableDepartureStop? _findDropoffStop(
+    List<AvailableDepartureStop> stops,
+    int? pickupSequence,
+  ) {
+    for (final stop in stops) {
+      if (stop.passengerDropoffAllowed &&
+          (pickupSequence == null || stop.sequence > pickupSequence) &&
+          (_isBethlehem(stop.nameEn) || _isBethlehem(stop.nameAr))) {
+        return stop;
+      }
+    }
+    return null;
   }
 
   Future<void> _createRequest() async {

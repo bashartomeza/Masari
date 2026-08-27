@@ -11,6 +11,7 @@ import '../../features/auth/presentation/unsupported_role_screen.dart';
 import '../../features/canonical_routes/presentation/driver_availability_screens.dart';
 import '../../features/canonical_routes/presentation/merchant_route_order_screen.dart';
 import '../../features/canonical_routes/presentation/passenger_route_request_screen.dart';
+import '../../features/canonical_routes/domain/canonical_route_models.dart';
 import '../../features/canonical_assignments/presentation/canonical_assignment_screens.dart';
 import '../../features/driver/presentation/driver_home_screen.dart';
 import '../../features/driver/presentation/driver_match_detail_screen.dart';
@@ -132,7 +133,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/passenger/routes/request/new',
-        builder: (context, state) => const PassengerRouteRequestScreen(),
+        builder: (context, state) => PassengerRouteRequestScreen(
+          initialDraft: state.extra is PassengerRouteRequestDraft
+              ? state.extra! as PassengerRouteRequestDraft
+              : null,
+        ),
       ),
       GoRoute(
         path: '/passenger/trip/:id',

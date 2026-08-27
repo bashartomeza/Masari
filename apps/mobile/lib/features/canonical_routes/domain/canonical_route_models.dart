@@ -15,6 +15,29 @@ enum DriverAvailabilityStatus {
   expired,
 }
 
+/// Values used to prefill the normal passenger booking flow.
+///
+/// The booking screen still refreshes and validates the route catalog before
+/// allowing submission; this object only carries a user's selected trip into
+/// that existing flow.
+class PassengerRouteRequestDraft {
+  const PassengerRouteRequestDraft({
+    required this.routeVersionId,
+    required this.departureFrom,
+    required this.departureUntil,
+    required this.passengerCount,
+    this.pickupStopId,
+    this.dropoffStopId,
+  });
+
+  final String routeVersionId;
+  final String? pickupStopId;
+  final String? dropoffStopId;
+  final DateTime departureFrom;
+  final DateTime departureUntil;
+  final int passengerCount;
+}
+
 class MobileCapabilities {
   const MobileCapabilities({
     required this.routeCatalogAvailable,
