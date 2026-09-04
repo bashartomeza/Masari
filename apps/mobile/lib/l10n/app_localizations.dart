@@ -1964,6 +1964,48 @@ abstract class AppLocalizations {
   /// **'اختر نافذة انطلاق مستقبلية وصحيحة.'**
   String get invalidDepartureWindow;
 
+  /// No description provided for @availabilityDepartureTooSoon.
+  ///
+  /// In ar, this message translates to:
+  /// **'وقت الانطلاق قريب جداً. اختر وقتاً بعد 10 دقائق على الأقل من الآن.'**
+  String get availabilityDepartureTooSoon;
+
+  /// No description provided for @availabilityDepartureTooFar.
+  ///
+  /// In ar, this message translates to:
+  /// **'وقت الانطلاق بعيد جداً. اختر وقتاً خلال الـ30 يوماً القادمة.'**
+  String get availabilityDepartureTooFar;
+
+  /// No description provided for @availabilityInvalidWindow.
+  ///
+  /// In ar, this message translates to:
+  /// **'نهاية نافذة الإتاحة يجب أن تكون بعد الانطلاق بساعتين كحد أقصى.'**
+  String get availabilityInvalidWindow;
+
+  /// No description provided for @availabilityExceedsVehicleCapacity.
+  ///
+  /// In ar, this message translates to:
+  /// **'سعة المقاعد أو الطرود التي اخترتها تتجاوز سعة مركبتك المسجلة.'**
+  String get availabilityExceedsVehicleCapacity;
+
+  /// No description provided for @availabilityDriverNotApproved.
+  ///
+  /// In ar, this message translates to:
+  /// **'حسابك كسائق لم يُعتمد بعد. تواصل مع الدعم لإتمام التحقق.'**
+  String get availabilityDriverNotApproved;
+
+  /// No description provided for @availabilityRouteNoLongerEligible.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يعد هذا المسار متاحاً. اختر مساراً آخر.'**
+  String get availabilityRouteNoLongerEligible;
+
+  /// No description provided for @availabilityDuplicate.
+  ///
+  /// In ar, this message translates to:
+  /// **'لديك بالفعل إتاحة مطابقة لهذا المسار والوقت.'**
+  String get availabilityDuplicate;
+
   /// No description provided for @invalidStopOrder.
   ///
   /// In ar, this message translates to:
@@ -3031,6 +3073,192 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'هذه الشاشة ليست مباشرة. استخدم التحديث للتحقق من المستجدات.'**
   String get notLiveNotice;
+
+  /// No description provided for @mapAttribution.
+  ///
+  /// In ar, this message translates to:
+  /// **'© مساهمو OpenStreetMap'**
+  String get mapAttribution;
+
+  /// No description provided for @mapLoading.
+  ///
+  /// In ar, this message translates to:
+  /// **'جارٍ تحميل الخريطة...'**
+  String get mapLoading;
+
+  /// No description provided for @mapLoadFailed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل الخريطة'**
+  String get mapLoadFailed;
+
+  /// No description provided for @mapLoadFailedBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر جلب بيانات المسار. تحقق من اتصالك ثم أعد المحاولة.'**
+  String get mapLoadFailedBody;
+
+  /// No description provided for @mapYourLocation.
+  ///
+  /// In ar, this message translates to:
+  /// **'موقعك الحالي'**
+  String get mapYourLocation;
+
+  /// No description provided for @mapRequestedRoute.
+  ///
+  /// In ar, this message translates to:
+  /// **'المسار المطلوب'**
+  String get mapRequestedRoute;
+
+  /// No description provided for @mapDriverRoute.
+  ///
+  /// In ar, this message translates to:
+  /// **'مسار السائق المتاح'**
+  String get mapDriverRoute;
+
+  /// No description provided for @mapOriginLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'نقطة الانطلاق: {name}'**
+  String mapOriginLabel(String name);
+
+  /// No description provided for @mapDestinationLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'الوجهة: {name}'**
+  String mapDestinationLabel(String name);
+
+  /// No description provided for @mapStopLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'محطة: {name}'**
+  String mapStopLabel(String name);
+
+  /// No description provided for @mapLegend.
+  ///
+  /// In ar, this message translates to:
+  /// **'دليل الرموز'**
+  String get mapLegend;
+
+  /// No description provided for @locationServiceDisabled.
+  ///
+  /// In ar, this message translates to:
+  /// **'خدمة الموقع متوقفة على الجهاز. فعّلها لعرض موقعك على الخريطة.'**
+  String get locationServiceDisabled;
+
+  /// No description provided for @locationPermissionDenied.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يُسمح بالوصول إلى الموقع. اسمح بالوصول لعرض موقعك.'**
+  String get locationPermissionDenied;
+
+  /// No description provided for @locationPermanentlyDenied.
+  ///
+  /// In ar, this message translates to:
+  /// **'الوصول إلى الموقع مرفوض نهائياً. فعّله من إعدادات النظام.'**
+  String get locationPermanentlyDenied;
+
+  /// No description provided for @locationUnavailable.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحديد موقعك الآن.'**
+  String get locationUnavailable;
+
+  /// No description provided for @locationEnable.
+  ///
+  /// In ar, this message translates to:
+  /// **'تفعيل الموقع'**
+  String get locationEnable;
+
+  /// No description provided for @checkpoints.
+  ///
+  /// In ar, this message translates to:
+  /// **'الحواجز'**
+  String get checkpoints;
+
+  /// No description provided for @checkpointsUnavailable.
+  ///
+  /// In ar, this message translates to:
+  /// **'بيانات الحواجز غير متاحة'**
+  String get checkpointsUnavailable;
+
+  /// No description provided for @checkpointsUnavailableBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر جلب حالة الحواجز. المسار معروض بدونها.'**
+  String get checkpointsUnavailableBody;
+
+  /// No description provided for @checkpointsDisabled.
+  ///
+  /// In ar, this message translates to:
+  /// **'خدمة الحواجز غير مفعّلة في هذا الإصدار.'**
+  String get checkpointsDisabled;
+
+  /// No description provided for @checkpointsStale.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذه آخر حالة مؤكدة للحواجز، وقد لا تكون محدّثة الآن.'**
+  String get checkpointsStale;
+
+  /// No description provided for @checkpointsEmpty.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد حواجز مسجّلة على هذا المسار.'**
+  String get checkpointsEmpty;
+
+  /// No description provided for @checkpointCount.
+  ///
+  /// In ar, this message translates to:
+  /// **'{count, plural, =0{لا حواجز} =1{حاجز واحد} =2{حاجزان} few{{count} حواجز} other{{count} حاجزاً}}'**
+  String checkpointCount(int count);
+
+  /// No description provided for @checkpointOpen.
+  ///
+  /// In ar, this message translates to:
+  /// **'مفتوح'**
+  String get checkpointOpen;
+
+  /// No description provided for @checkpointCongested.
+  ///
+  /// In ar, this message translates to:
+  /// **'ازدحام'**
+  String get checkpointCongested;
+
+  /// No description provided for @checkpointClosed.
+  ///
+  /// In ar, this message translates to:
+  /// **'مغلق'**
+  String get checkpointClosed;
+
+  /// No description provided for @checkpointUnknown.
+  ///
+  /// In ar, this message translates to:
+  /// **'الحالة غير معروفة'**
+  String get checkpointUnknown;
+
+  /// No description provided for @checkpointLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'{name} — {status}'**
+  String checkpointLabel(String name, String status);
+
+  /// No description provided for @checkpointUnnamed.
+  ///
+  /// In ar, this message translates to:
+  /// **'حاجز'**
+  String get checkpointUnnamed;
+
+  /// No description provided for @mapRouteMissingCoordinates.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد إحداثيات لهذا المسار، لذلك لا يمكن رسمه على الخريطة.'**
+  String get mapRouteMissingCoordinates;
+
+  /// No description provided for @mapSelectRoute.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر مساراً لعرضه على الخريطة.'**
+  String get mapSelectRoute;
 }
 
 class _AppLocalizationsDelegate

@@ -22,7 +22,7 @@ class DriverAvailabilityListScreen extends ConsumerWidget {
       child: Scaffold(
         appBar: AppBar(title: Text(l10n.driverAvailabilities)),
         floatingActionButton: FloatingActionButton.extended(
-          onPressed: () => context.go('/driver/availability/new'),
+          onPressed: () => context.push('/driver/availability/new'),
           icon: const Icon(Icons.add),
           label: Text(l10n.newAvailability),
         ),
@@ -59,7 +59,7 @@ class DriverAvailabilityListScreen extends ConsumerWidget {
                                 '${availabilityStatusLabel(l10n, value.status)} · ${dateTimeLabel(context, value.departureAt)}',
                               ),
                               trailing: const Icon(Icons.chevron_right),
-                              onTap: () => context.go(
+                              onTap: () => context.push(
                                 '/driver/availability/${value.id}',
                               ),
                             ),
@@ -303,7 +303,7 @@ class _DriverAvailabilityFormScreenState
             'total_seats': _seats,
             'total_parcel_capacity': _parcels,
           }, actorId: actorId);
-      if (mounted) context.go('/driver/availability/${value.id}');
+      if (mounted) context.pushReplacement('/driver/availability/${value.id}');
     } catch (error) {
       if (error is ApiException && error.statusCode == 404) {
         ref.invalidate(mobileCapabilitiesProvider);
@@ -598,6 +598,25 @@ String _safeError(AppLocalizations l10n, Object error) {
           error.statusCode == 502 ||
           error.statusCode == 503)) {
     return l10n.operationTemporaryFailure;
+  }
+  if (error is ApiException) {
+    switch (error.message) {
+      case 'departure_too_soon':
+        return l10n.availabilityDepartureTooSoon;
+      case 'departure_too_far':
+        return l10n.availabilityDepartureTooFar;
+      case 'invalid_availability_window':
+        return l10n.availabilityInvalidWindow;
+      case 'availability_exceeds_vehicle_capacity':
+        return l10n.availabilityExceedsVehicleCapacity;
+      case 'driver_not_approved':
+        return l10n.availabilityDriverNotApproved;
+      case 'route_unavailable':
+      case 'canonical_entry_disabled':
+        return l10n.availabilityRouteNoLongerEligible;
+      case 'duplicate_driver_availability':
+        return l10n.availabilityDuplicate;
+    }
   }
   return l10n.requestFailed;
 }

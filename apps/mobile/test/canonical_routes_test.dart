@@ -57,13 +57,38 @@ void main() {
       );
     });
 
-    test('rejects coordinates in the public stop contract', () {
+    test('reads coordinates when the catalog supplies them', () {
+      final parsed = CanonicalStop.fromMembership({
+        ...membership(1, pickup: true),
+        'stop': {...stop('one'), 'latitude': 31.5326, 'longitude': 35.0998},
+      });
+      expect(parsed.position, const GeoPoint(31.5326, 35.0998));
+    });
+
+    test('leaves a stop unplaced when maps are off or a coordinate is absent', () {
+      // Maps disabled: the serializer omits both keys entirely.
       expect(
-        () => CanonicalStop.fromMembership({
+        CanonicalStop.fromMembership({
           ...membership(1, pickup: true),
-          'stop': {...stop('one'), 'latitude': 31.5},
-        }),
-        throwsFormatException,
+          'stop': stop('one'),
+        }).position,
+        isNull,
+      );
+      // A half-reported position is not a position.
+      expect(
+        CanonicalStop.fromMembership({
+          ...membership(1, pickup: true),
+          'stop': {...stop('one'), 'latitude': 31.5326},
+        }).position,
+        isNull,
+      );
+      // Out of range is dropped rather than clamped onto the map.
+      expect(
+        CanonicalStop.fromMembership({
+          ...membership(1, pickup: true),
+          'stop': {...stop('one'), 'latitude': 931.5, 'longitude': 35.0998},
+        }).position,
+        isNull,
       );
     });
 

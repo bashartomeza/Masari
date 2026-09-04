@@ -33,6 +33,8 @@ import type { DriverAvailabilityService } from "./services/driverAvailability.js
 import { createCanonicalDemandRouter } from "./modules/canonicalDemand.js";
 import type { CanonicalDemandService } from "./services/canonicalDemand.js";
 import { createCapabilitiesRouter } from "./modules/capabilities.js";
+import { createCheckpointRouter } from "./modules/checkpoints.js";
+import type { CheckpointService } from "./services/checkpoints.js";
 import { createCanonicalMatchingRouter } from "./modules/canonicalMatching.js";
 import { createCanonicalSharedMatchingRouter } from "./modules/canonicalSharedMatching.js";
 import type { CanonicalMatchingService } from "./services/canonicalMatching.js";
@@ -50,6 +52,7 @@ type AppDependencies = {
   canonicalDemandService?: CanonicalDemandService;
   canonicalMatchingService?: CanonicalMatchingService;
   canonicalSharedMatchingService?: CanonicalSharedMatchingService;
+  checkpointService?: CheckpointService;
 };
 
 export function createApp(appConfig: AppConfig = config, dependencies: AppDependencies = {}) {
@@ -72,6 +75,7 @@ export function createApp(appConfig: AppConfig = config, dependencies: AppDepend
 
   app.use("/api/v1", authRouter);
   app.use("/api/v1", createCapabilitiesRouter(appConfig));
+  app.use("/api/v1", createCheckpointRouter(appConfig, dependencies.checkpointService));
   if (appConfig.demoFeaturesEnabled) app.use("/api/v1", demoRouter);
   app.use("/api/v1", createCanonicalDemandRouter(appConfig, dependencies.canonicalDemandService));
   app.use("/api/v1", createCanonicalMatchingRouter(appConfig, dependencies.canonicalMatchingService));

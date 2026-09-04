@@ -7,7 +7,7 @@ import '../../../core/presentation/localized_labels.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/language_switch.dart';
-import '../../../core/widgets/map_placeholder.dart';
+import '../../../core/widgets/masari_map.dart';
 import '../../../core/widgets/masari_section.dart';
 import '../../../core/widgets/state_views.dart';
 import '../../auth/application/auth_controller.dart';
@@ -114,10 +114,11 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                   ),
 
                   const SizedBox(height: AppTokens.spaceMedium),
-                  // Never fakes a position: with no coordinates it renders an
-                  // explicit empty state instead of a decorative map.
-                  MapPlaceholder(
+                  // No driver position is published to this screen yet, so the
+                  // map renders its empty state rather than a decorative one.
+                  MasariMap(
                     emptyLabel: l10n.mapNoLocation,
+                    attributionLabel: l10n.mapAttribution,
                     height: 190,
                   ),
 

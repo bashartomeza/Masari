@@ -3,10 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:masari_mobile/l10n/app_localizations.dart';
 
 import '../../../core/theme/app_tokens.dart';
-import '../../../core/widgets/map_placeholder.dart';
+import '../../../core/theme/semantic_colors.dart';
 import '../../../core/presentation/localized_labels.dart';
 import '../../../core/widgets/language_switch.dart';
 import '../../../core/widgets/masari_card.dart';
+import '../../../core/widgets/masari_map.dart';
+import '../../../core/widgets/state_views.dart';
+import '../../canonical_routes/domain/canonical_route_models.dart';
 import '../../security/presentation/session_status_banner.dart';
 import '../application/passenger_trip_controller.dart';
 
@@ -94,18 +97,29 @@ class _PassengerTripScreenState extends ConsumerState<PassengerTripScreen>
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                     const SizedBox(height: AppTokens.spaceSmall),
-                    // Reserves the live map's footprint and renders the fix the
-                    // API already reports. Swapping in a real map layer later
-                    // is a change inside MapPlaceholder, not here.
-                    MapPlaceholder(
+                    // Draws the fix the API reported, and nothing when there is
+                    // none — an unreported driver must not appear parked
+                    // somewhere plausible.
+                    MasariMap(
                       emptyLabel: l10n.noLocationYet,
-                      latitude: data.location?.lat.toString(),
-                      longitude: data.location?.lng.toString(),
-                      caption: data.location == null
-                          ? null
-                          : '${l10n.recordedTime}: ${data.location!.recordedAt}',
-                      staleLabel: l10n.locationIsStale,
-                      isStale: data.locationIsStale,
+                      attributionLabel: l10n.mapAttribution,
+                      height: 220,
+                      banner: data.locationIsStale
+                          ? OfflineBanner(message: l10n.locationIsStale)
+                          : null,
+                      markers: [
+                        if (data.location != null)
+                          MasariMapMarker(
+                            position: GeoPoint(
+                              data.location!.lat,
+                              data.location!.lng,
+                            ),
+                            icon: Icons.local_shipping,
+                            color: SemanticColors.driver,
+                            label:
+                                '${l10n.latestLocation} — ${l10n.recordedTime}: ${data.location!.recordedAt}',
+                          ),
+                      ],
                     ),
                     if (data.location != null) ...[
                       const SizedBox(height: AppTokens.spaceSmall),
