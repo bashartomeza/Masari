@@ -27,7 +27,10 @@ export function createCapabilitiesRouter(appConfig: AppConfig) {
       canonical_shared_trip_presentation_available: canonicalSharedTripPresentationAvailable,
       canonical_shared_driver_offers_available: canonicalSharedTripPresentationAvailable,
       canonical_shared_assignment_status_available: canonicalSharedTripPresentationAvailable,
-      maps_available: false,
+      // Coordinates and geometry reach clients only through the canonical
+      // catalog, so the map gate is the catalog gate plus the maps flag.
+      maps_available: appConfig.mapsEnabled && appConfig.routeManagementEnabled,
+      checkpoints_available: appConfig.checkpointsEnabled,
       live_tracking_available: false,
       demo_reset_available: evaluateDemoResetSafety(appConfig).allowed
     });

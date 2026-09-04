@@ -330,6 +330,13 @@
   "submitAvailability": "إرسال الإتاحة",
   "selectDateTime": "اختر التاريخ والوقت",
   "invalidDepartureWindow": "اختر نافذة انطلاق مستقبلية وصحيحة.",
+  "availabilityDepartureTooSoon": "وقت الانطلاق قريب جداً. اختر وقتاً بعد 10 دقائق على الأقل من الآن.",
+  "availabilityDepartureTooFar": "وقت الانطلاق بعيد جداً. اختر وقتاً خلال الـ30 يوماً القادمة.",
+  "availabilityInvalidWindow": "نهاية نافذة الإتاحة يجب أن تكون بعد الانطلاق بساعتين كحد أقصى.",
+  "availabilityExceedsVehicleCapacity": "سعة المقاعد أو الطرود التي اخترتها تتجاوز سعة مركبتك المسجلة.",
+  "availabilityDriverNotApproved": "حسابك كسائق لم يُعتمد بعد. تواصل مع الدعم لإتمام التحقق.",
+  "availabilityRouteNoLongerEligible": "لم يعد هذا المسار متاحاً. اختر مساراً آخر.",
+  "availabilityDuplicate": "لديك بالفعل إتاحة مطابقة لهذا المسار والوقت.",
   "invalidStopOrder": "اختر محطة معتمدة لاحقة في المسار.",
   "operationTemporaryFailure": "نتيجة العملية غير مؤكدة. أعد محاولة العملية نفسها عند توفر الاتصال.",
   "canonicalRecoveryRequired": "توجد عملية سابقة غير محسومة. سجّل الدخول بالحساب الأصلي وأعد العملية نفسها، أو تواصل مع الدعم إذا انتهت مهلة الاسترداد.",
@@ -603,5 +610,54 @@
   "actionDisabledUncertain": "الإجراء غير متاح حتى تتم مطابقة نتيجة العملية السابقة.",
   "sharedFeatureUnavailable": "عروض الرحلات المشتركة غير متاحة في هذه البيئة.",
   "sharedAssignmentUnavailable": "تفاصيل إسناد الرحلة المشتركة غير متاحة في هذه البيئة.",
-  "notLiveNotice": "هذه الشاشة ليست مباشرة. استخدم التحديث للتحقق من المستجدات."
+  "notLiveNotice": "هذه الشاشة ليست مباشرة. استخدم التحديث للتحقق من المستجدات.",
+  "mapAttribution": "© مساهمو OpenStreetMap",
+  "mapLoading": "جارٍ تحميل الخريطة...",
+  "mapLoadFailed": "تعذّر تحميل الخريطة",
+  "mapLoadFailedBody": "تعذّر جلب بيانات المسار. تحقق من اتصالك ثم أعد المحاولة.",
+  "mapYourLocation": "موقعك الحالي",
+  "mapRequestedRoute": "المسار المطلوب",
+  "mapDriverRoute": "مسار السائق المتاح",
+  "mapOriginLabel": "نقطة الانطلاق: {name}",
+  "@mapOriginLabel": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "mapDestinationLabel": "الوجهة: {name}",
+  "@mapDestinationLabel": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "mapStopLabel": "محطة: {name}",
+  "@mapStopLabel": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "mapLegend": "دليل الرموز",
+  "locationServiceDisabled": "خدمة الموقع متوقفة على الجهاز. فعّلها لعرض موقعك على الخريطة.",
+  "locationPermissionDenied": "لم يُسمح بالوصول إلى الموقع. اسمح بالوصول لعرض موقعك.",
+  "locationPermanentlyDenied": "الوصول إلى الموقع مرفوض نهائياً. فعّله من إعدادات النظام.",
+  "locationUnavailable": "تعذّر تحديد موقعك الآن.",
+  "locationEnable": "تفعيل الموقع",
+  "checkpoints": "الحواجز",
+  "checkpointsUnavailable": "بيانات الحواجز غير متاحة",
+  "checkpointsUnavailableBody": "تعذّر جلب حالة الحواجز. المسار معروض بدونها.",
+  "checkpointsDisabled": "خدمة الحواجز غير مفعّلة في هذا الإصدار.",
+  "checkpointsStale": "هذه آخر حالة مؤكدة للحواجز، وقد لا تكون محدّثة الآن.",
+  "checkpointsEmpty": "لا توجد حواجز مسجّلة على هذا المسار.",
+  "checkpointCount": "{count, plural, =0{لا حواجز} =1{حاجز واحد} =2{حاجزان} few{{count} حواجز} other{{count} حاجزاً}}",
+  "@checkpointCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "checkpointOpen": "مفتوح",
+  "checkpointCongested": "ازدحام",
+  "checkpointClosed": "مغلق",
+  "checkpointUnknown": "الحالة غير معروفة",
+  "checkpointLabel": "{name} — {status}",
+  "@checkpointLabel": {
+    "placeholders": {
+      "name": { "type": "String" },
+      "status": { "type": "String" }
+    }
+  },
+  "checkpointUnnamed": "حاجز",
+  "mapRouteMissingCoordinates": "لا توجد إحداثيات لهذا المسار، لذلك لا يمكن رسمه على الخريطة.",
+  "mapSelectRoute": "اختر مساراً لعرضه على الخريطة."
 }

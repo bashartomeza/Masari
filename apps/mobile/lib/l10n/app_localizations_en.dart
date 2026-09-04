@@ -984,6 +984,34 @@ class AppLocalizationsEn extends AppLocalizations {
       'Choose a valid future departure window.';
 
   @override
+  String get availabilityDepartureTooSoon =>
+      'Departure is too soon. Choose a time at least 10 minutes from now.';
+
+  @override
+  String get availabilityDepartureTooFar =>
+      'Departure is too far out. Choose a time within the next 30 days.';
+
+  @override
+  String get availabilityInvalidWindow =>
+      'The availability window can end at most 2 hours after departure.';
+
+  @override
+  String get availabilityExceedsVehicleCapacity =>
+      'The seats or parcels you selected exceed your registered vehicle\'s capacity.';
+
+  @override
+  String get availabilityDriverNotApproved =>
+      'Your driver account isn\'t approved yet. Contact support to complete verification.';
+
+  @override
+  String get availabilityRouteNoLongerEligible =>
+      'This route is no longer available. Choose a different route.';
+
+  @override
+  String get availabilityDuplicate =>
+      'You already have a matching availability for this route and time.';
+
+  @override
   String get invalidStopOrder => 'Choose an approved downstream stop.';
 
   @override
@@ -1578,4 +1606,123 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get notLiveNotice =>
       'This screen is not live. Use Refresh to check for updates.';
+
+  @override
+  String get mapAttribution => '© OpenStreetMap contributors';
+
+  @override
+  String get mapLoading => 'Loading map...';
+
+  @override
+  String get mapLoadFailed => 'Map could not load';
+
+  @override
+  String get mapLoadFailedBody =>
+      'Route data could not be fetched. Check your connection and retry.';
+
+  @override
+  String get mapYourLocation => 'Your location';
+
+  @override
+  String get mapRequestedRoute => 'Requested route';
+
+  @override
+  String get mapDriverRoute => 'Available driver route';
+
+  @override
+  String mapOriginLabel(String name) {
+    return 'Origin: $name';
+  }
+
+  @override
+  String mapDestinationLabel(String name) {
+    return 'Destination: $name';
+  }
+
+  @override
+  String mapStopLabel(String name) {
+    return 'Stop: $name';
+  }
+
+  @override
+  String get mapLegend => 'Legend';
+
+  @override
+  String get locationServiceDisabled =>
+      'Location services are off on this device. Turn them on to show your position.';
+
+  @override
+  String get locationPermissionDenied =>
+      'Location access was not granted. Allow access to show your position.';
+
+  @override
+  String get locationPermanentlyDenied =>
+      'Location access is permanently denied. Enable it in system settings.';
+
+  @override
+  String get locationUnavailable =>
+      'Your position could not be determined right now.';
+
+  @override
+  String get locationEnable => 'Enable location';
+
+  @override
+  String get checkpoints => 'Barriers';
+
+  @override
+  String get checkpointsUnavailable => 'Barrier data unavailable';
+
+  @override
+  String get checkpointsUnavailableBody =>
+      'Barrier status could not be fetched. The route is shown without it.';
+
+  @override
+  String get checkpointsDisabled =>
+      'Barrier data is not enabled in this build.';
+
+  @override
+  String get checkpointsStale =>
+      'These are the last confirmed barrier states and may be out of date.';
+
+  @override
+  String get checkpointsEmpty => 'No barriers recorded on this route.';
+
+  @override
+  String checkpointCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count barriers',
+      one: '1 barrier',
+      zero: 'No barriers',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get checkpointOpen => 'Open';
+
+  @override
+  String get checkpointCongested => 'Congested';
+
+  @override
+  String get checkpointClosed => 'Closed';
+
+  @override
+  String get checkpointUnknown => 'Status unknown';
+
+  @override
+  String checkpointLabel(String name, String status) {
+    return '$name — $status';
+  }
+
+  @override
+  String get checkpointUnnamed => 'Barrier';
+
+  @override
+  String get mapRouteMissingCoordinates =>
+      'This route has no coordinates, so it cannot be drawn on the map.';
+
+  @override
+  String get mapSelectRoute => 'Choose a route to show it on the map.';
 }

@@ -36,6 +36,8 @@ import type { DriverAvailabilityService } from "./services/driverAvailability.js
 import { createCanonicalDemandRouter } from "./modules/canonicalDemand.js";
 import type { CanonicalDemandService } from "./services/canonicalDemand.js";
 import { createCapabilitiesRouter } from "./modules/capabilities.js";
+import { createCheckpointRouter } from "./modules/checkpoints.js";
+import type { CheckpointService } from "./services/checkpoints.js";
 import { createCanonicalMatchingRouter } from "./modules/canonicalMatching.js";
 import { createCanonicalSharedMatchingRouter } from "./modules/canonicalSharedMatching.js";
 import type { CanonicalMatchingService } from "./services/canonicalMatching.js";
@@ -61,6 +63,7 @@ type AppDependencies = {
   canonicalDemandService?: CanonicalDemandService;
   canonicalMatchingService?: CanonicalMatchingService;
   canonicalSharedMatchingService?: CanonicalSharedMatchingService;
+  checkpointService?: CheckpointService;
   legacyDriverOnlineStateService?: LegacyDriverOnlineStateService;
   routePreviewService?: RoutePreviewService;
   consentReleaseService?: ConsentReleaseService;
@@ -96,6 +99,10 @@ export function createApp(
 
   app.use("/api/v1", authRouter);
   app.use("/api/v1", createCapabilitiesRouter(appConfig));
+  app.use(
+    "/api/v1",
+    createCheckpointRouter(appConfig, dependencies.checkpointService),
+  );
   if (appConfig.demoFeaturesEnabled) app.use("/api/v1", createDemoRouter(appConfig));
   app.use(
     "/api/v1",

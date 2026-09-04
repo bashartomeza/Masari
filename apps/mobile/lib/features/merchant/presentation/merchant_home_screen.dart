@@ -8,7 +8,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/semantic_colors.dart';
 import '../../../core/widgets/home_top_bar.dart';
 import '../../../core/widgets/language_switch.dart';
-import '../../../core/widgets/map_placeholder.dart';
+import '../../../core/widgets/masari_map.dart';
 import '../../../core/widgets/masari_section.dart';
 import '../../../core/widgets/state_views.dart';
 import '../../auth/application/auth_controller.dart';
@@ -334,9 +334,13 @@ class _Tracking extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Never fakes a position: with no live fix it shows an explicit empty
-        // state rather than a decorative map.
-        MapPlaceholder(emptyLabel: l10n.mapNoLocation, height: 180),
+        // No live fix reaches this screen yet, so the map shows its explicit
+        // empty state rather than a decorative one.
+        MasariMap(
+          emptyLabel: l10n.mapNoLocation,
+          attributionLabel: l10n.mapAttribution,
+          height: 180,
+        ),
         if (trip != null) ...[
           const SizedBox(height: AppTokens.spaceMedium),
           MasariInfoCard(
