@@ -2,13 +2,17 @@ import { Router } from "express";
 import { createHash } from "node:crypto";
 import bcrypt from "bcryptjs";
 import type { Prisma, PrismaClient, UserRole } from "../generated/prisma/client.js";
-import { config } from "../config.js";
+import { config, type AppConfig } from "../config.js";
 import { prisma } from "../lib/prisma.js";
 import { auditEvent } from "../lib/audit.js";
 import { authenticateAuthToken } from "../middleware/auth.js";
 import { HttpError } from "../middleware/error.js";
 import { AuditAction } from "../generated/prisma/enums.js";
 import { DEMO_ROUTE_POINTS } from "../lib/geo.js";
+import {
+  assertDemoResetDatabaseSafe,
+  DemoResetDatabaseNotAllowedError
+} from "../lib/demoResetSafety.js";
 
 export const LOCKED_CORRIDOR_KEY = "hebron-ppu-bab-al-zawiya-to-bethlehem";
 export const LOCKED_CORRIDOR_LABEL = "Hebron / PPU / Bab Al-Zawiya -> Bethlehem";
@@ -28,6 +32,18 @@ export const DEMO_ACCOUNTS = {
 } as const;
 
 export const CANONICAL_MODE = "canonical_route_v1";
+
+export function canonicalDemoSeedEnabled(appConfig: {
+  multiRouteEntryEnabled: boolean;
+  multiRouteMatchingEnabled: boolean;
+  canonicalTripCreationEnabled: boolean;
+}) {
+  return (
+    appConfig.multiRouteEntryEnabled &&
+    appConfig.multiRouteMatchingEnabled &&
+    appConfig.canonicalTripCreationEnabled
+  );
+}
 
 /**
  * Anchors every seeded timestamp to the moment of the reset.
@@ -85,13 +101,27 @@ async function createDemoUser(
   });
 }
 
-export async function resetDemoData(db: PrismaClient = prisma) {
-  const demoConfig = config.demo;
-  if (!config.demoFeaturesEnabled || !demoConfig) {
+export async function resetDemoData(db: PrismaClient = prisma, appConfig: AppConfig = config) {
+  const demoConfig = appConfig.demo;
+  if (!appConfig.demoFeaturesEnabled || !demoConfig) {
     throw new HttpError(404, "not_found");
   }
+  try {
+    assertDemoResetDatabaseSafe(appConfig);
+  } catch (error) {
+    if (error instanceof DemoResetDatabaseNotAllowedError) {
+      throw new HttpError(403, error.code);
+    }
+    throw error;
+  }
   const schedule = demoSchedule();
+  const seedCanonicalDispatch = canonicalDemoSeedEnabled(appConfig);
   return db.$transaction(async (tx) => {
+    const nonDemoUser = await tx.user.findFirst({
+      where: { demo_account: false },
+      select: { id: true }
+    });
+    if (nonDemoUser) throw new HttpError(403, "demo_reset_real_data_present");
     const onboardedUsers = await tx.onboardingAttempt.findMany({
       where: { completed_user_id: { not: null } },
       select: { completed_user_id: true }
@@ -108,6 +138,7 @@ export async function resetDemoData(db: PrismaClient = prisma) {
     await tx.onboardingAttempt.deleteMany();
     await tx.invitation.deleteMany();
     await tx.consentDocument.deleteMany();
+    await tx.consentRelease.deleteMany();
     await tx.abuseCounter.deleteMany();
     await tx.idempotencyRecord.deleteMany();
     await tx.refreshToken.deleteMany();
@@ -228,6 +259,23 @@ export async function resetDemoData(db: PrismaClient = prisma) {
         verified: true,
         trust_score: 74
       }
+    });
+
+    await tx.driverVerification.createMany({
+      data: [
+        {
+          user_id: driver1User.id,
+          status: "approved",
+          reviewed_at: resetAt,
+          reviewed_by_id: admin.id
+        },
+        {
+          user_id: driver2User.id,
+          status: "approved",
+          reviewed_at: resetAt,
+          reviewed_by_id: admin.id
+        }
+      ]
     });
 
     const [originStop, passengerPickupStop, destinationStop] = await Promise.all([
@@ -397,43 +445,59 @@ export async function resetDemoData(db: PrismaClient = prisma) {
     // Left in `draft` on purpose: the driver activates it from the app during
     // the demo, so step 2 exercises the real activation transition instead of
     // being pre-done by the seed.
-    const primaryAvailability = await tx.driverRoute.create({
-      data: {
-        ...canonicalAvailabilityBase,
-        driver_id: driver1.id,
-        seats_available: 3,
-        parcel_capacity_available: 5,
-        total_seats: 3,
-        remaining_seats: 3,
-        total_parcel_capacity: 5,
-        remaining_parcel_capacity: 5,
-        departure_at: schedule.primaryDeparture,
-        availability_window_end: schedule.primaryWindowEnd,
-        availability_status: "draft",
-        status: "inactive"
-      }
-    });
+    let canonicalAvailabilities = null;
+    if (seedCanonicalDispatch) {
+      const primaryAvailability = await tx.driverRoute.create({
+        data: {
+          ...canonicalAvailabilityBase,
+          driver_id: driver1.id,
+          seats_available: 3,
+          parcel_capacity_available: 5,
+          total_seats: 3,
+          remaining_seats: 3,
+          total_parcel_capacity: 5,
+          remaining_parcel_capacity: 5,
+          departure_at: schedule.primaryDeparture,
+          availability_window_end: schedule.primaryWindowEnd,
+          availability_status: "draft",
+          status: "inactive"
+        }
+      });
 
-    // Already active, but departing outside the demo passenger's window. It
-    // proves the matcher genuinely filters on departure time rather than just
-    // picking the only row, and keeps the ranking deterministic.
-    const alternateAvailability = await tx.driverRoute.create({
-      data: {
-        ...canonicalAvailabilityBase,
-        driver_id: driver2.id,
-        seats_available: 2,
-        parcel_capacity_available: 8,
-        total_seats: 2,
-        remaining_seats: 2,
-        total_parcel_capacity: 8,
-        remaining_parcel_capacity: 8,
-        departure_at: schedule.alternateDeparture,
-        availability_window_end: schedule.alternateWindowEnd,
-        availability_status: "active",
-        status: "active",
-        activated_at: new Date()
-      }
-    });
+      // Already active, but departing outside the demo passenger's window. It
+      // proves the matcher genuinely filters on departure time rather than just
+      // picking the only row, and keeps the ranking deterministic.
+      const alternateAvailability = await tx.driverRoute.create({
+        data: {
+          ...canonicalAvailabilityBase,
+          driver_id: driver2.id,
+          seats_available: 2,
+          parcel_capacity_available: 8,
+          total_seats: 2,
+          remaining_seats: 2,
+          total_parcel_capacity: 8,
+          remaining_parcel_capacity: 8,
+          departure_at: schedule.alternateDeparture,
+          availability_window_end: schedule.alternateWindowEnd,
+          availability_status: "active",
+          status: "active",
+          activated_at: new Date()
+        }
+      });
+      canonicalAvailabilities = {
+        primary: {
+          id: primaryAvailability.id,
+          status: primaryAvailability.availability_status,
+          revision: primaryAvailability.availability_revision,
+          departure_at: primaryAvailability.departure_at
+        },
+        alternate: {
+          id: alternateAvailability.id,
+          status: alternateAvailability.availability_status,
+          departure_at: alternateAvailability.departure_at
+        }
+      };
+    }
 
     await tx.passengerRequest.create({
       data: {
@@ -535,30 +599,18 @@ export async function resetDemoData(db: PrismaClient = prisma) {
         passenger_pickup: passengerPickupStop.id,
         destination: destinationStop.id
       },
-      canonical_availabilities: {
-        primary: {
-          id: primaryAvailability.id,
-          status: primaryAvailability.availability_status,
-          revision: primaryAvailability.availability_revision,
-          departure_at: primaryAvailability.departure_at
-        },
-        alternate: {
-          id: alternateAvailability.id,
-          status: alternateAvailability.availability_status,
-          departure_at: alternateAvailability.departure_at
-        }
-      },
+      canonical_availabilities: canonicalAvailabilities,
       passenger_window: {
         from: schedule.passengerFrom,
         until: schedule.passengerUntil
       }
     };
-  });
+  }, { isolationLevel: "Serializable" });
 }
 
-async function canReset(req: { header(name: string): string | undefined }) {
+async function canReset(req: { header(name: string): string | undefined }, appConfig: AppConfig) {
   const resetKey = req.header("x-demo-reset-key");
-  if (config.demo && resetKey === config.demo.resetKey) {
+  if (appConfig.demo && resetKey === appConfig.demo.resetKey) {
     return true;
   }
 
@@ -576,23 +628,25 @@ async function canReset(req: { header(name: string): string | undefined }) {
   }
 }
 
-export const demoRouter = Router();
+export function createDemoRouter(appConfig: AppConfig = config, db: PrismaClient = prisma) {
+  const demoRouter = Router();
+  demoRouter.post("/demo/reset", async (req, res, next) => {
+    try {
+      if (!(await canReset(req, appConfig))) {
+        throw new HttpError(403, "demo_reset_forbidden");
+      }
 
-demoRouter.post("/demo/reset", async (req, res, next) => {
-  try {
-    if (!(await canReset(req))) {
-      throw new HttpError(403, "demo_reset_forbidden");
+      const result = await resetDemoData(db, appConfig);
+      await auditEvent(db, {
+        action: AuditAction.demo_reset,
+        entityType: "DemoScenario",
+        metadata: { source: "api", corridor: LOCKED_CORRIDOR_LABEL }
+      });
+
+      res.json({ ok: true, seed: result });
+    } catch (error) {
+      next(error);
     }
-
-    const result = await resetDemoData(prisma);
-    await auditEvent(prisma, {
-      action: AuditAction.demo_reset,
-      entityType: "DemoScenario",
-      metadata: { source: "api", corridor: LOCKED_CORRIDOR_LABEL }
-    });
-
-    res.json({ ok: true, seed: result });
-  } catch (error) {
-    next(error);
-  }
-});
+  });
+  return demoRouter;
+}

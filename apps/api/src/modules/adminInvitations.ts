@@ -6,7 +6,7 @@ import { consumeAbuseCounter } from "../lib/abuseCounters.js";
 import { auditEvent } from "../lib/audit.js";
 import { abuseSubjectDigest } from "../lib/keyedDigest.js";
 import { createInvitation } from "../lib/invitations.js";
-import { normalizePhoneToE164 } from "../lib/phone.js";
+import { PHONE_INPUT_MAX_LENGTH, normalizePhoneToE164 } from "../lib/phone.js";
 import { phoneDigest } from "../lib/keyedDigest.js";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth, requireRole, type AuthenticatedRequest } from "../middleware/auth.js";
@@ -17,8 +17,8 @@ const cleanOptional = (maximum: number) =>
 
 const createSchema = z.strictObject({
   role: z.enum([OnboardingRole.passenger, OnboardingRole.driver, OnboardingRole.merchant]),
-  phone: z.string().trim().min(7).max(32),
-  region: z.literal("PS"),
+  phone: z.string().trim().min(7).max(PHONE_INPUT_MAX_LENGTH),
+  region: z.string().trim().regex(/^[A-Za-z]{2}$/).optional(),
   campaign: cleanOptional(100),
   source: cleanOptional(100),
   expires_in_days: z.number().int().min(1).max(30).optional()
@@ -29,8 +29,8 @@ const listSchema = z.object({
   role: z.enum([OnboardingRole.passenger, OnboardingRole.driver, OnboardingRole.merchant]).optional(),
   campaign: cleanOptional(100),
   source: cleanOptional(100),
-  phone: z.string().trim().min(7).max(32).optional(),
-  region: z.literal("PS").optional(),
+  phone: z.string().trim().min(7).max(PHONE_INPUT_MAX_LENGTH).optional(),
+  region: z.string().trim().regex(/^[A-Za-z]{2}$/).optional(),
   page: z.coerce.number().int().min(1).max(10_000).default(1),
   limit: z.coerce.number().int().min(1).max(50).default(25)
 });
@@ -65,7 +65,7 @@ function serializeInvitation(invitation: {
   return {
     id: invitation.id,
     role: invitation.intended_role,
-    phone: invitation.phone_last4 ? `+970 ••• •• ${invitation.phone_last4}` : null,
+    phone: invitation.phone_last4 ? `••• •• ${invitation.phone_last4}` : null,
     campaign: invitation.campaign,
     source: invitation.source,
     max_uses: invitation.max_uses,
@@ -131,7 +131,6 @@ export function createAdminInvitationRouter(appConfig: AppConfig) {
     try {
       const input = listSchema.parse(req.query);
       const now = new Date();
-      if (input.phone && !input.region) throw new HttpError(400, "phone_region_required");
       const exactPhoneDigest = input.phone
         ? phoneDigest(normalizePhoneToE164(input.phone, { region: input.region }), onboarding.keys.phoneDigest)
         : undefined;

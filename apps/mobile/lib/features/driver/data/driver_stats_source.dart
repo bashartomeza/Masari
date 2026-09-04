@@ -1,19 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../auth/application/auth_actor_binding.dart';
 import '../application/driver_controller.dart';
 import '../domain/driver_home_stats.dart';
 import 'driver_repository.dart';
-
-/// The driver's own trust score, from `GET /me`.
-///
-/// Previously the home screen showed a hardcoded `96` in demo builds because
-/// no endpoint returned `DriverProfile.trust_score` to its owner. `/me` now
-/// includes `driver_profile`, so the figure is real. It stays nullable: a
-/// non-driver, or a driver without a profile row, has no score and the card
-/// says so rather than inventing one.
-final driverTrustScoreProvider = FutureProvider<int?>((ref) async {
-  return ref.watch(driverRepositoryProvider).ownTrustScore();
-});
 
 /// Combines the real dashboard state with the driver's real trust score.
 ///
@@ -21,7 +11,10 @@ final driverTrustScoreProvider = FutureProvider<int?>((ref) async {
 /// column anywhere, so there is nothing to derive earnings from. The card
 /// renders its explicit "not available" state instead of a fabricated figure.
 final driverHomeStatsProvider = Provider<AsyncValue<DriverHomeStats>>((ref) {
-  final trustScore = ref.watch(driverTrustScoreProvider);
+  final actorId = ref.watch(authenticatedActorBindingProvider).actorId;
+  final trustScore = actorId == null
+      ? const AsyncData<int?>(null)
+      : ref.watch(driverTrustScoreProvider(actorId));
 
   return ref.watch(driverDashboardProvider).whenData((state) {
     final now = DateTime.now();

@@ -61,11 +61,17 @@ void main() {
       // Nested detail: bar stays, and its own tab stays highlighted.
       expect(find.byType(NavigationBar), findsOneWidget);
       expect(_bar(tester).selectedIndex, 1);
-      expect(find.byKey(const ValueKey('driverScoringBreakdown')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('driverScoringBreakdown')),
+        findsOneWidget,
+      );
 
       // Leaving and returning to the tab restores the pushed page.
       await _tapTab(tester, 0);
-      expect(find.byKey(const ValueKey('driverScoringBreakdown')), findsNothing);
+      expect(
+        find.byKey(const ValueKey('driverScoringBreakdown')),
+        findsNothing,
+      );
       await _tapTab(tester, 1);
       expect(
         find.byKey(const ValueKey('driverScoringBreakdown')),
@@ -75,7 +81,10 @@ void main() {
 
       // Android back returns through the branch stack to the inbox.
       await _back(tester);
-      expect(find.byKey(const ValueKey('driverScoringBreakdown')), findsNothing);
+      expect(
+        find.byKey(const ValueKey('driverScoringBreakdown')),
+        findsNothing,
+      );
       expect(find.byKey(const ValueKey('openMatch-match_1')), findsOneWidget);
       expect(_bar(tester).selectedIndex, 1);
     });
@@ -88,7 +97,10 @@ void main() {
       await _tapTab(tester, 1);
       await tester.tap(find.byKey(const ValueKey('openMatch-match_1')));
       await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('driverScoringBreakdown')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('driverScoringBreakdown')),
+        findsOneWidget,
+      );
 
       await _tapTab(tester, 1);
       expect(

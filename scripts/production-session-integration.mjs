@@ -85,7 +85,7 @@ try {
   await call(`/admin/users/${passenger.user.id}/status`, {
     token: admin.token,
     method: "PATCH",
-    body: { status: "suspended", reason: "Production integration suspension" }
+    body: { status: "suspended", reason: "Production integration suspension", expected_status: "active" }
   });
   await call("/me", { token: passenger.token, expected: [403] });
   await call("/auth/login", {
@@ -96,7 +96,7 @@ try {
   await call(`/admin/users/${passenger.user.id}/status`, {
     token: admin.token,
     method: "PATCH",
-    body: { status: "active" }
+    body: { status: "active", expected_status: "suspended" }
   });
   await call("/me", { token: passenger.token, expected: [401] });
   const reauthenticated = await login("+970590000001", process.env.DEMO_PASSENGER_PASSWORD);

@@ -209,7 +209,8 @@ describe("M7B route management APIs", () => {
       canonical_shared_assignment_status_available: false,
       maps_available: false,
       checkpoints_available: false,
-      live_tracking_available: false
+      live_tracking_available: false,
+      demo_reset_available: false
     });
 
     const disabled = app(serviceMock(), disabledConfig);

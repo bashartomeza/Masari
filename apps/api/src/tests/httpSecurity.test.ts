@@ -296,16 +296,16 @@ describe("production HTTP security baseline", () => {
 
   it("uses a stricter login limiter without exposing account existence", async () => {
     const app = createApp(testConfig({ RATE_LIMIT_GLOBAL_MAX: "20", RATE_LIMIT_LOGIN_MAX: "2" }));
-    for (let attempt = 0; attempt < 2; attempt += 1) {
+    for (const phone of ["+972 56-952-3636", "+972569523636"]) {
       const response = await request(app)
         .post("/api/v1/auth/login")
-        .send({ phone: "+970590009999", password: "not-a-password" })
+        .send({ phone, password: "not-a-password" })
         .expect(401);
       expect(response.body.error).toBe("invalid_credentials");
     }
     const limited = await request(app)
       .post("/api/v1/auth/login")
-      .send({ phone: "+970590009999", password: "not-a-password" })
+      .send({ phone: "+972569523636", password: "not-a-password" })
       .expect(429);
     expect(limited.body.error).toBe("rate_limited");
     expect(limited.headers["retry-after"]).toBeDefined();

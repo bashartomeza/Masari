@@ -98,9 +98,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             Text(
               l10n.appTitle,
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                color: AppTheme.primary,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.displayMedium?.copyWith(color: AppTheme.primary),
             ),
             const SizedBox(height: AppTokens.spaceExtraSmall),
             Text(
@@ -127,9 +127,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       controller: _phoneController,
                       keyboardType: TextInputType.phone,
                       inputFormatters: [
-                        FilteringTextInputFormatter.allow(RegExp(r'[+0-9]')),
+                        FilteringTextInputFormatter.allow(
+                          RegExp(r'[+0-9٠-٩۰-۹ ()-]'),
+                        ),
+                        LengthLimitingTextInputFormatter(32),
                       ],
-                      decoration: InputDecoration(labelText: l10n.phone),
+                      decoration: InputDecoration(
+                        labelText: l10n.phone,
+                        hintText: '+[country code][number]',
+                      ),
                     ),
                   ),
                   const SizedBox(height: AppTokens.spaceMedium),
@@ -236,9 +242,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               Icon(
                                 _demoIcon(account.labelKey),
                                 size: 20,
-                                color: SemanticColors.forRole(
-                                  account.labelKey,
-                                ),
+                                color: SemanticColors.forRole(account.labelKey),
                               ),
                               const SizedBox(width: AppTokens.gutterMobile),
                               Expanded(

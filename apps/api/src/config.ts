@@ -2,6 +2,8 @@ import { z } from "zod";
 
 export const APP_ENVIRONMENTS = ["local", "test", "demo", "staging", "production"] as const;
 export type AppEnvironment = (typeof APP_ENVIRONMENTS)[number];
+export const ROUTE_PROVIDERS = ["disabled", "fake", "mapbox", "google", "here", "stadia"] as const;
+export type RouteProviderId = (typeof ROUTE_PROVIDERS)[number];
 
 const MINIMUM_JWT_SECRET_LENGTH = 32;
 const MINIMUM_REFRESH_PEPPER_LENGTH = 32;
@@ -10,6 +12,7 @@ const PRODUCTION_ACCESS_TOKEN_MIN_SECONDS = 300;
 const PRODUCTION_ACCESS_TOKEN_MAX_SECONDS = 1_800;
 const PRODUCTION_REFRESH_TOKEN_MAX_DAYS = 90;
 const unsafeSecretMarkers = ["development-jwt-secret", "change-me", "replace-with", "placeholder"];
+const unsafeRouteProviderSecretMarkers = ["changeme", "example", "test-key", "test_secret", "test-secret", "your-"];
 
 function isUnsafeSecret(value: string) {
   const normalized = value.trim().toLowerCase();
@@ -17,6 +20,11 @@ function isUnsafeSecret(value: string) {
     unsafeSecretMarkers.some((marker) => normalized.includes(marker)) ||
     (normalized.startsWith("<") && normalized.endsWith(">"))
   );
+}
+
+function isUnsafeRouteProviderSecret(value: string) {
+  const normalized = value.trim().toLowerCase();
+  return isUnsafeSecret(value) || unsafeRouteProviderSecretMarkers.some((marker) => normalized.includes(marker));
 }
 
 const rawSchema = z.object({
@@ -41,7 +49,17 @@ const rawSchema = z.object({
   CHECKPOINTS_API_KEY: z.string().min(20).optional(),
   CHECKPOINTS_TIMEOUT_MS: z.coerce.number().int().min(500).max(15_000).default(6_000),
   CHECKPOINTS_CACHE_TTL_SECONDS: z.coerce.number().int().min(0).max(3_600).default(60),
+  ROUTE_MAPS_ENABLED: z.string().optional(),
+  ROUTE_PROVIDER: z.enum(ROUTE_PROVIDERS).default("disabled"),
+  ROUTE_PROVIDER_SECRET: z.string().trim().min(8).optional(),
+  ROUTE_PROVIDER_CONNECT_TIMEOUT_MS: z.coerce.number().int().min(100).max(10_000).default(1_000),
+  ROUTE_PROVIDER_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(250).max(20_000).default(4_000),
+  ROUTE_PROVIDER_MAX_RETRIES: z.coerce.number().int().min(0).max(1).default(1),
+  ROUTE_PROVIDER_CACHE_TTL_SECONDS: z.coerce.number().int().min(0).max(86_400).default(0),
+  ROUTE_PROVIDER_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().min(60_000).max(3_600_000).default(900_000),
+  ROUTE_PROVIDER_RATE_LIMIT_MAX: z.coerce.number().int().min(1).max(100).default(20),
   DEMO_RESET_KEY: z.string().min(8).optional(),
+  DEMO_RESET_ALLOWED_DATABASES: z.string().optional(),
   DEMO_PASSENGER_PASSWORD: z.string().min(12).optional(),
   DEMO_DRIVER_PASSWORD: z.string().min(12).optional(),
   DEMO_MERCHANT_PASSWORD: z.string().min(12).optional(),
@@ -57,7 +75,6 @@ const rawSchema = z.object({
   INVITATIONS_ENABLED: z.string().optional(),
   PUBLIC_ONBOARDING_ENABLED: z.string().optional(),
   OTP_PROVIDER: z.enum(["disabled", "fake"]).default("disabled"),
-  SUPPORTED_PHONE_REGIONS: z.string().default("PS"),
   INVITATION_CODE_PEPPER: z.string().min(MINIMUM_ONBOARDING_PEPPER_LENGTH).optional(),
   INVITATION_CODE_KEY_VERSION: z.coerce.number().int().positive().default(1),
   PHONE_DIGEST_PEPPER: z.string().min(MINIMUM_ONBOARDING_PEPPER_LENGTH).optional(),
@@ -148,6 +165,7 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
   );
   const mapsEnabled = parseBoolean("MAPS_ENABLED", raw.MAPS_ENABLED);
   const checkpointsEnabled = parseBoolean("CHECKPOINTS_ENABLED", raw.CHECKPOINTS_ENABLED);
+  const routeMapsEnabled = parseBoolean("ROUTE_MAPS_ENABLED", raw.ROUTE_MAPS_ENABLED);
   const invitationsEnabled = parseBoolean("INVITATIONS_ENABLED", raw.INVITATIONS_ENABLED);
   const publicOnboardingEnabled = parseBoolean("PUBLIC_ONBOARDING_ENABLED", raw.PUBLIC_ONBOARDING_ENABLED);
   const testLegalFixturesEnabled = parseBoolean(
@@ -155,6 +173,16 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
     raw.ONBOARDING_TEST_LEGAL_FIXTURES_ENABLED
   );
   const problems: string[] = [];
+  const demoResetAllowedDatabases = (raw.DEMO_RESET_ALLOWED_DATABASES ?? "")
+    .split(",")
+    .map((name) => name.trim())
+    .filter(Boolean);
+  if (demoResetAllowedDatabases.some((name) => !/^[A-Za-z0-9_]+$/.test(name))) {
+    problems.push("DEMO_RESET_ALLOWED_DATABASES must contain exact comma-separated database names");
+  }
+  if (new Set(demoResetAllowedDatabases).size !== demoResetAllowedDatabases.length) {
+    problems.push("DEMO_RESET_ALLOWED_DATABASES must not contain duplicate database names");
+  }
 
   if (productionLike && explicitlyEnabled) {
     problems.push("ENABLE_DEMO_FEATURES cannot be enabled in staging or production");
@@ -235,12 +263,32 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
   if (productionLike && raw.OTP_PROVIDER === "fake") {
     problems.push("OTP_PROVIDER=fake is forbidden in staging and production");
   }
-
-  const supportedRegions = raw.SUPPORTED_PHONE_REGIONS.split(",")
-    .map((region) => region.trim().toUpperCase())
-    .filter(Boolean);
-  if (supportedRegions.length !== 1 || supportedRegions[0] !== "PS") {
-    problems.push("SUPPORTED_PHONE_REGIONS must be PS in M6C2B1");
+  if (routeMapsEnabled && !routeManagementEnabled) {
+    problems.push("ROUTE_MAPS_ENABLED requires ROUTE_MANAGEMENT_ENABLED");
+  }
+  if (routeMapsEnabled && raw.ROUTE_PROVIDER === "disabled") {
+    problems.push("ROUTE_PROVIDER must be selected when ROUTE_MAPS_ENABLED is true");
+  }
+  if (!routeMapsEnabled && raw.ROUTE_PROVIDER !== "disabled") {
+    problems.push("ROUTE_PROVIDER must be disabled when ROUTE_MAPS_ENABLED is false");
+  }
+  if (productionLike && raw.ROUTE_PROVIDER === "fake") {
+    problems.push("ROUTE_PROVIDER=fake is forbidden in staging and production");
+  }
+  if (routeMapsEnabled && raw.ROUTE_PROVIDER !== "fake" && !raw.ROUTE_PROVIDER_SECRET) {
+    problems.push("ROUTE_PROVIDER_SECRET is required for an enabled live route provider");
+  }
+  if (routeMapsEnabled && raw.ROUTE_PROVIDER_SECRET && isUnsafeRouteProviderSecret(raw.ROUTE_PROVIDER_SECRET)) {
+    problems.push("ROUTE_PROVIDER_SECRET uses a known placeholder or default value");
+  }
+  if (routeMapsEnabled && raw.ROUTE_PROVIDER_SECRET && [raw.JWT_SECRET, raw.REFRESH_TOKEN_PEPPER].includes(raw.ROUTE_PROVIDER_SECRET)) {
+    problems.push("ROUTE_PROVIDER_SECRET must be distinct from operational secrets");
+  }
+  if (productionLike && raw.ROUTE_PROVIDER_CACHE_TTL_SECONDS !== 0) {
+    problems.push("ROUTE_PROVIDER_CACHE_TTL_SECONDS must remain 0 until provider cache rights are approved");
+  }
+  if (raw.ROUTE_PROVIDER_REQUEST_TIMEOUT_MS < raw.ROUTE_PROVIDER_CONNECT_TIMEOUT_MS) {
+    problems.push("ROUTE_PROVIDER_REQUEST_TIMEOUT_MS must be at least the connect timeout");
   }
 
   const onboardingSecrets = {
@@ -385,6 +433,7 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
     isStaging,
     isProduction,
     demoFeaturesEnabled,
+    demoResetAllowedDatabases,
     routeManagementEnabled,
     multiRouteEntryEnabled,
     multiRouteMatchingEnabled,
@@ -401,6 +450,19 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
           cacheTtlSeconds: raw.CHECKPOINTS_CACHE_TTL_SECONDS
         }
       : undefined,
+    routeMaps: {
+      enabled: routeMapsEnabled,
+      provider: raw.ROUTE_PROVIDER,
+      secret: routeMapsEnabled ? raw.ROUTE_PROVIDER_SECRET : undefined,
+      connectTimeoutMs: raw.ROUTE_PROVIDER_CONNECT_TIMEOUT_MS,
+      requestTimeoutMs: raw.ROUTE_PROVIDER_REQUEST_TIMEOUT_MS,
+      maxRetries: raw.ROUTE_PROVIDER_MAX_RETRIES,
+      cacheTtlSeconds: raw.ROUTE_PROVIDER_CACHE_TTL_SECONDS,
+      rateLimit: {
+        windowMs: raw.ROUTE_PROVIDER_RATE_LIMIT_WINDOW_MS,
+        max: raw.ROUTE_PROVIDER_RATE_LIMIT_MAX
+      }
+    },
     invitationsEnabled,
     publicOnboardingEnabled,
     publicRegistration: publicOnboardingEnabled

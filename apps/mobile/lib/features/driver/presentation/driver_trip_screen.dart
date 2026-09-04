@@ -17,7 +17,11 @@ import '../data/driver_models.dart';
 import 'driver_ui.dart';
 
 class DriverTripScreen extends ConsumerStatefulWidget {
-  const DriverTripScreen({required this.tripId, this.showAppBar = true, super.key});
+  const DriverTripScreen({
+    required this.tripId,
+    this.showAppBar = true,
+    super.key,
+  });
 
   final String tripId;
 
@@ -101,7 +105,9 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
                   title: driverErrorLabel(l10n, error),
                   retryLabel: l10n.retry,
                   onRetry: () => ref
-                      .read(driverTripControllerProvider(widget.tripId).notifier)
+                      .read(
+                        driverTripControllerProvider(widget.tripId).notifier,
+                      )
                       .refresh(),
                 ),
                 data: (state) => _tripContent(l10n, state),

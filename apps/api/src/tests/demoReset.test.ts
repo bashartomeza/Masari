@@ -3,6 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const prismaMock = vi.hoisted(() => ({
   $transaction: vi.fn(),
+  authSession: {
+    findUnique: vi.fn(),
+    update: vi.fn()
+  },
   auditEvent: {
     create: vi.fn()
   }
@@ -11,11 +15,54 @@ const prismaMock = vi.hoisted(() => ({
 vi.mock("../lib/prisma.js", () => ({ prisma: prismaMock }));
 
 const { createApp } = await import("../app.js");
-const { resetDemoData } = await import("../modules/demoReset.js");
+const { createConfig } = await import("../config.js");
+const { signAuthToken } = await import("../middleware/auth.js");
+const { canonicalDemoSeedEnabled, resetDemoData } = await import("../modules/demoReset.js");
+
+function resetConfig(databaseUrl: string, allowedDatabases?: string) {
+  return createConfig({
+    ...process.env,
+    APP_ENV: "demo",
+    ENABLE_DEMO_FEATURES: "true",
+    DATABASE_URL: databaseUrl,
+    DEMO_RESET_ALLOWED_DATABASES: allowedDatabases
+  });
+}
 
 describe("demo reset", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("seeds canonical dispatch supply only behind the complete dispatch gate", () => {
+    expect(
+      canonicalDemoSeedEnabled({
+        multiRouteEntryEnabled: true,
+        multiRouteMatchingEnabled: true,
+        canonicalTripCreationEnabled: true
+      })
+    ).toBe(true);
+    expect(
+      canonicalDemoSeedEnabled({
+        multiRouteEntryEnabled: true,
+        multiRouteMatchingEnabled: false,
+        canonicalTripCreationEnabled: true
+      })
+    ).toBe(false);
+    expect(
+      canonicalDemoSeedEnabled({
+        multiRouteEntryEnabled: false,
+        multiRouteMatchingEnabled: false,
+        canonicalTripCreationEnabled: false
+      })
+    ).toBe(false);
+    expect(
+      canonicalDemoSeedEnabled({
+        multiRouteEntryEnabled: true,
+        multiRouteMatchingEnabled: true,
+        canonicalTripCreationEnabled: false
+      })
+    ).toBe(false);
   });
 
   it("rejects reset without admin token or reset key", async () => {
@@ -40,6 +87,59 @@ describe("demo reset", () => {
     expect(prismaMock.auditEvent.create).toHaveBeenCalledOnce();
   });
 
+  it.each([
+    ["the permanently protected human database", "mysql://test:test@localhost:3306/masari", "masari"],
+    ["an unlisted database", "mysql://test:test@localhost:3306/unknown_database", "masari_demo_ci"],
+    ["a malformed database URL", "not-a-database-url", "masari_demo_ci"],
+    ["a missing allow-list", "mysql://test:test@localhost:3306/masari_demo_ci", undefined]
+  ])("blocks %s before starting a transaction", async (_label, databaseUrl, allowedDatabases) => {
+    const response = await request(createApp(resetConfig(databaseUrl, allowedDatabases)))
+      .post("/api/v1/demo/reset")
+      .set("x-demo-reset-key", "test-reset-key")
+      .expect(403);
+
+    expect(response.body.error).toBe("demo_reset_database_not_allowed");
+    expect(prismaMock.$transaction).not.toHaveBeenCalled();
+    expect(prismaMock.auditEvent.create).not.toHaveBeenCalled();
+  });
+
+  it("blocks an authenticated Admin before writes when the database is unsafe", async () => {
+    prismaMock.authSession.findUnique.mockResolvedValue({
+      id: "session_admin",
+      user_id: "admin_1",
+      expires_at: new Date(Date.now() + 60_000),
+      revoked_at: null,
+      security_version_at_issue: 1,
+      user: { id: "admin_1", role: "admin", account_status: "active", security_version: 1 }
+    });
+    prismaMock.authSession.update.mockResolvedValue({});
+    const token = signAuthToken({ id: "admin_1", role: "admin", sessionId: "session_admin", securityVersion: 1 });
+
+    const response = await request(createApp(resetConfig("mysql://test:test@localhost:3306/masari", "masari")))
+      .post("/api/v1/demo/reset")
+      .set("authorization", `Bearer ${token}`)
+      .expect(403);
+
+    expect(response.body.error).toBe("demo_reset_database_not_allowed");
+    expect(prismaMock.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("blocks real users inside the serializable transaction before destructive writes", async () => {
+    const deleteAuditEvents = vi.fn();
+    const tx = {
+      user: { findFirst: vi.fn().mockResolvedValue({ id: "real_user" }) },
+      auditEvent: { deleteMany: deleteAuditEvents }
+    };
+    const db = { $transaction: vi.fn((callback: (transaction: typeof tx) => unknown) => callback(tx)) };
+
+    await expect(resetDemoData(db as never)).rejects.toMatchObject({
+      statusCode: 403,
+      message: "demo_reset_real_data_present"
+    });
+    expect(deleteAuditEvents).not.toHaveBeenCalled();
+    expect(db.$transaction).toHaveBeenCalledWith(expect.any(Function), { isolationLevel: "Serializable" });
+  });
+
   it("clears session state and recreates deterministic active users", async () => {
     const userCreate = vi
       .fn()
@@ -57,6 +157,7 @@ describe("demo reset", () => {
       otpChallenge: { deleteMany: vi.fn() },
       invitation: { deleteMany: vi.fn() },
       consentDocument: { deleteMany: vi.fn() },
+      consentRelease: { deleteMany: vi.fn() },
       abuseCounter: { deleteMany: vi.fn() },
       idempotencyRecord: { deleteMany: vi.fn() },
       refreshToken: { deleteMany: vi.fn() },
@@ -98,6 +199,7 @@ describe("demo reset", () => {
         deleteMany: vi.fn(),
         create: vi.fn().mockResolvedValueOnce({ id: "profile_1" }).mockResolvedValueOnce({ id: "profile_2" })
       },
+      driverVerification: { createMany: vi.fn() },
       demoScenario: { deleteMany: vi.fn(), createMany: vi.fn() },
       serviceRoute: {
         updateMany: vi.fn(),
@@ -118,7 +220,7 @@ describe("demo reset", () => {
           .mockResolvedValueOnce({ id: "pickup_stop" })
           .mockResolvedValueOnce({ id: "destination_stop" })
       },
-      user: { deleteMany: vi.fn(), create: userCreate }
+      user: { findFirst: vi.fn().mockResolvedValue(null), deleteMany: vi.fn(), create: userCreate }
     };
     const db = { $transaction: vi.fn((callback: (transaction: typeof tx) => unknown) => callback(tx)) };
 
@@ -128,6 +230,7 @@ describe("demo reset", () => {
     expect(tx.authSession.deleteMany).toHaveBeenCalledOnce();
     expect(tx.invitation.deleteMany).toHaveBeenCalledOnce();
     expect(tx.otpChallenge.deleteMany).toHaveBeenCalledOnce();
+    expect(tx.consentRelease.deleteMany).toHaveBeenCalledOnce();
     expect(tx.refreshToken.deleteMany.mock.invocationCallOrder[0]).toBeLessThan(
       tx.authSession.deleteMany.mock.invocationCallOrder[0]
     );
@@ -135,6 +238,12 @@ describe("demo reset", () => {
       tx.user.deleteMany.mock.invocationCallOrder[0]
     );
     expect(userCreate).toHaveBeenCalledTimes(5);
+    expect(tx.driverVerification.createMany).toHaveBeenCalledWith({
+      data: expect.arrayContaining([
+        expect.objectContaining({ user_id: "driver_1", status: "approved", reviewed_by_id: "admin" }),
+        expect.objectContaining({ user_id: "driver_2", status: "approved", reviewed_by_id: "admin" })
+      ])
+    });
     expect(tx.serviceRouteVersion.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         description_ar: expect.stringContaining("مساري"),

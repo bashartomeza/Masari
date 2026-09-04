@@ -53,7 +53,11 @@ const SAFE_PATH_SEGMENTS = new Set([
   "status-sessions",
   "canonical-match-offers",
   "route-requests",
-  "route-orders"
+  "route-orders",
+  "preview",
+  "geocode",
+  "stops",
+  "route-versions"
 ]);
 
 function normalizedRoute(req: Request) {

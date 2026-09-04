@@ -77,7 +77,8 @@ class MerchantShipmentsScreen extends ConsumerWidget {
                       )
                     : Column(
                         children: [
-                          for (final (index, order) in state.orders.indexed) ...[
+                          for (final (index, order)
+                              in state.orders.indexed) ...[
                             if (index > 0)
                               const SizedBox(height: AppTokens.spaceMedium),
                             _OrderCard(
@@ -85,9 +86,7 @@ class MerchantShipmentsScreen extends ConsumerWidget {
                               // Only the live trip gets a tracking action; the
                               // trips endpoint carries no order id, so tying it
                               // to any other row would be a guess.
-                              tripId: index == 0
-                                  ? state.activeTrip?.id
-                                  : null,
+                              tripId: index == 0 ? state.activeTrip?.id : null,
                             ),
                           ],
                         ],

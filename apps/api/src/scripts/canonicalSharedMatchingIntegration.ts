@@ -41,6 +41,7 @@ const departure = new Date("2031-02-10T09:30:00.000Z");
 const testConfig = createConfig({
   APP_ENV: "test",
   DATABASE_URL: process.env.DATABASE_URL!,
+  DEMO_RESET_ALLOWED_DATABASES: databaseName,
   JWT_SECRET: "m7c3c1-test-jwt-secret-at-least-thirty-two-characters",
   MULTI_ROUTE_ENTRY_ENABLED: "true",
   MULTI_ROUTE_MATCHING_ENABLED: "true",
@@ -67,7 +68,8 @@ async function seedCatalog() {
       name: "M7C3C1 Admin",
       phone: "+970598820001",
       password_hash: "integration-only",
-      role: "admin"
+      role: "admin",
+      demo_account: true
     }
   });
   const passengers = [];
@@ -80,7 +82,8 @@ async function seedCatalog() {
         name: `Passenger ${index}`,
         phone: `+9705988210${String(index).padStart(2, "0")}`,
         password_hash: "integration-only",
-        role: "passenger"
+        role: "passenger",
+        demo_account: true
       }
     }));
     merchants.push(await prisma.user.create({
@@ -89,7 +92,8 @@ async function seedCatalog() {
         name: `Merchant ${index}`,
         phone: `+9705988220${String(index).padStart(2, "0")}`,
         password_hash: "integration-only",
-        role: "merchant"
+        role: "merchant",
+        demo_account: true
       }
     }));
     const user = await prisma.user.create({
@@ -98,7 +102,8 @@ async function seedCatalog() {
         name: `Driver ${index}`,
         phone: `+9705988230${String(index).padStart(2, "0")}`,
         password_hash: "integration-only",
-        role: "driver"
+        role: "driver",
+        demo_account: true
       }
     });
     const profile = await prisma.driverProfile.create({
@@ -822,7 +827,8 @@ try {
       name: "Legacy",
       phone: "+970598829999",
       password_hash: "integration-only",
-      role: "passenger"
+      role: "passenger",
+      demo_account: true
     }
   });
   await prisma.passengerRequest.create({
@@ -880,8 +886,12 @@ try {
   check(await prisma.canonicalTripManifest.count() === 0, "repeated demo reset clears shared manifests");
   check(await prisma.match.count({ where: { canonical_match_version: SHARED_MATCH_VERSION } }) === 0, "repeated demo reset clears shared offers");
   check(await prisma.trip.count({ where: { canonical_trip_version: SHARED_TRIP_VERSION } }) === 0, "repeated demo reset clears shared Trips");
+  check(await prisma.driverRoute.count({ where: { operational_mode: "legacy", canonical_availability_version: null } }) === 2, "shared cleanup preserves two legacy route fixtures");
+  check(await prisma.driverRoute.count({ where: { operational_mode: mode, canonical_availability_version: mode } }) === 2, "shared cleanup recreates two canonical availabilities behind full gates");
+  check(await prisma.passengerRequest.count({ where: { operational_mode: mode } }) === 0, "shared cleanup leaves no canonical passenger requests");
+  check(await prisma.merchantOrder.count({ where: { operational_mode: mode } }) === 0, "shared cleanup leaves no canonical merchant orders");
 
-  check(assertions === 140, `exactly 141 persistent assertions including this count check; got ${assertions + 1}`);
+  check(assertions === 144, `exactly 145 persistent assertions including this count check; got ${assertions + 1}`);
   console.log(`M7C3C1 shared-trip integration passed with ${assertions} assertions.`);
 } finally {
   await prisma.$disconnect();

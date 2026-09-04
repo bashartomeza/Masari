@@ -1,22 +1,38 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { createApiClient, createDemoApiClient, type AccountStatus, type BatchResponse, type Comparison, type DashboardResponse, type DriverProfile, type DriverRoute, type LocationEvent, type MatchRunResponse, type MerchantOrder, type PassengerRequest, type Trip, type User } from "./api";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { createApiClient, createDemoApiClient, type AccountStatus, type BatchResponse, type Comparison, type DashboardResponse, type DriverProfile, type DriverRoute, type LocationEvent, type MatchRunResponse, type MerchantOrder, type PassengerRequest, type Trip, type User, type UserAccountStatus } from "./api";
 import { demoUiEnabled, getAdminBuildConfig, routeManagementUiEnabled, type AdminBuildConfig } from "./config";
 import { useLocale } from "./i18n/LocaleContext";
 import type { TranslationKey } from "./i18n/translations";
 import { ADMIN_TOKEN_KEY, clearAdminSession, createAdminSessionExpiryHandler, isAdminSessionEndError, type TokenStorage } from "./session";
 import { RouteManagement } from "./features/routes/RouteManagement";
-import { OverviewDashboard, deriveAlerts, type OverviewData } from "./features/overview/OverviewDashboard";
+import { OverviewDashboard, type OverviewData } from "./features/overview/OverviewDashboard";
+import {
+  OVERVIEW_RESOURCE_KEYS,
+  beginOverviewRefresh,
+  completeOverviewRefresh,
+  createInitialOverviewResourceStates,
+  loadOverviewResources,
+  summarizeOverviewResults
+} from "./features/overview/overviewState";
 import { RequestsBoard } from "./features/requests/RequestsBoard";
 import { MatchingWorkspace } from "./features/matching/MatchingWorkspace";
 import { BatchingWorkspace } from "./features/batching/BatchingWorkspace";
-import { TripsTracking } from "./features/trips/TripsTracking";
+import { TripsManagement } from "./features/trips/TripsManagement";
 import { ComparisonPanel } from "./features/comparison/ComparisonPanel";
 import { SettingsPanel } from "./features/settings/SettingsPanel";
 import { DriverDirectory } from "./features/verification/DriverDirectory";
 import { UsersDirectory } from "./features/users/UsersDirectory";
 import { DemoControl } from "./features/demo/DemoControl";
 import { ModuleUnavailable } from "./features/placeholder/ModuleUnavailable";
-import { isModuleAvailable, resolveActiveModule, visibleNavItems, type ModuleId } from "./navigation";
+import { ProfilePanel } from "./features/profile/ProfilePanel";
+import {
+  hashForModule,
+  isModuleAvailable,
+  moduleFromHash,
+  resolveActiveModule,
+  visibleNavItems,
+  type AdminRouteId
+} from "./navigation";
 import { AppShell, Button, Icon, Notice, SideNav, TopBar } from "./ui";
 
 export { ADMIN_TOKEN_KEY, clearAdminSession } from "./session";
@@ -30,6 +46,9 @@ function getErrorMessage(error: unknown, t: (key: TranslationKey) => string) {
   if (!(error instanceof Error)) return t("unexpectedError");
   if (error.message === "Failed to fetch") return t("failedToFetch");
   if (error.message === "forbidden" || error.message === "unauthorized") return t("unauthorized");
+  if (error.message === "demo_reset_database_not_allowed" || error.message === "demo_reset_real_data_present") {
+    return t("demoResetUnavailable");
+  }
   return error.message || t("unexpectedError");
 }
 
@@ -65,11 +84,17 @@ export function App({
   const [batchResult, setBatchResult] = useState<BatchResponse | null>(null);
   const [comparison, setComparison] = useState<Comparison | null>(null);
   const [trips, setTrips] = useState<Trip[]>([]);
+  const [overviewResources, setOverviewResources] = useState(createInitialOverviewResourceStates);
+  const overviewRefreshRef = useRef<{
+    token: string;
+    promise: Promise<{ succeeded: number; failed: number }>;
+  } | null>(null);
   const [activeTrip, setActiveTrip] = useState<Trip | null>(null);
   const [latestLocation, setLatestLocation] = useState<LocationEvent | null>(null);
   const [locationTrail, setLocationTrail] = useState<LocationEvent[]>([]);
   const [demoSteps, setDemoSteps] = useState<DemoStep[]>([]);
-  const [activeModule, setActiveModule] = useState<ModuleId>("overview");
+  const [demoResetAvailable, setDemoResetAvailable] = useState(false);
+  const [activeModule, setActiveModule] = useState<AdminRouteId>(() => moduleFromHash(window.location.hash));
   const [search, setSearch] = useState("");
 
   const flags = { demoEnabled, routeManagementEnabled };
@@ -87,10 +112,12 @@ export function App({
     setBatchResult(null);
     setComparison(null);
     setTrips([]);
+    setOverviewResources(createInitialOverviewResourceStates());
     setActiveTrip(null);
     setLatestLocation(null);
     setLocationTrail([]);
     setDemoSteps([]);
+    setDemoResetAvailable(false);
   }
 
   const sessionExpiry = useMemo(
@@ -150,23 +177,45 @@ export function App({
     }
   }
 
-  async function refreshOverview(currentToken = token) {
-    if (!currentToken) return;
-    const [dashboardData, driversData, routesData, requestsData, ordersData, tripsData] = await Promise.all([
-      api.dashboard(currentToken),
-      api.drivers(currentToken),
-      api.routes(currentToken),
-      api.requests(currentToken),
-      api.orders(currentToken),
-      api.trips(currentToken)
-    ]);
-    setDashboard(dashboardData);
-    setDrivers(driversData.drivers);
-    setRoutes(routesData.routes);
-    setRequests(requestsData.requests);
-    setOrders(ordersData.orders);
-    setTrips(tripsData.trips);
-    setActiveTrip((current) => current ?? tripsData.trips[0] ?? null);
+  function refreshOverview(currentToken = token): Promise<{ succeeded: number; failed: number }> {
+    if (!currentToken) return Promise.resolve({ succeeded: 0, failed: 0 });
+    if (overviewRefreshRef.current?.token === currentToken) return overviewRefreshRef.current.promise;
+
+    const promise = (async () => {
+      setOverviewResources((current) => beginOverviewRefresh(current));
+      const results = await loadOverviewResources({
+        dashboard: () => api.dashboard(currentToken),
+        drivers: () => api.drivers(currentToken),
+        routes: () => api.routes(currentToken),
+        requests: () => api.requests(currentToken),
+        orders: () => api.orders(currentToken),
+        trips: () => api.trips(currentToken)
+      });
+
+      if (results.dashboard.status === "fulfilled") setDashboard(results.dashboard.value);
+      if (results.drivers.status === "fulfilled") setDrivers(results.drivers.value.drivers);
+      if (results.routes.status === "fulfilled") setRoutes(results.routes.value.routes);
+      if (results.requests.status === "fulfilled") setRequests(results.requests.value.requests);
+      if (results.orders.status === "fulfilled") setOrders(results.orders.value.orders);
+      if (results.trips.status === "fulfilled") {
+        const loadedTrips = results.trips.value.trips;
+        setTrips(loadedTrips);
+        setActiveTrip((current) => current ?? loadedTrips[0] ?? null);
+      }
+
+      for (const key of OVERVIEW_RESOURCE_KEYS) {
+        const result = results[key];
+        if (result.status === "rejected") console.error(`[admin overview] ${key} request failed`, result.reason);
+      }
+      setOverviewResources((current) => completeOverviewRefresh(current, results));
+      return summarizeOverviewResults(results);
+    })();
+
+    overviewRefreshRef.current = { token: currentToken, promise };
+    void promise.finally(() => {
+      if (overviewRefreshRef.current?.promise === promise) overviewRefreshRef.current = null;
+    });
+    return promise;
   }
 
   /**
@@ -177,17 +226,21 @@ export function App({
    * (the last active admin cannot be suspended), so the console shows what the
    * server actually decided.
    */
-  async function updateUserStatus(userId: string, status: AccountStatus, reason?: string) {
+  async function updateUserStatus(userId: string, status: AccountStatus, reason: string | undefined, expectedStatus: UserAccountStatus) {
     const result = await runAction(
       "user-status",
-      () => api.updateUserStatus(token, userId, status, reason),
+      () => api.updateUserStatus(token, userId, status, reason, expectedStatus),
       t("accountStatusUpdated")
     );
     if (result) await refreshOverview();
   }
 
   async function refreshData() {
-    await runAction("refresh", () => refreshOverview(), t("dataRefreshed"));
+    const summary = await runAction("refresh", () => refreshOverview());
+    if (!summary) return;
+    if (summary.failed === 0) setNotice({ type: "success", message: t("dataRefreshed") });
+    else if (summary.succeeded === 0) setNotice({ type: "error", message: t("overviewLoadFailed") });
+    else setNotice({ type: "error", message: t("overviewPartialLoad") });
   }
 
   async function login(event: FormEvent) {
@@ -198,6 +251,8 @@ export function App({
     sessionStore.setItem(ADMIN_TOKEN_KEY, result.token);
     setToken(result.token);
     setAdmin(result.user);
+    const capabilities = await api.capabilities(result.token).catch(() => ({ demo_reset_available: false }));
+    setDemoResetAvailable(capabilities.demo_reset_available === true);
     await refreshOverview(result.token);
   }
 
@@ -208,8 +263,9 @@ export function App({
   }
 
   async function resetDemo() {
-    if (!demoApi) return;
-    await runAction("reset", () => demoApi.reset(token || undefined, resetKey), t("demoDataReset"));
+    if (!demoApi || !demoResetAvailable) return;
+    const result = await runAction("reset", () => demoApi.reset(token || undefined, resetKey), t("demoDataReset"));
+    if (!result) return;
     const session = await api.login(phone, password);
     sessionExpiry.reset();
     sessionStore.setItem(ADMIN_TOKEN_KEY, session.token);
@@ -322,7 +378,7 @@ export function App({
   }
 
   async function runFullDemoSequence() {
-    if (!demoApi) return;
+    if (!demoApi || !demoResetAvailable) return;
     await runAction("full-demo", async () => {
       const steps: DemoStep[] = [];
       const mark = (key: TranslationKey, statusValue?: string) => {
@@ -376,10 +432,32 @@ export function App({
 
   useEffect(() => {
     if (!token) return;
-    void loadMe(token).then((loaded) => {
-      if (loaded) void runAction("restore-overview", () => refreshOverview(token));
+    void loadMe(token).then(() => {
+      // A transient /me failure must not leave the overview in permanent
+      // skeleton state. Terminal session failures clear the stored token, so
+      // only a still-current Admin session proceeds with independent loads.
+      if (sessionStore.getItem(ADMIN_TOKEN_KEY) === token) {
+        void api.capabilities(token)
+          .then((capabilities) => setDemoResetAvailable(capabilities.demo_reset_available === true))
+          .catch(() => setDemoResetAvailable(false));
+        void refreshOverview(token);
+      }
     });
   }, [token]);
+
+  useEffect(() => {
+    const syncModuleFromUrl = () => setActiveModule(moduleFromHash(window.location.hash));
+    window.addEventListener("hashchange", syncModuleFromUrl);
+    if (!window.location.hash) window.history.replaceState(null, "", hashForModule(activeModule));
+    return () => window.removeEventListener("hashchange", syncModuleFromUrl);
+  }, []);
+
+  function navigateToModule(id: AdminRouteId) {
+    setActiveModule(id);
+    setNotice(null);
+    const nextHash = hashForModule(id);
+    if (window.location.hash !== nextHash) window.location.hash = nextHash.slice(1);
+  }
 
   if (!token) {
     return (
@@ -402,7 +480,7 @@ export function App({
           <h1>{t("loginHeading")}</h1>
           <p className="login-card__description">{t("loginDescription", { apiBaseUrl: config.apiBaseUrl })}</p>
           {demoEnabled && <p className="login-card__hint technical">{t("demoCredentials")}</p>}
-          <label className="field">{t("adminPhone")}<input className="technical" value={phone} onChange={(event) => setPhone(event.target.value)} /></label>
+          <label className="field">{t("adminPhone")}<input className="technical" type="tel" dir="ltr" autoComplete="tel" maxLength={32} placeholder="+[country code][number]" value={phone} onChange={(event) => setPhone(event.target.value)} /></label>
           <label className="field">{t("password")}<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} /></label>
           <button className="btn btn--primary" disabled={busy === "login"}>{busy === "login" ? t("signingIn") : t("signIn")}</button>
           {notice && <Notice kind={notice.type}>{notice.message}</Notice>}
@@ -411,11 +489,14 @@ export function App({
     );
   }
 
-  const overviewData: OverviewData = { dashboard, routes, requests, orders, trips };
-  const alerts = deriveAlerts(overviewData);
-  const alertCount = alerts.unmatchedRequests + alerts.unverifiedDriverRoutes + alerts.unbatchedOrders;
+  const overviewData: OverviewData = { dashboard, drivers, routes, requests, orders, trips, resources: overviewResources };
+  const overviewRefreshing = Object.values(overviewResources).some((resource) => resource.phase === "loading");
   const activeNavItem = navItems.find((item) => item.id === currentModule);
-  const moduleTitle = activeNavItem ? t(activeNavItem.labelKey) : t("navOverview");
+  const moduleTitle = currentModule === "profile"
+    ? t("navProfile")
+    : activeNavItem
+      ? t(activeNavItem.labelKey)
+      : t("navOverview");
 
   function renderModule() {
     switch (currentModule) {
@@ -428,6 +509,7 @@ export function App({
                 onResetKeyChange={setResetKey}
                 steps={demoSteps.map((step) => t(step.key, step.statusValue ? { status: status(step.statusValue) } : {}))}
                 canAct={canAct}
+                resetAvailable={demoResetAvailable}
                 busy={busy}
                 onReset={() => void resetDemo()}
                 onRefresh={() => void refreshData()}
@@ -437,64 +519,43 @@ export function App({
             <OverviewDashboard
               data={overviewData}
               search={search}
-              busy={Boolean(busy)}
+              busy={Boolean(busy) || overviewRefreshing}
               onRefresh={() => void refreshData()}
             />
           </>
         );
 
-      case "requests":
+      case "deliveries":
         return <RequestsBoard requests={requests} orders={orders} search={search} />;
 
-      case "matching":
-        return isModuleAvailable("matching", flags) ? (
-          <MatchingWorkspace
-            request={selectedRequest}
-            order={selectedOrder}
-            matchResult={matchResult}
-            canAct={canAct}
-            busy={busy === "match"}
-            onRunMatch={() => void runMatch()}
-            onAccept={() => void acceptMatch()}
-            onReject={() => void rejectMatch()}
-            scoreLabel={(key) => t(scoringLabels[key] ?? "score")}
-          />
+      case "matchingBatching":
+        return isModuleAvailable("matchingBatching", flags) ? (
+          <>
+            <MatchingWorkspace
+              request={selectedRequest}
+              order={selectedOrder}
+              matchResult={matchResult}
+              canAct={canAct}
+              busy={busy === "match"}
+              onRunMatch={() => void runMatch()}
+              onAccept={() => void acceptMatch()}
+              onReject={() => void rejectMatch()}
+              scoreLabel={(key) => t(scoringLabels[key] ?? "score")}
+            />
+            <BatchingWorkspace
+              order={selectedOrder}
+              batchResult={batchResult}
+              canAct={canAct}
+              onCreateBatch={() => void runBatch()}
+            />
+            <ComparisonPanel comparison={comparison} canAct={canAct} onRunComparison={() => void runComparison()} />
+          </>
         ) : (
           <ModuleUnavailable icon="alt_route" reason="demo-only" />
         );
 
-      case "batching":
-        return isModuleAvailable("batching", flags) ? (
-          <BatchingWorkspace
-            order={selectedOrder}
-            batchResult={batchResult}
-            canAct={canAct}
-            onCreateBatch={() => void runBatch()}
-          />
-        ) : (
-          <ModuleUnavailable icon="inventory_2" reason="demo-only" />
-        );
-
       case "trips":
-        return (
-          <TripsTracking
-            trips={trips}
-            activeTrip={activeTrip}
-            tripFlow={tripFlow}
-            nextTripStatus={nextTripStatus}
-            latestLocation={latestLocation}
-            locationTrail={locationTrail}
-            search={search}
-            canAct={canAct}
-            demoEnabled={demoEnabled && Boolean(demoApi)}
-            onSelectTrip={setActiveTrip}
-            onRefreshTrips={() => void refreshTripData()}
-            onMoveTrip={(next) => void moveTrip(next)}
-            onSimulateStep={() => void simulateStep()}
-            onReadLatest={() => void readLatestLocation()}
-            onResetSimulation={() => void resetSimulation()}
-          />
-        );
+        return <TripsManagement api={api} token={token} search={search} canAct={canAct} />;
 
       case "routes":
         return routeManagementEnabled ? (
@@ -503,37 +564,31 @@ export function App({
           <ModuleUnavailable icon="edit_road" reason="no-api" />
         );
 
-      case "comparison":
-        return isModuleAvailable("comparison", flags) ? (
-          <ComparisonPanel comparison={comparison} canAct={canAct} onRunComparison={() => void runComparison()} />
-        ) : (
-          <ModuleUnavailable icon="analytics" reason="demo-only" />
-        );
-
       case "settings":
-        return <SettingsPanel config={config} admin={admin} />;
+        return <SettingsPanel config={config} admin={admin} api={api} token={token} />;
+
+      case "profile":
+        return <ProfilePanel admin={admin} />;
 
       case "users":
-        return <UsersDirectory drivers={drivers} requests={requests} orders={orders} search={search} />;
+        return <UsersDirectory api={api} token={token} admin={admin} search={search} canAct={canAct} />;
 
-      case "verification":
+      case "drivers":
         return (
           <DriverDirectory
+            api={api}
+            token={token}
             drivers={drivers}
             search={search}
             busy={Boolean(busy)}
-            onUpdateStatus={(userId, status, reason) => void updateUserStatus(userId, status, reason)}
+            state={overviewResources.drivers}
+            onRefresh={() => void refreshOverview()}
+            onUpdateStatus={(userId, status, reason, expectedStatus) => void updateUserStatus(userId, status, reason, expectedStatus)}
           />
         );
 
-      case "incidents":
-        return <ModuleUnavailable icon="report" reason="no-api" />;
-
-      case "safety":
+      case "incidentsSafety":
         return <ModuleUnavailable icon="emergency" reason="no-api" />;
-
-      case "aiReview":
-        return <ModuleUnavailable icon="psychology" reason="no-api" />;
 
       case "reports":
         return <ModuleUnavailable icon="assessment" reason="no-api" />;
@@ -543,16 +598,15 @@ export function App({
     }
   }
 
-  const moduleDescription: Partial<Record<ModuleId, string>> = {
+  const moduleDescription: Partial<Record<AdminRouteId, string>> = {
     overview: t("overviewDescription"),
-    requests: t("requestsDescription"),
-    matching: t("matchingDescription"),
-    batching: t("batchingDescription"),
+    deliveries: t("requestsDescription"),
+    matchingBatching: t("matchingDescription"),
     trips: t("tripsDescription"),
-    comparison: t("comparisonDescription"),
     users: t("usersDescription"),
-    verification: t("verificationDescription"),
-    settings: t("settingsDescription")
+    drivers: t("verificationDescription"),
+    settings: t("settingsDescription"),
+    profile: t("profileDescription")
   };
 
   return (
@@ -561,17 +615,24 @@ export function App({
         sidenav={
           <SideNav
             items={navItems}
-            active={currentModule}
-            onSelect={(id) => { setActiveModule(id); setNotice(null); }}
+            active={currentModule === "profile" ? null : currentModule}
+            onSelect={navigateToModule}
             labels={{
               brand: t("brandName"),
               subtitle: t("adminConsoleSubtitle"),
               navigation: t("navigationLabel"),
-              label: (item) => t(item.labelKey)
+              label: (item) => t(item.labelKey),
+              groupLabel: (labelKey) => t(labelKey)
             }}
             footer={
               <>
-                <Button variant="ghost" icon="account_circle" onClick={() => setActiveModule("settings")}>
+                <Button
+                  variant="ghost"
+                  icon="account_circle"
+                  className={currentModule === "profile" ? "is-active" : undefined}
+                  aria-current={currentModule === "profile" ? "page" : undefined}
+                  onClick={() => navigateToModule("profile")}
+                >
                   {t("navProfile")}
                 </Button>
                 <Button variant="ghost" icon="language" onClick={() => { setNotice(null); toggleLocale(); }}>
@@ -599,7 +660,9 @@ export function App({
             searchLabel={t("searchLabel")}
             helpLabel={t("helpLabel")}
             notificationsLabel={t("notificationsLabel")}
-            alertCount={alertCount}
+            notificationsTitle={t("notificationsTitle")}
+            notificationsDescription={t("notificationsUnavailableDescription")}
+            closeNotificationsLabel={t("closeNotifications")}
             user={{ name: admin?.name ?? "Admin", detail: admin?.phone ?? "" }}
           />
         }

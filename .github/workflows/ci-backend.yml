@@ -39,6 +39,7 @@ jobs:
       LOG_LEVEL: silent
       PORT: "3000"
       DEMO_RESET_KEY: ci-only-reset-key
+      DEMO_RESET_ALLOWED_DATABASES: masari_ci,masari_canonical_matching_ci,masari_canonical_shared_ci
       DEMO_PASSENGER_PASSWORD: ci-only-passenger-password
       DEMO_DRIVER_PASSWORD: ci-only-driver-password
       DEMO_MERCHANT_PASSWORD: ci-only-merchant-password
@@ -84,6 +85,12 @@ jobs:
       - run: npm run build
       - name: Real MySQL deterministic and trusted-session integration smoke
         run: npm run test:integration:mysql
+      - name: Real MySQL persistent demo-reset gate matrix
+        run: npm run test:integration:reset-matrix
+      - name: Real MySQL legacy online-state response-loss recovery
+        run: npm run test:integration:legacy-online
+      - name: Real MySQL passenger request and Trip association
+        run: npm run test:integration:passenger-trip-association
       - name: Real MySQL canonical single-demand integration
         env:
           MYSQL_PWD: ci-only-root-password

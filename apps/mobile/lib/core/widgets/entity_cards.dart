@@ -60,11 +60,8 @@ class RoleAvatar extends StatelessWidget {
               fit: BoxFit.cover,
               width: size,
               height: size,
-              errorBuilder: (context, _, _) => Icon(
-                Icons.person_outline,
-                size: size * 0.5,
-                color: color,
-              ),
+              errorBuilder: (context, _, _) =>
+                  Icon(Icons.person_outline, size: size * 0.5, color: color),
             ),
     );
   }
@@ -124,11 +121,7 @@ class DriverCard extends StatelessWidget {
         children: [
           if (onCall != null || onMessage != null) ...[
             if (onCall != null)
-              _CircleAction(
-                icon: Icons.call,
-                onPressed: onCall!,
-                filled: true,
-              ),
+              _CircleAction(icon: Icons.call, onPressed: onCall!, filled: true),
             if (onCall != null && onMessage != null)
               const SizedBox(width: AppTokens.spaceSmall),
             if (onMessage != null)
@@ -390,10 +383,7 @@ class TripCard extends StatelessWidget {
                 children: [
                   if (statusLabel != null)
                     Flexible(
-                      child: StatusChip(
-                        label: statusLabel!,
-                        tone: statusTone,
-                      ),
+                      child: StatusChip(label: statusLabel!, tone: statusTone),
                     ),
                   const Spacer(),
                   if (actionLabel != null && onAction != null)

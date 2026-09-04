@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:masari_mobile/features/auth/data/authenticated_api_client.dart';
+import 'package:masari_mobile/features/auth/domain/auth_models.dart';
 import 'package:masari_mobile/features/driver/data/driver_models.dart';
 import 'package:masari_mobile/features/driver/data/driver_repository.dart';
 
@@ -51,6 +53,63 @@ void main() {
       });
       expect((await repository.deactivateRoute('route_1')).status, 'inactive');
       expect(deactivated, isTrue);
+    },
+  );
+
+  test(
+    'explicit online state preserves the key and payload through refresh',
+    () async {
+      final now = DateTime.utc(2026, 8, 6, 10);
+      final observedKeys = <String?>[];
+      final observedBodies = <String>[];
+      var onlineCalls = 0;
+      var beforeRetryCalls = 0;
+      final harness = TestAuthenticatedClient(
+        now: () => now,
+        bundle: AuthTokenBundle(
+          accessToken: 'old-access',
+          refreshToken: 'old-refresh',
+          accessTokenExpiresAt: now.add(const Duration(minutes: 10)),
+          refreshTokenExpiresAt: now.add(const Duration(days: 1)),
+          sessionId: 'session_1',
+        ),
+        handler: (request) async {
+          if (request.url.path.endsWith('/auth/refresh')) {
+            return http.Response(_refreshResponse, 200);
+          }
+          onlineCalls += 1;
+          observedKeys.add(request.headers['idempotency-key']);
+          observedBodies.add(request.body);
+          if (onlineCalls == 1) {
+            expect(
+              request.headers[HttpHeaders.authorizationHeader],
+              'Bearer old-access',
+            );
+            return http.Response('{"error":"access_token_expired"}', 401);
+          }
+          expect(
+            request.headers[HttpHeaders.authorizationHeader],
+            'Bearer new-access',
+          );
+          return http.Response(
+            '{"online":true,"route_id":"route_1","replayed":true}',
+            200,
+          );
+        },
+      );
+      final repository = DriverRepository(apiClient: harness.client);
+
+      final result = await repository.setLegacyOnlineState(
+        online: true,
+        idempotencyKey: 'stable-online-key',
+        beforeRetry: () async => beforeRetryCalls += 1,
+      );
+
+      expect(result.online, isTrue);
+      expect(observedKeys, ['stable-online-key', 'stable-online-key']);
+      expect(observedBodies.toSet(), hasLength(1));
+      expect(jsonDecode(observedBodies.toSet().single), {'online': true});
+      expect(beforeRetryCalls, 1);
     },
   );
 
@@ -158,3 +217,6 @@ const _routeJsonAssigned =
 
 const _locationJson =
     '{"lat":"31.532600","lng":"35.099800","source":"simulated","sequence":0,"recorded_at":"2026-07-13T08:21:00.000Z"}';
+
+const _refreshResponse =
+    '{"token":"new-access","access_token":"new-access","access_token_expires_in":120,"refresh_token":"new-refresh","refresh_token_expires_in":3600,"session":{"id":"session_1","client_type":"mobile","device_name":"Masari Android","created_at":"2026-08-06T10:00:00.000Z","last_used_at":"2026-08-06T10:00:00.000Z","expires_at":"2026-08-06T11:00:00.000Z","is_current":true,"revoked":false},"user":{"id":"driver_1","name":"Driver","phone":"+970590000002","role":"driver","demo_account":false}}';

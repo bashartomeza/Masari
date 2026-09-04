@@ -8,7 +8,7 @@ const prismaMock = vi.hoisted(() => ({
   authSession: { findUnique: vi.fn(), update: vi.fn() },
   auditEvent: { create: vi.fn() },
   match: { findUnique: vi.fn(), update: vi.fn() },
-  trip: { findFirst: vi.fn(), create: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), update: vi.fn() },
+  trip: { findFirst: vi.fn(), create: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
   driverRoute: { update: vi.fn() },
   passengerRequest: { update: vi.fn() },
   merchantOrder: { update: vi.fn() },
@@ -98,6 +98,7 @@ describe("trip acceptance, status, and tracking", () => {
     });
     prismaMock.authSession.update.mockResolvedValue({});
     prismaMock.auditEvent.create.mockResolvedValue({ id: "audit_1" });
+    prismaMock.trip.updateMany.mockResolvedValue({ count: 1 });
     prismaMock.$transaction.mockImplementation((callback: (tx: typeof prismaMock) => unknown) => callback(prismaMock));
   });
 
@@ -173,6 +174,46 @@ describe("trip acceptance, status, and tracking", () => {
     prismaMock.trip.findUnique.mockResolvedValue(baseTrip());
 
     await request(createApp()).get("/api/v1/trips/trip_1").set(auth("passenger_2")).expect(403);
+  });
+
+  it("preserves exact passenger request provenance for same-owner Trip lists regardless of ordering", async () => {
+    const tripA = {
+      ...baseTrip(),
+      id: "trip_a",
+      passenger_request_id: "request_a",
+      created_at: new Date("2026-08-06T10:00:00.000Z")
+    };
+    const tripB = {
+      ...baseTrip(),
+      id: "trip_b",
+      passenger_request_id: "request_b",
+      created_at: new Date("2026-08-06T12:00:00.000Z")
+    };
+    prismaMock.trip.findMany.mockResolvedValue([tripB, tripA]);
+
+    const first = await request(createApp()).get("/api/v1/trips").set(auth("passenger_1")).expect(200);
+    expect(first.body.trips.map((trip: { id: string; passenger_request_id: string }) => [
+      trip.id,
+      trip.passenger_request_id
+    ])).toEqual([
+      ["trip_b", "request_b"],
+      ["trip_a", "request_a"]
+    ]);
+    expect(prismaMock.trip.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        operational_mode: "legacy",
+        canonical_trip_version: null,
+        passenger_request: { passenger_id: "passenger_1" }
+      }),
+      orderBy: { created_at: "desc" }
+    }));
+
+    prismaMock.trip.findMany.mockResolvedValue([tripA, tripB]);
+    const reversed = await request(createApp()).get("/api/v1/trips").set(auth("passenger_1")).expect(200);
+    expect(reversed.body.trips.find((trip: { id: string }) => trip.id === "trip_a"))
+      .toHaveProperty("passenger_request_id", "request_a");
+    expect(reversed.body.trips.find((trip: { id: string }) => trip.id === "trip_b"))
+      .toHaveProperty("passenger_request_id", "request_b");
   });
 
   it("valid status sequence works", async () => {

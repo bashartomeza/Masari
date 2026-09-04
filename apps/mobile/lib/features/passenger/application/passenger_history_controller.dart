@@ -30,7 +30,8 @@ class PassengerHistoryState {
   /// Open requests whose preferred time has already arrived, newest first.
   List<PassengerRequest> get active => _sorted(
     requests.where(
-      (request) => _openStatuses.contains(request.status) && !_isUpcoming(request),
+      (request) =>
+          _openStatuses.contains(request.status) && !_isUpcoming(request),
     ),
   );
 
@@ -40,8 +41,7 @@ class PassengerHistoryState {
   /// from `preferred_time` rather than invented as a status. The two buckets
   /// are mutually exclusive — a request must appear in exactly one, or the same
   /// trip is listed twice on the screen.
-  List<PassengerRequest> get upcoming =>
-      _sorted(requests.where(_isUpcoming));
+  List<PassengerRequest> get upcoming => _sorted(requests.where(_isUpcoming));
 
   static bool _isUpcoming(PassengerRequest request) =>
       _openStatuses.contains(request.status) &&
@@ -59,12 +59,14 @@ class PassengerHistoryState {
 
   bool get isEmpty => requests.isEmpty && trips.isEmpty;
 
-  /// The trip connected to a request, when one exists.
-  ///
-  /// `GET /trips` does not expose `passenger_request_id`, so a trip can only be
-  /// matched to the passenger's current work — which is enough for the one
-  /// active row that offers an "open trip" action.
-  PassengerTrip? get activeTrip => trips.isEmpty ? null : trips.first;
+  /// The Trip connected to this exact request by persisted relational
+  /// provenance. Owner-level ordering must never be used as association.
+  PassengerTrip? tripForRequest(String requestId) {
+    for (final trip in trips) {
+      if (trip.passengerRequestId == requestId) return trip;
+    }
+    return null;
+  }
 
   static List<PassengerRequest> _sorted(Iterable<PassengerRequest> items) {
     final list = items.toList()

@@ -2,14 +2,24 @@ import { createHash } from "node:crypto";
 import type { Request, Response } from "express";
 import { ipKeyGenerator, rateLimit } from "express-rate-limit";
 import type { AppConfig } from "../config.js";
+import { normalizePhoneToE164 } from "../lib/phone.js";
 
 function safeIpKey(req: Request) {
   return ipKeyGenerator(req.ip ?? "unknown", 56);
 }
 
 function loginKey(req: Request) {
-  const normalizedPhone = typeof req.body?.phone === "string" ? req.body.phone.trim().replace(/\s+/g, "") : "missing";
-  const phoneDigest = createHash("sha256").update(normalizedPhone).digest("hex").slice(0, 24);
+  let phoneIdentity = "invalid";
+  if (typeof req.body?.phone === "string") {
+    try {
+      phoneIdentity = normalizePhoneToE164(req.body.phone, {
+        ...(typeof req.body?.region === "string" ? { region: req.body.region } : {})
+      });
+    } catch {
+      // Invalid inputs share one per-IP bucket instead of creating bypassable raw variants.
+    }
+  }
+  const phoneDigest = createHash("sha256").update(phoneIdentity).digest("hex").slice(0, 24);
   return `${safeIpKey(req)}:${phoneDigest}`;
 }
 

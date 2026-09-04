@@ -21,6 +21,12 @@ enum AccountStatus {
   disabled
 }
 
+enum DriverVerificationStatus {
+  pending
+  approved
+  rejected
+}
+
 enum AuthClientType {
   mobile
   admin
@@ -326,6 +332,13 @@ enum ConsentLocale {
   en
 }
 
+enum ConsentReleaseStatus {
+  draft
+  approved
+  effective
+  retired
+}
+
 enum IdempotencyState {
   processing
   completed
@@ -347,6 +360,8 @@ model User {
   created_at        DateTime      @default(now())
 
   driver_profile                   DriverProfile?
+  driver_verification              DriverVerification?  @relation("DriverVerificationApplicant")
+  driver_verification_reviews      DriverVerification[]  @relation("DriverVerificationReviewer")
   passenger_requests               PassengerRequest[]
   merchant_orders                  MerchantOrder[]
   audit_events                     AuditEvent[]
@@ -506,11 +521,36 @@ model OnboardingSession {
   @@map("onboarding_sessions")
 }
 
+model ConsentRelease {
+  id                    String               @id @default(cuid())
+  version               String               @unique @db.VarChar(50)
+  status                ConsentReleaseStatus @default(draft)
+  revision              Int                  @default(1)
+  intended_effective_at DateTime
+  legal_approved_at     DateTime?
+  legal_approved_by     String?              @db.VarChar(191)
+  activated_at          DateTime?
+  activated_by          String?              @db.VarChar(191)
+  retired_at            DateTime?
+  retired_by            String?              @db.VarChar(191)
+  retirement_reason     String?              @db.VarChar(500)
+  created_by            String               @db.VarChar(191)
+  created_at            DateTime             @default(now())
+  updated_at            DateTime             @updatedAt
+
+  documents ConsentDocument[]
+
+  @@index([status, intended_effective_at])
+  @@map("consent_releases")
+}
+
 model ConsentDocument {
   id                String              @id @default(cuid())
+  release_id        String?
   document_type     ConsentDocumentType
   version           String              @db.VarChar(50)
   locale            ConsentLocale
+  content_body      String?             @db.Text
   content_digest    String              @db.Char(64)
   content_reference String?             @db.VarChar(500)
   effective_at      DateTime
@@ -519,9 +559,11 @@ model ConsentDocument {
   legal_approved_by String?             @db.VarChar(191)
   created_at        DateTime            @default(now())
 
+  release  ConsentRelease? @relation(fields: [release_id], references: [id], onDelete: Restrict)
   consents UserConsent[]
 
   @@unique([document_type, version, locale])
+  @@unique([release_id, document_type, locale])
   @@index([document_type, locale, effective_at])
   @@map("consent_documents")
 }
@@ -639,6 +681,26 @@ model DriverProfile {
   routes DriverRoute[]
 
   @@map("driver_profiles")
+}
+
+model DriverVerification {
+  id               String                   @id @default(cuid())
+  user_id          String                   @unique
+  status           DriverVerificationStatus @default(pending)
+  rejection_reason String?                  @db.VarChar(500)
+  revision         Int                      @default(1)
+  submitted_at     DateTime                 @default(now())
+  reviewed_at      DateTime?
+  reviewed_by_id   String?
+  created_at       DateTime                 @default(now())
+  updated_at       DateTime                 @updatedAt
+
+  user        User  @relation("DriverVerificationApplicant", fields: [user_id], references: [id], onDelete: Cascade)
+  reviewed_by User? @relation("DriverVerificationReviewer", fields: [reviewed_by_id], references: [id], onDelete: SetNull)
+
+  @@index([status, submitted_at])
+  @@index([reviewed_by_id])
+  @@map("driver_verifications")
 }
 
 model DriverRoute {

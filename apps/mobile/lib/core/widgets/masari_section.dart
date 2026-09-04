@@ -330,9 +330,7 @@ class CardAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final style = ButtonStyle(
-      minimumSize: WidgetStatePropertyAll(
-        Size(0, AppTokens.minTouchTarget),
-      ),
+      minimumSize: WidgetStatePropertyAll(Size(0, AppTokens.minTouchTarget)),
       padding: const WidgetStatePropertyAll(
         EdgeInsets.symmetric(horizontal: AppTokens.spaceMedium),
       ),

@@ -198,10 +198,7 @@ class AppTheme {
       fontFamily: fontFamily,
       colorScheme: colorScheme,
       scaffoldBackgroundColor: background,
-      textTheme: textTheme.apply(
-        bodyColor: onSurface,
-        displayColor: onSurface,
-      ),
+      textTheme: textTheme.apply(bodyColor: onSurface, displayColor: onSurface),
 
       // Level 1: a 1px stroke rather than a heavy shadow, so cards stay flat
       // and legible in bright outdoor light.

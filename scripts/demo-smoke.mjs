@@ -12,6 +12,16 @@ const apiBaseUrl = `${apiOrigin.replace(/\/$/, "")}/api/v1`;
 const resetKey = process.env.DEMO_RESET_KEY;
 const startedAt = Date.now();
 
+function assertResetSafeDatabase() {
+  const databaseUrl = process.env.DATABASE_URL;
+  const allowed = (process.env.DEMO_RESET_ALLOWED_DATABASES ?? "").split(",").map((value) => value.trim()).filter(Boolean);
+  let name = "";
+  try { name = new URL(databaseUrl).pathname.replace(/^\//, ""); } catch {}
+  if (name.toLowerCase() === "masari" || !/^[A-Za-z0-9_]+$/.test(name) || !allowed.includes(name)) {
+    throw new Error("Demo smoke refuses a database that is not explicitly reset-safe");
+  }
+}
+
 const accounts = {
   passenger: ["+970590000001", process.env.DEMO_PASSENGER_PASSWORD],
   driver1: ["+970590000002", process.env.DEMO_DRIVER_PASSWORD],
@@ -65,6 +75,7 @@ async function reset() {
 }
 
 async function primaryStory() {
+  assertResetSafeDatabase();
   const health = await request("/health");
   assert(health.ok === true, "API health response is not ready");
   assert(typeof health.request_id === "string", "API health response has no request ID");
@@ -90,9 +101,7 @@ async function primaryStory() {
   ]);
   assert(
     JSON.stringify(dashboard.counts) ===
-      // 4 routes: the 2 legacy corridor routes plus the 2 canonical
-      // availabilities the seed now creates for the canonical matcher.
-      JSON.stringify({ users: 5, drivers: 2, routes: 4, passenger_requests: 1, merchant_orders: 1, parcels: 5 }),
+      JSON.stringify({ users: 5, drivers: 2, routes: 2, passenger_requests: 1, merchant_orders: 1, parcels: 5 }),
     `unexpected reset counts: ${JSON.stringify(dashboard.counts)}`
   );
 

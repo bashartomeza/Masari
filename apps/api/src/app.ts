@@ -1,9 +1,9 @@
 import express from "express";
 import type { Logger } from "pino";
 import { authRouter } from "./modules/auth.js";
-import { demoRouter } from "./modules/demoReset.js";
+import { createDemoRouter } from "./modules/demoReset.js";
 import { passengerRouter } from "./modules/passenger.js";
-import { driverRouter } from "./modules/driver.js";
+import { createDriverRouter } from "./modules/driver.js";
 import { merchantRouter } from "./modules/merchant.js";
 import { adminRouter } from "./modules/admin.js";
 import { matchingRouter } from "./modules/matching.js";
@@ -17,7 +17,10 @@ import { requestIdMiddleware } from "./middleware/requestId.js";
 import { createOperationalLogger } from "./lib/logger.js";
 import { operationalLogMiddleware } from "./middleware/operationalLog.js";
 import { securityHeaders } from "./middleware/securityHeaders.js";
-import { createGlobalRateLimiter, createLoginRateLimiter } from "./middleware/rateLimit.js";
+import {
+  createGlobalRateLimiter,
+  createLoginRateLimiter,
+} from "./middleware/rateLimit.js";
 import { createHealthRouter } from "./modules/health.js";
 import type { ReadinessCheck } from "./lib/readiness.js";
 import { createAdminInvitationRouter } from "./modules/adminInvitations.js";
@@ -25,7 +28,7 @@ import { createPublicOnboardingRouter } from "./modules/publicOnboarding.js";
 import type { OtpProvider } from "./lib/otp.js";
 import {
   createAdminRouteManagementRouter,
-  createRouteCatalogRouter
+  createRouteCatalogRouter,
 } from "./modules/routeManagement.js";
 import type { RouteManagementService } from "./services/routeManagement.js";
 import { createDriverAvailabilityRouter } from "./modules/driverAvailability.js";
@@ -39,8 +42,16 @@ import { createCanonicalMatchingRouter } from "./modules/canonicalMatching.js";
 import { createCanonicalSharedMatchingRouter } from "./modules/canonicalSharedMatching.js";
 import type { CanonicalMatchingService } from "./services/canonicalMatching.js";
 import type { CanonicalSharedMatchingService } from "./services/canonicalSharedMatching.js";
+import type { LegacyDriverOnlineStateService } from "./services/legacyDriverOnlineState.js";
+import { createRouteProvider } from "./maps/liveProviders.js";
+import { createRoutePreviewService, type RoutePreviewService } from "./maps/previewService.js";
+import { createRoutePreviewRouter } from "./modules/routePreview.js";
+import { createAdminConsentRouter } from "./modules/adminConsents.js";
+import type { ConsentReleaseService } from "./services/consentReleases.js";
+import { adminTripsRouter } from "./modules/adminTrips.js";
 
 export const HTTP_JSON_LIMIT = "64kb";
+export const CONSENT_RELEASE_JSON_LIMIT = "256kb";
 export const HTTP_FORM_LIMIT = "16kb";
 
 type AppDependencies = {
@@ -53,9 +64,15 @@ type AppDependencies = {
   canonicalMatchingService?: CanonicalMatchingService;
   canonicalSharedMatchingService?: CanonicalSharedMatchingService;
   checkpointService?: CheckpointService;
+  legacyDriverOnlineStateService?: LegacyDriverOnlineStateService;
+  routePreviewService?: RoutePreviewService;
+  consentReleaseService?: ConsentReleaseService;
 };
 
-export function createApp(appConfig: AppConfig = config, dependencies: AppDependencies = {}) {
+export function createApp(
+  appConfig: AppConfig = config,
+  dependencies: AppDependencies = {},
+) {
   const app = express();
   const logger = dependencies.logger ?? createOperationalLogger(appConfig);
 
@@ -65,36 +82,87 @@ export function createApp(appConfig: AppConfig = config, dependencies: AppDepend
   app.use(operationalLogMiddleware(logger));
   app.use(securityHeaders(appConfig));
   app.use(createCors(appConfig));
+  app.use("/api/v1/admin/consent-releases", express.json({ limit: CONSENT_RELEASE_JSON_LIMIT }));
   app.use(express.json({ limit: HTTP_JSON_LIMIT }));
   app.use(express.urlencoded({ extended: false, limit: HTTP_FORM_LIMIT }));
 
-  app.use("/api/v1", createHealthRouter(appConfig, dependencies.readinessCheck));
+  app.use(
+    "/api/v1",
+    createHealthRouter(appConfig, dependencies.readinessCheck),
+  );
   app.use("/api/v1", createGlobalRateLimiter(appConfig));
   app.use("/api/v1/auth/login", createLoginRateLimiter(appConfig));
-  app.use("/api/v1", createPublicOnboardingRouter(appConfig, dependencies.otpProvider));
+  app.use(
+    "/api/v1",
+    createPublicOnboardingRouter(appConfig, dependencies.otpProvider),
+  );
 
   app.use("/api/v1", authRouter);
   app.use("/api/v1", createCapabilitiesRouter(appConfig));
-  app.use("/api/v1", createCheckpointRouter(appConfig, dependencies.checkpointService));
-  if (appConfig.demoFeaturesEnabled) app.use("/api/v1", demoRouter);
-  app.use("/api/v1", createCanonicalDemandRouter(appConfig, dependencies.canonicalDemandService));
-  app.use("/api/v1", createCanonicalMatchingRouter(appConfig, dependencies.canonicalMatchingService));
-  app.use("/api/v1", createCanonicalSharedMatchingRouter(appConfig, dependencies.canonicalSharedMatchingService));
+  app.use(
+    "/api/v1",
+    createCheckpointRouter(appConfig, dependencies.checkpointService),
+  );
+  if (appConfig.demoFeaturesEnabled) app.use("/api/v1", createDemoRouter(appConfig));
+  app.use(
+    "/api/v1",
+    createCanonicalDemandRouter(appConfig, dependencies.canonicalDemandService),
+  );
+  app.use(
+    "/api/v1",
+    createCanonicalMatchingRouter(
+      appConfig,
+      dependencies.canonicalMatchingService,
+    ),
+  );
+  app.use(
+    "/api/v1",
+    createCanonicalSharedMatchingRouter(
+      appConfig,
+      dependencies.canonicalSharedMatchingService,
+    ),
+  );
   app.use("/api/v1", passengerRouter);
-  app.use("/api/v1", createDriverAvailabilityRouter(appConfig, dependencies.driverAvailabilityService));
-  app.use("/api/v1", driverRouter);
+  app.use(
+    "/api/v1",
+    createDriverAvailabilityRouter(
+      appConfig,
+      dependencies.driverAvailabilityService,
+    ),
+  );
+  app.use(
+    "/api/v1",
+    createDriverRouter(dependencies.legacyDriverOnlineStateService),
+  );
   app.use("/api/v1", batchingRouter);
   app.use("/api/v1", merchantRouter);
   app.use("/api/v1", matchingRouter);
   app.use("/api/v1", tripsRouter);
-  app.use("/api/v1", createRouteCatalogRouter(appConfig, dependencies.routeManagementService));
+  app.use(
+    "/api/v1",
+    createRouteCatalogRouter(appConfig, dependencies.routeManagementService),
+  );
   if (appConfig.demoFeaturesEnabled) {
     app.use("/api/v1", trackingSimulationRouter);
     app.use("/api/v1", comparisonRouter);
   }
-  if (appConfig.invitationsEnabled) app.use("/api/v1", createAdminInvitationRouter(appConfig));
+  if (appConfig.invitationsEnabled)
+    app.use("/api/v1", createAdminInvitationRouter(appConfig));
   else app.use("/api/v1/admin/invitations", notFoundHandler);
-  app.use("/api/v1", createAdminRouteManagementRouter(appConfig, dependencies.routeManagementService));
+  app.use(
+    "/api/v1",
+    createAdminRouteManagementRouter(
+      appConfig,
+      dependencies.routeManagementService,
+    ),
+  );
+  const routePreviewService = dependencies.routePreviewService ?? createRoutePreviewService({
+    provider: createRouteProvider(appConfig),
+    cacheTtlMs: appConfig.routeMaps.cacheTtlSeconds * 1_000
+  });
+  app.use("/api/v1", createRoutePreviewRouter(appConfig, routePreviewService));
+  app.use("/api/v1", createAdminConsentRouter(dependencies.consentReleaseService));
+  app.use("/api/v1", adminTripsRouter);
   app.use("/api/v1", adminRouter);
 
   app.use(notFoundHandler);

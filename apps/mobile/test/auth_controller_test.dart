@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -6,8 +8,11 @@ import 'package:http/testing.dart';
 import 'package:masari_mobile/core/api/api_client.dart';
 import 'package:masari_mobile/core/config/app_config.dart';
 import 'package:masari_mobile/features/auth/application/auth_controller.dart';
+import 'package:masari_mobile/features/auth/application/auth_actor_binding.dart';
 import 'package:masari_mobile/features/auth/data/token_storage.dart';
 import 'package:masari_mobile/features/auth/domain/auth_models.dart';
+import 'package:masari_mobile/features/driver/data/driver_repository.dart';
+import 'package:masari_mobile/features/canonical_routes/data/canonical_operation_storage.dart';
 import 'package:masari_mobile/features/onboarding/data/onboarding_storage.dart';
 import 'package:masari_mobile/features/passenger/application/passenger_history_controller.dart';
 
@@ -200,7 +205,175 @@ void main() {
       reason: 'the previous account\'s trips must not survive as settled data',
     );
   });
+
+  test('logout invalidates the actor-private driver trust score', () async {
+    FlutterSecureStorage.setMockInitialValues({
+      TokenStorage.tokenKey: 'saved-token',
+    });
+    final container = _container((request) async {
+      return http.Response(
+        '{"user":{"id":"driver_1","name":"Driver One","phone":"+970590000002","role":"driver","demo_account":true},'
+        '"driver_profile":{"trust_score":86}}',
+        200,
+      );
+    });
+    addTearDown(container.dispose);
+
+    await container.read(authControllerProvider.future);
+    expect(
+      await container.read(driverTrustScoreProvider('driver_1').future),
+      86,
+    );
+    expect(
+      container.read(driverTrustScoreProvider('driver_1')).isLoading,
+      isFalse,
+    );
+
+    await container.read(authControllerProvider.notifier).logout();
+
+    expect(
+      container.read(driverTrustScoreProvider('driver_1')).isLoading,
+      isTrue,
+      reason: 'another driver must not inherit the previous actor\'s score',
+    );
+  });
+
+  for (final termination in _ActorTermination.values) {
+    for (final delayedFailure in [false, true]) {
+      test(
+        '${termination.name} fences a delayed actor-A trust '
+        '${delayedFailure ? 'error' : 'value'} after actor B authenticates',
+        () async {
+          FlutterSecureStorage.setMockInitialValues({
+            TokenStorage.tokenKey: 'actor-a-token',
+          });
+          final delayedA = Completer<http.Response>();
+          final actorARequestStarted = Completer<void>();
+          var actorARestoreServed = false;
+          final container = _container((request) async {
+            if (request.url.path.endsWith('/auth/login')) {
+              return http.Response(
+                _loginBody('driver_b', 'actor-b-token'),
+                200,
+              );
+            }
+            if (request.url.path.endsWith('/auth/logout') ||
+                request.url.path.endsWith('/auth/logout-all')) {
+              return http.Response('{"ok":true}', 200);
+            }
+            if (request.url.path.endsWith('/me')) {
+              final token = request.headers['authorization'];
+              if (token == 'Bearer actor-b-token') {
+                return http.Response(_driverBody('driver_b', 22), 200);
+              }
+              if (token == 'Bearer actor-a-token') {
+                if (!actorARestoreServed) {
+                  actorARestoreServed = true;
+                  return http.Response(_driverBody('driver_a', null), 200);
+                }
+                if (!actorARequestStarted.isCompleted) {
+                  actorARequestStarted.complete();
+                }
+                return delayedA.future;
+              }
+            }
+            return http.Response('{"error":"not_found"}', 404);
+          });
+          addTearDown(container.dispose);
+
+          final restored = await container.read(authControllerProvider.future);
+          expect(restored.user?.id, 'driver_a');
+          final unresolved = CanonicalOperationBundle.create(
+            operation: 'driver_availability_create',
+            scope: 'driver',
+            actorId: 'driver_a',
+            payload: const {'route_version_id': 'route-version-a'},
+          );
+          await container
+              .read(canonicalOperationStorageProvider)
+              .save(unresolved);
+
+          final actorAValues = <int?>[];
+          final actorAErrors = <Object>[];
+          final actorASubscription = container.listen(
+            driverTrustScoreProvider('driver_a'),
+            (_, next) {
+              if (next case AsyncData(:final value)) actorAValues.add(value);
+              if (next case AsyncError(:final error)) actorAErrors.add(error);
+            },
+            fireImmediately: true,
+          );
+          addTearDown(actorASubscription.close);
+          await actorARequestStarted.future;
+          await _terminate(container, termination);
+          await container
+              .read(authControllerProvider.notifier)
+              .login(phone: '+970590000009', password: 'password-value');
+
+          expect(
+            container.read(authenticatedActorBindingProvider).actorId,
+            'driver_b',
+          );
+          expect(
+            await container.read(driverTrustScoreProvider('driver_b').future),
+            22,
+          );
+
+          delayedA.complete(
+            delayedFailure
+                ? http.Response('{"error":"temporary"}', 503)
+                : http.Response(_driverBody('driver_a', 86), 200),
+          );
+          await Future<void>.delayed(Duration.zero);
+          await Future<void>.delayed(Duration.zero);
+          expect(actorAValues, isNot(contains(86)));
+          expect(actorAErrors, isEmpty);
+          expect(
+            container.read(driverTrustScoreProvider('driver_b')).value,
+            22,
+          );
+          expect(
+            await container.read(canonicalOperationStorageProvider).read(),
+            isNotNull,
+            reason: 'authentication teardown preserves unresolved work',
+          );
+        },
+      );
+    }
+  }
 }
+
+enum _ActorTermination { logout, logoutAll, terminalSession }
+
+Future<void> _terminate(
+  ProviderContainer container,
+  _ActorTermination termination,
+) => switch (termination) {
+  _ActorTermination.logout =>
+    container.read(authControllerProvider.notifier).logout(),
+  _ActorTermination.logoutAll =>
+    container.read(authControllerProvider.notifier).logoutAll(),
+  _ActorTermination.terminalSession =>
+    container
+        .read(authControllerProvider.notifier)
+        .completeCurrentSessionRevocation(),
+};
+
+String _driverBody(String id, int? score) =>
+    '{"user":{"id":"$id","name":"Driver","phone":"+970590000002",'
+    '"role":"driver","demo_account":true},'
+    '"driver_profile":${score == null ? 'null' : '{"trust_score":$score}'}}';
+
+String _loginBody(String id, String token) =>
+    '{"token":"$token","access_token":"$token",'
+    '"access_token_expires_in":3600,"refresh_token":"refresh-$id",'
+    '"refresh_token_expires_in":7200,'
+    '"session":{"id":"session-$id","client_type":"mobile",'
+    '"device_name":"test","created_at":"2026-08-06T00:00:00.000Z",'
+    '"last_used_at":"2026-08-06T00:00:00.000Z",'
+    '"expires_at":"2099-08-06T00:00:00.000Z","is_current":true,'
+    '"revoked":false},"user":{"id":"$id","name":"Driver",'
+    '"phone":"+970590000009","role":"driver","demo_account":true}}';
 
 ProviderContainer _container(
   Future<http.Response> Function(http.Request request) handler,

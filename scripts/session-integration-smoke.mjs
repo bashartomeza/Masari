@@ -110,6 +110,8 @@ async function run() {
   assert(process.env.APP_ENV === "demo", "Trusted-session integration requires APP_ENV=demo");
   assert(databaseName.endsWith("_ci"), "Trusted-session integration refuses a database not ending in _ci");
   assert(/^[A-Za-z0-9_]+$/.test(databaseName), "Trusted-session integration requires a safe database name");
+  const resetAllowedDatabases = (process.env.DEMO_RESET_ALLOWED_DATABASES ?? "").split(",").map((value) => value.trim()).filter(Boolean);
+  assert(databaseName.toLowerCase() !== "masari" && resetAllowedDatabases.includes(databaseName), "Trusted-session integration requires an explicitly reset-safe database");
   assert(resetKey && passengerCredentials[1] && adminCredentials[1], "Required demo credentials are unavailable");
   mysqlDefaults = createMysqlDefaults(new URL(databaseUrl));
   await reset();
@@ -196,7 +198,7 @@ async function run() {
   await call(`/admin/users/${target.user.id}/status`, {
     token: administrator.token,
     method: "PATCH",
-    body: { status: "suspended", reason: "Automated integration suspension" }
+    body: { status: "suspended", reason: "Automated integration suspension", expected_status: "active" }
   });
   await expectRejected("/me", target.token, [403]);
   await call("/auth/login", {
@@ -207,7 +209,7 @@ async function run() {
   await call(`/admin/users/${target.user.id}/status`, {
     token: administrator.token,
     method: "PATCH",
-    body: { status: "active" }
+    body: { status: "active", expected_status: "suspended" }
   });
   await expectRejected("/me", target.token);
   const reactivated = await login(passengerCredentials, "integration-reactivated");
@@ -226,13 +228,13 @@ async function run() {
     call(`/admin/users/${secondAdminId}/status`, {
       token: concurrencyAdmin.token,
       method: "PATCH",
-      body: { status: "disabled", reason: "Concurrent admin invariant test" },
+      body: { status: "disabled", reason: "Concurrent admin invariant test", expected_status: "active" },
       expected: [200, 403, 409]
     }),
     call(`/admin/users/${safeDatabaseId(concurrencyAdmin.user.id, "primary admin")}/status`, {
       token: secondAdmin.token,
       method: "PATCH",
-      body: { status: "disabled", reason: "Concurrent admin invariant test" },
+      body: { status: "disabled", reason: "Concurrent admin invariant test", expected_status: "active" },
       expected: [200, 403, 409]
     })
   ]);
@@ -259,7 +261,7 @@ async function run() {
     call(`/admin/users/${safeDatabaseId(existingPassenger.user.id, "login-race passenger")}/status`, {
       token: raceAdministrator.token,
       method: "PATCH",
-      body: { status: "suspended", reason: "Concurrent login suspension test" }
+      body: { status: "suspended", reason: "Concurrent login suspension test", expected_status: "active" }
     })
   ]);
   assert(loginStatusRace[1].status === 200, "Concurrent suspension did not complete");

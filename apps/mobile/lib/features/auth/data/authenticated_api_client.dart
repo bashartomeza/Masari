@@ -52,6 +52,19 @@ class AuthenticatedApiClient {
     );
   }
 
+  Future<Map<String, dynamic>> putJson(
+    String path, {
+    required Map<String, dynamic> body,
+    Map<String, String> headers = const {},
+    Future<void> Function()? beforeRetry,
+  }) {
+    return sessionCoordinator.sendAuthenticated(
+      (token) =>
+          apiClient.putJson(path, body: body, token: token, headers: headers),
+      beforeRetry: beforeRetry,
+    );
+  }
+
   Future<Map<String, dynamic>> deleteJson(String path) {
     return sessionCoordinator.sendAuthenticated(
       (token) => apiClient.deleteJson(path, token: token),

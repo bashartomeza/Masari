@@ -5,7 +5,7 @@ import { auditEvent } from "../lib/audit.js";
 import { revokeAllUserSessions } from "../lib/refreshTokens.js";
 import { requireAuth, requireRole, type AuthenticatedRequest } from "../middleware/auth.js";
 import { HttpError } from "../middleware/error.js";
-import { AccountStatus, AuditAction } from "../generated/prisma/enums.js";
+import { AccountStatus, AuditAction, DriverVerificationStatus } from "../generated/prisma/enums.js";
 import { Prisma } from "../generated/prisma/client.js";
 
 export const adminRouter = Router();
@@ -22,6 +22,40 @@ const safeUserSelect = {
   demo_account: true,
   created_at: true
 } as const;
+
+const userDirectoryListSelect = {
+  ...safeUserSelect,
+  driver_profile: { select: { id: true, verified: true } },
+  driver_verification: { select: { status: true } }
+} as const;
+
+type UserDirectoryListRecord = Prisma.UserGetPayload<{ select: typeof userDirectoryListSelect }>;
+
+const userDirectoryDetailSelect = {
+  ...safeUserSelect,
+  driver_profile: {
+    select: {
+      id: true,
+      vehicle_type: true,
+      seats_total: true,
+      parcel_capacity: true,
+      verified: true,
+      trust_score: true
+    }
+  },
+  driver_verification: {
+    select: {
+      id: true,
+      status: true,
+      revision: true,
+      submitted_at: true,
+      reviewed_at: true,
+      reviewed_by: { select: { id: true, name: true } }
+    }
+  }
+} as const;
+
+type UserDirectoryDetailRecord = Prisma.UserGetPayload<{ select: typeof userDirectoryDetailSelect }>;
 
 function serializeSafeUser(user: {
   id: string;
@@ -49,11 +83,422 @@ function serializeSafeUser(user: {
   };
 }
 
+function serializeUserDirectoryListRecord(user: UserDirectoryListRecord) {
+  return {
+    id: user.id,
+    name: user.name,
+    phone: user.phone,
+    role: user.role,
+    account_status: user.account_status,
+    status_reason: user.status_reason,
+    status_updated_at: user.status_updated_at,
+    last_login_at: user.last_login_at,
+    demo_account: user.demo_account,
+    created_at: user.created_at,
+    role_context: createUserRoleContext(user)
+  };
+}
+
+function createUserRoleContext(
+  user: { role: string; driver_profile: { verified: boolean } | null; driver_verification: { status: string } | null }
+) {
+  if (user.role === "driver") {
+    return {
+      kind: "driver",
+      driver_profile_exists: Boolean(user.driver_profile),
+      driver_profile_verified: user.driver_profile?.verified ?? false,
+      driver_verification_status: user.driver_verification?.status ?? "none"
+    };
+  }
+  if (user.role === "merchant") {
+    return { kind: "merchant", merchant_approval_connected: false };
+  }
+  if (user.role === "admin") return { kind: "admin" };
+  return { kind: "passenger" };
+}
+
+function serializeUserDirectoryDetailRecord(user: UserDirectoryDetailRecord) {
+  const roleContext = createUserRoleContext(user);
+  return {
+    ...serializeSafeUser(user),
+    role_context: roleContext,
+    driver_profile: user.driver_profile
+      ? {
+          id: user.driver_profile.id,
+          vehicle_type: user.driver_profile.vehicle_type,
+          seats_total: user.driver_profile.seats_total,
+          parcel_capacity: user.driver_profile.parcel_capacity,
+          verified: user.driver_profile.verified,
+          trust_score: user.driver_profile.trust_score
+        }
+        : null,
+    driver_verification: user.driver_verification
+      ? {
+          id: user.driver_verification.id,
+          status: user.driver_verification.status,
+          revision: user.driver_verification.revision,
+          submitted_at: user.driver_verification.submitted_at,
+          reviewed_at: user.driver_verification.reviewed_at,
+          reviewer: user.driver_verification.reviewed_by
+        }
+      : null
+  };
+}
+
+const adminUserListQuerySchema = z.object({
+  role: z.enum(["passenger", "driver", "merchant", "admin"]).optional(),
+  account_status: z
+    .enum([AccountStatus.active, AccountStatus.pending, AccountStatus.suspended, AccountStatus.disabled])
+    .optional(),
+  demo_account: z
+    .enum(["true", "false"])
+    .transform((value) => value === "true")
+    .optional(),
+  search: z.string().trim().max(64).default(""),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(50)
+});
+
+const driverVerificationInclude = {
+  user: { select: { ...safeUserSelect, driver_profile: true } },
+  reviewed_by: { select: { id: true, name: true } }
+} as const;
+
+type DriverVerificationRecord = Prisma.DriverVerificationGetPayload<{
+  include: typeof driverVerificationInclude;
+}>;
+
+function serializeDriverVerification(verification: DriverVerificationRecord) {
+  const { driver_profile: driverProfile, ...candidate } = verification.user;
+  return {
+    id: verification.id,
+    revision: verification.revision,
+    status: verification.status,
+    rejection_reason: verification.rejection_reason,
+    submitted_at: verification.submitted_at,
+    reviewed_at: verification.reviewed_at,
+    reviewer: verification.reviewed_by,
+    candidate: serializeSafeUser(candidate),
+    driver_profile: driverProfile,
+    evidence: { status: "not_collected" as const }
+  };
+}
+
+const verificationListSchema = z.object({
+  status: z
+    .enum([
+      DriverVerificationStatus.pending,
+      DriverVerificationStatus.approved,
+      DriverVerificationStatus.rejected
+    ])
+    .default(DriverVerificationStatus.pending),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(50)
+});
+
+const profileInputSchema = z.object({
+  vehicle_type: z
+    .string()
+    .min(2)
+    .max(80)
+    .transform((value) => value.trim().replace(/\s+/g, " "))
+    .refine((value) => value.length >= 2 && !/[\u0000-\u001f\u007f]/.test(value), "Invalid value"),
+  seats_total: z.number().int().min(1).max(8),
+  parcel_capacity: z.number().int().min(0).max(20)
+});
+
+const approveVerificationSchema = z.object({
+  expected_revision: z.number().int().min(1),
+  profile: profileInputSchema.optional()
+});
+
+const rejectVerificationSchema = z.object({
+  expected_revision: z.number().int().min(1),
+  reason: z
+    .string()
+    .min(3)
+    .max(500)
+    .transform((value) => value.trim().replace(/\s+/g, " "))
+    .refine((value) => value.length >= 3 && !/[\u0000-\u001f\u007f]/.test(value), "Invalid value")
+});
+
+function requestParam(value: string | string[]) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
 adminRouter.use("/admin", requireAuth, requireRole("admin"));
+
+adminRouter.get("/admin/users", async (req: AuthenticatedRequest, res, next) => {
+  try {
+    const input = adminUserListQuerySchema.parse(req.query);
+    const where: Prisma.UserWhereInput = {
+      ...(input.role ? { role: input.role } : null),
+      ...(input.account_status ? { account_status: input.account_status } : null),
+      ...(typeof input.demo_account === "boolean" ? { demo_account: input.demo_account } : null),
+      ...(input.search
+        ? {
+            OR: [
+              { id: { contains: input.search } },
+              { name: { contains: input.search } },
+              { phone: { contains: input.search } },
+              { status_reason: { contains: input.search } }
+            ]
+          }
+        : null)
+    };
+
+    const [users, total] = await Promise.all([
+      prisma.user.findMany({
+        where,
+        select: userDirectoryListSelect,
+        orderBy: [{ created_at: "desc" }, { id: "asc" }],
+        skip: (input.page - 1) * input.limit,
+        take: input.limit
+      }),
+      prisma.user.count({ where })
+    ]);
+    res.json({
+      users: users.map(serializeUserDirectoryListRecord),
+      page: input.page,
+      limit: input.limit,
+      total
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.get("/admin/users/:id", async (req: AuthenticatedRequest, res, next) => {
+  try {
+    const userId = requestParam(req.params.id);
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: userDirectoryDetailSelect
+    });
+    if (!user) throw new HttpError(404, "user_not_found");
+
+    const [activeSessionSummary, passengerRequestCount, merchantOrderCount] = await Promise.all([
+      prisma.authSession.aggregate({
+        where: {
+          user_id: user.id,
+          revoked_at: null
+        },
+        _count: { _all: true },
+        _max: { last_used_at: true }
+      }),
+      prisma.passengerRequest.count({
+        where: { passenger_id: user.id }
+      }),
+      prisma.merchantOrder.count({
+        where: { merchant_id: user.id }
+      })
+    ]);
+
+    const serialized = serializeUserDirectoryDetailRecord(user);
+    res.json({
+      user: {
+        ...serialized,
+        active_session_count: activeSessionSummary._count._all,
+        last_session_at: activeSessionSummary._max.last_used_at,
+        passenger_request_count: user.role === "passenger" ? passengerRequestCount : 0,
+        merchant_order_count: user.role === "merchant" ? merchantOrderCount : 0
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.get("/admin/driver-verifications", async (req: AuthenticatedRequest, res, next) => {
+  try {
+    const input = verificationListSchema.parse(req.query);
+    const where = { status: input.status };
+    const [verifications, total] = await Promise.all([
+      prisma.driverVerification.findMany({
+        where,
+        include: driverVerificationInclude,
+        orderBy: [{ submitted_at: "asc" }, { id: "asc" }],
+        skip: (input.page - 1) * input.limit,
+        take: input.limit
+      }),
+      prisma.driverVerification.count({ where })
+    ]);
+    res.json({
+      verifications: verifications.map(serializeDriverVerification),
+      page: input.page,
+      limit: input.limit,
+      total
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.get("/admin/driver-verifications/:userId", async (req: AuthenticatedRequest, res, next) => {
+  try {
+    const userId = requestParam(req.params.userId);
+    const verification = await prisma.driverVerification.findUnique({
+      where: { user_id: userId },
+      include: driverVerificationInclude
+    });
+    if (!verification) throw new HttpError(404, "driver_verification_not_found");
+    res.json({ verification: serializeDriverVerification(verification) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.post("/admin/driver-verifications/:userId/approve", async (req: AuthenticatedRequest, res, next) => {
+  try {
+    const userId = requestParam(req.params.userId);
+    const input = approveVerificationSchema.parse(req.body);
+    const result = await prisma.$transaction(
+      async (tx) => {
+        const current = await tx.driverVerification.findUnique({
+          where: { user_id: userId },
+          include: driverVerificationInclude
+        });
+        if (!current) throw new HttpError(404, "driver_verification_not_found");
+        if (current.user.role !== "driver") throw new HttpError(409, "driver_verification_role_conflict");
+        if (current.user.account_status !== AccountStatus.pending && current.user.account_status !== AccountStatus.active) {
+          throw new HttpError(409, "driver_account_status_conflict");
+        }
+        if (current.status !== DriverVerificationStatus.pending || current.revision !== input.expected_revision) {
+          throw new HttpError(409, "driver_verification_state_conflict");
+        }
+        if (!current.user.driver_profile && !input.profile) throw new HttpError(400, "driver_profile_required");
+        if (current.user.driver_profile && input.profile) throw new HttpError(409, "driver_profile_already_exists");
+
+        const now = new Date();
+        const transitioned = await tx.driverVerification.updateMany({
+          where: {
+            id: current.id,
+            status: DriverVerificationStatus.pending,
+            revision: input.expected_revision
+          },
+          data: {
+            status: DriverVerificationStatus.approved,
+            rejection_reason: null,
+            reviewed_at: now,
+            reviewed_by_id: req.user!.id,
+            revision: { increment: 1 }
+          }
+        });
+        if (transitioned.count !== 1) throw new HttpError(409, "driver_verification_state_conflict");
+
+        if (current.user.driver_profile) {
+          await tx.driverProfile.update({ where: { id: current.user.driver_profile.id }, data: { verified: true } });
+        } else {
+          await tx.driverProfile.create({
+            data: {
+              user_id: current.user_id,
+              vehicle_type: input.profile!.vehicle_type,
+              seats_total: input.profile!.seats_total,
+              parcel_capacity: input.profile!.parcel_capacity,
+              verified: true
+            }
+          });
+        }
+        if (current.user.account_status === AccountStatus.pending) {
+          await tx.user.update({
+            where: { id: current.user_id },
+            data: { account_status: AccountStatus.active, status_reason: null, status_updated_at: now }
+          });
+        }
+        await auditEvent(tx, {
+          userId: req.user!.id,
+          action: AuditAction.admin_action,
+          entityType: "DriverVerification",
+          entityId: current.id,
+          metadata: {
+            action: "driver_verification_approved",
+            target_user_id: current.user_id,
+            previous_status: current.status,
+            new_status: DriverVerificationStatus.approved,
+            previous_revision: current.revision,
+            request_id: req.requestId
+          }
+        });
+        return tx.driverVerification.findUniqueOrThrow({
+          where: { id: current.id },
+          include: driverVerificationInclude
+        });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+    );
+    res.json({ verification: serializeDriverVerification(result) });
+  } catch (error) {
+    next(isTransactionWriteConflict(error) ? new HttpError(409, "driver_verification_state_conflict") : error);
+  }
+});
+
+adminRouter.post("/admin/driver-verifications/:userId/reject", async (req: AuthenticatedRequest, res, next) => {
+  try {
+    const userId = requestParam(req.params.userId);
+    const input = rejectVerificationSchema.parse(req.body);
+    const result = await prisma.$transaction(
+      async (tx) => {
+        const current = await tx.driverVerification.findUnique({
+          where: { user_id: userId },
+          include: driverVerificationInclude
+        });
+        if (!current) throw new HttpError(404, "driver_verification_not_found");
+        if (current.user.role !== "driver") throw new HttpError(409, "driver_verification_role_conflict");
+        if (current.status !== DriverVerificationStatus.pending || current.revision !== input.expected_revision) {
+          throw new HttpError(409, "driver_verification_state_conflict");
+        }
+
+        const now = new Date();
+        const transitioned = await tx.driverVerification.updateMany({
+          where: {
+            id: current.id,
+            status: DriverVerificationStatus.pending,
+            revision: input.expected_revision
+          },
+          data: {
+            status: DriverVerificationStatus.rejected,
+            rejection_reason: input.reason,
+            reviewed_at: now,
+            reviewed_by_id: req.user!.id,
+            revision: { increment: 1 }
+          }
+        });
+        if (transitioned.count !== 1) throw new HttpError(409, "driver_verification_state_conflict");
+        if (current.user.driver_profile) {
+          await tx.driverProfile.update({ where: { id: current.user.driver_profile.id }, data: { verified: false } });
+        }
+        await auditEvent(tx, {
+          userId: req.user!.id,
+          action: AuditAction.admin_action,
+          entityType: "DriverVerification",
+          entityId: current.id,
+          metadata: {
+            action: "driver_verification_rejected",
+            target_user_id: current.user_id,
+            previous_status: current.status,
+            new_status: DriverVerificationStatus.rejected,
+            reason: input.reason,
+            previous_revision: current.revision,
+            request_id: req.requestId
+          }
+        });
+        return tx.driverVerification.findUniqueOrThrow({
+          where: { id: current.id },
+          include: driverVerificationInclude
+        });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+    );
+    res.json({ verification: serializeDriverVerification(result) });
+  } catch (error) {
+    next(isTransactionWriteConflict(error) ? new HttpError(409, "driver_verification_state_conflict") : error);
+  }
+});
 
 const accountStatusSchema = z
   .object({
     status: z.enum([AccountStatus.active, AccountStatus.suspended, AccountStatus.disabled]),
+    expected_status: z.enum([AccountStatus.active, AccountStatus.pending, AccountStatus.suspended, AccountStatus.disabled]),
     reason: z
       .string()
       .max(500)
@@ -83,6 +528,12 @@ adminRouter.patch("/admin/users/:id/status", async (req: AuthenticatedRequest, r
       async (tx) => {
         const target = await tx.user.findUnique({ where: { id: targetId }, select: safeUserSelect });
         if (!target) throw new HttpError(404, "user_not_found");
+        if (target.account_status !== input.expected_status) {
+          throw new HttpError(409, "account_status_conflict");
+        }
+        if (target.account_status === AccountStatus.pending && input.status === AccountStatus.active && target.role !== "passenger") {
+          throw new HttpError(409, "approval_required");
+        }
         if (target.account_status === input.status) return target;
 
         if (target.role === "admin" && input.status !== AccountStatus.active) {

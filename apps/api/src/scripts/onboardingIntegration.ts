@@ -26,16 +26,16 @@ async function main() {
   const schemaTables = await prisma.$queryRaw<Array<{ n: bigint }>>`
     SELECT COUNT(*) AS n FROM information_schema.tables
     WHERE table_schema = DATABASE() AND table_name IN
-      ('invitations','invitation_redemptions','onboarding_attempts','otp_challenges','onboarding_sessions','consent_documents','user_consents','abuse_counters','idempotency_records')
+      ('invitations','invitation_redemptions','onboarding_attempts','otp_challenges','onboarding_sessions','consent_releases','consent_documents','user_consents','abuse_counters','idempotency_records')
   `;
-  assert(Number(schemaTables[0].n) === 9, "Onboarding foundation tables are incomplete");
+  assert(Number(schemaTables[0].n) === 10, "Onboarding foundation tables are incomplete");
   const utf8Tables = await prisma.$queryRaw<Array<{ n: bigint }>>`
     SELECT COUNT(*) AS n FROM information_schema.tables
     WHERE table_schema = DATABASE() AND table_name IN
-      ('invitations','invitation_redemptions','onboarding_attempts','otp_challenges','onboarding_sessions','consent_documents','user_consents','abuse_counters','idempotency_records')
+      ('invitations','invitation_redemptions','onboarding_attempts','otp_challenges','onboarding_sessions','consent_releases','consent_documents','user_consents','abuse_counters','idempotency_records')
       AND table_collation LIKE 'utf8mb4%'
   `;
-  assert(Number(utf8Tables[0].n) === 9, "Onboarding foundation character set is not utf8mb4");
+  assert(Number(utf8Tables[0].n) === 10, "Onboarding foundation character set is not utf8mb4");
   const binaryDigestColumns = await prisma.$queryRaw<Array<{ n: bigint }>>`
     SELECT COUNT(*) AS n FROM information_schema.columns
     WHERE table_schema = DATABASE() AND collation_name = 'ascii_bin' AND (
@@ -609,6 +609,7 @@ async function main() {
     prisma.abuseCounter.count(),
     prisma.idempotencyRecord.count(),
     prisma.consentDocument.count(),
+    prisma.consentRelease.count(),
     prisma.authSession.count(),
     prisma.refreshToken.count()
   ]);

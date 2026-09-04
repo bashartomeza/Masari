@@ -124,11 +124,7 @@ class _MerchantOrderDetailScreenState
         // ------------------------------------------------------------------
         MasariSection(
           title: l10n.matchResult,
-          child: _MatchCard(
-            state: state,
-            busy: _busy,
-            onRunMatch: _runMatch,
-          ),
+          child: _MatchCard(state: state, busy: _busy, onRunMatch: _runMatch),
         ),
 
         if (_error != null) ...[

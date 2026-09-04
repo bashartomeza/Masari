@@ -31,6 +31,9 @@ CORS_ORIGINS="http://localhost:5173"
 ```
 
 This is a normal local configuration with demo capabilities disabled. Use the separate ignored values represented by `apps/api/.env.demo.example` only for the isolated deterministic rehearsal.
+The real/pilot `masari` database is permanently ineligible for demo reset. The
+demo example instead uses `masari_demo` plus an exact
+`DEMO_RESET_ALLOWED_DATABASES=masari_demo` opt-in.
 
 ## Apply the schema
 
@@ -55,7 +58,8 @@ npm run db:migrate:status
 
 ## Verification
 
-With API, admin, and emulator running:
+With API, admin, and emulator running against the isolated `masari_demo`
+configuration (never the real/pilot `masari` database):
 
 ```powershell
 npm run demo:preflight

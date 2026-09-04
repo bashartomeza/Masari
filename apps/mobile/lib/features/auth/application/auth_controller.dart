@@ -4,6 +4,7 @@ import '../../../core/api/api_error.dart';
 import '../../canonical_assignments/application/canonical_assignment_controller.dart';
 import '../../canonical_routes/application/canonical_route_controller.dart';
 import '../../driver/application/driver_controller.dart';
+import '../../driver/data/driver_repository.dart';
 import '../../merchant/application/merchant_controller.dart';
 import '../../onboarding/application/onboarding_controller.dart';
 import '../../onboarding/data/onboarding_storage.dart';
@@ -15,6 +16,7 @@ import '../../trips/application/passenger_trip_controller.dart';
 import '../data/auth_repository.dart';
 import '../data/session_coordinator.dart';
 import '../domain/auth_models.dart';
+import 'auth_actor_binding.dart';
 
 enum AuthStatus {
   restoring,
@@ -82,6 +84,7 @@ class AuthController extends AsyncNotifier<AuthState> {
 
   @override
   Future<AuthState> build() async {
+    ref.read(authenticatedActorBindingProvider).clear();
     _coordinator = ref.read(authSessionCoordinatorProvider);
     _coordinator.setListener(_handleSessionTransition);
     ref.onDispose(() => _coordinator.setListener(null));
@@ -106,7 +109,7 @@ class AuthController extends AsyncNotifier<AuthState> {
       final result = await _repository.login(phone: phone, password: password);
       await _coordinator.installBundle(result.bundle);
       await _clearOnboardingState();
-      _currentUser = result.user;
+      _bindAuthenticatedActor(result.user);
       state = AsyncData(AuthState.authenticated(result.user));
     } on ApiException catch (error, stackTrace) {
       state = AsyncError(error, stackTrace);
@@ -138,7 +141,7 @@ class AuthController extends AsyncNotifier<AuthState> {
 
   Future<void> completeCurrentSessionRevocation() async {
     await _coordinator.clearCredentials();
-    _currentUser = null;
+    _clearAuthenticatedActor();
     _invalidateAuthenticatedWork();
     state = const AsyncData(AuthState.sessionEnded(SessionEndReason.ended));
   }
@@ -148,7 +151,7 @@ class AuthController extends AsyncNotifier<AuthState> {
       final user = await _repository.me();
       await _coordinator.promoteLegacyBundle();
       await _clearOnboardingState();
-      _currentUser = user;
+      _bindAuthenticatedActor(user);
       return AuthState.authenticated(user);
     } on ApiException catch (error) {
       if (error.type == ApiErrorType.network ||
@@ -159,13 +162,14 @@ class AuthController extends AsyncNotifier<AuthState> {
       final reason = _coordinator.lastTerminationReason;
       if (reason != null) return AuthState.sessionEnded(reason);
       await _coordinator.clearCredentials();
+      _clearAuthenticatedActor();
       return const AuthState.unauthenticated();
     }
   }
 
   Future<void> _clearLocalSession() async {
     await _coordinator.clearCredentials();
-    _currentUser = null;
+    _clearAuthenticatedActor();
     _invalidateAuthenticatedWork();
     state = const AsyncData(AuthState.unauthenticated());
   }
@@ -188,7 +192,7 @@ class AuthController extends AsyncNotifier<AuthState> {
         }
         break;
       case SessionTransitionType.terminated:
-        _currentUser = null;
+        _clearAuthenticatedActor();
         _invalidateAuthenticatedWork();
         state = AsyncData(
           AuthState.sessionEnded(transition.reason ?? SessionEndReason.ended),
@@ -205,6 +209,7 @@ class AuthController extends AsyncNotifier<AuthState> {
     ref.invalidate(passengerRequestDetailProvider);
     ref.invalidate(passengerTripControllerProvider);
     ref.invalidate(driverDashboardProvider);
+    ref.invalidate(driverTrustScoreProvider);
     ref.invalidate(driverRouteControllerProvider);
     ref.invalidate(driverMatchInboxProvider);
     ref.invalidate(driverMatchDetailProvider);
@@ -225,6 +230,16 @@ class AuthController extends AsyncNotifier<AuthState> {
     ref.invalidate(passengerCanonicalAssignmentsProvider);
     ref.invalidate(merchantCanonicalAssignmentsProvider);
     ref.invalidate(canonicalAssignmentDetailProvider);
+  }
+
+  void _bindAuthenticatedActor(AuthUser user) {
+    _currentUser = user;
+    ref.read(authenticatedActorBindingProvider).bind(user.id);
+  }
+
+  void _clearAuthenticatedActor() {
+    _currentUser = null;
+    ref.read(authenticatedActorBindingProvider).clear();
   }
 
   Future<void> _clearOnboardingState() async {

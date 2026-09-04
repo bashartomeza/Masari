@@ -29,23 +29,37 @@ async function seedLegalFixtures() {
   assert(config.publicRegistration?.testLegalFixturesEnabled, "Test legal fixtures must be explicitly enabled");
   assert(!config.isStaging && !config.isProduction, "Test legal fixtures are forbidden in production-like environments");
   const effectiveAt = new Date("2026-07-19T00:00:00.000Z");
-  for (const locale of ["ar", "en"] as const) {
-    for (const type of ["terms", "privacy", "adult_self_attestation"] as const) {
-      const content = `TEST/DEMO ONLY - NOT PRODUCTION LEGAL CONTENT - ${locale} - ${type}`;
-      await prisma.consentDocument.create({
-        data: {
+  await prisma.consentRelease.create({
+    data: {
+      version: "test-demo-2026-07-v1",
+      status: "effective",
+      revision: 3,
+      intended_effective_at: effectiveAt,
+      legal_approved_at: effectiveAt,
+      legal_approved_by: "TEST/DEMO ONLY",
+      activated_at: effectiveAt,
+      activated_by: "TEST/DEMO ONLY",
+      created_by: "TEST/DEMO ONLY",
+      documents: {
+        create: (["ar", "en"] as const).flatMap((locale) =>
+          (["terms", "privacy", "adult_self_attestation"] as const).map((type) => {
+            const content = `TEST/DEMO ONLY - NOT PRODUCTION LEGAL CONTENT - ${locale} - ${type}`;
+            return {
           document_type: type,
           version: "test-demo-2026-07-v1",
           locale,
+              content_body: content,
           content_digest: createHash("sha256").update(content).digest("hex"),
           content_reference: content,
           effective_at: effectiveAt,
           legal_approved_at: effectiveAt,
           legal_approved_by: "TEST/DEMO ONLY"
-        }
-      });
+            };
+          })
+        )
+      }
     }
-  }
+  });
 }
 
 async function adminToken() {
@@ -174,9 +188,11 @@ async function main() {
   check(unavailableConfig.status === 200 && unavailableConfig.body.enabled === false, "missing legal document safely disables onboarding");
   await prisma.consentDocument.create({ data: {
     id: removedLegal.id,
+    release_id: removedLegal.release_id,
     document_type: removedLegal.document_type,
     version: removedLegal.version,
     locale: removedLegal.locale,
+    content_body: removedLegal.content_body,
     content_digest: removedLegal.content_digest,
     content_reference: removedLegal.content_reference,
     effective_at: removedLegal.effective_at,
@@ -184,21 +200,35 @@ async function main() {
     legal_approved_at: removedLegal.legal_approved_at,
     legal_approved_by: removedLegal.legal_approved_by
   } });
-  const duplicateLegal = await prisma.consentDocument.create({
+  const duplicateEffectiveAt = removedLegal.effective_at;
+  const duplicateRelease = await prisma.consentRelease.create({
     data: {
-      document_type: "terms",
       version: "test-demo-2026-07-v2",
-      locale: "ar",
-      content_digest: createHash("sha256").update("TEST/DEMO ONLY - DUPLICATE TERMS").digest("hex"),
-      content_reference: "TEST/DEMO ONLY - DUPLICATE TERMS",
-      effective_at: new Date("2026-07-19T00:00:00.000Z"),
-      legal_approved_at: new Date("2026-07-19T00:00:00.000Z"),
-      legal_approved_by: "TEST/DEMO ONLY"
+      status: "effective",
+      revision: 3,
+      intended_effective_at: duplicateEffectiveAt,
+      legal_approved_at: duplicateEffectiveAt,
+      legal_approved_by: "TEST/DEMO ONLY",
+      activated_at: duplicateEffectiveAt,
+      activated_by: "TEST/DEMO ONLY",
+      created_by: "TEST/DEMO ONLY",
+      documents: { create: {
+        document_type: "terms",
+        version: "test-demo-2026-07-v2",
+        locale: "ar",
+        content_body: "TEST/DEMO ONLY - DUPLICATE TERMS",
+        content_digest: createHash("sha256").update("TEST/DEMO ONLY - DUPLICATE TERMS").digest("hex"),
+        content_reference: "TEST/DEMO ONLY - DUPLICATE TERMS",
+        effective_at: duplicateEffectiveAt,
+        legal_approved_at: duplicateEffectiveAt,
+        legal_approved_by: "TEST/DEMO ONLY"
+      } }
     }
   });
   check((await request(app).get("/api/v1/onboarding/consents").query({ locale: "ar" })).status === 503, "ambiguous active consent set fails closed");
   check((await request(app).get("/api/v1/onboarding/config")).body.enabled === false, "ambiguous consent set disables onboarding");
-  await prisma.consentDocument.delete({ where: { id: duplicateLegal.id } });
+  await prisma.consentDocument.deleteMany({ where: { release_id: duplicateRelease.id } });
+  await prisma.consentRelease.delete({ where: { id: duplicateRelease.id } });
 
   const invalid = await start("00000-00000-00000-00000", "passenger", "+970599111111");
   check(invalid.status === 404 && invalid.body.error === "onboarding_unavailable", "invalid invitation is generic");
@@ -405,10 +435,15 @@ async function main() {
   const wrongRecovery = await request(app).post("/api/v1/onboarding/status-sessions").send({ phone: "+970599111115", region: "PS", password: "wrong password value" });
   check(wrongRecovery.status === 401 && wrongRecovery.body.error === "invalid_credentials", "wrong recovery credentials are generic");
   const driverUser = await prisma.user.findUniqueOrThrow({ where: { phone: "+970599111115" } });
+  const driverVerification = await prisma.driverVerification.findUnique({ where: { user_id: driverUser.id } });
+  check(
+    driverVerification?.status === "pending" && driverVerification.revision === 1,
+    "driver completion creates exactly one pending verification lifecycle"
+  );
   const suspended = await request(app)
     .patch(`/api/v1/admin/users/${driverUser.id}/status`)
     .set("authorization", `Bearer ${admin}`)
-    .send({ status: "suspended", reason: "Integration validation" });
+    .send({ status: "suspended", reason: "Integration validation", expected_status: "pending" });
   check(suspended.status === 200, "admin can suspend a pending onboarding account");
   check(
     (await request(app).get("/api/v1/onboarding/status").set("authorization", `Onboarding ${recovered.body.onboarding_status_token}`)).status === 401,
@@ -469,14 +504,45 @@ async function main() {
   const auditText = JSON.stringify(await prisma.auditEvent.findMany({ select: { metadata: true } }));
   check(!["+970599111114", replayOtp, passengerPassword, secondVerify.body.registration_grant].some((secret) => auditText.includes(secret)), "audit metadata contains no raw onboarding secret or phone");
 
-  const authCountBeforeReset = await prisma.user.count({ where: { demo_account: false } });
-  check(authCountBeforeReset >= 3, "onboarded users exist before reset");
+  const onboardedUsers = await prisma.user.findMany({
+    where: { demo_account: false },
+    select: { id: true }
+  });
+  check(onboardedUsers.length >= 3, "onboarded users exist before reset");
+  const protectedCounts = await Promise.all([
+    prisma.user.count(),
+    prisma.onboardingAttempt.count(),
+    prisma.userConsent.count(),
+    prisma.auditEvent.count()
+  ]);
+  try {
+    await resetDemoData();
+    throw new Error("reset unexpectedly accepted real-shaped onboarding users");
+  } catch (error) {
+    check(
+      error instanceof Error && error.message === "demo_reset_real_data_present",
+      "reset refuses a disposable database while non-demo users exist"
+    );
+  }
+  check(
+    JSON.stringify(await Promise.all([
+      prisma.user.count(),
+      prisma.onboardingAttempt.count(),
+      prisma.userConsent.count(),
+      prisma.auditEvent.count()
+    ])) === JSON.stringify(protectedCounts),
+    "blocked reset leaves onboarding data unchanged"
+  );
+  await prisma.user.updateMany({
+    where: { id: { in: onboardedUsers.map(({ id }) => id) } },
+    data: { demo_account: true }
+  });
   await resetDemoData();
-  check(await prisma.user.count({ where: { demo_account: false } }) === 0, "reset removes onboarded users");
+  check(await prisma.user.count({ where: { id: { in: onboardedUsers.map(({ id }) => id) } } }) === 0, "reset removes explicitly marked integration fixtures");
   check(await prisma.onboardingAttempt.count() === 0 && await prisma.onboardingSession.count() === 0, "reset removes onboarding attempts and sessions");
   check(await prisma.user.count({ where: { demo_account: true } }) === 5, "reset preserves deterministic demo accounts");
   check(await prisma.userConsent.count() === 0 && await prisma.invitationRedemption.count() === 0, "reset leaves no onboarding evidence orphan");
-  check(await prisma.consentDocument.count() === 0, "reset removes test legal fixtures");
+  check(await prisma.consentDocument.count() === 0 && await prisma.consentRelease.count() === 0, "reset removes test legal fixtures");
 
   console.log(`Public onboarding MySQL integration passed: ${checks.length} checks`);
 }

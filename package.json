@@ -32,15 +32,21 @@
     "test:integration:sessions": "node scripts/session-integration-smoke.mjs",
     "test:integration:sessions:local": "node scripts/local-trusted-session-integration.mjs --confirm-disposable --cleanup",
     "test:integration:onboarding": "node apps/api/dist/scripts/onboardingIntegration.js",
+    "test:integration:consents": "node --env-file-if-exists=apps/api/.env apps/api/dist/scripts/consentManagementIntegration.js",
     "test:integration:public-onboarding": "node --env-file-if-exists=apps/api/.env apps/api/dist/scripts/publicOnboardingIntegration.js",
     "test:integration:routes": "node --env-file-if-exists=apps/api/.env apps/api/dist/scripts/routeCatalogIntegration.js",
     "test:integration:multi-route": "npm run test:integration:multi-route -w @masari/api",
     "test:integration:canonical-matching": "npm run test:integration:canonical-matching -w @masari/api",
     "test:integration:canonical-shared": "npm run test:integration:canonical-shared -w @masari/api",
+    "test:integration:reset-matrix": "npm run test:integration:reset-matrix -w @masari/api",
+    "test:integration:legacy-online": "npm run test:integration:legacy-online -w @masari/api",
+    "test:integration:passenger-trip-association": "npm run test:integration:passenger-trip-association -w @masari/api",
     "test:tooling": "node --test scripts/tests/*.test.mjs",
     "mysql:backup": "node scripts/mysql-backup.mjs",
     "mysql:restore:verify": "node scripts/mysql-restore-verify.mjs",
     "phone:preflight": "node --env-file=apps/api/.env --import tsx apps/api/src/scripts/phoneNormalizationPreflight.ts",
+    "maps:bakeoff": "tsx apps/api/src/scripts/routeProviderBakeoff.ts",
+    "maps:m7d1b:evidence": "node scripts/maps/m7d1b-live-evidence.mjs",
     "release:metadata": "node scripts/release-metadata.mjs",
     "prisma:generate": "npm run prisma:generate -w @masari/api",
     "prisma:validate": "npm run prisma:validate -w @masari/api",
@@ -50,6 +56,9 @@
   "engines": {
     "node": "22.17.1",
     "npm": ">=10.9.2 <11"
+  },
+  "overrides": {
+    "deepmerge-ts": "8.0.1"
   },
   "packageManager": "npm@10.9.2",
   "devDependencies": {

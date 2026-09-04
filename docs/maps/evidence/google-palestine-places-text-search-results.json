@@ -1,0 +1,2126 @@
+{
+  "provider": "google-places-text-search-new",
+  "evidence_classification": "GOOGLE_PLACES_TEXT_SEARCH_EVIDENCE",
+  "fixture_classification": "public-canonical-evidence-no-user-location-data",
+  "query_count": 60,
+  "methodology": {
+    "exact_committed_queries": true,
+    "primary_acceptance_rule": "correct intended public concept at rank 1",
+    "secondary_top_n_rule": "correct intended public concept within ranks 1-5",
+    "candidate_limit": 5,
+    "pagination": false,
+    "normal_relevance_ranking": true,
+    "language_code_per_fixture": true,
+    "region_code": "PS",
+    "regional_location_bias": [
+      34.85,
+      31.3,
+      35.65,
+      32.6
+    ],
+    "field_masked": true,
+    "requested_fields": [
+      "places.id",
+      "places.displayName",
+      "places.formattedAddress",
+      "places.location",
+      "places.types"
+    ],
+    "excluded_content": [
+      "reviews",
+      "ratings",
+      "phone_numbers",
+      "photos",
+      "opening_hours",
+      "user_generated_content"
+    ],
+    "authentication": "X-Goog-Api-Key header",
+    "clock": "performance.now monotonic",
+    "raw_responses_retained": false,
+    "google_coordinates_retained": false,
+    "canonical_persistence": false,
+    "adjudication": "complete independent review"
+  },
+  "first_useful_request_ms": 3998.3945,
+  "total_attempted": 60,
+  "successful_requests": 60,
+  "failed_requests": 0,
+  "top_1": {
+    "arabic": {
+      "acceptable": 25,
+      "total": 30,
+      "percentage": 83.33333333333333
+    },
+    "english": {
+      "acceptable": 23,
+      "total": 30,
+      "percentage": 76.66666666666667
+    },
+    "overall": {
+      "acceptable": 48,
+      "total": 60,
+      "percentage": 80
+    }
+  },
+  "top_n": {
+    "arabic": {
+      "acceptable": 26,
+      "total": 30,
+      "percentage": 86.66666666666667
+    },
+    "english": {
+      "acceptable": 26,
+      "total": 30,
+      "percentage": 86.66666666666667
+    },
+    "overall": {
+      "acceptable": 52,
+      "total": 60,
+      "percentage": 86.66666666666667
+    }
+  },
+  "failures": {
+    "RANKING_ISSUE": 4,
+    "WRONG_AREA": 2,
+    "WRONG_CAMPUS": 3,
+    "WRONG_LANDMARK": 1,
+    "WRONG_PUBLIC_PLACE": 2
+  },
+  "latency_ms": {
+    "p50": 224.71810000000005,
+    "p95": 277.3053
+  },
+  "results": [
+    {
+      "fixture_id": "hebron",
+      "fixture_kind": "city",
+      "language": "ar",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJ-2PE7CfkAhURTBMvalxNRr4",
+          "display_name": "الخليل",
+          "formatted_public_address": "الخليل",
+          "types": [
+            "locality",
+            "political"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        }
+      ],
+      "correct_candidate_rank": 1,
+      "top_1_acceptable": true,
+      "top_n_acceptable": true,
+      "failure_category": null,
+      "request_failure_reason": null,
+      "latency_ms": 3998.3945,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "hebron",
+      "fixture_kind": "city",
+      "language": "en",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJ-2PE7CfkAhURTBMvalxNRr4",
+          "display_name": "Hebron",
+          "formatted_public_address": "Hebron",
+          "types": [
+            "locality",
+            "political"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        }
+      ],
+      "correct_candidate_rank": 1,
+      "top_1_acceptable": true,
+      "top_n_acceptable": true,
+      "failure_category": null,
+      "request_failure_reason": null,
+      "latency_ms": 232.54720000000043,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "bethlehem",
+      "fixture_kind": "city",
+      "language": "ar",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJZw3IrmXYAhUR-PG65D0hxPU",
+          "display_name": "بيت لحم",
+          "formatted_public_address": "بيت لحم",
+          "types": [
+            "locality",
+            "political"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        }
+      ],
+      "correct_candidate_rank": 1,
+      "top_1_acceptable": true,
+      "top_n_acceptable": true,
+      "failure_category": null,
+      "request_failure_reason": null,
+      "latency_ms": 238.1154000000006,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "bethlehem",
+      "fixture_kind": "city",
+      "language": "en",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJZw3IrmXYAhUR-PG65D0hxPU",
+          "display_name": "Bethlehem",
+          "formatted_public_address": "Bethlehem",
+          "types": [
+            "locality",
+            "political"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        }
+      ],
+      "correct_candidate_rank": 1,
+      "top_1_acceptable": true,
+      "top_n_acceptable": true,
+      "failure_category": null,
+      "request_failure_reason": null,
+      "latency_ms": 190.33159999999953,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "ramallah",
+      "fixture_kind": "city",
+      "language": "ar",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJ0Vgt2kzVAhURdiyLzBdNbb8",
+          "display_name": "رام الله",
+          "formatted_public_address": "رام الله",
+          "types": [
+            "locality",
+            "political"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        }
+      ],
+      "correct_candidate_rank": 1,
+      "top_1_acceptable": true,
+      "top_n_acceptable": true,
+      "failure_category": null,
+      "request_failure_reason": null,
+      "latency_ms": 228.7542000000003,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "ramallah",
+      "fixture_kind": "city",
+      "language": "en",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJ0Vgt2kzVAhURdiyLzBdNbb8",
+          "display_name": "Ramallah",
+          "formatted_public_address": "Ramallah",
+          "types": [
+            "locality",
+            "political"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        }
+      ],
+      "correct_candidate_rank": 1,
+      "top_1_acceptable": true,
+      "top_n_acceptable": true,
+      "failure_category": null,
+      "request_failure_reason": null,
+      "latency_ms": 199.28609999999935,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "al-bireh",
+      "fixture_kind": "city",
+      "language": "ar",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJkS-til3VHBURpJMoXYMfB5Q",
+          "display_name": "البيرة",
+          "formatted_public_address": "البيرة",
+          "types": [
+            "locality",
+            "political"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        }
+      ],
+      "correct_candidate_rank": 1,
+      "top_1_acceptable": true,
+      "top_n_acceptable": true,
+      "failure_category": null,
+      "request_failure_reason": null,
+      "latency_ms": 237.95839999999953,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "al-bireh",
+      "fixture_kind": "city",
+      "language": "en",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJkS-til3VHBURpJMoXYMfB5Q",
+          "display_name": "Al-Bireh",
+          "formatted_public_address": "Al-Bireh",
+          "types": [
+            "locality",
+            "political"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        }
+      ],
+      "correct_candidate_rank": 1,
+      "top_1_acceptable": true,
+      "top_n_acceptable": true,
+      "failure_category": null,
+      "request_failure_reason": null,
+      "latency_ms": 199.16080000000056,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "nablus",
+      "fixture_kind": "city",
+      "language": "ar",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJl1ZCUPbgHBURhD0VvTCpC38",
+          "display_name": "نابلس",
+          "formatted_public_address": "نابلس",
+          "types": [
+            "locality",
+            "political"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        }
+      ],
+      "correct_candidate_rank": 1,
+      "top_1_acceptable": true,
+      "top_n_acceptable": true,
+      "failure_category": null,
+      "request_failure_reason": null,
+      "latency_ms": 200.6885999999995,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "nablus",
+      "fixture_kind": "city",
+      "language": "en",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJl1ZCUPbgHBURhD0VvTCpC38",
+          "display_name": "Nablus",
+          "formatted_public_address": "Nablus",
+          "types": [
+            "locality",
+            "political"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        }
+      ],
+      "correct_candidate_rank": 1,
+      "top_1_acceptable": true,
+      "top_n_acceptable": true,
+      "failure_category": null,
+      "request_failure_reason": null,
+      "latency_ms": 227.02739999999994,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "jericho",
+      "fixture_kind": "city",
+      "language": "ar",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJZ4X_5mHMHBURu2hWaKQoFIE",
+          "display_name": "أريحا",
+          "formatted_public_address": "أريحا",
+          "types": [
+            "locality",
+            "political"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        }
+      ],
+      "correct_candidate_rank": 1,
+      "top_1_acceptable": true,
+      "top_n_acceptable": true,
+      "failure_category": null,
+      "request_failure_reason": null,
+      "latency_ms": 206.10230000000047,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "jericho",
+      "fixture_kind": "city",
+      "language": "en",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJZ4X_5mHMHBURu2hWaKQoFIE",
+          "display_name": "Jericho",
+          "formatted_public_address": "Jericho",
+          "types": [
+            "locality",
+            "political"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        }
+      ],
+      "correct_candidate_rank": 1,
+      "top_1_acceptable": true,
+      "top_n_acceptable": true,
+      "failure_category": null,
+      "request_failure_reason": null,
+      "latency_ms": 231.52270000000044,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "jenin",
+      "fixture_kind": "city",
+      "language": "ar",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJp1lUUtX-HBURpOkjwfjq8oo",
+          "display_name": "جنين",
+          "formatted_public_address": "جنين",
+          "types": [
+            "locality",
+            "political"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        }
+      ],
+      "correct_candidate_rank": 1,
+      "top_1_acceptable": true,
+      "top_n_acceptable": true,
+      "failure_category": null,
+      "request_failure_reason": null,
+      "latency_ms": 244.10369999999966,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "jenin",
+      "fixture_kind": "city",
+      "language": "en",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJp1lUUtX-HBURpOkjwfjq8oo",
+          "display_name": "Jenin",
+          "formatted_public_address": "Jenin",
+          "types": [
+            "locality",
+            "political"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        }
+      ],
+      "correct_candidate_rank": 1,
+      "top_1_acceptable": true,
+      "top_n_acceptable": true,
+      "failure_category": null,
+      "request_failure_reason": null,
+      "latency_ms": 235.4318000000003,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "tulkarm",
+      "fixture_kind": "city",
+      "language": "ar",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJQUbeU3kZHRURSpsJPVcDKrg",
+          "display_name": "طولكرم",
+          "formatted_public_address": "طولكرم",
+          "types": [
+            "administrative_area_level_2",
+            "political"
+          ],
+          "expected_city_area_match": false,
+          "correct_public_concept": false
+        }
+      ],
+      "correct_candidate_rank": null,
+      "top_1_acceptable": false,
+      "top_n_acceptable": false,
+      "failure_category": "WRONG_AREA",
+      "request_failure_reason": null,
+      "latency_ms": 247.8067000000001,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "tulkarm",
+      "fixture_kind": "city",
+      "language": "en",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJQUbeU3kZHRURSpsJPVcDKrg",
+          "display_name": "Tulkarm",
+          "formatted_public_address": "Tulkarm",
+          "types": [
+            "administrative_area_level_2",
+            "political"
+          ],
+          "expected_city_area_match": false,
+          "correct_public_concept": false
+        }
+      ],
+      "correct_candidate_rank": null,
+      "top_1_acceptable": false,
+      "top_n_acceptable": false,
+      "failure_category": "WRONG_AREA",
+      "request_failure_reason": null,
+      "latency_ms": 201.14239999999972,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "qalqilya",
+      "fixture_kind": "city",
+      "language": "ar",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJpULFOHwjHRUR1VlqXKSNp7E",
+          "display_name": "قلقيلية",
+          "formatted_public_address": "قلقيلية",
+          "types": [
+            "administrative_area_level_2",
+            "political"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        }
+      ],
+      "correct_candidate_rank": 1,
+      "top_1_acceptable": true,
+      "top_n_acceptable": true,
+      "failure_category": null,
+      "request_failure_reason": null,
+      "latency_ms": 222.04420000000027,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "qalqilya",
+      "fixture_kind": "city",
+      "language": "en",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJDTLnSJA7HRURB9zZ5ROM0I4",
+          "display_name": "Qalqilya",
+          "formatted_public_address": "Qalqilya",
+          "types": [
+            "locality",
+            "political"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        },
+        {
+          "candidate_rank": 2,
+          "place_id": "ChIJpULFOHwjHRUR1VlqXKSNp7E",
+          "display_name": "Qalqilya",
+          "formatted_public_address": "Qalqilya",
+          "types": [
+            "administrative_area_level_2",
+            "political"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": false
+        },
+        {
+          "candidate_rank": 3,
+          "place_id": "ChIJD-ylZOs7HRURXpT5L5e0wLA",
+          "display_name": "Qalqilya Zoo",
+          "formatted_public_address": "Al-Sabi' Street, Qalqilya, Qalqilya",
+          "types": [
+            "zoo",
+            "tourist_attraction",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": false
+        },
+        {
+          "candidate_rank": 4,
+          "place_id": "ChIJ_1BbiZY7HRURgqk75s2raz4",
+          "display_name": "Qalqiliya",
+          "formatted_public_address": "Qalqiliya",
+          "types": [
+            "administrative_area_level_3",
+            "political"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": false
+        }
+      ],
+      "correct_candidate_rank": 1,
+      "top_1_acceptable": true,
+      "top_n_acceptable": true,
+      "failure_category": null,
+      "request_failure_reason": null,
+      "latency_ms": 221.0037000000002,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "ppu-main",
+      "fixture_kind": "university",
+      "language": "ar",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJZfwSRk7kAhURYQg4VdM2Btw",
+          "display_name": "جامعة بوليتكنك فلسطين",
+          "formatted_public_address": "واد الهرية الخليل, جامعة بوليتكنك",
+          "types": [
+            "university",
+            "educational_institution",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        },
+        {
+          "candidate_rank": 2,
+          "place_id": "ChIJFyYchZ3mAhURnzxmDl_LKYI",
+          "display_name": "Palestine Polytechnic University Building B",
+          "formatted_public_address": "Ain Sarah, Hebron",
+          "types": [
+            "university",
+            "educational_institution",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": false,
+          "correct_public_concept": false
+        },
+        {
+          "candidate_rank": 3,
+          "place_id": "ChIJf7SdZsDlAhURHzw3yNMVkdA",
+          "display_name": "كلية المهن التطبيقية",
+          "formatted_public_address": "ضاحية اسكان البلدية، الخليل،",
+          "types": [
+            "university",
+            "educational_institution",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": false
+        },
+        {
+          "candidate_rank": 4,
+          "place_id": "ChIJwbqj-zPkAhUR3YRUlSCbxnk",
+          "display_name": "جامعة بوليتكنك فلسطين، ابو رمان",
+          "formatted_public_address": "G3CQ+G5M، شارع، بور سعيد",
+          "types": [
+            "university",
+            "educational_institution",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": false,
+          "correct_public_concept": false
+        },
+        {
+          "candidate_rank": 5,
+          "place_id": "ChIJJSEOKqLlAhURZwyU1uoZ4Zw",
+          "display_name": "كلية الهندسة بجامعة بوليتكنك فلسطين",
+          "formatted_public_address": "G34R+92R، الخليل",
+          "types": [
+            "university",
+            "educational_institution",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": false
+        }
+      ],
+      "correct_candidate_rank": 1,
+      "top_1_acceptable": true,
+      "top_n_acceptable": true,
+      "failure_category": null,
+      "request_failure_reason": null,
+      "latency_ms": 234.27679999999964,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "ppu-main",
+      "fixture_kind": "university",
+      "language": "en",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJFyYchZ3mAhURnzxmDl_LKYI",
+          "display_name": "Palestine Polytechnic University",
+          "formatted_public_address": "Ain Sarah, Hebron",
+          "types": [
+            "university",
+            "educational_institution",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": false,
+          "correct_public_concept": false
+        },
+        {
+          "candidate_rank": 2,
+          "place_id": "ChIJZfwSRk7kAhURYQg4VdM2Btw",
+          "display_name": "Palestine Polytechnic University",
+          "formatted_public_address": "واد الهرية الخليل, جامعة بوليتكنك",
+          "types": [
+            "university",
+            "educational_institution",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        }
+      ],
+      "correct_candidate_rank": 2,
+      "top_1_acceptable": false,
+      "top_n_acceptable": true,
+      "failure_category": "RANKING_ISSUE",
+      "request_failure_reason": null,
+      "latency_ms": 222.45030000000042,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "bethlehem-university",
+      "fixture_kind": "university",
+      "language": "ar",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJAzEYlmTYAhUR-Ty3pInyPqs",
+          "display_name": "جامعة بيت لحم",
+          "formatted_public_address": "Rue des Freres, Bethlehem",
+          "types": [
+            "university",
+            "educational_institution",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        }
+      ],
+      "correct_candidate_rank": 1,
+      "top_1_acceptable": true,
+      "top_n_acceptable": true,
+      "failure_category": null,
+      "request_failure_reason": null,
+      "latency_ms": 277.3053,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "bethlehem-university",
+      "fixture_kind": "university",
+      "language": "en",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJAzEYlmTYAhUR-Ty3pInyPqs",
+          "display_name": "Bethlehem University",
+          "formatted_public_address": "Rue des Freres, Bethlehem",
+          "types": [
+            "university",
+            "educational_institution",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        }
+      ],
+      "correct_candidate_rank": 1,
+      "top_1_acceptable": true,
+      "top_n_acceptable": true,
+      "failure_category": null,
+      "request_failure_reason": null,
+      "latency_ms": 232.83189999999922,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "birzeit-university",
+      "fixture_kind": "university",
+      "language": "ar",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJd1FQ9kUqHRURYNn30kByzFk",
+          "display_name": "جامعة بير زيت",
+          "formatted_public_address": "بير زيت",
+          "types": [
+            "university",
+            "educational_institution",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": false
+        },
+        {
+          "candidate_rank": 2,
+          "place_id": "ChIJ8xM80_UrHRURbs_ii-q0k0I",
+          "display_name": "Birzeit University",
+          "formatted_public_address": "بير زيت",
+          "types": [
+            "university",
+            "educational_institution",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        },
+        {
+          "candidate_rank": 3,
+          "place_id": "ChIJqbxIUnErHRURSZHHHLuoIeY",
+          "display_name": "جامعة بيرزيت المدخل الشرقي،birzeit University east gate",
+          "formatted_public_address": "X56M+PWF، بير زيت",
+          "types": [
+            "university",
+            "educational_institution",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": false
+        }
+      ],
+      "correct_candidate_rank": 2,
+      "top_1_acceptable": false,
+      "top_n_acceptable": true,
+      "failure_category": "RANKING_ISSUE",
+      "request_failure_reason": null,
+      "latency_ms": 242.34990000000107,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "birzeit-university",
+      "fixture_kind": "university",
+      "language": "en",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJd1FQ9kUqHRURYNn30kByzFk",
+          "display_name": "BZU HUB",
+          "formatted_public_address": "Birzeit",
+          "types": [
+            "university",
+            "educational_institution",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": false
+        },
+        {
+          "candidate_rank": 2,
+          "place_id": "ChIJ8xM80_UrHRURbs_ii-q0k0I",
+          "display_name": "Birzeit University",
+          "formatted_public_address": "Birzeit",
+          "types": [
+            "university",
+            "educational_institution",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        }
+      ],
+      "correct_candidate_rank": 2,
+      "top_1_acceptable": false,
+      "top_n_acceptable": true,
+      "failure_category": "RANKING_ISSUE",
+      "request_failure_reason": null,
+      "latency_ms": 231.47489999999925,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "an-najah-new-campus",
+      "fixture_kind": "university",
+      "language": "ar",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJDxF9EBngHBURy3y73aT-6xI",
+          "display_name": "جامعة النجاح الوطنية",
+          "formatted_public_address": "Old Campus Street 7، نابلس",
+          "types": [
+            "university",
+            "educational_institution",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": false
+        },
+        {
+          "candidate_rank": 2,
+          "place_id": "ChIJ0dQs1nHhHBURkuT-keoLd5k",
+          "display_name": "جامعة النجاح الوطنية - الحرم القديم",
+          "formatted_public_address": "An-Najah Street، نابلس",
+          "types": [
+            "university",
+            "educational_institution",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": false
+        }
+      ],
+      "correct_candidate_rank": null,
+      "top_1_acceptable": false,
+      "top_n_acceptable": false,
+      "failure_category": "WRONG_CAMPUS",
+      "request_failure_reason": null,
+      "latency_ms": 224.82799999999952,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "an-najah-new-campus",
+      "fixture_kind": "university",
+      "language": "en",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJDxF9EBngHBURy3y73aT-6xI",
+          "display_name": "An-Najah National University",
+          "formatted_public_address": "Old Campus Street 7، Nablus",
+          "types": [
+            "university",
+            "educational_institution",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": false
+        }
+      ],
+      "correct_candidate_rank": null,
+      "top_1_acceptable": false,
+      "top_n_acceptable": false,
+      "failure_category": "WRONG_CAMPUS",
+      "request_failure_reason": null,
+      "latency_ms": 213.71279999999933,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "aaup-jenin",
+      "fixture_kind": "university",
+      "language": "ar",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJ710Ga9T7HBURGtaEuWxQL9c",
+          "display_name": "الجامعة العربية الأمريكية",
+          "formatted_public_address": "Arab American University Road Jenin",
+          "types": [
+            "research_institute",
+            "television_studio",
+            "university",
+            "educational_institution",
+            "service",
+            "association_or_organization",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        },
+        {
+          "candidate_rank": 2,
+          "place_id": "ChIJqVttlLv5HBURYyEGTwhHAN4",
+          "display_name": "استاد الجامعة العربية الامريكية الرياضي",
+          "formatted_public_address": "جنين",
+          "types": [
+            "academic_department",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": false
+        },
+        {
+          "candidate_rank": 3,
+          "place_id": "ChIJW2zvL_0qHRURcFw5v0jMlOs",
+          "display_name": "الجامعة العربية الأمريكية - الدراسات العليا - رام الله",
+          "formatted_public_address": "ضاحية الريحان، رام الله",
+          "types": [
+            "university",
+            "educational_institution",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": false,
+          "correct_public_concept": false
+        },
+        {
+          "candidate_rank": 4,
+          "place_id": "ChIJnZVOm7r5HBURlqCFVWqgD3c",
+          "display_name": "المسبح الاولمبي -الجامعة العربية الأمريكية",
+          "formatted_public_address": "C85V+XH4، جنين",
+          "types": [
+            "university",
+            "educational_institution",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": false
+        },
+        {
+          "candidate_rank": 5,
+          "place_id": "ChIJjW6ERvf7HBURV6QgWjSoQNQ",
+          "display_name": "كلية العلوم الطبية المساندة- الجامعة العربية الامريكية",
+          "formatted_public_address": "C84V+JX3، جنين",
+          "types": [
+            "university",
+            "educational_institution",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": false
+        }
+      ],
+      "correct_candidate_rank": 1,
+      "top_1_acceptable": true,
+      "top_n_acceptable": true,
+      "failure_category": null,
+      "request_failure_reason": null,
+      "latency_ms": 215.16599999999926,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "aaup-jenin",
+      "fixture_kind": "university",
+      "language": "en",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJ710Ga9T7HBURGtaEuWxQL9c",
+          "display_name": "Arab American University",
+          "formatted_public_address": "Arab American University Road Jenin",
+          "types": [
+            "research_institute",
+            "television_studio",
+            "university",
+            "educational_institution",
+            "service",
+            "association_or_organization",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        }
+      ],
+      "correct_candidate_rank": 1,
+      "top_1_acceptable": true,
+      "top_n_acceptable": true,
+      "failure_category": null,
+      "request_failure_reason": null,
+      "latency_ms": 233.78770000000077,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "hisham-palace",
+      "fixture_kind": "landmark",
+      "language": "ar",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJeRGYxxfMHBURrRVjVQ4sQSk",
+          "display_name": "\"قصر هشام\"",
+          "formatted_public_address": null,
+          "types": [
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        }
+      ],
+      "correct_candidate_rank": 1,
+      "top_1_acceptable": true,
+      "top_n_acceptable": true,
+      "failure_category": null,
+      "request_failure_reason": null,
+      "latency_ms": 207.7528000000002,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "hisham-palace",
+      "fixture_kind": "landmark",
+      "language": "en",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJeRGYxxfMHBURrRVjVQ4sQSk",
+          "display_name": "Hisham's Palace",
+          "formatted_public_address": null,
+          "types": [
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        }
+      ],
+      "correct_candidate_rank": 1,
+      "top_1_acceptable": true,
+      "top_n_acceptable": true,
+      "failure_category": null,
+      "request_failure_reason": null,
+      "latency_ms": 216.15020000000004,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "arafat-museum",
+      "fixture_kind": "landmark",
+      "language": "ar",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJE3PhBKQqHRURRoXdpPpIEdI",
+          "display_name": "متحف ياسر عرفات",
+          "formatted_public_address": "W665+FG9، رام الله",
+          "types": [
+            "museum",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        }
+      ],
+      "correct_candidate_rank": 1,
+      "top_1_acceptable": true,
+      "top_n_acceptable": true,
+      "failure_category": null,
+      "request_failure_reason": null,
+      "latency_ms": 222.8701999999994,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "arafat-museum",
+      "fixture_kind": "landmark",
+      "language": "en",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJE3PhBKQqHRURRoXdpPpIEdI",
+          "display_name": "Arafat Mausoleum",
+          "formatted_public_address": "W665+FG9, Ramallah",
+          "types": [
+            "museum",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        }
+      ],
+      "correct_candidate_rank": 1,
+      "top_1_acceptable": true,
+      "top_n_acceptable": true,
+      "failure_category": null,
+      "request_failure_reason": null,
+      "latency_ms": 248.46210000000065,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "bab-al-zawiya",
+      "fixture_kind": "route_stop",
+      "language": "ar",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJa_02I-zlAhURDzQYuQnkBKo",
+          "display_name": "باب الزاوية city center",
+          "formatted_public_address": "الخليل",
+          "types": [
+            "tourist_attraction",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        }
+      ],
+      "correct_candidate_rank": 1,
+      "top_1_acceptable": true,
+      "top_n_acceptable": true,
+      "failure_category": null,
+      "request_failure_reason": null,
+      "latency_ms": 213.3099000000002,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "bab-al-zawiya",
+      "fixture_kind": "route_stop",
+      "language": "en",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJ--jisxnlAhURftjYwGjPpuw",
+          "display_name": "H2 Hostel Hebron",
+          "formatted_public_address": "Bab Al-Zawiya square، G4H2+2GP, Hebron",
+          "types": [
+            "hostel",
+            "lodging",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": false
+        },
+        {
+          "candidate_rank": 2,
+          "place_id": "ChIJa_02I-zlAhURDzQYuQnkBKo",
+          "display_name": "باب الزاوية city center",
+          "formatted_public_address": "Hebron",
+          "types": [
+            "tourist_attraction",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        }
+      ],
+      "correct_candidate_rank": 2,
+      "top_1_acceptable": false,
+      "top_n_acceptable": true,
+      "failure_category": "RANKING_ISSUE",
+      "request_failure_reason": null,
+      "latency_ms": 212.47589999999946,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "hebron-university",
+      "fixture_kind": "university",
+      "language": "ar",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJF7hsCpLmAhURlr2wPxqDXec",
+          "display_name": "Zero & one",
+          "formatted_public_address": "جامعة الخليل، الخليل",
+          "types": [
+            "university",
+            "educational_institution",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": false
+        }
+      ],
+      "correct_candidate_rank": null,
+      "top_1_acceptable": false,
+      "top_n_acceptable": false,
+      "failure_category": "WRONG_CAMPUS",
+      "request_failure_reason": null,
+      "latency_ms": 468.22069999999985,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "hebron-university",
+      "fixture_kind": "university",
+      "language": "en",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJF7hsCpLmAhURlr2wPxqDXec",
+          "display_name": "Hebron University, Palestine",
+          "formatted_public_address": "جامعة الخليل، الخليل",
+          "types": [
+            "university",
+            "educational_institution",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        }
+      ],
+      "correct_candidate_rank": 1,
+      "top_1_acceptable": true,
+      "top_n_acceptable": true,
+      "failure_category": null,
+      "request_failure_reason": null,
+      "latency_ms": 672.1643000000004,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "ibrahimi-mosque",
+      "fixture_kind": "landmark",
+      "language": "ar",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJu_HBHhzkAhURw4GnHFYgC_U",
+          "display_name": "الحرم الإبراهيمي",
+          "formatted_public_address": "G4F6+V7Q، الخليل",
+          "types": [
+            "tourist_attraction",
+            "historical_place",
+            "place_of_worship",
+            "association_or_organization",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        }
+      ],
+      "correct_candidate_rank": 1,
+      "top_1_acceptable": true,
+      "top_n_acceptable": true,
+      "failure_category": null,
+      "request_failure_reason": null,
+      "latency_ms": 223.20559999999932,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "ibrahimi-mosque",
+      "fixture_kind": "landmark",
+      "language": "en",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJu_HBHhzkAhURw4GnHFYgC_U",
+          "display_name": "Cave of the Patriarchs / Al Ibrahimi Mosque",
+          "formatted_public_address": "G4F6+V7Q, Hebron",
+          "types": [
+            "tourist_attraction",
+            "historical_place",
+            "place_of_worship",
+            "association_or_organization",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        }
+      ],
+      "correct_candidate_rank": 1,
+      "top_1_acceptable": true,
+      "top_n_acceptable": true,
+      "failure_category": null,
+      "request_failure_reason": null,
+      "latency_ms": 231.72010000000046,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "church-nativity",
+      "fixture_kind": "landmark",
+      "language": "ar",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJ-ciH5nvYAhURHCYk1XvDYNA",
+          "display_name": "كنيسة المهد",
+          "formatted_public_address": "P635+P2C, Bethlehem Territory",
+          "types": [
+            "tourist_attraction",
+            "church",
+            "place_of_worship",
+            "association_or_organization",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        }
+      ],
+      "correct_candidate_rank": 1,
+      "top_1_acceptable": true,
+      "top_n_acceptable": true,
+      "failure_category": null,
+      "request_failure_reason": null,
+      "latency_ms": 238.70589999999902,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "church-nativity",
+      "fixture_kind": "landmark",
+      "language": "en",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJ-ciH5nvYAhURHCYk1XvDYNA",
+          "display_name": "Church of the Nativity",
+          "formatted_public_address": "P635+P2C, Bethlehem Territory",
+          "types": [
+            "tourist_attraction",
+            "church",
+            "place_of_worship",
+            "association_or_organization",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        }
+      ],
+      "correct_candidate_rank": 1,
+      "top_1_acceptable": true,
+      "top_n_acceptable": true,
+      "failure_category": null,
+      "request_failure_reason": null,
+      "latency_ms": 255.38810000000012,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "manger-square",
+      "fixture_kind": "landmark",
+      "language": "ar",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJbRegEHvYAhURff_7RwUeFXY",
+          "display_name": "أوتيل ساحة المهد",
+          "formatted_public_address": "Manger Street، بيت لحم",
+          "types": [
+            "hotel",
+            "lodging",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": false
+        },
+        {
+          "candidate_rank": 2,
+          "place_id": "ChIJcV6KdnnZAhURI-4GNbEl9oc",
+          "display_name": "بلدية بيت لحم",
+          "formatted_public_address": "P634+M6R، Manger Square، بيت لحم",
+          "types": [
+            "government_office",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": false
+        }
+      ],
+      "correct_candidate_rank": null,
+      "top_1_acceptable": false,
+      "top_n_acceptable": false,
+      "failure_category": "WRONG_LANDMARK",
+      "request_failure_reason": null,
+      "latency_ms": 225.54500000000007,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "manger-square",
+      "fixture_kind": "landmark",
+      "language": "en",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJ5YfFcHvYAhURT5QmA_efGKA",
+          "display_name": "Manger Square",
+          "formatted_public_address": "Manger Square",
+          "types": [
+            "route"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        }
+      ],
+      "correct_candidate_rank": 1,
+      "top_1_acceptable": true,
+      "top_n_acceptable": true,
+      "failure_category": null,
+      "request_failure_reason": null,
+      "latency_ms": 202.72170000000006,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "manara-square",
+      "fixture_kind": "landmark",
+      "language": "ar",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJm4V9Ja4qHRUR-UJT2hD6ybA",
+          "display_name": "دوار المنارة",
+          "formatted_public_address": "دوار المنارة، رام الله",
+          "types": [
+            "route"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        }
+      ],
+      "correct_candidate_rank": 1,
+      "top_1_acceptable": true,
+      "top_n_acceptable": true,
+      "failure_category": null,
+      "request_failure_reason": null,
+      "latency_ms": 203.78030000000035,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "manara-square",
+      "fixture_kind": "landmark",
+      "language": "en",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJm4V9Ja4qHRUR-UJT2hD6ybA",
+          "display_name": "Manarah Square",
+          "formatted_public_address": "Manarah Square, Ramallah",
+          "types": [
+            "route"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        }
+      ],
+      "correct_candidate_rank": 1,
+      "top_1_acceptable": true,
+      "top_n_acceptable": true,
+      "failure_category": null,
+      "request_failure_reason": null,
+      "latency_ms": 187.02719999999863,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "darwish-museum",
+      "fixture_kind": "landmark",
+      "language": "ar",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJnWcAQzjVAhURNPsV89EQ9rI",
+          "display_name": "متحف محمود درويش",
+          "formatted_public_address": "المصيون،، رام الله",
+          "types": [
+            "museum",
+            "tourist_attraction",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        }
+      ],
+      "correct_candidate_rank": 1,
+      "top_1_acceptable": true,
+      "top_n_acceptable": true,
+      "failure_category": null,
+      "request_failure_reason": null,
+      "latency_ms": 235.91129999999976,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "darwish-museum",
+      "fixture_kind": "landmark",
+      "language": "en",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJnWcAQzjVAhURNPsV89EQ9rI",
+          "display_name": "Mahmoud Darwish Museum",
+          "formatted_public_address": "المصيون،، Ramallah",
+          "types": [
+            "museum",
+            "tourist_attraction",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        }
+      ],
+      "correct_candidate_rank": 1,
+      "top_1_acceptable": true,
+      "top_n_acceptable": true,
+      "failure_category": null,
+      "request_failure_reason": null,
+      "latency_ms": 218.40139999999883,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "nablus-municipality",
+      "fixture_kind": "public_building",
+      "language": "ar",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJY_Qx5trhHBURxCyNrs2G1bc",
+          "display_name": "بلدية نابلس",
+          "formatted_public_address": "67C7+J77، نابلس",
+          "types": [
+            "government_office",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        }
+      ],
+      "correct_candidate_rank": 1,
+      "top_1_acceptable": true,
+      "top_n_acceptable": true,
+      "failure_category": null,
+      "request_failure_reason": null,
+      "latency_ms": 244.87159999999858,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "nablus-municipality",
+      "fixture_kind": "public_building",
+      "language": "en",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJa-nIClzgHBURhWkslId7uJE",
+          "display_name": "Nablus Municipality Cultural Center - Hamdi Mango",
+          "formatted_public_address": "نابلس، شارع يافا، مقابل ملعب البلدية, Nablus",
+          "types": [
+            "cultural_center",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": false
+        }
+      ],
+      "correct_candidate_rank": null,
+      "top_1_acceptable": false,
+      "top_n_acceptable": false,
+      "failure_category": "WRONG_PUBLIC_PLACE",
+      "request_failure_reason": null,
+      "latency_ms": 220.3184000000001,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "tell-balata",
+      "fixture_kind": "landmark",
+      "language": "ar",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJ3TIdiefhHBURVC_41TIaPQA",
+          "display_name": "Tel Balata Archaeological Park",
+          "formatted_public_address": "677J+FR3، نابلس",
+          "types": [
+            "historical_landmark",
+            "historical_place",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        }
+      ],
+      "correct_candidate_rank": 1,
+      "top_1_acceptable": true,
+      "top_n_acceptable": true,
+      "failure_category": null,
+      "request_failure_reason": null,
+      "latency_ms": 224.71810000000005,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "tell-balata",
+      "fixture_kind": "landmark",
+      "language": "en",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJ3TIdiefhHBURVC_41TIaPQA",
+          "display_name": "Tel Balata Archaeological Park",
+          "formatted_public_address": "677J+FR3, Nablus",
+          "types": [
+            "historical_landmark",
+            "historical_place",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        }
+      ],
+      "correct_candidate_rank": 1,
+      "top_1_acceptable": true,
+      "top_n_acceptable": true,
+      "failure_category": null,
+      "request_failure_reason": null,
+      "latency_ms": 205.320099999999,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "monastery-temptation",
+      "fixture_kind": "landmark",
+      "language": "ar",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJf6gmua3NHBURWX3swubu1Ec",
+          "display_name": "دير القرنطل منزار قرنطل",
+          "formatted_public_address": "5730845",
+          "types": [
+            "church",
+            "tourist_attraction",
+            "place_of_worship",
+            "association_or_organization",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        }
+      ],
+      "correct_candidate_rank": 1,
+      "top_1_acceptable": true,
+      "top_n_acceptable": true,
+      "failure_category": null,
+      "request_failure_reason": null,
+      "latency_ms": 217.85749999999825,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "monastery-temptation",
+      "fixture_kind": "landmark",
+      "language": "en",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJf6gmua3NHBURWX3swubu1Ec",
+          "display_name": "Deir al Krntl (monastery Krntl)",
+          "formatted_public_address": "5730845",
+          "types": [
+            "church",
+            "tourist_attraction",
+            "place_of_worship",
+            "association_or_organization",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        },
+        {
+          "candidate_rank": 2,
+          "place_id": "ChIJQaxl9lDMHBURStPwaPc6FbQ",
+          "display_name": "Temptation Tourist Center, AbuRaed, Tel Jericho, Tel Es Sultan, Jericho Old City Since 1979",
+          "formatted_public_address": "Ein es sultan, 972 west bank، Jericho Old City",
+          "types": [
+            "restaurant",
+            "cosmetics_store",
+            "gift_shop",
+            "tourist_attraction",
+            "coffee_shop",
+            "market",
+            "cafe",
+            "food_store",
+            "store",
+            "food",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": false
+        }
+      ],
+      "correct_candidate_rank": 1,
+      "top_1_acceptable": true,
+      "top_n_acceptable": true,
+      "failure_category": null,
+      "request_failure_reason": null,
+      "latency_ms": 226.03910000000178,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "kadoorie",
+      "fixture_kind": "university",
+      "language": "ar",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJm8M_HHoXHRURByEbcQ4bm7E",
+          "display_name": "Palestine Technical University – Kadoorie",
+          "formatted_public_address": "يافا، طولكرم",
+          "types": [
+            "university",
+            "educational_institution",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        }
+      ],
+      "correct_candidate_rank": 1,
+      "top_1_acceptable": true,
+      "top_n_acceptable": true,
+      "failure_category": null,
+      "request_failure_reason": null,
+      "latency_ms": 212.45630000000165,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "kadoorie",
+      "fixture_kind": "university",
+      "language": "en",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJm8M_HHoXHRURByEbcQ4bm7E",
+          "display_name": "Palestine Technical University – Kadoorie",
+          "formatted_public_address": "Jaffa, طولكرم",
+          "types": [
+            "university",
+            "educational_institution",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        }
+      ],
+      "correct_candidate_rank": 1,
+      "top_1_acceptable": true,
+      "top_n_acceptable": true,
+      "failure_category": null,
+      "request_failure_reason": null,
+      "latency_ms": 227.7586999999985,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "qalqilya-zoo",
+      "fixture_kind": "landmark",
+      "language": "ar",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJD-ylZOs7HRURXpT5L5e0wLA",
+          "display_name": "حديقة قلقيلية للحيوانات",
+          "formatted_public_address": "Al-Sabi' Street, Qalqilya, Qalqilya",
+          "types": [
+            "zoo",
+            "tourist_attraction",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        },
+        {
+          "candidate_rank": 2,
+          "place_id": "ChIJJSdfges7HRUR0MYReSYHDhY",
+          "display_name": "عبدالله نصوره للتجاره العامه",
+          "formatted_public_address": "شارع صدام حسين , قلقيلية",
+          "types": [
+            "zoo",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": false
+        }
+      ],
+      "correct_candidate_rank": 1,
+      "top_1_acceptable": true,
+      "top_n_acceptable": true,
+      "failure_category": null,
+      "request_failure_reason": null,
+      "latency_ms": 202.72300000000178,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "qalqilya-zoo",
+      "fixture_kind": "landmark",
+      "language": "en",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJD-ylZOs7HRURXpT5L5e0wLA",
+          "display_name": "Qalqilya Zoo",
+          "formatted_public_address": "Al-Sabi' Street, Qalqilya, Qalqilya",
+          "types": [
+            "zoo",
+            "tourist_attraction",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        }
+      ],
+      "correct_candidate_rank": 1,
+      "top_1_acceptable": true,
+      "top_n_acceptable": true,
+      "failure_category": null,
+      "request_failure_reason": null,
+      "latency_ms": 200.26729999999952,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "freedom-theatre",
+      "fixture_kind": "landmark",
+      "language": "ar",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJd9kbRNn-HBURIfZ-EEQOV88",
+          "display_name": "The Freedom Theatre",
+          "formatted_public_address": "School street, Jenin refugee camp, F77P+9V9, Jenin",
+          "types": [
+            "performing_arts_theater",
+            "event_venue",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        }
+      ],
+      "correct_candidate_rank": 1,
+      "top_1_acceptable": true,
+      "top_n_acceptable": true,
+      "failure_category": null,
+      "request_failure_reason": null,
+      "latency_ms": 215.07790000000023,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "freedom-theatre",
+      "fixture_kind": "landmark",
+      "language": "en",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJd9kbRNn-HBURIfZ-EEQOV88",
+          "display_name": "The Freedom Theatre",
+          "formatted_public_address": "School street, Jenin refugee camp, F77P+9V9, Jenin",
+          "types": [
+            "performing_arts_theater",
+            "event_venue",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        }
+      ],
+      "correct_candidate_rank": 1,
+      "top_1_acceptable": true,
+      "top_n_acceptable": true,
+      "failure_category": null,
+      "request_failure_reason": null,
+      "latency_ms": 204.20880000000034,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "bethlehem-peace-center",
+      "fixture_kind": "public_building",
+      "language": "ar",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJ3yLsZJLZAhURPBMnbRkkVRU",
+          "display_name": "مركز السلام بيت لحم",
+          "formatted_public_address": "P634+RFQ، بيت لحم",
+          "types": [
+            "cultural_center",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": true
+        },
+        {
+          "candidate_rank": 2,
+          "place_id": "ChIJycK-DHvYAhURzj0A2Xy2sag",
+          "display_name": "Bethlehem Tourist Information Center",
+          "formatted_public_address": "Manger Square near Nativity Church Bethlehem Peace Center, ground floor، بيت لحم",
+          "types": [
+            "tourist_information_center",
+            "tour_agency",
+            "travel_agency",
+            "point_of_interest",
+            "service",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": false
+        },
+        {
+          "candidate_rank": 3,
+          "place_id": "ChIJ4ysjdnDYAhURXtnfE6vNiNE",
+          "display_name": "Peace Center Restaurant",
+          "formatted_public_address": "P634+V9H، منجير، بيت لحم",
+          "types": [
+            "restaurant",
+            "food",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": false
+        }
+      ],
+      "correct_candidate_rank": 1,
+      "top_1_acceptable": true,
+      "top_n_acceptable": true,
+      "failure_category": null,
+      "request_failure_reason": null,
+      "latency_ms": 250.9928,
+      "adjudication": "documented_independent_public_concept_review"
+    },
+    {
+      "fixture_id": "bethlehem-peace-center",
+      "fixture_kind": "public_building",
+      "language": "en",
+      "text_search_http_success": true,
+      "candidates": [
+        {
+          "candidate_rank": 1,
+          "place_id": "ChIJ4ysjdnDYAhURXtnfE6vNiNE",
+          "display_name": "Peace Center Restaurant",
+          "formatted_public_address": "P634+V9H, Manger St, Bethlehem",
+          "types": [
+            "restaurant",
+            "food",
+            "point_of_interest",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": false
+        },
+        {
+          "candidate_rank": 2,
+          "place_id": "ChIJycK-DHvYAhURzj0A2Xy2sag",
+          "display_name": "Bethlehem Tourist Information Center",
+          "formatted_public_address": "Manger Square near Nativity Church Bethlehem Peace Center, ground floor، Bethlehem",
+          "types": [
+            "tourist_information_center",
+            "tour_agency",
+            "travel_agency",
+            "point_of_interest",
+            "service",
+            "establishment"
+          ],
+          "expected_city_area_match": true,
+          "correct_public_concept": false
+        }
+      ],
+      "correct_candidate_rank": null,
+      "top_1_acceptable": false,
+      "top_n_acceptable": false,
+      "failure_category": "WRONG_PUBLIC_PLACE",
+      "request_failure_reason": null,
+      "latency_ms": 226.41959999999744,
+      "adjudication": "documented_independent_public_concept_review"
+    }
+  ]
+}
