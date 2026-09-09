@@ -76,7 +76,8 @@ class _MapBody extends ConsumerWidget {
     final route = view.route;
     final localeName = Localizations.localeOf(context).languageCode == 'ar';
 
-    String stopName(CanonicalStop stop) => localeName ? stop.nameAr : stop.nameEn;
+    String stopName(CanonicalStop stop) =>
+        localeName ? stop.nameAr : stop.nameEn;
 
     return RefreshIndicator(
       onRefresh: () async {
@@ -148,7 +149,8 @@ class _MapBody extends ConsumerWidget {
               icon: Icons.location_disabled_outlined,
               message: _locationMessage(l10n, position.error),
               actionLabel: l10n.locationEnable,
-              onAction: () => ref.read(currentPositionProvider.notifier).refresh(),
+              onAction: () =>
+                  ref.read(currentPositionProvider.notifier).refresh(),
             ),
           if (route != null && !view.hasDrawableRoute)
             _Notice(
@@ -183,7 +185,9 @@ class _MapBody extends ConsumerWidget {
           : isDestination
           ? Icons.flag
           : Icons.circle,
-      color: isDestination ? SemanticColors.completedRoute : SemanticColors.parcel,
+      color: isDestination
+          ? SemanticColors.completedRoute
+          : SemanticColors.parcel,
       label: isOrigin
           ? l10n.mapOriginLabel(name)
           : isDestination
@@ -200,7 +204,10 @@ String _checkpointName(
   bool arabic,
 ) {
   final preferred = arabic ? checkpoint.nameAr : checkpoint.nameEn;
-  return preferred ?? checkpoint.nameEn ?? checkpoint.nameAr ?? l10n.checkpointUnnamed;
+  return preferred ??
+      checkpoint.nameEn ??
+      checkpoint.nameAr ??
+      l10n.checkpointUnnamed;
 }
 
 String _checkpointStatus(AppLocalizations l10n, CheckpointStatus status) =>
@@ -327,9 +334,7 @@ class _CheckpointRow extends StatelessWidget {
             child: Icon(icon, size: 18, color: Colors.white),
           ),
           const SizedBox(width: AppTokens.gutterMobile),
-          Expanded(
-            child: Text(name, style: theme.textTheme.titleSmall),
-          ),
+          Expanded(child: Text(name, style: theme.textTheme.titleSmall)),
           Text(
             status,
             style: theme.textTheme.labelMedium?.copyWith(
