@@ -158,11 +158,7 @@ class _MasariMapState extends State<MasariMap> {
             mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                Icons.map_outlined,
-                size: 32,
-                color: AppTheme.outline,
-              ),
+              const Icon(Icons.map_outlined, size: 32, color: AppTheme.outline),
               const SizedBox(height: AppTokens.spaceSmall),
               Text(
                 widget.emptyLabel,
@@ -222,7 +218,9 @@ class _MasariMapState extends State<MasariMap> {
                       ),
                     ],
                   ),
-              MarkerLayer(markers: [for (final marker in widget.markers) _pin(marker)]),
+              MarkerLayer(
+                markers: [for (final marker in widget.markers) _pin(marker)],
+              ),
             ],
           ),
         ),
@@ -273,7 +271,11 @@ class _MasariMapState extends State<MasariMap> {
               shape: BoxShape.circle,
               border: Border.all(color: Colors.white, width: 2),
               boxShadow: const [
-                BoxShadow(color: Color(0x33000000), blurRadius: 4, offset: Offset(0, 2)),
+                BoxShadow(
+                  color: Color(0x33000000),
+                  blurRadius: 4,
+                  offset: Offset(0, 2),
+                ),
               ],
             ),
             child: Icon(
