@@ -187,10 +187,10 @@ describe("RouteManagementService lifecycle fences", () => {
 
 describe("RouteManagementService admin detail query", () => {
   it("requests newest bounded versions and bounded ordered stops", async () => {
-    const findUnique = vi.fn().mockResolvedValue({ id: "route_1" });
+    const findUnique = vi.fn().mockResolvedValue({ id: "route_1", versions: [], current_version: null });
     const service = createRouteManagementService({ serviceRoute: { findUnique } } as never);
 
-    await expect(service.getAdminRoute("route_1")).resolves.toEqual({ id: "route_1" });
+    await expect(service.getAdminRoute("route_1")).resolves.toEqual({ id: "route_1", versions: [], current_version: null });
     expect(findUnique).toHaveBeenCalledWith({
       where: { id: "route_1" },
       include: expect.objectContaining({
@@ -204,4 +204,42 @@ describe("RouteManagementService admin detail query", () => {
       })
     });
   });
+});
+
+describe("route membership bounds", () => {
+  it("rejects oversized service input before opening a transaction", async () => {
+    const db = { $transaction: vi.fn() };
+    const service = createRouteManagementService(db as never);
+    const stops = Array.from({ length: 101 }, (_, index) => ({ stopId: `stop_${index}`, sequence: index + 1, passengerPickupAllowed: true, passengerDropoffAllowed: true, parcelPickupAllowed: true, parcelDropoffAllowed: true }));
+    await expect(service.replaceStops("draft_1", 1, stops, actor)).rejects.toThrow("route_version_stop_limit_exceeded");
+    expect(db.$transaction).not.toHaveBeenCalled();
+  });
+  it("does not expose a truncated oversized version as editable detail", async () => {
+    const version = { id: "draft_1", status: "draft", stops: [], _count: { stops: 101 } };
+    const db = { serviceRouteVersion: { findUnique: vi.fn().mockResolvedValue(version) }, serviceRoute: { findUnique: vi.fn().mockResolvedValue({ versions: [version], current_version: null }) } };
+    const service = createRouteManagementService(db as never);
+    await expect(service.getAdminVersion("draft_1")).rejects.toThrow("route_version_stop_limit_exceeded");
+    await expect(service.getAdminRoute("route_1")).rejects.toThrow("route_version_stop_limit_exceeded");
+  });
+  it("preserves a valid ordered 100-stop detail", async () => {
+    const stops = Array.from({ length: 100 }, (_, index) => ({ stop_id: `stop_${index}`, sequence: index + 1 }));
+    const version = { id: "draft_1", stops, _count: { stops: 100 } };
+    const service = createRouteManagementService({ serviceRouteVersion: { findUnique: vi.fn().mockResolvedValue(version) } } as never);
+    expect(await service.getAdminVersion("draft_1")).toEqual(version);
+  });
+});
+
+it("blocks replacement and metadata edits of an existing oversized draft before writes", async () => {
+  const tx = {
+    $queryRaw: vi.fn().mockResolvedValue([{ id: "draft_1", status: "draft", draft_revision: 1 }]),
+    serviceRouteVersion: { findUnique: vi.fn().mockResolvedValue({ id: "draft_1", status: "draft", draft_revision: 1 }), updateMany: vi.fn() },
+    routeVersionStop: { count: vi.fn().mockResolvedValue(101), deleteMany: vi.fn(), createMany: vi.fn() }
+  };
+  const service = createRouteManagementService({ $transaction: async (operation: (value: typeof tx) => Promise<unknown>) => operation(tx) } as never);
+  const stops = [0, 1].map(index => ({ stopId: `stop_${index}`, sequence: index + 1, passengerPickupAllowed: true, passengerDropoffAllowed: true, parcelPickupAllowed: true, parcelDropoffAllowed: true }));
+  await expect(service.replaceStops("draft_1", 1, stops, actor)).rejects.toThrow("route_version_stop_limit_exceeded");
+  await expect(service.updateDraft("draft_1", { nameAr: "name", nameEn: "name", expectedRevision: 1 }, actor)).rejects.toThrow("route_version_stop_limit_exceeded");
+  expect(tx.routeVersionStop.deleteMany).not.toHaveBeenCalled();
+  expect(tx.routeVersionStop.createMany).not.toHaveBeenCalled();
+  expect(tx.serviceRouteVersion.updateMany).not.toHaveBeenCalled();
 });

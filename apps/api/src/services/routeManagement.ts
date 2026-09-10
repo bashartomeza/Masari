@@ -72,7 +72,7 @@ const versionRelations = {
   origin_stop: true,
   destination_stop: true,
   stops: { include: { stop: true }, orderBy: { sequence: "asc" as const }, take: ADMIN_ROUTE_VERSION_STOP_LIMIT },
-  _count: { select: { driver_routes: true } }
+  _count: { select: { driver_routes: true, stops: true } }
 };
 
 const routeRelations = {
@@ -197,7 +197,11 @@ function validateDateRange(activeFrom?: Date | null, activeUntil?: Date | null) 
   if (activeFrom && activeUntil && activeUntil <= activeFrom) throw new HttpError(400, "invalid_active_date_range");
 }
 
+function assertStopLimit(count: number) {
+  if (count > ADMIN_ROUTE_VERSION_STOP_LIMIT) throw new HttpError(409, "route_version_stop_limit_exceeded");
+}
 function validateStopSequence(stops: VersionStopInput[]) {
+  assertStopLimit(stops.length);
   if (stops.length < 2) throw new HttpError(400, "route_requires_two_stops");
   const stopIds = new Set<string>();
   for (const [index, stop] of stops.entries()) {
@@ -313,6 +317,9 @@ export function createRouteManagementService(db: PrismaClient = prisma) {
     async getAdminRoute(id: string) {
       const route = await db.serviceRoute.findUnique({ where: { id }, include: routeRelations });
       if (!route) throw new HttpError(404, "service_route_not_found");
+      for (const version of [route.current_version, ...route.versions]) {
+        if (version) assertStopLimit(version._count.stops);
+      }
       return route;
     },
 
@@ -370,6 +377,7 @@ export function createRouteManagementService(db: PrismaClient = prisma) {
           : null;
         if (input.cloneFromVersionId && !clone) throw new HttpError(404, "clone_source_not_found");
         if (clone) {
+          assertStopLimit(clone.stops.length);
           const cloneStops = await lockStops(tx, clone.stops.map((membership) => membership.stop_id));
           if (cloneStops.length !== clone.stops.length || cloneStops.some((stop) => stop.status !== "active")) {
             throw new HttpError(409, "clone_contains_inactive_stop");
@@ -434,12 +442,14 @@ export function createRouteManagementService(db: PrismaClient = prisma) {
     async getAdminVersion(id: string) {
       const version = await db.serviceRouteVersion.findUnique({ where: { id }, include: versionRelations });
       if (!version) throw new HttpError(404, "route_version_not_found");
+      assertStopLimit(version._count.stops);
       return version;
     },
 
     async updateDraft(id: string, input: DraftUpdateInput, actor: Actor) {
       validateDateRange(input.activeFrom, input.activeUntil);
       return db.$transaction(async (tx) => {
+        assertStopLimit(await tx.routeVersionStop.count({ where: { service_route_version_id: id } }));
         const updated = await tx.serviceRouteVersion.updateMany({
           where: { id, status: "draft", draft_revision: input.expectedRevision },
           data: { ...versionData(input), draft_revision: { increment: 1 } }
@@ -470,6 +480,7 @@ export function createRouteManagementService(db: PrismaClient = prisma) {
         if (!version) throw new HttpError(404, "route_version_not_found");
         if (version.status !== "draft") throw new HttpError(409, "published_version_immutable");
         if (version.draft_revision !== expectedRevision) throw new HttpError(409, "draft_revision_conflict");
+        assertStopLimit(await tx.routeVersionStop.count({ where: { service_route_version_id: id } }));
         const lockedStops = await lockStops(tx, stops.map((stop) => stop.stopId));
         if (lockedStops.length !== stops.length || lockedStops.some((stop) => stop.status !== "active")) {
           throw new HttpError(400, "invalid_or_inactive_stop");
@@ -544,6 +555,7 @@ export function createRouteManagementService(db: PrismaClient = prisma) {
           where: { service_route_version_id: id },
           select: { stop_id: true }
         });
+        assertStopLimit(memberships.length);
         await lockStops(tx, memberships.map((membership) => membership.stop_id));
         if (route.status !== "active") throw new HttpError(409, "service_route_retired");
         assertExpectedCurrentVersion(route.current_version_id, input.expectedCurrentVersionId);
