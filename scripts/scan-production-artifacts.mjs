@@ -47,13 +47,17 @@ try {
     ["route provider server secret", /ROUTE_PROVIDER_SECRET|MAPBOX_ACCESS_TOKEN|GOOGLE_MAPS_API_KEY|HERE_API_KEY|STADIA_API_KEY/i],
     ["Flutter background location dependency", /\b(?:background_locator|flutter_background_geolocation)\b/i]
   ];
+  const utf16be = new TextDecoder("utf-16be");
   function walk(root, path = root) {
     for (const entry of readdirSync(path)) {
       const file = join(path, entry);
       if (statSync(file).isDirectory()) walk(root, file);
       else {
         const buffer = readFileSync(file);
-        const contents = [buffer.toString("utf8"), buffer.toString("utf16le"), buffer.subarray(1).toString("utf16le")];
+        const contents = [
+          buffer.toString("utf8"), buffer.toString("utf16le"), buffer.subarray(1).toString("utf16le"),
+          utf16be.decode(buffer), utf16be.decode(buffer.subarray(1))
+        ];
         for (const [rule, pattern] of rules) if (contents.some((content) => pattern.test(content))) findings.push({ rule, file: relative(root, file) });
       }
     }

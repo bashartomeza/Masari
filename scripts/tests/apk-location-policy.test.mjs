@@ -89,3 +89,10 @@ for (const marker of ["/api/v1/demo/reset", "x-demo-reset-key", "Full Demo Seque
 test("UTF-16 embedded secrets are blocked too", () => {
   assert.equal(scan("ROUTE_PROVIDER_SECRET", "utf16le").status, 1);
 });
+
+for (const offset of [0, 1]) {
+  test(`UTF-16BE embedded secrets at byte offset ${offset} are blocked`, () => {
+    const marker = Buffer.from("ROUTE_PROVIDER_SECRET", "utf16le").swap16();
+    assert.equal(scan(Buffer.concat([Buffer.alloc(offset), marker])).status, 1);
+  });
+}
