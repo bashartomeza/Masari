@@ -98,6 +98,9 @@ export type BatchRow = {
   selected_driver_route: null | { id: string; status: DriverRouteStatus };
 };
 export type ParcelRow = { id: string; status: ParcelStatus };
+export type CurrentOrderParcelsPage = Observed<Page<ParcelRow>['data'] & {
+  contents_semantics: 'current_eligible_order_contents'; merchant_order_id: string;
+}>;
 export type Overview = {
   range: Range; pending_passenger_requests: number; submitted_merchant_orders: number;
   match_results_by_status: Record<MatchStatus, number>;
@@ -113,7 +116,7 @@ export interface MonitoringService {
   match(id: string): Promise<Observed<MatchRow>>;
   batches(query: BatchQuery): Promise<Page<BatchRow>>;
   batch(id: string): Promise<Observed<BatchRow>>;
-  parcels(id: string, query: PageQuery): Promise<Page<ParcelRow>>;
+  parcels(id: string, query: PageQuery): Promise<CurrentOrderParcelsPage>;
 }
 ```
 
@@ -178,7 +181,7 @@ const rows = await tx.match.findMany({
   skip: (query.page - 1) * query.limit, take: query.limit
 });
 ```
-  `filters:Prisma.MatchWhereInput` is local to matches: created_at gte/lt, optional status, demand-kind null/non-null clauses and exact-ID OR. Client filters never overwrite eligibility. Overview uses groupBy/count and zero-filled enum maps. active_batches sums created/proposed/assigned/picked_up/in_transit. Member parent authorization and page/count share a transaction; filter Parcel by order_id and eligibleParcel, sort id ASC. No Trip queries.
+  `filters:Prisma.MatchWhereInput` is local to matches: created_at gte/lt, optional status, demand-kind null/non-null clauses and exact-ID OR. Client filters never overwrite eligibility. Overview uses groupBy/count and zero-filled enum maps. active_batches sums created/assigned/picked_up/in_transit. Member parent authorization and page/count share a transaction; filter Parcel by order_id and eligibleParcel, sort id ASC. No Trip queries.
 - [ ] Map recognized DB unavailability/timeouts to sanitized HttpError(503,'monitoring_unavailable'), never zero counts. Test timestamps do not cause expiry, current-state overview counts ignore cohort range, and batch/order mismatches stay visible. Assert canonical delegates/domain mutations are unused, exact fields contain no sensitive markers, transactions have correct settings.
 - [ ] Run Task1/2 tests and API typecheck to green; commit exact files: `feat(api): add bounded legacy monitoring reads`.
 
@@ -213,7 +216,7 @@ router.get('/matches/:id', async (req, res) => {
 - monitoringMatch(token:string,id:string):Promise<Observed<MatchRow>>
 - monitoringBatches(token:string,query:BatchQueryInput):Promise<Page<BatchRow>>
 - monitoringBatch(token:string,id:string):Promise<Observed<BatchRow>>
-- monitoringParcels(token:string,id:string,query:PageQuery):Promise<Page<ParcelRow>>
+- monitoringParcels(token:string,id:string,query:PageQuery):Promise<CurrentOrderParcelsPage>
 
 State exports `createObservationGate():{begin():number;isCurrent(generation:number):boolean;invalidate():void}` and `ObservationState<T>={last:Observed<T>|null;loading:boolean;error:string|null}`. For pages T is Page<TItem>['data'].
 
@@ -266,7 +269,7 @@ const batch: BatchRow = { id: 'b1', status: 'assigned',
   merchant_order: { id: 'o1', status: 'submitted', parcel_count: 26 },
   selected_driver_route: null };
 ```
-  Render and assert BOTH different statuses, Current order contents, No selected route, 25 rows then one row, and no completed/savings/timeline claims. Test list filters and independent detail/member timestamps.
+  Render and assert BOTH different statuses, Current eligible order contents, No selected route, 25 rows then one row, and no completed/savings/timeline claims. Test list filters and independent detail/member timestamps.
 - [ ] Run `npm run test -w @masari/admin -- src/features/monitoring/LegacyBatches.test.tsx`; confirm red.
 - [ ] Implement directory/date/status/exact-ID filters, detail and independently paginated members. Invalidate both gates on parent change; clear member rows on parent404/auth failures. Never use Parcel.batch_id or query trips. Render only allowed fields:
 ```tsx
@@ -321,3 +324,7 @@ const { prisma } = await import('../lib/prisma.js');
 - Independent documentation review identified the createApp dependency argument position and missing strict empty-query validation on details. Both were technically checked and corrected. Parent also corrected client-clock range defaults and cross-checked schema enum/relation names and migration count.
 
 Status: internally consistent and self-reviewed; READY_FOR_IMPLEMENTATION upon a user request to execute. Documentation only; implementation not started.
+
+## Execution amendment — 2026-09-11
+User authorized implementation, final reviews, branch push and one draft PR; do not merge or begin Card 8. This supersedes planning-only stop statements above. Active batch metric excludes proposed even though it exists in the enum: verify exact four-state sum in tests. CurrentOrderParcelsPage is the response for both service.parcels and client.monitoringParcels; tests/fixtures must include contents_semantics and merchant_order_id. Admin copy says Current eligible order contents and disclaims historical membership. Cursor is unsupported under approved offset pagination and must fail strict unknown-key validation; test malformed cursor inputs. Self-review confirms these amendments supersede the earlier metric and parcel-page types consistently.
+

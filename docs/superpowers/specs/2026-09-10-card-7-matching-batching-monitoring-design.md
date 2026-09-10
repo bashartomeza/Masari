@@ -16,7 +16,7 @@ Monitoring is not certification that a row originated in production. Existing sc
 
 - `apps/api/src/config.ts` restricts canonical enable flags in staging/production. `app.ts` mounts legacy matching/batching independently of canonical routers.
 - `modules/matching.ts` selects a compatible fixed-corridor legacy DriverRoute and stores a winning Match with score, method, status and created_at. Input can link a passenger request, a merchant order, or BOTH. No compatible candidate produces an error, not a failed-attempt record. Candidate count is transient. Existing GET /matches[/:id] permits Admin but has broad projections and an unpaginated list.
-- `modules/batching.ts` creates ParcelBatch for one merchant order (creator accepts 1–10 parcels), choosing an optional driver-route relationship. It separately updates order status. It does not write Parcel.batch_id. Current order contents are `Parcel.order_id = ParcelBatch.merchant_order_id`; they are not immutable historical membership. No dedicated bounded Admin batch reads exist.
+- `modules/batching.ts` creates ParcelBatch for one merchant order (creator accepts 1–10 parcels), choosing an optional driver-route relationship. It separately updates order status. It does not write Parcel.batch_id. Current eligible order contents are `Parcel.order_id = ParcelBatch.merchant_order_id`; they are not immutable historical membership. No dedicated bounded Admin batch reads exist.
 - `modules/trips.ts` accepts/rejects legacy Match. Acceptance creates a Trip, changes related statuses and can assign a batch. Legacy acceptance does not fill Match.accepted_at; rejection does not persist a reason/timestamp. Trip.started_at is written at acceptance and is not reliable departure time. Legacy Trip has no exact Match foreign key. Do not invent a match-to-trip assignment link.
 - `services/tripLifecycle.ts` propagates selected statuses to batches/orders. Batch does not have completed or cancelled states. Trip cancellation does not rewrite batch status. Monitoring displays the stored state without repairing it.
 - `services/canonicalMatching.ts`, `services/canonicalSharedMatching.ts`, and `lib/canonicalDispatchWorker.ts` implement non-production dispatch/offer/reservation/manifest behavior. The gated in-process worker runs approximately every five seconds; architecture documentation claiming no scheduler is stale. Card 7 neither queries these entities nor invokes their services.
@@ -57,7 +57,7 @@ All six endpoints are GET, rooted at `/api/v1/admin/matching-batching`:
 | `/matches/:id` | none | Observed<MatchRow> |
 | `/batches` | page, limit, from, until, status, search | Page<BatchRow> |
 | `/batches/:id` | none | Observed<BatchRow> |
-| `/batches/:id/parcels` | page, limit | Page<ParcelRow> |
+| `/batches/:id/parcels` | page, limit | CurrentOrderParcelsPage |
 
 Unknown query keys, arrays, fractional or out-of-range numbers, unknown statuses/kinds, malformed dates and overlong search/IDs return 400. page defaults 1, allowed 1–1000; limit defaults 25, allowed 1–50; reject 51 rather than clamp. ID/search trimmed nonempty strings, max 191, exact equality only; no free-text, PII or wildcard search. Search on matches is an OR across id, driver_route_id, passenger_request_id, merchant_order_id, parcel_batch_id; batches search id, merchant_order_id, driver_route_id. Empty search is normalized to absent. demand_kind enum passenger_only, merchant_only, combined. Status is one stored entity-specific enum value.
 
@@ -84,7 +84,7 @@ Overview has `range:{from,until}`, `pending_passenger_requests`, `submitted_merc
 | Accepted match results | The accepted entry in that same creation-cohort status map; not acceptance events during the range, not completed trips, and not a global success rate. |
 | Rejected match results | The rejected entry in that map; not all failed or unmatched requests. |
 | Batches by current status | Count all eligible ParcelBatch rows, all creation times, grouped by stored ParcelBatchStatus. Complete zero-filled enum map. |
-| Active legacy batches | Sum created + proposed + assigned + picked_up + in_transit from batches_by_status. “Active” means not yet stored as delivered; it can include stalled batches and batches associated with cancelled trips. |
+| Active legacy batches | Sum created + assigned + picked_up + in_transit from batches_by_status. The proposed enum value is excluded without production-writer evidence; it can include stalled batches and batches associated with cancelled trips. |
 | Delivered legacy batches | The delivered entry in batches_by_status. Never label completed. |
 | Stored score (row/detail) | Decimal Match.score serialized losslessly as a decimal string, label Score. No percentage confidence, averages, or fabricated calibration. |
 | Current order parcel count (row/detail) | Count eligible Parcel rows of the batch/order's merchant_order_id; current contents, not a snapshot. |
@@ -117,7 +117,7 @@ Overview: two separate demand cards, match creation-cohort status counts, curren
 
 Matching: title “Matching results,” not “All attempts.” Server filters date, current status, demand kind and exact operational ID search; paginated table id, created, demand kind, stored status, score, selected route ID. Combined demand shows both links. Drawer reads explicit detail on open/refresh and shows both bounded demand summaries. No run, accept, reject, retry or tune buttons.
 
-Legacy Batches: date/status/exact-ID filters, paginated table id, created, stored batch status, order ID, current parcel count, selected route ID. Drawer displays order status separately and a separately paginated “Current order contents” parcel list. No timeline, savings or completed label, no batch/create/assign controls.
+Legacy Batches: date/status/exact-ID filters, paginated table id, created, stored batch status, order ID, current parcel count, selected route ID. Drawer displays order status separately and a separately paginated “Current eligible order contents” parcel list. No timeline, savings or completed label, no batch/create/assign controls.
 
 Use existing UI components, English/Arabic translations, RTL, responsive tables, accessible field labels, keyboard navigation, drawer focus entry/trap/return, and empty/loading/error states. Maintain hash #/matching-batching and existing aliases. Replace demo action entry rather than adding fallback paths.
 
@@ -136,3 +136,7 @@ Disposable MySQL integration verifies real predicate joins, counts, pagination, 
 Plan: `docs/superpowers/plans/2026-09-10-card-7-matching-batching-monitoring.md`. Backend adds policy/contracts/query service/router; Admin adds monitoring module and typed API methods; tests cover pure contracts, HTTP, UI and disposable MySQL. Integration harness includes the new smoke in existing Backend CI. Existing algorithms and mobile stay unchanged.
 
 Self-review: every metric has a stored-data definition; all six endpoints use the same exclusion and Admin boundaries; all details have bounded scalar/singular projections; current parcels use order_id; no Trip or canonical fallback; combined Match demands remain distinct; no accepted/completed conflation; timestamp semantics are explicit; no schema/migration dependency. Implementation may start only after the user asks to execute the internally reviewed plan. This planning phase creates documentation only.
+
+## Execution amendment — 2026-09-11
+Implementation is now authorized. Active batches excludes proposed. Parcel responses use CurrentOrderParcelsPage: Page<ParcelRow> whose data additionally has contents_semantics='current_eligible_order_contents' and merchant_order_id:string. This identifies current eligible order contents, not guaranteed historical batch membership; assert metadata in API/integration tests and matching Admin copy. Offset pagination remains the approved contract; cursor is unsupported and strictly rejected as an unknown query key, including malformed cursors. Stable sorting remains created_at DESC/id DESC or parcel id ASC.
+
