@@ -52,7 +52,7 @@ export function inspectManifest(text) {
   };
   const findings = [];
   for (const node of nodes) {
-    if (/^uses-permission(?:-sdk-\d+)?$/.test(node.name)) {
+    if (/^uses-permission(?:-sdk-(?:\d+|m))?$/.test(node.name)) {
       const name = string(node.attributes["android:name"]);
       if (!name) throw new Error("Unresolved Android manifest permission name");
       if (["android.permission.ACCESS_BACKGROUND_LOCATION", "android.permission.FOREGROUND_SERVICE_LOCATION"].includes(name)) findings.push(name);

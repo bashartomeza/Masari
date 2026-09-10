@@ -27,7 +27,7 @@ test("foreground coarse/fine location permissions are allowed", () => {
 });
 
 for (const name of ["ACCESS_BACKGROUND_LOCATION", "FOREGROUND_SERVICE_LOCATION"]) {
-  for (const element of ["uses-permission", "uses-permission-sdk-23"]) {
+  for (const element of ["uses-permission", "uses-permission-sdk-23", "uses-permission-sdk-m"]) {
     test(`${element} ${name} is blocked`, () => {
       assert.ok(inspectManifest(manifest(permission(name, element))).some((rule) => rule.includes(name)));
     });
