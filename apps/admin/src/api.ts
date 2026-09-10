@@ -1,5 +1,14 @@
 export type ApiError = Error & { status?: number; details?: unknown };
 export type ApiClientOptions = { onSessionEnded?: (error: ApiError, requestToken: string) => void };
+export type RouteLifecycleExpectation = {
+  expected_current_version_id: string | null;
+};
+type RouteVersionActionPayload = {
+  pause: RouteLifecycleExpectation & { reason: string };
+  resume: RouteLifecycleExpectation;
+  retire: RouteLifecycleExpectation & { reason: string };
+};
+type RouteRetirementPayload = { reason: string; expected_current_version_id: null };
 
 export function createApiClient(apiBaseUrl: string, clientOptions: ApiClientOptions = {}) {
   async function apiRequest<T>(path: string, options: { method?: string; token?: string; body?: unknown; idempotencyKey?: string } = {}) {
@@ -156,8 +165,14 @@ return {
   updateRouteVersion: (token: string, id: string, body: RouteVersionDraft & { expected_revision: number }) => apiRequest<{ version: ServiceRouteVersion }>(`/admin/route-versions/${id}`, { method: "PATCH", token, body }),
   replaceRouteStops: (token: string, id: string, body: { expected_revision: number; stops: RouteStopDraft[] }) => apiRequest<{ version: ServiceRouteVersion }>(`/admin/route-versions/${id}/stops`, { method: "PUT", token, body }),
   publishRouteVersion: (token: string, id: string, body: { expected_revision: number; expected_current_version_id: string | null }, key: string) => apiRequest<{ version: ServiceRouteVersion }>(`/admin/route-versions/${id}/publish`, { method: "POST", token, body, idempotencyKey: key }),
-  routeVersionAction: (token: string, id: string, action: "pause" | "resume" | "retire", reason: string | undefined, key: string) => apiRequest<{ version: ServiceRouteVersion }>(`/admin/route-versions/${id}/${action}`, { method: "POST", token, body: reason ? { reason } : {}, idempotencyKey: key }),
-  retireServiceRoute: (token: string, id: string, reason: string, key: string) => apiRequest<{ route: ServiceRoute }>(`/admin/service-routes/${id}/retire`, { method: "POST", token, body: { reason }, idempotencyKey: key }),
+  routeVersionAction: <Action extends keyof RouteVersionActionPayload>(
+    token: string,
+    id: string,
+    action: Action,
+    body: RouteVersionActionPayload[Action],
+    key: string
+  ) => apiRequest<{ version: ServiceRouteVersion }>(`/admin/route-versions/${id}/${action}`, { method: "POST", token, body, idempotencyKey: key }),
+  retireServiceRoute: (token: string, id: string, body: RouteRetirementPayload, key: string) => apiRequest<{ route: ServiceRoute }>(`/admin/service-routes/${id}/retire`, { method: "POST", token, body, idempotencyKey: key }),
   canonicalStops: (token: string, query = "") => apiRequest<StopPage>(`/admin/stops${query}`, { token }),
   createCanonicalStop: (token: string, body: CanonicalStopDraft, key: string) => apiRequest<{ stop: CanonicalStop }>("/admin/stops", { method: "POST", token, body, idempotencyKey: key }),
   updateCanonicalStop: (token: string, id: string, body: Omit<CanonicalStopDraft, "stop_key">) => apiRequest<{ stop: CanonicalStop }>(`/admin/stops/${id}`, { method: "PATCH", token, body }),
