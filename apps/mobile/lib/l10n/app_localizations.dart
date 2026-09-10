@@ -236,6 +236,18 @@ abstract class AppLocalizations {
   /// **'رقم الهاتف'**
   String get phone;
 
+  /// No description provided for @email.
+  ///
+  /// In ar, this message translates to:
+  /// **'البريد الإلكتروني'**
+  String get email;
+
+  /// No description provided for @fullName.
+  ///
+  /// In ar, this message translates to:
+  /// **'الاسم الكامل'**
+  String get fullName;
+
   /// No description provided for @password.
   ///
   /// In ar, this message translates to:
@@ -253,6 +265,96 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'إخفاء كلمة المرور'**
   String get hidePassword;
+
+  /// No description provided for @signUp.
+  ///
+  /// In ar, this message translates to:
+  /// **'إنشاء الحساب'**
+  String get signUp;
+
+  /// No description provided for @createAccount.
+  ///
+  /// In ar, this message translates to:
+  /// **'إنشاء الحساب'**
+  String get createAccount;
+
+  /// No description provided for @createAccountSubtitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'أنشئ حساب مسافر للبدء.'**
+  String get createAccountSubtitle;
+
+  /// No description provided for @newToMasari.
+  ///
+  /// In ar, this message translates to:
+  /// **'جديد في مساري؟ أنشئ حساباً'**
+  String get newToMasari;
+
+  /// No description provided for @alreadyHaveAccount.
+  ///
+  /// In ar, this message translates to:
+  /// **'لديك حساب؟ سجّل الدخول'**
+  String get alreadyHaveAccount;
+
+  /// No description provided for @continueWithGoogle.
+  ///
+  /// In ar, this message translates to:
+  /// **'المتابعة عبر Google'**
+  String get continueWithGoogle;
+
+  /// No description provided for @orSeparator.
+  ///
+  /// In ar, this message translates to:
+  /// **'أو'**
+  String get orSeparator;
+
+  /// No description provided for @emailRequired.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل بريدك الإلكتروني.'**
+  String get emailRequired;
+
+  /// No description provided for @emailInvalid.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل بريداً إلكترونياً صحيحاً.'**
+  String get emailInvalid;
+
+  /// No description provided for @nameRequired.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل اسمك.'**
+  String get nameRequired;
+
+  /// No description provided for @passwordRequired.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل كلمة المرور.'**
+  String get passwordRequired;
+
+  /// No description provided for @passwordTooShort.
+  ///
+  /// In ar, this message translates to:
+  /// **'يجب أن تتكون كلمة المرور من 8 أحرف على الأقل.'**
+  String get passwordTooShort;
+
+  /// No description provided for @emailAlreadyRegistered.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا البريد الإلكتروني مسجّل بالفعل. حاول تسجيل الدخول.'**
+  String get emailAlreadyRegistered;
+
+  /// No description provided for @googleSignInFailed.
+  ///
+  /// In ar, this message translates to:
+  /// **'فشل تسجيل الدخول عبر Google. حاول مرة أخرى.'**
+  String get googleSignInFailed;
+
+  /// No description provided for @googleSignInUnavailable.
+  ///
+  /// In ar, this message translates to:
+  /// **'تسجيل الدخول عبر Google غير متاح حالياً.'**
+  String get googleSignInUnavailable;
 
   /// No description provided for @demoAccounts.
   ///
@@ -305,7 +407,7 @@ abstract class AppLocalizations {
   /// No description provided for @invalidCredentials.
   ///
   /// In ar, this message translates to:
-  /// **'رقم الهاتف أو كلمة المرور غير صحيحة.'**
+  /// **'البريد الإلكتروني أو كلمة المرور غير صحيحة.'**
   String get invalidCredentials;
 
   /// No description provided for @networkUnavailable.
@@ -1579,12 +1681,6 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'قبول ومتابعة'**
   String get acceptAndContinue;
-
-  /// No description provided for @createAccount.
-  ///
-  /// In ar, this message translates to:
-  /// **'إنشاء الحساب'**
-  String get createAccount;
 
   /// No description provided for @accountCreated.
   ///

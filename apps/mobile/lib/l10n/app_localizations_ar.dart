@@ -83,6 +83,12 @@ class AppLocalizationsAr extends AppLocalizations {
   String get phone => 'رقم الهاتف';
 
   @override
+  String get email => 'البريد الإلكتروني';
+
+  @override
+  String get fullName => 'الاسم الكامل';
+
+  @override
   String get password => 'كلمة المرور';
 
   @override
@@ -90,6 +96,55 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get hidePassword => 'إخفاء كلمة المرور';
+
+  @override
+  String get signUp => 'إنشاء الحساب';
+
+  @override
+  String get createAccount => 'إنشاء الحساب';
+
+  @override
+  String get createAccountSubtitle => 'أنشئ حساب مسافر للبدء.';
+
+  @override
+  String get newToMasari => 'جديد في مساري؟ أنشئ حساباً';
+
+  @override
+  String get alreadyHaveAccount => 'لديك حساب؟ سجّل الدخول';
+
+  @override
+  String get continueWithGoogle => 'المتابعة عبر Google';
+
+  @override
+  String get orSeparator => 'أو';
+
+  @override
+  String get emailRequired => 'أدخل بريدك الإلكتروني.';
+
+  @override
+  String get emailInvalid => 'أدخل بريداً إلكترونياً صحيحاً.';
+
+  @override
+  String get nameRequired => 'أدخل اسمك.';
+
+  @override
+  String get passwordRequired => 'أدخل كلمة المرور.';
+
+  @override
+  String get passwordTooShort =>
+      'يجب أن تتكون كلمة المرور من 8 أحرف على الأقل.';
+
+  @override
+  String get emailAlreadyRegistered =>
+      'هذا البريد الإلكتروني مسجّل بالفعل. حاول تسجيل الدخول.';
+
+  @override
+  String get googleSignInFailed =>
+      'فشل تسجيل الدخول عبر Google. حاول مرة أخرى.';
+
+  @override
+  String get googleSignInUnavailable =>
+      'تسجيل الدخول عبر Google غير متاح حالياً.';
 
   @override
   String get demoAccounts => 'حسابات تجريبية';
@@ -116,7 +171,8 @@ class AppLocalizationsAr extends AppLocalizations {
   String get sessionExpired => 'انتهت جلستك، يرجى تسجيل الدخول مرة أخرى';
 
   @override
-  String get invalidCredentials => 'رقم الهاتف أو كلمة المرور غير صحيحة.';
+  String get invalidCredentials =>
+      'البريد الإلكتروني أو كلمة المرور غير صحيحة.';
 
   @override
   String get networkUnavailable =>
@@ -771,9 +827,6 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get acceptAndContinue => 'قبول ومتابعة';
-
-  @override
-  String get createAccount => 'إنشاء الحساب';
 
   @override
   String get accountCreated => 'تم إنشاء الحساب';

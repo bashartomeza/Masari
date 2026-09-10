@@ -103,10 +103,34 @@ class AuthController extends AsyncNotifier<AuthState> {
     state = AsyncData(await _restoreLoadedSession());
   }
 
-  Future<void> login({required String phone, required String password}) async {
+  Future<void> login({required String email, required String password}) {
+    return _completeAuthentication(
+      () => _repository.login(email: email, password: password),
+    );
+  }
+
+  Future<void> register({
+    required String name,
+    required String email,
+    required String password,
+  }) {
+    return _completeAuthentication(
+      () => _repository.register(name: name, email: email, password: password),
+    );
+  }
+
+  Future<void> loginWithGoogle({required String idToken}) {
+    return _completeAuthentication(
+      () => _repository.loginWithGoogle(idToken: idToken),
+    );
+  }
+
+  Future<void> _completeAuthentication(
+    Future<LoginResult> Function() run,
+  ) async {
     state = const AsyncData(AuthState.authenticating());
     try {
-      final result = await _repository.login(phone: phone, password: password);
+      final result = await run();
       await _coordinator.installBundle(result.bundle);
       await _clearOnboardingState();
       _bindAuthenticatedActor(result.user);
