@@ -1,3 +1,4 @@
+import { routeStatusLabel as statusText } from "./routeStatusLabel";
 import type { KeyboardEvent, ReactNode } from "react";
 import type { ServiceRoute, ServiceRouteVersion } from "../../api";
 import { translations } from "../../i18n/translations";
@@ -33,17 +34,6 @@ const copy = {
   }
 } as const;
 
-function statusText(locale: Locale, value: string) {
-  const labels = translations[locale].routeStatusLabels;
-  const known = {
-    active: locale === "ar" ? "نشط" : "Active",
-    retired: locale === "ar" ? "متقاعد" : "Retired",
-    draft: locale === "ar" ? "مسودة" : "Draft",
-    published: locale === "ar" ? "منشور" : "Published",
-    paused: locale === "ar" ? "متوقف مؤقتاً" : "Paused"
-  } as const;
-  return known[value as keyof typeof known] ?? labels;
-}
 
 export function RouteWorkspace({
   locale,

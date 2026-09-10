@@ -58,6 +58,25 @@ afterEach(() => {
 });
 
 describe("RouteWorkspace", () => {
+  it("uses a generic status label for an unknown route status", () => {
+    const markup = renderToStaticMarkup(
+      <RouteWorkspace
+        locale="en"
+        route={{ ...route, status: "future_status" as ServiceRoute["status"] }}
+        selectedVersion={version}
+        tab="overview"
+        onBack={vi.fn()}
+        onSelectTab={vi.fn()}
+        overview={<p>Overview panel content</p>}
+        versions={<p>Versions panel content</p>}
+        stops={<p>Stops panel content</p>}
+      />
+    );
+
+    expect(markup).toMatch(/>Status<\/span>/);
+    expect(markup).not.toContain(">future_status<");
+  });
+
   it("renders the selected identity, four labeled statuses, and exactly three accessible tabs", () => {
     const markup = renderToStaticMarkup(
       <RouteWorkspace

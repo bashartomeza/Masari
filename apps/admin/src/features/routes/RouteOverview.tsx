@@ -1,3 +1,4 @@
+import { routeStatusLabel as statusText } from "./routeStatusLabel";
 import type { ServiceRoute, ServiceRouteVersion } from "../../api";
 import { translations } from "../../i18n/translations";
 import { Card, StatusBadge } from "../../ui";
@@ -69,12 +70,6 @@ const copy = {
   }
 } as const;
 
-function statusText(locale: Locale, value: string) {
-  const labels: Record<string, string> = locale === "ar"
-    ? { active: "نشط", retired: "متقاعد", draft: "مسودة", published: "منشور", paused: "متوقف مؤقتاً" }
-    : { active: "Active", retired: "Retired", draft: "Draft", published: "Published", paused: "Paused" };
-  return labels[value] ?? translations[locale].routeStatusLabels;
-}
 
 export function RouteOverview({
   locale,

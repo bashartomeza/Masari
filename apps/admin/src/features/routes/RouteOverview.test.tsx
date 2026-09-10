@@ -85,6 +85,27 @@ afterEach(() => {
 });
 
 describe("RouteOverview", () => {
+  it("uses a generic status label for an unknown route status", () => {
+    const markup = renderToStaticMarkup(
+      <RouteOverview
+        locale="en"
+        route={{ ...route, status: "future_status" as ServiceRoute["status"] }}
+        version={version}
+        readinessIssues={["readinessMinimumStops"]}
+        actions={["publish", "retire"]}
+        lifecycleDialogOpen={false}
+        lifecycleFeedback={null}
+        busy={false}
+        onOpenLifecycleDialog={vi.fn()}
+        onCloseLifecycleDialog={vi.fn()}
+        {...callbacks()}
+      />
+    );
+
+    expect(markup).toMatch(/>Status<\/span>/);
+    expect(markup).not.toContain(">future_status<");
+  });
+
   it("renders concise identity, current version, readiness, lifecycle, and secondary map sections", () => {
     const markup = renderToStaticMarkup(
       <RouteOverview

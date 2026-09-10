@@ -39,7 +39,7 @@ $env:PORT = '3100'
 $env:CORS_ORIGINS = 'http://localhost:5174'
 $env:ENABLE_DEMO_FEATURES = 'false'
 $env:ROUTE_MANAGEMENT_ENABLED = 'true'
-$env:ROUTE_MAPS_ENABLED = 'false'
+$env:MAPS_ENABLED = 'false'
 $env:ROUTE_PROVIDER = 'disabled'
 npm run dev:api
 ```
@@ -62,7 +62,7 @@ All route and stop keys are synthetic and use the fixed `qa-card6-` prefix.
 | --- | --- | --- |
 | A | `qa-card6-a-active-stop` | Active stop visible in the stop catalog |
 | B | `qa-card6-b-retired-stop` | Retired stop visible with the retired filter |
-| C | `qa-card6-c-empty-route` | Active route with no versions and no current version |
+| C | `qa-card6-c-empty-route` | Retired route with no versions and no current version |
 | D | `qa-card6-d-draft-route` | Valid two-stop draft, ready for editing |
 | E | `qa-card6-e-invalid-route` | Draft with a missing Arabic name and no stops; publication must remain blocked |
 | F | `qa-card6-f-current-route` | Published current version with valid passenger movement |

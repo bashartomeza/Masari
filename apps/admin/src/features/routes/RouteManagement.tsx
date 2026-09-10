@@ -1,3 +1,4 @@
+import { routeStatusLabel } from "./routeStatusLabel";
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import type {
   ApiError,
@@ -455,8 +456,7 @@ export function routeUiError(locale: Locale, error: unknown) {
 }
 
 export function routeStatusText(locale: Locale, value: string) {
-  const text = routeUiText(locale);
-  return text[value as keyof typeof text] ?? text.status;
+  return routeStatusLabel(locale, value);
 }
 
 export function routeConflictRequiresReload(error: unknown) {
