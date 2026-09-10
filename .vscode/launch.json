@@ -16,6 +16,7 @@
       "cwd": "apps/mobile",
       "program": "lib/main.dart",
       "deviceId": "chrome",
+      "args": ["--web-port=5173"],
       "toolArgs": ["--dart-define-from-file=config/demo.web.json"]
     },
     {
