@@ -7,10 +7,6 @@ import '../theme/app_theme.dart';
 import '../theme/app_tokens.dart';
 
 /// A pin the map can draw.
-///
-/// Deliberately generic — the widget knows nothing about stops, riders or
-/// barriers, so a new marker kind is a caller concern rather than a change
-/// here.
 class MasariMapMarker {
   const MasariMapMarker({
     required this.position,
@@ -51,10 +47,8 @@ class MasariMapPath {
 
 /// The live map surface.
 ///
-/// Replaces the former `MapPlaceholder`. It draws only what it is given: with
-/// no paths and no markers it renders [emptyLabel] rather than an empty world
-/// view, so "we have no location data" never looks like "you are in the middle
-/// of the ocean".
+/// The map remains visible even when there are no paths or markers.
+/// In that case it opens centered on the default Masari area.
 ///
 /// Tiles come from OpenStreetMap, whose licence requires the attribution shown
 /// bottom-start. Do not remove it.
@@ -96,6 +90,11 @@ class _MasariMapState extends State<MasariMap> {
   final _controller = MapController();
   String? _selectedLabel;
 
+  /// Default map center used when no geographic data is available.
+  static const LatLng _defaultCenter = LatLng(31.6, 35.15);
+
+  static const double _defaultZoom = 11;
+
   @override
   void dispose() {
     _controller.dispose();
@@ -103,9 +102,9 @@ class _MasariMapState extends State<MasariMap> {
   }
 
   List<LatLng> get _allPoints => [
-    for (final path in widget.paths) ...path.points.map(_toLatLng),
-    for (final marker in widget.markers) _toLatLng(marker.position),
-  ];
+        for (final path in widget.paths) ...path.points.map(_toLatLng),
+        for (final marker in widget.markers) _toLatLng(marker.position),
+      ];
 
   static LatLng _toLatLng(GeoPoint point) =>
       LatLng(point.latitude, point.longitude);
@@ -113,21 +112,25 @@ class _MasariMapState extends State<MasariMap> {
   @override
   void didUpdateWidget(covariant MasariMap oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // New geography arriving (barriers loaded, a route picked) should bring the
-    // whole picture back into view rather than leave the rider panned away.
+
+    // New geography arriving (barriers loaded, a route picked) should bring
+    // the whole picture back into view rather than leave the rider panned away.
     final points = _allPoints;
+
     if (points.length >= 2 && !identical(oldWidget.paths, widget.paths)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _controller.fitCamera(_cameraFit(points));
+        if (mounted) {
+          _controller.fitCamera(_cameraFit(points));
+        }
       });
     }
   }
 
   CameraFit _cameraFit(List<LatLng> points) => CameraFit.bounds(
-    bounds: LatLngBounds.fromPoints(points),
-    padding: const EdgeInsets.all(AppTokens.spaceExtraLarge),
-    maxZoom: 15,
-  );
+        bounds: LatLngBounds.fromPoints(points),
+        padding: const EdgeInsets.all(AppTokens.spaceExtraLarge),
+        maxZoom: 15,
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -138,48 +141,14 @@ class _MasariMapState extends State<MasariMap> {
       child: SizedBox(
         height: widget.height,
         width: double.infinity,
-        child: points.isEmpty ? _empty(context) : _map(context, points),
-      ),
-    );
-  }
-
-  Widget _empty(BuildContext context) {
-    final theme = Theme.of(context);
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceContainer,
-        border: Border.all(color: AppTheme.outlineVariant),
-        borderRadius: BorderRadius.circular(AppTokens.radiusLarge),
-      ),
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(AppTokens.spaceMedium),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.map_outlined,
-                size: 32,
-                color: AppTheme.outline,
-              ),
-              const SizedBox(height: AppTokens.spaceSmall),
-              Text(
-                widget.emptyLabel,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: AppTheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ),
+        child: _map(context, points),
       ),
     );
   }
 
   Widget _map(BuildContext context, List<LatLng> points) {
     final single = points.length == 1;
+    final hasPoints = points.isNotEmpty;
 
     return Stack(
       children: [
@@ -190,22 +159,32 @@ class _MasariMapState extends State<MasariMap> {
           child: FlutterMap(
             mapController: _controller,
             options: MapOptions(
-              initialCenter: single ? points.first : const LatLng(31.6, 35.15),
-              initialZoom: single ? 14 : 11,
-              initialCameraFit: single ? null : _cameraFit(points),
+              initialCenter: single ? points.first : _defaultCenter,
+              initialZoom: single ? 14 : _defaultZoom,
+
+              // Never create a bounds fit from an empty list.
+              initialCameraFit: hasPoints && !single
+                  ? _cameraFit(points)
+                  : null,
+
               interactionOptions: InteractionOptions(
                 flags: widget.interactive
                     ? InteractiveFlag.all & ~InteractiveFlag.rotate
                     : InteractiveFlag.none,
               ),
-              onTap: (_, _) => setState(() => _selectedLabel = null),
+
+              onTap: (_, _) {
+                setState(() => _selectedLabel = null);
+              },
             ),
             children: [
               TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                urlTemplate:
+                    'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'ps.masari.mobile',
                 maxNativeZoom: 19,
               ),
+
               for (final path in widget.paths)
                 if (path.points.length >= 2)
                   PolylineLayer(
@@ -217,29 +196,74 @@ class _MasariMapState extends State<MasariMap> {
                         borderColor: Colors.white,
                         borderStrokeWidth: path.dashed ? 0 : 1.5,
                         pattern: path.dashed
-                            ? StrokePattern.dashed(segments: const [8, 6])
+                            ? StrokePattern.dashed(
+                                segments: const [8, 6],
+                              )
                             : const StrokePattern.solid(),
                       ),
                     ],
                   ),
-              MarkerLayer(markers: [for (final marker in widget.markers) _pin(marker)]),
+
+              MarkerLayer(
+                markers: [
+                  for (final marker in widget.markers) _pin(marker),
+                ],
+              ),
             ],
           ),
         ),
+
+        // Show a useful message without replacing the map.
+        if (!hasPoints)
+          Positioned(
+            top: AppTokens.spaceSmall,
+            left: AppTokens.spaceSmall,
+            right: AppTokens.spaceSmall,
+            child: IgnorePointer(
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppTokens.gutterMobile,
+                    vertical: AppTokens.spaceSmall,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surface.withValues(alpha: 0.90),
+                    borderRadius:
+                        BorderRadius.circular(AppTokens.radiusDefault),
+                    border: Border.all(
+                      color: AppTheme.outlineVariant,
+                    ),
+                  ),
+                  child: Text(
+                    widget.emptyLabel,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppTheme.onSurfaceVariant,
+                        ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
         if (widget.banner != null)
           PositionedDirectional(
             start: AppTokens.spaceSmall,
             end: AppTokens.spaceSmall,
-            top: AppTokens.spaceSmall,
+            top: hasPoints ? AppTokens.spaceSmall : 58,
             child: widget.banner!,
           ),
+
         if (_selectedLabel != null)
           PositionedDirectional(
             start: AppTokens.spaceSmall,
             end: AppTokens.spaceSmall,
-            top: widget.banner == null ? AppTokens.spaceSmall : 56,
+            top: widget.banner == null
+                ? AppTokens.spaceSmall
+                : 56,
             child: _Callout(label: _selectedLabel!),
           ),
+
         if (widget.overlay != null)
           PositionedDirectional(
             start: AppTokens.spaceSmall,
@@ -247,10 +271,13 @@ class _MasariMapState extends State<MasariMap> {
             bottom: AppTokens.spaceLarge,
             child: widget.overlay!,
           ),
+
         PositionedDirectional(
           start: AppTokens.spaceExtraSmall,
           bottom: AppTokens.spaceExtraSmall,
-          child: _Attribution(label: widget.attributionLabel),
+          child: _Attribution(
+            label: widget.attributionLabel,
+          ),
         ),
       ],
     );
@@ -266,14 +293,23 @@ class _MasariMapState extends State<MasariMap> {
         label: marker.label,
         button: true,
         child: GestureDetector(
-          onTap: () => setState(() => _selectedLabel = marker.label),
+          onTap: () {
+            setState(() => _selectedLabel = marker.label);
+          },
           child: Container(
             decoration: BoxDecoration(
               color: marker.color,
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 2),
+              border: Border.all(
+                color: Colors.white,
+                width: 2,
+              ),
               boxShadow: const [
-                BoxShadow(color: Color(0x33000000), blurRadius: 4, offset: Offset(0, 2)),
+                BoxShadow(
+                  color: Color(0x33000000),
+                  blurRadius: 4,
+                  offset: Offset(0, 2),
+                ),
               ],
             ),
             child: Icon(
@@ -289,16 +325,21 @@ class _MasariMapState extends State<MasariMap> {
 }
 
 class _Callout extends StatelessWidget {
-  const _Callout({required this.label});
+  const _Callout({
+    required this.label,
+  });
 
   final String label;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
     return Material(
       color: AppTheme.inverseSurface,
-      borderRadius: BorderRadius.circular(AppTokens.radiusDefault),
+      borderRadius: BorderRadius.circular(
+        AppTokens.radiusDefault,
+      ),
       child: Padding(
         padding: const EdgeInsets.symmetric(
           horizontal: AppTokens.gutterMobile,
@@ -317,13 +358,16 @@ class _Callout extends StatelessWidget {
 
 /// OpenStreetMap's licence requires visible credit wherever its tiles appear.
 class _Attribution extends StatelessWidget {
-  const _Attribution({required this.label});
+  const _Attribution({
+    required this.label,
+  });
 
   final String label;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppTokens.spaceExtraSmall,
@@ -331,7 +375,9 @@ class _Attribution extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: AppTheme.surface.withValues(alpha: 0.82),
-        borderRadius: BorderRadius.circular(AppTokens.radiusSmall),
+        borderRadius: BorderRadius.circular(
+          AppTokens.radiusSmall,
+        ),
       ),
       child: Text(
         label,
