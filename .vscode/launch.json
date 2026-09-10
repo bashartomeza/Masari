@@ -1,0 +1,30 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "masari_mobile (demo)",
+      "request": "launch",
+      "type": "dart",
+      "cwd": "apps/mobile",
+      "program": "lib/main.dart",
+      "toolArgs": ["--dart-define-from-file=config/demo.local.json"]
+    },
+    {
+      "name": "masari_mobile (web/chrome)",
+      "request": "launch",
+      "type": "dart",
+      "cwd": "apps/mobile",
+      "program": "lib/main.dart",
+      "deviceId": "chrome",
+      "toolArgs": ["--dart-define-from-file=config/demo.web.json"]
+    },
+    {
+      "name": "masari_mobile (local)",
+      "request": "launch",
+      "type": "dart",
+      "cwd": "apps/mobile",
+      "program": "lib/main.dart",
+      "toolArgs": ["--dart-define-from-file=config/local.example.json"]
+    }
+  ]
+}

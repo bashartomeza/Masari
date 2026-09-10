@@ -30,8 +30,14 @@ class AppConfig {
 
   factory AppConfig.fromEnvironment() {
     return AppConfig.fromValues(
-      appEnvironment: const String.fromEnvironment('APP_ENV'),
-      apiBaseUrl: const String.fromEnvironment('API_BASE_URL'),
+      appEnvironment: const String.fromEnvironment(
+        'APP_ENV',
+        defaultValue: 'local',
+      ),
+      apiBaseUrl: const String.fromEnvironment(
+        'API_BASE_URL',
+        defaultValue: 'http://localhost:3000',
+      ),
       enableDemoFeatures: const bool.fromEnvironment('ENABLE_DEMO_FEATURES'),
       passengerPhone: const String.fromEnvironment('DEMO_PASSENGER_PHONE'),
       passengerPassword: const String.fromEnvironment(

@@ -82,7 +82,10 @@ export function createApp(
     createHealthRouter(appConfig, dependencies.readinessCheck),
   );
   app.use("/api/v1", createGlobalRateLimiter(appConfig));
-  app.use("/api/v1/auth/login", createLoginRateLimiter(appConfig));
+  app.use(
+    ["/api/v1/auth/login", "/api/v1/auth/register", "/api/v1/auth/google"],
+    createLoginRateLimiter(appConfig),
+  );
   app.use(
     "/api/v1",
     createPublicOnboardingRouter(appConfig, dependencies.otpProvider),

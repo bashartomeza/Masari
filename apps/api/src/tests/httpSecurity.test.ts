@@ -115,7 +115,7 @@ describe("production HTTP security baseline", () => {
       .post("/api/v1/auth/login?token=query-secret")
       .set("Authorization", "Bearer header-secret")
       .send({
-        phone: "+970590001234",
+        email: "logged-in-secret@example.com",
         password: "body-password-secret",
         latitude: 31.53261234,
         longitude: 35.09981234,
@@ -141,7 +141,7 @@ describe("production HTTP security baseline", () => {
     for (const forbidden of [
       "query-secret",
       "header-secret",
-      "+970590001234",
+      "logged-in-secret@example.com",
       "body-password-secret",
       "31.53261234",
       "35.09981234",
@@ -299,13 +299,13 @@ describe("production HTTP security baseline", () => {
     for (let attempt = 0; attempt < 2; attempt += 1) {
       const response = await request(app)
         .post("/api/v1/auth/login")
-        .send({ phone: "+970590009999", password: "not-a-password" })
+        .send({ email: "nobody-9999@example.com", password: "not-a-password" })
         .expect(401);
       expect(response.body.error).toBe("invalid_credentials");
     }
     const limited = await request(app)
       .post("/api/v1/auth/login")
-      .send({ phone: "+970590009999", password: "not-a-password" })
+      .send({ email: "nobody-9999@example.com", password: "not-a-password" })
       .expect(429);
     expect(limited.body.error).toBe("rate_limited");
     expect(limited.headers["retry-after"]).toBeDefined();
