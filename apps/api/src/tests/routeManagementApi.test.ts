@@ -35,6 +35,7 @@ const entryEnabledConfig = createConfig({
   ...baseEnvironment,
   MULTI_ROUTE_ENTRY_ENABLED: "true"
 });
+const mapsEnabledConfig = createConfig({ ...baseEnvironment, MAPS_ENABLED: "true" });
 
 function auth(userId: keyof typeof users) {
   const user = users[userId];
@@ -208,6 +209,7 @@ describe("M7B route management APIs", () => {
       canonical_shared_driver_offers_available: false,
       canonical_shared_assignment_status_available: false,
       maps_available: false,
+      checkpoints_available: false,
       live_tracking_available: false,
       demo_reset_available: false
     });
@@ -549,6 +551,65 @@ describe("M7B route management APIs", () => {
     });
   });
 
+  it("releases coordinates and ready geometry to the catalog only when maps are enabled", async () => {
+    const readyVersion = {
+      ...version,
+      geometry_status: "available",
+      geometry_encoding: "demo-json-v1",
+      encoded_geometry: '[{"lat":31.5326,"lng":35.0998}]',
+      geometry_precision: 6,
+      estimated_distance_meters: 21_530
+    };
+    const service = serviceMock();
+    service.listPublishedRoutes.mockResolvedValue({
+      routes: [{ ...route, current_version: readyVersion }],
+      total: 1,
+      page: 1,
+      limit: 25
+    });
+    service.getPublishedVersionStops.mockResolvedValue(readyVersion);
+    const target = app(service, mapsEnabledConfig);
+
+    const response = await request(target.server).get("/api/v1/routes").set(auth("passenger_1")).expect(200);
+    const current = response.body.routes[0].current_version;
+    expect(current.stops[0].stop).toEqual({
+      id: "stop_1",
+      name_ar: "وسط الخليل",
+      name_en: "Hebron Center",
+      latitude: 31.5326,
+      longitude: 35.0998
+    });
+    expect(current.geometry).toEqual(
+      expect.objectContaining({
+        status: "available",
+        ready: true,
+        encoding: "demo-json-v1",
+        encoded: '[{"lat":31.5326,"lng":35.0998}]'
+      })
+    );
+
+    // Widening the contract must not widen it any further than coordinates and
+    // the geometry the client draws.
+    const serialized = JSON.stringify(response.body);
+    for (const forbidden of ["geometry_provider", "must-not-leak", "created_by_user_id", "stop_key", "service_region_key"]) {
+      expect(serialized).not.toContain(forbidden);
+    }
+
+    const stopResponse = await request(target.server)
+      .get("/api/v1/route-versions/version_1/stops")
+      .set(auth("passenger_1"))
+      .expect(200);
+    expect(stopResponse.body.stops[0].stop.latitude).toBe(31.5326);
+  });
+
+  it("withholds geometry from the catalog while a version is still pending", async () => {
+    const target = app(serviceMock(), mapsEnabledConfig);
+    const response = await request(target.server).get("/api/v1/routes").set(auth("passenger_1")).expect(200);
+    const geometry = response.body.routes[0].current_version.geometry;
+    expect(geometry).toEqual(expect.objectContaining({ status: "pending", ready: false, encoded: null, encoding: null }));
+    expect(JSON.stringify(response.body)).not.toContain("must-not-leak");
+  });
+
   it("passes bounded pagination and excludes draft access through the public service boundary", async () => {
     const target = app();
     await request(target.server).get("/api/v1/routes?page=2&limit=50").set(auth("driver_1")).expect(200);
@@ -592,4 +653,64 @@ describe("M7B route management APIs", () => {
       })
       .expect(409);
   });
+});
+
+// detail controls projection size; maps controls public geographic disclosure.
+// Neither flag may be interpreted as the other during a branch integration.
+const { routeManagementSerializers } = await import("../modules/routeManagement.js");
+describe("independent detail and Maps serialization", () => {
+  for (const admin of [false, true]) {
+    for (const detail of [false, true]) {
+      for (const maps of [false, true]) {
+        it(`admin=${admin}, detail=${detail}, maps=${maps}`, () => {
+          const ready = { ...version, geometry_status: "available", geometry_encoding: "demo-json-v1", encoded_geometry: "ready-public-points" };
+          const result = JSON.parse(JSON.stringify(routeManagementSerializers.serializeVersion(ready, admin, detail, maps)));
+          expect(result.stops !== undefined).toBe(detail);
+          expect(result.draft_revision !== undefined).toBe(admin && detail);
+          expect(result.origin_stop_id !== undefined).toBe(admin && detail);
+          expect(result.destination_stop_id !== undefined).toBe(admin && detail);
+          expect(result.geometry !== undefined).toBe(detail && (admin || maps));
+          if (detail) {
+            expect(result.stops[0].stop_id !== undefined).toBe(admin);
+            expect(result.stops[0].stop.latitude !== undefined).toBe(admin || maps);
+          }
+          if (result.geometry) {
+            expect(result.geometry.encoded).toBe(admin ? undefined : "ready-public-points");
+          }
+        });
+      }
+    }
+  }
+});
+
+it("preserves public route endpoints and Admin bounds with Maps enabled or disabled", async () => {
+  const destination = { ...stop, id: "stop_2", latitude: "31.700000", longitude: "35.200000" };
+  const ready = {
+    ...version, geometry_status: "available", geometry_encoding: "demo-json-v1", encoded_geometry: "ready-public-points",
+    stops: [version.stops[0], { ...version.stops[0], id: "membership_2", stop_id: "stop_2", sequence: 2, stop: destination }]
+  };
+  for (const maps of [false, true]) {
+    const service = serviceMock();
+    const readyRoute = { ...route, current_version: ready, versions: [ready] };
+    service.getPublishedRoute.mockResolvedValue(readyRoute);
+    service.getAdminRoute.mockResolvedValue(readyRoute);
+    service.listAdminRoutes.mockResolvedValue({ routes: [readyRoute], total: 1, page: 1, limit: 25 });
+    const target = app(service, maps ? mapsEnabledConfig : enabledConfig);
+    const publicDetail = (await request(target.server).get("/api/v1/routes/route_1").set(auth("passenger_1")).expect(200)).body.route.current_version;
+    expect(publicDetail.stops.map((item: { stop: { id: string } }) => item.stop.id)).toEqual(["stop_1", "stop_2"]);
+    expect(publicDetail.stops[0].stop.latitude).toBe(maps ? 31.5326 : undefined);
+    expect(publicDetail.stops[1].stop.latitude).toBe(maps ? 31.7 : undefined);
+    expect(publicDetail.geometry?.encoded).toBe(maps ? "ready-public-points" : undefined);
+    expect(publicDetail).not.toHaveProperty("draft_revision");
+    const summary = (await request(target.server).get("/api/v1/admin/service-routes").set(auth("admin_1")).expect(200)).body.routes[0];
+    expect(summary).not.toHaveProperty("versions");
+    expect(summary.current_version).not.toHaveProperty("stops");
+    expect(summary.current_version).not.toHaveProperty("geometry");
+    const adminDetail = (await request(target.server).get("/api/v1/admin/service-routes/route_1").set(auth("admin_1")).expect(200)).body.route.current_version;
+    expect(adminDetail.origin_stop_id).toBe("stop_1");
+    expect(adminDetail.destination_stop_id).toBe("stop_2");
+    expect(adminDetail.stops.map((item: { stop_id: string }) => item.stop_id)).toEqual(["stop_1", "stop_2"]);
+    expect(adminDetail.draft_revision).toBe(2);
+    expect(adminDetail.geometry).not.toHaveProperty("encoded");
+  }
 });

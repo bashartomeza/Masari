@@ -330,6 +330,13 @@
   "submitAvailability": "Submit availability",
   "selectDateTime": "Select date and time",
   "invalidDepartureWindow": "Choose a valid future departure window.",
+  "availabilityDepartureTooSoon": "Departure is too soon. Choose a time at least 10 minutes from now.",
+  "availabilityDepartureTooFar": "Departure is too far out. Choose a time within the next 30 days.",
+  "availabilityInvalidWindow": "The availability window can end at most 2 hours after departure.",
+  "availabilityExceedsVehicleCapacity": "The seats or parcels you selected exceed your registered vehicle's capacity.",
+  "availabilityDriverNotApproved": "Your driver account isn't approved yet. Contact support to complete verification.",
+  "availabilityRouteNoLongerEligible": "This route is no longer available. Choose a different route.",
+  "availabilityDuplicate": "You already have a matching availability for this route and time.",
   "invalidStopOrder": "Choose an approved downstream stop.",
   "operationTemporaryFailure": "The result is uncertain. Retry the same operation when connected.",
   "canonicalRecoveryRequired": "A previous operation is unresolved. Sign in with the original account and retry the exact operation, or contact support if its recovery window expired.",
@@ -516,5 +523,54 @@
   "actionDisabledUncertain": "Action unavailable until the previous operation is reconciled.",
   "sharedFeatureUnavailable": "Shared-trip offers are not available in this environment.",
   "sharedAssignmentUnavailable": "Shared-trip assignment details are not available in this environment.",
-  "notLiveNotice": "This screen is not live. Use Refresh to check for updates."
+  "notLiveNotice": "This screen is not live. Use Refresh to check for updates.",
+  "mapAttribution": "© OpenStreetMap contributors",
+  "mapLoading": "Loading map...",
+  "mapLoadFailed": "Map could not load",
+  "mapLoadFailedBody": "Route data could not be fetched. Check your connection and retry.",
+  "mapYourLocation": "Your location",
+  "mapRequestedRoute": "Requested route",
+  "mapDriverRoute": "Available driver route",
+  "mapOriginLabel": "Origin: {name}",
+  "@mapOriginLabel": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "mapDestinationLabel": "Destination: {name}",
+  "@mapDestinationLabel": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "mapStopLabel": "Stop: {name}",
+  "@mapStopLabel": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "mapLegend": "Legend",
+  "locationServiceDisabled": "Location services are off on this device. Turn them on to show your position.",
+  "locationPermissionDenied": "Location access was not granted. Allow access to show your position.",
+  "locationPermanentlyDenied": "Location access is permanently denied. Enable it in system settings.",
+  "locationUnavailable": "Your position could not be determined right now.",
+  "locationEnable": "Enable location",
+  "checkpoints": "Barriers",
+  "checkpointsUnavailable": "Barrier data unavailable",
+  "checkpointsUnavailableBody": "Barrier status could not be fetched. The route is shown without it.",
+  "checkpointsDisabled": "Barrier data is not enabled in this build.",
+  "checkpointsStale": "These are the last confirmed barrier states and may be out of date.",
+  "checkpointsEmpty": "No barriers recorded on this route.",
+  "checkpointCount": "{count, plural, =0{No barriers} =1{1 barrier} other{{count} barriers}}",
+  "@checkpointCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "checkpointOpen": "Open",
+  "checkpointCongested": "Congested",
+  "checkpointClosed": "Closed",
+  "checkpointUnknown": "Status unknown",
+  "checkpointLabel": "{name} — {status}",
+  "@checkpointLabel": {
+    "placeholders": {
+      "name": { "type": "String" },
+      "status": { "type": "String" }
+    }
+  },
+  "checkpointUnnamed": "Barrier",
+  "mapRouteMissingCoordinates": "This route has no coordinates, so it cannot be drawn on the map.",
+  "mapSelectRoute": "Choose a route to show it on the map."
 }

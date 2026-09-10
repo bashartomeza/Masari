@@ -980,6 +980,34 @@ class AppLocalizationsAr extends AppLocalizations {
   String get invalidDepartureWindow => 'اختر نافذة انطلاق مستقبلية وصحيحة.';
 
   @override
+  String get availabilityDepartureTooSoon =>
+      'وقت الانطلاق قريب جداً. اختر وقتاً بعد 10 دقائق على الأقل من الآن.';
+
+  @override
+  String get availabilityDepartureTooFar =>
+      'وقت الانطلاق بعيد جداً. اختر وقتاً خلال الـ30 يوماً القادمة.';
+
+  @override
+  String get availabilityInvalidWindow =>
+      'نهاية نافذة الإتاحة يجب أن تكون بعد الانطلاق بساعتين كحد أقصى.';
+
+  @override
+  String get availabilityExceedsVehicleCapacity =>
+      'سعة المقاعد أو الطرود التي اخترتها تتجاوز سعة مركبتك المسجلة.';
+
+  @override
+  String get availabilityDriverNotApproved =>
+      'حسابك كسائق لم يُعتمد بعد. تواصل مع الدعم لإتمام التحقق.';
+
+  @override
+  String get availabilityRouteNoLongerEligible =>
+      'لم يعد هذا المسار متاحاً. اختر مساراً آخر.';
+
+  @override
+  String get availabilityDuplicate =>
+      'لديك بالفعل إتاحة مطابقة لهذا المسار والوقت.';
+
+  @override
   String get invalidStopOrder => 'اختر محطة معتمدة لاحقة في المسار.';
 
   @override
@@ -1567,4 +1595,123 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get notLiveNotice =>
       'هذه الشاشة ليست مباشرة. استخدم التحديث للتحقق من المستجدات.';
+
+  @override
+  String get mapAttribution => '© مساهمو OpenStreetMap';
+
+  @override
+  String get mapLoading => 'جارٍ تحميل الخريطة...';
+
+  @override
+  String get mapLoadFailed => 'تعذّر تحميل الخريطة';
+
+  @override
+  String get mapLoadFailedBody =>
+      'تعذّر جلب بيانات المسار. تحقق من اتصالك ثم أعد المحاولة.';
+
+  @override
+  String get mapYourLocation => 'موقعك الحالي';
+
+  @override
+  String get mapRequestedRoute => 'المسار المطلوب';
+
+  @override
+  String get mapDriverRoute => 'مسار السائق المتاح';
+
+  @override
+  String mapOriginLabel(String name) {
+    return 'نقطة الانطلاق: $name';
+  }
+
+  @override
+  String mapDestinationLabel(String name) {
+    return 'الوجهة: $name';
+  }
+
+  @override
+  String mapStopLabel(String name) {
+    return 'محطة: $name';
+  }
+
+  @override
+  String get mapLegend => 'دليل الرموز';
+
+  @override
+  String get locationServiceDisabled =>
+      'خدمة الموقع متوقفة على الجهاز. فعّلها لعرض موقعك على الخريطة.';
+
+  @override
+  String get locationPermissionDenied =>
+      'لم يُسمح بالوصول إلى الموقع. اسمح بالوصول لعرض موقعك.';
+
+  @override
+  String get locationPermanentlyDenied =>
+      'الوصول إلى الموقع مرفوض نهائياً. فعّله من إعدادات النظام.';
+
+  @override
+  String get locationUnavailable => 'تعذّر تحديد موقعك الآن.';
+
+  @override
+  String get locationEnable => 'تفعيل الموقع';
+
+  @override
+  String get checkpoints => 'الحواجز';
+
+  @override
+  String get checkpointsUnavailable => 'بيانات الحواجز غير متاحة';
+
+  @override
+  String get checkpointsUnavailableBody =>
+      'تعذّر جلب حالة الحواجز. المسار معروض بدونها.';
+
+  @override
+  String get checkpointsDisabled => 'خدمة الحواجز غير مفعّلة في هذا الإصدار.';
+
+  @override
+  String get checkpointsStale =>
+      'هذه آخر حالة مؤكدة للحواجز، وقد لا تكون محدّثة الآن.';
+
+  @override
+  String get checkpointsEmpty => 'لا توجد حواجز مسجّلة على هذا المسار.';
+
+  @override
+  String checkpointCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count حاجزاً',
+      few: '$count حواجز',
+      two: 'حاجزان',
+      one: 'حاجز واحد',
+      zero: 'لا حواجز',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get checkpointOpen => 'مفتوح';
+
+  @override
+  String get checkpointCongested => 'ازدحام';
+
+  @override
+  String get checkpointClosed => 'مغلق';
+
+  @override
+  String get checkpointUnknown => 'الحالة غير معروفة';
+
+  @override
+  String checkpointLabel(String name, String status) {
+    return '$name — $status';
+  }
+
+  @override
+  String get checkpointUnnamed => 'حاجز';
+
+  @override
+  String get mapRouteMissingCoordinates =>
+      'لا توجد إحداثيات لهذا المسار، لذلك لا يمكن رسمه على الخريطة.';
+
+  @override
+  String get mapSelectRoute => 'اختر مساراً لعرضه على الخريطة.';
 }

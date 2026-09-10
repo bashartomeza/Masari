@@ -43,6 +43,12 @@ const rawSchema = z.object({
   CANONICAL_TRIP_CREATION_ENABLED: z.string().optional(),
   CANONICAL_SHARED_TRIPS_ENABLED: z.string().optional(),
   CANONICAL_SHARED_TRIP_MOBILE_ENABLED: z.string().optional(),
+  MAPS_ENABLED: z.string().optional(),
+  CHECKPOINTS_ENABLED: z.string().optional(),
+  CHECKPOINTS_URL: z.string().url().optional(),
+  CHECKPOINTS_API_KEY: z.string().min(20).optional(),
+  CHECKPOINTS_TIMEOUT_MS: z.coerce.number().int().min(500).max(15_000).default(6_000),
+  CHECKPOINTS_CACHE_TTL_SECONDS: z.coerce.number().int().min(0).max(3_600).default(60),
   ROUTE_MAPS_ENABLED: z.string().optional(),
   ROUTE_PROVIDER: z.enum(ROUTE_PROVIDERS).default("disabled"),
   ROUTE_PROVIDER_SECRET: z.string().trim().min(8).optional(),
@@ -157,6 +163,8 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
     "CANONICAL_SHARED_TRIP_MOBILE_ENABLED",
     raw.CANONICAL_SHARED_TRIP_MOBILE_ENABLED
   );
+  const mapsEnabled = parseBoolean("MAPS_ENABLED", raw.MAPS_ENABLED);
+  const checkpointsEnabled = parseBoolean("CHECKPOINTS_ENABLED", raw.CHECKPOINTS_ENABLED);
   const routeMapsEnabled = parseBoolean("ROUTE_MAPS_ENABLED", raw.ROUTE_MAPS_ENABLED);
   const invitationsEnabled = parseBoolean("INVITATIONS_ENABLED", raw.INVITATIONS_ENABLED);
   const publicOnboardingEnabled = parseBoolean("PUBLIC_ONBOARDING_ENABLED", raw.PUBLIC_ONBOARDING_ENABLED);
@@ -218,6 +226,27 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
     problems.push(
       "CANONICAL_SHARED_TRIP_MOBILE_ENABLED requires MULTI_ROUTE_ENTRY_ENABLED, MULTI_ROUTE_MATCHING_ENABLED, CANONICAL_TRIP_CREATION_ENABLED, and CANONICAL_SHARED_TRIPS_ENABLED"
     );
+  }
+  // Coordinates and geometry only ever reach clients through the canonical
+  // catalog, so maps cannot be switched on without it.
+  if (mapsEnabled && !routeManagementEnabled) {
+    problems.push("MAPS_ENABLED requires ROUTE_MANAGEMENT_ENABLED");
+  }
+  // Barriers are drawn on the map and have no textual fallback surface.
+  if (checkpointsEnabled && !mapsEnabled) {
+    problems.push("CHECKPOINTS_ENABLED requires MAPS_ENABLED");
+  }
+  if (checkpointsEnabled && !raw.CHECKPOINTS_URL) {
+    problems.push("CHECKPOINTS_URL is required when checkpoints are enabled");
+  }
+  if (checkpointsEnabled && !raw.CHECKPOINTS_API_KEY) {
+    problems.push("CHECKPOINTS_API_KEY is required when checkpoints are enabled");
+  }
+  if (raw.CHECKPOINTS_URL && !raw.CHECKPOINTS_URL.startsWith("https://")) {
+    problems.push("CHECKPOINTS_URL must use HTTPS");
+  }
+  if (raw.CHECKPOINTS_API_KEY && isUnsafeSecret(raw.CHECKPOINTS_API_KEY)) {
+    problems.push("CHECKPOINTS_API_KEY uses a known placeholder or default value");
   }
   if (publicOnboardingEnabled && productionLike) {
     problems.push("PUBLIC_ONBOARDING_ENABLED cannot be enabled in staging or production without an approved provider");
@@ -411,6 +440,16 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
     canonicalTripCreationEnabled,
     canonicalSharedTripsEnabled,
     canonicalSharedTripMobileEnabled,
+    mapsEnabled,
+    checkpointsEnabled,
+    checkpoints: checkpointsEnabled
+      ? {
+          url: raw.CHECKPOINTS_URL!,
+          apiKey: raw.CHECKPOINTS_API_KEY!,
+          timeoutMs: raw.CHECKPOINTS_TIMEOUT_MS,
+          cacheTtlSeconds: raw.CHECKPOINTS_CACHE_TTL_SECONDS
+        }
+      : undefined,
     routeMaps: {
       enabled: routeMapsEnabled,
       provider: raw.ROUTE_PROVIDER,
