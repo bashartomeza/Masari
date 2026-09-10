@@ -30,7 +30,11 @@ const scalarInteger = (minimum: number, maximum: number) => z.string()
   .regex(/^\d+$/)
   .transform(Number)
   .pipe(z.number().int().min(minimum).max(maximum));
-const search = z.string().max(191).transform((value) => value.trim()).transform((value) => value || undefined).optional();
+const search = z.string()
+  .transform((value) => value.trim())
+  .pipe(z.string().max(191))
+  .transform((value) => value || undefined)
+  .optional();
 
 const rangeShape = { from: utcIso.optional(), until: utcIso.optional() };
 const pageShape = {

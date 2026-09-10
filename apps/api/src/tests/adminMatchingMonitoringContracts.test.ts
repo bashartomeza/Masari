@@ -73,6 +73,8 @@ describe("admin matching monitoring query contracts", () => {
       search: "m1"
     });
     expect(parseMatchQuery({ search: "   " }, now)).not.toHaveProperty("search");
+    expect(parseMatchQuery({ search: `  ${"x".repeat(191)}  ` }, now).search).toBe("x".repeat(191));
+    expect(parseMatchQuery({ search: " ".repeat(192) }, now)).not.toHaveProperty("search");
     expect(parseBatchQuery({ status: "assigned", search: " batch-1 " }, now)).toMatchObject({
       status: "assigned",
       search: "batch-1"
@@ -80,7 +82,7 @@ describe("admin matching monitoring query contracts", () => {
 
     for (const input of [
       { limit: "51" }, { limit: ["25"] }, { source: "canonical" }, { cursor: "opaque" },
-      { status: "unknown" }, { demand_kind: "passenger" }, { search: "x".repeat(192) }
+      { status: "unknown" }, { demand_kind: "passenger" }, { search: ` ${"x".repeat(192)} ` }
     ]) expect(() => parseMatchQuery(input, now)).toThrow();
     expect(() => parseBatchQuery({ status: "completed" }, now)).toThrow();
     expect(() => parseBatchQuery({ cursor: "opaque" }, now)).toThrow();
@@ -88,7 +90,8 @@ describe("admin matching monitoring query contracts", () => {
 
   it("trims bounded exact operational IDs and rejects other shapes", () => {
     expect(parseMonitoringId(" match-1 ")).toBe("match-1");
-    for (const input of ["", "   ", "x".repeat(192), ["match-1"], 1, null]) {
+    expect(parseMonitoringId(`  ${"x".repeat(191)}  `)).toBe("x".repeat(191));
+    for (const input of ["", "   ", ` ${"x".repeat(192)} `, ["match-1"], 1, null]) {
       expect(() => parseMonitoringId(input)).toThrow();
     }
   });
