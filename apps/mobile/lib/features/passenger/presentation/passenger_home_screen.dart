@@ -6,6 +6,7 @@ import 'package:masari_mobile/l10n/app_localizations.dart';
 import '../../../core/presentation/localized_labels.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/masari_card.dart';
 import '../../../core/widgets/masari_section.dart';
 import '../../../core/widgets/route_chip.dart';
 import '../../../core/widgets/state_views.dart';
@@ -71,6 +72,9 @@ class PassengerHomeScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: AppTokens.spaceMedium),
                   const SessionStatusBanner(),
+
+                  const SizedBox(height: AppTokens.spaceMedium),
+                  const _AssistantEntryCard(),
 
                   // The passenger's own request outranks anything on offer, so
                   // it sits above the search entry point when one exists.
@@ -177,6 +181,62 @@ class PassengerHomeScreen extends ConsumerWidget {
           onTap: onTap,
         ),
     ];
+  }
+}
+
+class _AssistantEntryCard extends StatelessWidget {
+  const _AssistantEntryCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+
+    return MasariCard(
+      key: const ValueKey('openPassengerAssistant'),
+      onTap: () => context.go('/passenger/assistant'),
+      background: AppTheme.surfaceContainerLow,
+      border: const BorderSide(color: AppTheme.secondary),
+      child: Row(
+        children: [
+          Container(
+            width: AppTokens.minTouchTarget,
+            height: AppTokens.minTouchTarget,
+            decoration: BoxDecoration(
+              color: AppTheme.secondaryContainer,
+              borderRadius: BorderRadius.circular(AppTokens.radiusMedium),
+            ),
+            child: const Icon(
+              Icons.auto_awesome,
+              color: AppTheme.onSecondaryContainer,
+            ),
+          ),
+          const SizedBox(width: AppTokens.gutterMobile),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l10n.assistantHomeTitle,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: AppTheme.primary,
+                  ),
+                ),
+                const SizedBox(height: AppTokens.spaceExtraSmall),
+                Text(
+                  l10n.assistantHomeBody,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: AppTheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppTokens.spaceSmall),
+          const Icon(Icons.arrow_forward, color: AppTheme.primary),
+        ],
+      ),
+    );
   }
 }
 

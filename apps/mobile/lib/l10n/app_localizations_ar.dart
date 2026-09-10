@@ -1620,4 +1620,82 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get notLiveNotice =>
       'هذه الشاشة ليست مباشرة. استخدم التحديث للتحقق من المستجدات.';
+
+  @override
+  String get assistantTitle => 'مساعد مساري';
+
+  @override
+  String get assistantHomeTitle => 'اسأل مساعد مساري';
+
+  @override
+  String get assistantHomeBody => 'استفسر عن رحلاتك والمسارات المتاحة.';
+
+  @override
+  String get assistantWelcomeTitle => 'كيف يمكنني مساعدتك؟';
+
+  @override
+  String get assistantWelcomeBody =>
+      'اسأل عن بيانات رحلاتك أو المسارات المتاحة في مساري. إذا كانت التفاصيل ناقصة، سأطلب منك توضيحها.';
+
+  @override
+  String get assistantTryAsking => 'جرّب أن تسأل';
+
+  @override
+  String get assistantExampleTripTime => 'متى موعد رحلتي القادمة؟';
+
+  @override
+  String get assistantExampleAvailableTrip => 'هل توجد رحلة إلى بيت لحم؟';
+
+  @override
+  String get assistantInputHint => 'اكتب سؤالك هنا';
+
+  @override
+  String get assistantSend => 'إرسال';
+
+  @override
+  String get assistantProcessing => 'جارٍ التحقق من بيانات مساري…';
+
+  @override
+  String get assistantErrorTitle => 'تعذّر إكمال الطلب';
+
+  @override
+  String get assistantErrorBody =>
+      'لم يتمكن المساعد من إكمال طلبك. حاول مرة أخرى.';
+
+  @override
+  String get assistantUnavailable =>
+      'خدمة المساعد غير متاحة في هذا الإصدار. لم يتم إنشاء أي نتيجة.';
+
+  @override
+  String get assistantClarificationLabel => 'يحتاج مساعد مساري إلى توضيح';
+
+  @override
+  String get assistantResultLabel => 'رد مساعد مساري';
+
+  @override
+  String get assistantPassengerMessage => 'رسالتك';
+
+  @override
+  String get assistantExampleFindTrip =>
+      'ابحث لي عن رحلة من باب الزاوية إلى بيت لحم الساعة 3 لشخص واحد';
+
+  @override
+  String get assistantReviewTitle => 'راجع معلومات الرحلة';
+
+  @override
+  String get assistantReviewBody =>
+      'تأكد من المعلومات وعدّلها قبل بدء البحث الحقيقي.';
+
+  @override
+  String get assistantConfirmSearch => 'تأكيد وبدء البحث';
+
+  @override
+  String get assistantSearching => 'جارٍ البحث عن رحلة…';
+
+  @override
+  String get assistantSearchError =>
+      'تعذّر إنشاء الطلب أو العثور على مسار مناسب. لم يتم إنشاء نتيجة وهمية.';
+
+  @override
+  String get assistantFutureTimeRequired => 'اختر وقتاً قادماً قبل بدء البحث.';
 }

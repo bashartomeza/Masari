@@ -9,6 +9,7 @@ import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/signup_screen.dart';
 import '../../features/auth/presentation/splash_screen.dart';
 import '../../features/auth/presentation/unsupported_role_screen.dart';
+import '../../features/assistant/presentation/passenger_assistant_screen.dart';
 import '../../features/canonical_routes/presentation/driver_availability_screens.dart';
 import '../../features/canonical_routes/presentation/merchant_route_order_screen.dart';
 import '../../features/canonical_routes/presentation/passenger_route_request_screen.dart';
@@ -185,6 +186,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 path: '/passenger',
                 builder: (context, state) => const PassengerHomeScreen(),
                 routes: [
+                  GoRoute(
+                    path: 'assistant',
+                    builder: (context, state) =>
+                        const PassengerAssistantScreen(),
+                  ),
                   GoRoute(
                     path: 'request/:id',
                     builder: (context, state) => RequestDetailScreen(

@@ -1628,4 +1628,84 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get notLiveNotice =>
       'This screen is not live. Use Refresh to check for updates.';
+
+  @override
+  String get assistantTitle => 'Masari assistant';
+
+  @override
+  String get assistantHomeTitle => 'Ask Masari';
+
+  @override
+  String get assistantHomeBody => 'Ask about your trips and available routes.';
+
+  @override
+  String get assistantWelcomeTitle => 'How can I help?';
+
+  @override
+  String get assistantWelcomeBody =>
+      'Ask about your Masari trip data or available routes. If details are missing, I’ll ask you to clarify.';
+
+  @override
+  String get assistantTryAsking => 'Try asking';
+
+  @override
+  String get assistantExampleTripTime => 'When is my next trip?';
+
+  @override
+  String get assistantExampleAvailableTrip => 'Is there a trip to Bethlehem?';
+
+  @override
+  String get assistantInputHint => 'Type your question';
+
+  @override
+  String get assistantSend => 'Send';
+
+  @override
+  String get assistantProcessing => 'Checking Masari data…';
+
+  @override
+  String get assistantErrorTitle => 'Couldn’t complete the request';
+
+  @override
+  String get assistantErrorBody =>
+      'The assistant couldn’t complete your request. Try again.';
+
+  @override
+  String get assistantUnavailable =>
+      'The assistant service is not available in this build. No result was created.';
+
+  @override
+  String get assistantClarificationLabel =>
+      'Masari assistant needs clarification';
+
+  @override
+  String get assistantResultLabel => 'Masari assistant reply';
+
+  @override
+  String get assistantPassengerMessage => 'Your message';
+
+  @override
+  String get assistantExampleFindTrip =>
+      'Find me a ride from Bab Al-Zawiya to Bethlehem at 3 PM for one passenger';
+
+  @override
+  String get assistantReviewTitle => 'Review trip information';
+
+  @override
+  String get assistantReviewBody =>
+      'Check and edit the information before starting the real search.';
+
+  @override
+  String get assistantConfirmSearch => 'Confirm and search';
+
+  @override
+  String get assistantSearching => 'Searching for a ride…';
+
+  @override
+  String get assistantSearchError =>
+      'The request could not be created or no compatible route was found. No result was fabricated.';
+
+  @override
+  String get assistantFutureTimeRequired =>
+      'Choose a future time before searching.';
 }
