@@ -21,7 +21,7 @@ class MasariMapMarker {
   final IconData icon;
   final Color color;
 
-  /// Announced to screen readers and shown on tap — already localised.
+  /// Announced to screen readers and shown when the marker is tapped.
   final String label;
 
   final Color foreground;
@@ -45,20 +45,14 @@ class MasariMapPath {
   final bool dashed;
 }
 
-/// The live map surface.
-///
-/// The map remains visible even when there are no paths or markers.
-/// In that case it opens centered on the default Masari area.
-///
-/// Tiles come from OpenStreetMap, whose licence requires the attribution shown
-/// bottom-start. Do not remove it.
+/// Modern Masari map surface.
 class MasariMap extends StatefulWidget {
   const MasariMap({
     required this.emptyLabel,
     required this.attributionLabel,
     this.paths = const [],
     this.markers = const [],
-    this.height = 260,
+    this.height = 420,
     this.overlay,
     this.banner,
     this.interactive = true,
@@ -67,17 +61,19 @@ class MasariMap extends StatefulWidget {
 
   final String emptyLabel;
 
-  /// OpenStreetMap's required credit — already localised.
+  /// OpenStreetMap's required credit.
   final String attributionLabel;
 
   final List<MasariMapPath> paths;
   final List<MasariMapMarker> markers;
+
+  /// Map height.
   final double height;
 
-  /// Pinned to the bottom of the map area, e.g. a driver card.
+  /// Optional widget pinned near the bottom of the map.
   final Widget? overlay;
 
-  /// Pinned to the top, e.g. a "showing last known barriers" notice.
+  /// Optional status banner shown near the top.
   final Widget? banner;
 
   final bool interactive;
@@ -87,13 +83,36 @@ class MasariMap extends StatefulWidget {
 }
 
 class _MasariMapState extends State<MasariMap> {
-  final _controller = MapController();
+  final MapController _controller = MapController();
+
   String? _selectedLabel;
 
-  /// Default map center used when no geographic data is available.
+  /// Default Masari geographic area.
   static const LatLng _defaultCenter = LatLng(31.6, 35.15);
 
   static const double _defaultZoom = 11;
+
+  @override
+  void initState() {
+    super.initState();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _fitToContent();
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant MasariMap oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (!_sameMapContent(oldWidget)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _fitToContent();
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -101,180 +120,338 @@ class _MasariMapState extends State<MasariMap> {
     super.dispose();
   }
 
+  // ===========================================================================
+  // MAP CONTENT
+  // ===========================================================================
+
+  /// All coordinates currently displayed on the map.
+  ///
+  /// Route geometry comes directly from [widget.paths].
+  /// No external routing service is used here.
   List<LatLng> get _allPoints => [
-        for (final path in widget.paths) ...path.points.map(_toLatLng),
-        for (final marker in widget.markers) _toLatLng(marker.position),
+        for (final path in widget.paths)
+          ...path.points.map(_toLatLng),
+        for (final marker in widget.markers)
+          _toLatLng(marker.position),
       ];
 
-  static LatLng _toLatLng(GeoPoint point) =>
-      LatLng(point.latitude, point.longitude);
-
-  @override
-  void didUpdateWidget(covariant MasariMap oldWidget) {
-    super.didUpdateWidget(oldWidget);
-
-    // New geography arriving (barriers loaded, a route picked) should bring
-    // the whole picture back into view rather than leave the rider panned away.
-    final points = _allPoints;
-
-    if (points.length >= 2 && !identical(oldWidget.paths, widget.paths)) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          _controller.fitCamera(_cameraFit(points));
-        }
-      });
-    }
+  static LatLng _toLatLng(GeoPoint point) {
+    return LatLng(
+      point.latitude,
+      point.longitude,
+    );
   }
 
-  CameraFit _cameraFit(List<LatLng> points) => CameraFit.bounds(
-        bounds: LatLngBounds.fromPoints(points),
-        padding: const EdgeInsets.all(AppTokens.spaceExtraLarge),
-        maxZoom: 15,
-      );
+  /// Checks whether route/marker content changed.
+  bool _sameMapContent(MasariMap oldWidget) {
+    if (oldWidget.paths.length != widget.paths.length) {
+      return false;
+    }
+
+    for (var i = 0; i < oldWidget.paths.length; i++) {
+      final oldPath = oldWidget.paths[i];
+      final newPath = widget.paths[i];
+
+      if (oldPath.points.length != newPath.points.length) {
+        return false;
+      }
+
+      for (var j = 0; j < oldPath.points.length; j++) {
+        final oldPoint = oldPath.points[j];
+        final newPoint = newPath.points[j];
+
+        if (oldPoint.latitude != newPoint.latitude ||
+            oldPoint.longitude != newPoint.longitude) {
+          return false;
+        }
+      }
+    }
+
+    if (oldWidget.markers.length != widget.markers.length) {
+      return false;
+    }
+
+    for (var i = 0; i < oldWidget.markers.length; i++) {
+      final oldMarker = oldWidget.markers[i];
+      final newMarker = widget.markers[i];
+
+      if (oldMarker.position.latitude !=
+              newMarker.position.latitude ||
+          oldMarker.position.longitude !=
+              newMarker.position.longitude) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  void _fitToContent() {
+    final points = _allPoints;
+
+    if (points.length < 2) {
+      if (points.length == 1) {
+        _controller.move(
+          points.first,
+          14,
+        );
+      } else {
+        _controller.move(
+          _defaultCenter,
+          _defaultZoom,
+        );
+      }
+
+      return;
+    }
+
+    _controller.fitCamera(
+      _cameraFit(points),
+    );
+  }
+
+  CameraFit _cameraFit(List<LatLng> points) {
+    return CameraFit.bounds(
+      bounds: LatLngBounds.fromPoints(points),
+      padding: const EdgeInsets.all(55),
+      maxZoom: 13,
+    );
+  }
+
+  // ===========================================================================
+  // BUILD
+  // ===========================================================================
 
   @override
   Widget build(BuildContext context) {
     final points = _allPoints;
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(AppTokens.radiusLarge),
+      borderRadius: BorderRadius.circular(
+        AppTokens.radiusLarge,
+      ),
       child: SizedBox(
         height: widget.height,
         width: double.infinity,
-        child: _map(context, points),
+        child: _map(
+          context,
+          points,
+        ),
       ),
     );
   }
 
-  Widget _map(BuildContext context, List<LatLng> points) {
+  Widget _map(
+    BuildContext context,
+    List<LatLng> points,
+  ) {
+    final theme = Theme.of(context);
+
     final single = points.length == 1;
     final hasPoints = points.isNotEmpty;
 
     return Stack(
       children: [
-        // The map surface is geographic, not textual: it stays LTR under an
-        // Arabic locale so gestures, zoom controls and tile order behave.
+        // ====================================================================
+        // MAP
+        // ====================================================================
+
         Directionality(
           textDirection: TextDirection.ltr,
           child: FlutterMap(
             mapController: _controller,
             options: MapOptions(
-              initialCenter: single ? points.first : _defaultCenter,
-              initialZoom: single ? 14 : _defaultZoom,
-
-              // Never create a bounds fit from an empty list.
-              initialCameraFit: hasPoints && !single
-                  ? _cameraFit(points)
-                  : null,
-
+              initialCenter: single
+                  ? points.first
+                  : _defaultCenter,
+              initialZoom: single
+                  ? 14
+                  : _defaultZoom,
               interactionOptions: InteractionOptions(
                 flags: widget.interactive
-                    ? InteractiveFlag.all & ~InteractiveFlag.rotate
+                    ? InteractiveFlag.all &
+                        ~InteractiveFlag.rotate
                     : InteractiveFlag.none,
               ),
+              onMapReady: () {
+                WidgetsBinding.instance
+                    .addPostFrameCallback((_) {
+                  if (!mounted) return;
 
+                  _fitToContent();
+                });
+              },
               onTap: (_, _) {
-                setState(() => _selectedLabel = null);
+                if (_selectedLabel != null) {
+                  setState(() {
+                    _selectedLabel = null;
+                  });
+                }
               },
             ),
             children: [
+              // ==============================================================
+              // MAP TILES
+              // ==============================================================
+
               TileLayer(
                 urlTemplate:
                     'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'ps.masari.mobile',
+                userAgentPackageName:
+                    'ps.masari.mobile',
                 maxNativeZoom: 19,
               ),
 
-              for (final path in widget.paths)
-                if (path.points.length >= 2)
-                  PolylineLayer(
-                    polylines: [
-                      Polyline(
-                        points: path.points.map(_toLatLng).toList(),
-                        color: path.color,
-                        strokeWidth: path.width,
-                        borderColor: Colors.white,
-                        borderStrokeWidth: path.dashed ? 0 : 1.5,
-                        pattern: path.dashed
-                            ? StrokePattern.dashed(
-                                segments: const [8, 6],
-                              )
-                            : const StrokePattern.solid(),
-                      ),
-                    ],
-                  ),
+              // ==============================================================
+              // ROUTES
+              // ==============================================================
+
+              if (widget.paths.any(
+                (path) => path.points.length >= 2,
+              ))
+                PolylineLayer(
+                  polylines: [
+                    for (var i = 0;
+                        i < widget.paths.length;
+                        i++)
+                      if (widget.paths[i]
+                              .points
+                              .length >=
+                          2)
+                        Polyline(
+                          points: widget.paths[i]
+                              .points
+                              .map(_toLatLng)
+                              .toList(),
+                          color:
+                              widget.paths[i].color,
+                          strokeWidth:
+                              widget.paths[i].width,
+                          borderColor:
+                              Colors.white.withValues(
+                            alpha: 0.85,
+                          ),
+                          borderStrokeWidth:
+                              widget.paths[i].dashed
+                                  ? 0
+                                  : 2.0,
+                          pattern:
+                              widget.paths[i].dashed
+                                  ? StrokePattern.dashed(
+                                      segments: const [
+                                        10,
+                                        7,
+                                      ],
+                                    )
+                                  : const StrokePattern
+                                      .solid(),
+                        ),
+                  ],
+                ),
+
+              // ==============================================================
+              // MARKERS
+              // ==============================================================
 
               MarkerLayer(
                 markers: [
-                  for (final marker in widget.markers) _pin(marker),
+                  for (final marker in widget.markers)
+                    _pin(marker),
                 ],
               ),
             ],
           ),
         ),
 
-        // Show a useful message without replacing the map.
-        if (!hasPoints)
-          Positioned(
-            top: AppTokens.spaceSmall,
-            left: AppTokens.spaceSmall,
-            right: AppTokens.spaceSmall,
-            child: IgnorePointer(
-              child: Center(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppTokens.gutterMobile,
-                    vertical: AppTokens.spaceSmall,
+        // ====================================================================
+        // TOP STATUS AREA
+        // ====================================================================
+
+        Positioned(
+          top: 12,
+          left: 12,
+          right: 12,
+          child: Column(
+            crossAxisAlignment:
+                CrossAxisAlignment.stretch,
+            children: [
+              if (widget.banner != null)
+                _FloatingBanner(
+                  child: widget.banner!,
+                ),
+
+              if (!hasPoints &&
+                  widget.banner == null)
+                _EmptyMapMessage(
+                  label: widget.emptyLabel,
+                ),
+
+              if (_selectedLabel != null)
+                Padding(
+                  padding: const EdgeInsets.only(
+                    top: 8,
                   ),
-                  decoration: BoxDecoration(
-                    color: AppTheme.surface.withValues(alpha: 0.90),
-                    borderRadius:
-                        BorderRadius.circular(AppTokens.radiusDefault),
-                    border: Border.all(
-                      color: AppTheme.outlineVariant,
-                    ),
-                  ),
-                  child: Text(
-                    widget.emptyLabel,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppTheme.onSurfaceVariant,
-                        ),
+                  child: _Callout(
+                    label: _selectedLabel!,
                   ),
                 ),
-              ),
-            ),
+            ],
           ),
+        ),
 
-        if (widget.banner != null)
-          PositionedDirectional(
-            start: AppTokens.spaceSmall,
-            end: AppTokens.spaceSmall,
-            top: hasPoints ? AppTokens.spaceSmall : 58,
-            child: widget.banner!,
-          ),
+        // ====================================================================
+        // MAP CONTROLS
+        // ====================================================================
 
-        if (_selectedLabel != null)
-          PositionedDirectional(
-            start: AppTokens.spaceSmall,
-            end: AppTokens.spaceSmall,
-            top: widget.banner == null
-                ? AppTokens.spaceSmall
-                : 56,
-            child: _Callout(label: _selectedLabel!),
+        Positioned(
+          top: widget.banner != null ||
+                  !hasPoints
+              ? 72
+              : 14,
+          right: 12,
+          child: _MapControls(
+            enabled: widget.interactive,
+            onZoomIn: () {
+              final currentZoom =
+                  _controller.camera.zoom;
+
+              _controller.move(
+                _controller.camera.center,
+                currentZoom + 1,
+              );
+            },
+            onZoomOut: () {
+              final currentZoom =
+                  _controller.camera.zoom;
+
+              _controller.move(
+                _controller.camera.center,
+                currentZoom - 1,
+              );
+            },
+            onReset: _fitToContent,
           ),
+        ),
+
+        // ====================================================================
+        // OPTIONAL OVERLAY
+        // ====================================================================
 
         if (widget.overlay != null)
           PositionedDirectional(
-            start: AppTokens.spaceSmall,
-            end: AppTokens.spaceSmall,
-            bottom: AppTokens.spaceLarge,
+            start: 12,
+            end: 12,
+            bottom: 40,
             child: widget.overlay!,
           ),
 
+        // ====================================================================
+        // ATTRIBUTION
+        // ====================================================================
+
         PositionedDirectional(
-          start: AppTokens.spaceExtraSmall,
-          bottom: AppTokens.spaceExtraSmall,
+          start: 6,
+          bottom: 5,
           child: _Attribution(
             label: widget.attributionLabel,
           ),
@@ -283,46 +460,305 @@ class _MasariMapState extends State<MasariMap> {
     );
   }
 
+  // ===========================================================================
+  // MARKER
+  // ===========================================================================
+
   Marker _pin(MasariMapMarker marker) {
     return Marker(
       point: _toLatLng(marker.position),
-      width: marker.size,
-      height: marker.size,
+      width: marker.size + 14,
+      height: marker.size + 14,
       alignment: Alignment.center,
       child: Semantics(
         label: marker.label,
         button: true,
         child: GestureDetector(
           onTap: () {
-            setState(() => _selectedLabel = marker.label);
+            setState(() {
+              _selectedLabel = marker.label;
+            });
           },
-          child: Container(
-            decoration: BoxDecoration(
-              color: marker.color,
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: Colors.white,
-                width: 2,
-              ),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x33000000),
-                  blurRadius: 4,
-                  offset: Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Icon(
-              marker.icon,
-              size: marker.size * 0.52,
-              color: marker.foreground,
-            ),
+          child: _ModernPin(
+            marker: marker,
           ),
         ),
       ),
     );
   }
 }
+
+// ============================================================================
+// MODERN MARKER
+// ============================================================================
+
+class _ModernPin extends StatelessWidget {
+  const _ModernPin({
+    required this.marker,
+  });
+
+  final MasariMapMarker marker;
+
+  @override
+  Widget build(BuildContext context) {
+    final isLocation =
+        marker.icon ==
+            Icons.my_location_rounded;
+
+    final isDriver =
+        marker.icon ==
+            Icons.local_shipping_rounded;
+
+    final isDestination =
+        marker.icon ==
+            Icons.flag_rounded;
+
+    final pinSize = isLocation
+        ? marker.size + 6
+        : marker.size;
+
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        if (isLocation)
+          Container(
+            width: pinSize + 14,
+            height: pinSize + 14,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: marker.color.withValues(
+                alpha: 0.18,
+              ),
+            ),
+          ),
+        Container(
+          width: pinSize,
+          height: pinSize,
+          decoration: BoxDecoration(
+            color: marker.color,
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: Colors.white,
+              width:
+                  isDriver || isDestination
+                      ? 3
+                      : 2.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(
+                  alpha: 0.22,
+                ),
+                blurRadius: 7,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Icon(
+            marker.icon,
+            size: pinSize * 0.48,
+            color: marker.foreground,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ============================================================================
+// MAP CONTROLS
+// ============================================================================
+
+class _MapControls extends StatelessWidget {
+  const _MapControls({
+    required this.enabled,
+    required this.onZoomIn,
+    required this.onZoomOut,
+    required this.onReset,
+  });
+
+  final bool enabled;
+  final VoidCallback onZoomIn;
+  final VoidCallback onZoomOut;
+  final VoidCallback onReset;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      elevation: 4,
+      borderRadius: BorderRadius.circular(14),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          _MapControlButton(
+            icon: Icons.add_rounded,
+            tooltip: 'تكبير الخريطة',
+            onPressed:
+                enabled ? onZoomIn : null,
+          ),
+          const Divider(
+            height: 1,
+            thickness: 1,
+          ),
+          _MapControlButton(
+            icon: Icons.remove_rounded,
+            tooltip: 'تصغير الخريطة',
+            onPressed:
+                enabled ? onZoomOut : null,
+          ),
+          const Divider(
+            height: 1,
+            thickness: 1,
+          ),
+          _MapControlButton(
+            icon:
+                Icons.center_focus_strong_rounded,
+            tooltip: 'إظهار المسار',
+            onPressed:
+                enabled ? onReset : null,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MapControlButton extends StatelessWidget {
+  const _MapControlButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: SizedBox(
+        width: 44,
+        height: 44,
+        child: IconButton(
+          onPressed: onPressed,
+          icon: Icon(
+            icon,
+            size: 21,
+          ),
+          splashRadius: 20,
+          padding: EdgeInsets.zero,
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// EMPTY MAP MESSAGE
+// ============================================================================
+
+class _EmptyMapMessage extends StatelessWidget {
+  const _EmptyMapMessage({
+    required this.label,
+  });
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Align(
+      alignment: AlignmentDirectional.topStart,
+      child: Container(
+        constraints: const BoxConstraints(
+          maxWidth: 270,
+        ),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 10,
+        ),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(
+            alpha: 0.94,
+          ),
+          borderRadius:
+              BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(
+                alpha: 0.12,
+              ),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.map_outlined,
+              size: 19,
+              color:
+                  theme.colorScheme.primary,
+            ),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 2,
+                overflow:
+                    TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(
+                  fontWeight:
+                      FontWeight.w600,
+                  color:
+                      theme.colorScheme.onSurface,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// FLOATING BANNER
+// ============================================================================
+
+class _FloatingBanner extends StatelessWidget {
+  const _FloatingBanner({
+    required this.child,
+  });
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      elevation: 3,
+      borderRadius:
+          BorderRadius.circular(14),
+      child: ClipRRect(
+        borderRadius:
+            BorderRadius.circular(14),
+        child: child,
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// CALLOUT
+// ============================================================================
 
 class _Callout extends StatelessWidget {
   const _Callout({
@@ -336,27 +772,51 @@ class _Callout extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Material(
-      color: AppTheme.inverseSurface,
-      borderRadius: BorderRadius.circular(
-        AppTokens.radiusDefault,
-      ),
+      color:
+          theme.colorScheme.inverseSurface,
+      elevation: 5,
+      borderRadius:
+          BorderRadius.circular(14),
       child: Padding(
         padding: const EdgeInsets.symmetric(
-          horizontal: AppTokens.gutterMobile,
-          vertical: AppTokens.spaceSmall,
+          horizontal: 14,
+          vertical: 10,
         ),
-        child: Text(
-          label,
-          style: theme.textTheme.labelLarge?.copyWith(
-            color: AppTheme.inverseOnSurface,
-          ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.info_outline_rounded,
+              size: 18,
+              color: theme.colorScheme
+                  .onInverseSurface,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 2,
+                overflow:
+                    TextOverflow.ellipsis,
+                style: theme.textTheme.labelLarge
+                    ?.copyWith(
+                  color: theme.colorScheme
+                      .onInverseSurface,
+                  fontWeight:
+                      FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-/// OpenStreetMap's licence requires visible credit wherever its tiles appear.
+// ============================================================================
+// ATTRIBUTION
+// ============================================================================
+
 class _Attribution extends StatelessWidget {
   const _Attribution({
     required this.label,
@@ -369,21 +829,26 @@ class _Attribution extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppTokens.spaceExtraSmall,
-        vertical: 2,
+      padding:
+          const EdgeInsets.symmetric(
+        horizontal: 6,
+        vertical: 3,
       ),
       decoration: BoxDecoration(
-        color: AppTheme.surface.withValues(alpha: 0.82),
-        borderRadius: BorderRadius.circular(
-          AppTokens.radiusSmall,
+        color: Colors.white.withValues(
+          alpha: 0.86,
         ),
+        borderRadius:
+            BorderRadius.circular(6),
       ),
       child: Text(
         label,
-        style: theme.textTheme.labelSmall?.copyWith(
-          color: AppTheme.onSurfaceVariant,
+        style: theme.textTheme.labelSmall
+            ?.copyWith(
+          color: theme.colorScheme
+              .onSurfaceVariant,
           fontSize: 9,
+          fontWeight: FontWeight.w500,
         ),
       ),
     );
