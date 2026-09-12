@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:masari_mobile/core/widgets/status_chip.dart';
 import 'package:masari_mobile/features/canonical_routes/domain/canonical_route_models.dart';
 import 'package:masari_mobile/features/trips/data/trip_models.dart';
 import 'package:masari_mobile/l10n/app_localizations.dart';
 
 import '../../../core/config/app_config.dart';
+import '../../../core/maps/osrm_route_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/semantic_colors.dart';
@@ -73,14 +75,23 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+
     final tripState = ref.watch(
       driverTripControllerProvider(widget.tripId),
     );
 
     return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: widget.showAppBar
           ? AppBar(
-              title: Text(l10n.driverTrip),
+              elevation: 0,
+              scrolledUnderElevation: 0,
+              title: Text(
+                l10n.driverTrip,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
               actions: const [
                 LanguageSwitch(),
                 SizedBox(width: AppTokens.spaceSmall),
@@ -100,13 +111,13 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(
               AppTokens.marginMobile,
-              AppTokens.spaceMedium,
+              AppTokens.spaceSmall,
               AppTokens.marginMobile,
               AppTokens.spaceExtraLarge,
             ),
             children: [
               const SessionStatusBanner(),
-              const SizedBox(height: AppTokens.spaceMedium),
+              const SizedBox(height: AppTokens.spaceSmall),
               tripState.when(
                 loading: () => const Column(
                   children: [
@@ -124,7 +135,10 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
                       )
                       .refresh(),
                 ),
-                data: (state) => _tripContent(l10n, state),
+                data: (state) => _tripContent(
+                  l10n,
+                  state,
+                ),
               ),
             ],
           ),
@@ -145,6 +159,7 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
         .demoFeaturesEnabled;
 
     final checkpoints = ref.watch(checkpointsProvider);
+
     final checkpointSnapshot =
         checkpoints.value ?? CheckpointSnapshot.empty;
 
@@ -159,8 +174,9 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // ============================================================
-        // 1. BIG CURRENT STATUS
+        // COMPACT TRIP HEADER
         // ============================================================
+
         _TripHeroCard(
           l10n: l10n,
           trip: trip,
@@ -168,7 +184,7 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
         ),
 
         if (_error != null) ...[
-          const SizedBox(height: AppTokens.spaceMedium),
+          const SizedBox(height: AppTokens.spaceSmall),
           OfflineBanner(
             message: _error!,
             tone: BannerTone.error,
@@ -178,8 +194,9 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
         const SizedBox(height: AppTokens.spaceMedium),
 
         // ============================================================
-        // 2. LARGE MAP
+        // MAP
         // ============================================================
+
         _DriverMapSection(
           l10n: l10n,
           trip: trip,
@@ -192,9 +209,10 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
         const SizedBox(height: AppTokens.spaceLarge),
 
         // ============================================================
-        // 3. SIMPLE ROUTE SUMMARY
+        // TRIP INFORMATION
         // ============================================================
-        _RouteSummaryCard(
+
+        _TripInformationCard(
           l10n: l10n,
           trip: trip,
           location: location,
@@ -203,18 +221,9 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
         const SizedBox(height: AppTokens.spaceLarge),
 
         // ============================================================
-        // 4. PASSENGER / PARCEL SUMMARY
+        // CHECKPOINTS
         // ============================================================
-        _AssignmentSummary(
-          l10n: l10n,
-          trip: trip,
-        ),
 
-        const SizedBox(height: AppTokens.spaceLarge),
-
-        // ============================================================
-        // 5. CHECKPOINTS
-        // ============================================================
         MasariSection(
           title: l10n.checkpoints,
           child: _DriverCheckpointsPanel(
@@ -226,8 +235,9 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
         const SizedBox(height: AppTokens.spaceLarge),
 
         // ============================================================
-        // 6. TRIP STATUS
+        // STATUS TIMELINE
         // ============================================================
+
         MasariSection(
           title: l10n.statusTimeline,
           child: MasariCard(
@@ -239,7 +249,10 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
                     for (final (index, status)
                         in driverTripTimeline.indexed)
                       TimelineStep(
-                        title: driverStatusLabel(l10n, status),
+                        title: driverStatusLabel(
+                          l10n,
+                          status,
+                        ),
                         state: switch (currentIndex.compareTo(index)) {
                           > 0 => TimelineStepState.completed,
                           0 => TimelineStepState.current,
@@ -253,10 +266,14 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
                   SizedBox(
                     height: 54,
                     child: FilledButton.icon(
-                      key: ValueKey('tripAction-$nextStatus'),
+                      key: ValueKey(
+                        'tripAction-$nextStatus',
+                      ),
                       onPressed:
                           state.actionInProgress ? null : _advance,
-                      icon: const Icon(Icons.arrow_forward_rounded),
+                      icon: const Icon(
+                        Icons.arrow_forward_rounded,
+                      ),
                       label: Text(
                         nextTripActionLabel(
                           l10n,
@@ -274,8 +291,9 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
         const SizedBox(height: AppTokens.spaceLarge),
 
         // ============================================================
-        // 7. LOCATION / DEMO DETAILS
+        // LOCATION / DEMO
         // ============================================================
+
         MasariSection(
           title: demoFeaturesEnabled
               ? l10n.trackingSimulation
@@ -344,7 +362,7 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
 }
 
 // ============================================================================
-// HERO STATUS CARD
+// COMPACT HERO
 // ============================================================================
 
 class _TripHeroCard extends StatelessWidget {
@@ -361,6 +379,7 @@ class _TripHeroCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
     final status = driverStatusLabel(
       l10n,
       trip.status,
@@ -368,162 +387,217 @@ class _TripHeroCard extends StatelessWidget {
 
     final tone = statusToneFor(trip.status);
 
-    return MasariCard(
-      child: Container(
-        padding: const EdgeInsets.all(
-          AppTokens.spaceMedium,
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant,
         ),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(
-            AppTokens.radiusLarge,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(
+                  Icons.local_shipping_rounded,
+                  size: 27,
+                  color: theme.colorScheme.onPrimaryContainer,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.driverTrip,
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'رحلة السائق',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              _StatusBadge(
+                label: status,
+                tone: tone,
+              ),
+            ],
           ),
-          color: theme.colorScheme.surfaceContainerHighest
-              .withValues(alpha: 0.55),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+
+          const SizedBox(height: 16),
+
+          // Route
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 11,
+            ),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHighest
+                  .withValues(alpha: 0.65),
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: Row(
               children: [
-                Container(
-                  width: 58,
-                  height: 58,
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(18),
+                Icon(
+                  Icons.trip_origin_rounded,
+                  size: 18,
+                  color: SemanticColors.upcomingRoute,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    localizedOrigin(
+                      context,
+                      trip.route.originLabel,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
                   ),
                   child: Icon(
-                    Icons.local_shipping_rounded,
-                    size: 31,
-                    color: theme.colorScheme.onPrimaryContainer,
+                    Icons.arrow_forward_rounded,
+                    size: 17,
+                    color: theme.colorScheme.onSurfaceVariant,
                   ),
-                ),
-                const SizedBox(
-                  width: AppTokens.spaceMedium,
                 ),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        l10n.driverTrip,
-                        style: theme.textTheme.labelLarge?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(
-                        height: AppTokens.spaceExtraSmall,
-                      ),
-                      Text(
-                        status,
-                        style: theme.textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ],
+                  child: Text(
+                    l10n.bethlehem,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.end,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
-                _StatusBadge(
-                  label: status,
-                  tone: tone,
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.flag_rounded,
+                  size: 18,
+                  color: SemanticColors.completedRoute,
                 ),
               ],
             ),
-            const SizedBox(
-              height: AppTokens.spaceLarge,
-            ),
-            RouteChip(
-              from: localizedOrigin(
-                context,
-                trip.route.originLabel,
+          ),
+
+          const SizedBox(height: 12),
+
+          Row(
+            children: [
+              Expanded(
+                child: _HeroStatusItem(
+                  icon: Icons.my_location_rounded,
+                  label: locationAvailable
+                      ? l10n.latestLocation
+                      : l10n.noLocationYet,
+                  active: locationAvailable,
+                ),
               ),
-              to: l10n.bethlehem,
-              compact: false,
-            ),
-            const SizedBox(
-              height: AppTokens.spaceMedium,
-            ),
-            Row(
-              children: [
-                Expanded(
-                  child: _HeroMiniInfo(
-                    icon: Icons.navigation_rounded,
-                    title: locationAvailable
-                        ? l10n.latestLocation
-                        : l10n.noLocationYet,
-                  ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _HeroStatusItem(
+                  icon: Icons.people_alt_outlined,
+                  label: trip.passengerRequest == null
+                      ? '0 ${l10n.passengerCount}'
+                      : '${trip.passengerRequest!.passengerCount} '
+                          '${l10n.passengerCount}',
+                  active: trip.passengerRequest != null,
                 ),
-                const SizedBox(width: AppTokens.spaceSmall),
-                Expanded(
-                  child: _HeroMiniInfo(
-                    icon: Icons.people_outline_rounded,
-                    title: trip.passengerRequest == null
-                        ? '0'
-                        : '${trip.passengerRequest!.passengerCount}',
-                  ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _HeroStatusItem(
+                  icon: Icons.inventory_2_outlined,
+                  label: trip.merchantOrder == null
+                      ? '0 ${l10n.parcelCount}'
+                      : '${trip.merchantOrder!.parcelCount} '
+                          '${l10n.parcelCount}',
+                  active: trip.merchantOrder != null,
                 ),
-                const SizedBox(width: AppTokens.spaceSmall),
-                Expanded(
-                  child: _HeroMiniInfo(
-                    icon: Icons.inventory_2_outlined,
-                    title: trip.merchantOrder == null
-                        ? '0'
-                        : '${trip.merchantOrder!.parcelCount}',
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 }
 
-class _HeroMiniInfo extends StatelessWidget {
-  const _HeroMiniInfo({
+class _HeroStatusItem extends StatelessWidget {
+  const _HeroStatusItem({
     required this.icon,
-    required this.title,
+    required this.label,
+    required this.active,
   });
 
   final IconData icon;
-  final String title;
+  final String label;
+  final bool active;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     return Container(
+      constraints: const BoxConstraints(
+        minHeight: 42,
+      ),
       padding: const EdgeInsets.symmetric(
-        horizontal: AppTokens.spaceSmall,
-        vertical: AppTokens.spaceSmall,
+        horizontal: 8,
+        vertical: 8,
       ),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(
-          AppTokens.radiusDefault,
-        ),
-        border: Border.all(
-          color: theme.colorScheme.outlineVariant,
-        ),
+        color: active
+            ? theme.colorScheme.primaryContainer
+                .withValues(alpha: 0.45)
+            : theme.colorScheme.surfaceContainerHighest
+                .withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(13),
       ),
       child: Row(
         children: [
           Icon(
             icon,
-            size: 21,
-            color: theme.colorScheme.primary,
+            size: 17,
+            color: active
+                ? theme.colorScheme.primary
+                : theme.colorScheme.onSurfaceVariant,
           ),
-          const SizedBox(
-            width: AppTokens.spaceExtraSmall,
-          ),
+          const SizedBox(width: 5),
           Expanded(
             child: Text(
-              title,
-              maxLines: 1,
+              label,
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.labelLarge?.copyWith(
+              style: theme.textTheme.labelSmall?.copyWith(
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -556,7 +630,7 @@ class _StatusBadge extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.symmetric(
-        horizontal: 11,
+        horizontal: 10,
         vertical: 7,
       ),
       decoration: BoxDecoration(
@@ -567,8 +641,8 @@ class _StatusBadge extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 8,
-            height: 8,
+            width: 7,
+            height: 7,
             decoration: BoxDecoration(
               color: color,
               shape: BoxShape.circle,
@@ -592,7 +666,7 @@ class _StatusBadge extends StatelessWidget {
 // DRIVER MAP
 // ============================================================================
 
-class _DriverMapSection extends StatelessWidget {
+class _DriverMapSection extends StatefulWidget {
   const _DriverMapSection({
     required this.l10n,
     required this.trip,
@@ -610,128 +684,362 @@ class _DriverMapSection extends StatelessWidget {
   final bool checkpointsError;
 
   @override
+  State<_DriverMapSection> createState() => _DriverMapSectionState();
+}
+
+class _DriverMapSectionState extends State<_DriverMapSection> {
+  late Future<OsrmRouteResult> _routeFuture;
+
+  /// Remaining route:
+  /// current driver location -> final destination.
+  Future<OsrmRouteResult>? _remainingRouteFuture;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Full route used for the map path.
+    _routeFuture = _loadRoute();
+
+    // Remaining route used only for ETA + remaining distance.
+    _remainingRouteFuture = _loadRemainingRoute();
+  }
+
+  @override
+  void didUpdateWidget(covariant _DriverMapSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    final oldRoute = oldWidget.trip.route;
+    final newRoute = widget.trip.route;
+
+    final routeChanged =
+        oldRoute.originLat != newRoute.originLat ||
+        oldRoute.originLng != newRoute.originLng ||
+        oldRoute.destinationLat != newRoute.destinationLat ||
+        oldRoute.destinationLng != newRoute.destinationLng;
+
+    final oldLocation = oldWidget.location;
+    final newLocation = widget.location;
+
+    final locationChanged =
+        oldLocation?.lat != newLocation?.lat ||
+        oldLocation?.lng != newLocation?.lng;
+
+    if (routeChanged) {
+      _routeFuture = _loadRoute();
+    }
+
+    if (routeChanged || locationChanged) {
+      _remainingRouteFuture = _loadRemainingRoute();
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // FULL ROUTE
+  // --------------------------------------------------------------------------
+
+  Future<OsrmRouteResult> _loadRoute() async {
+    final route = widget.trip.route;
+
+    final originLat = route.originLat != 0
+        ? route.originLat
+        : lockedDriverOriginLat;
+
+    final originLng = route.originLng != 0
+        ? route.originLng
+        : lockedDriverOriginLng;
+
+    final destinationLat = route.destinationLat != 0
+        ? route.destinationLat
+        : lockedDriverDestinationLat;
+
+    final destinationLng = route.destinationLng != 0
+        ? route.destinationLng
+        : lockedDriverDestinationLng;
+
+    final start = LatLng(
+      originLat,
+      originLng,
+    );
+
+    final end = LatLng(
+      destinationLat,
+      destinationLng,
+    );
+
+    try {
+      final result = await const OsrmRouteService().getRoute(
+        start: start,
+        end: end,
+      );
+
+      if (result.points.length >= 2) {
+        return result;
+      }
+    } catch (_) {
+      // Keep the map working with the direct line below.
+    }
+
+    return OsrmRouteResult(
+      points: [start, end],
+      durationSeconds: 0,
+      distanceMeters: 0,
+    );
+  }
+
+  // --------------------------------------------------------------------------
+  // REMAINING ROUTE
+  // --------------------------------------------------------------------------
+
+  Future<OsrmRouteResult>? _loadRemainingRoute() {
+    final location = widget.location;
+
+    if (location == null) {
+      return null;
+    }
+
+    final route = widget.trip.route;
+
+    final destinationLat = route.destinationLat != 0
+        ? route.destinationLat
+        : lockedDriverDestinationLat;
+
+    final destinationLng = route.destinationLng != 0
+        ? route.destinationLng
+        : lockedDriverDestinationLng;
+
+    final start = LatLng(
+      location.lat,
+      location.lng,
+    );
+
+    final end = LatLng(
+      destinationLat,
+      destinationLng,
+    );
+
+    return _requestRemainingRoute(
+      start: start,
+      end: end,
+    );
+  }
+
+  Future<OsrmRouteResult> _requestRemainingRoute({
+    required LatLng start,
+    required LatLng end,
+  }) async {
+    try {
+      final result = await const OsrmRouteService().getRoute(
+        start: start,
+        end: end,
+      );
+
+      if (result.points.length >= 2) {
+        return result;
+      }
+    } catch (_) {
+      // Do not break the map if remaining route fails.
+    }
+
+    return const OsrmRouteResult(
+      points: [],
+      durationSeconds: 0,
+      distanceMeters: 0,
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final route = trip.route;
+    final route = widget.trip.route;
+
+    final originLat = route.originLat != 0
+        ? route.originLat
+        : lockedDriverOriginLat;
+
+    final originLng = route.originLng != 0
+        ? route.originLng
+        : lockedDriverOriginLng;
+
+    final destinationLat = route.destinationLat != 0
+        ? route.destinationLat
+        : lockedDriverDestinationLat;
+
+    final destinationLng = route.destinationLng != 0
+        ? route.destinationLng
+        : lockedDriverDestinationLng;
 
     final origin = GeoPoint(
-      route.originLat,
-      route.originLng,
+      originLat,
+      originLng,
     );
 
     final destination = GeoPoint(
-      route.destinationLat,
-      route.destinationLng,
+      destinationLat,
+      destinationLng,
     );
 
     final markers = <MasariMapMarker>[
+      // ORIGIN
       MasariMapMarker(
         position: origin,
         icon: Icons.trip_origin_rounded,
         color: SemanticColors.upcomingRoute,
-        label: l10n.mapOriginLabel(
+        label: widget.l10n.mapOriginLabel(
           localizedOrigin(
             context,
-            route.originLabel,
+            route.originLabel.isNotEmpty
+                ? route.originLabel
+                : lockedDriverOriginLabel,
           ),
         ),
-        size: 38,
+        size: 42,
       ),
 
+      // DESTINATION
       MasariMapMarker(
         position: destination,
         icon: Icons.flag_rounded,
         color: SemanticColors.completedRoute,
-        label: l10n.mapDestinationLabel(
-          l10n.bethlehem,
+        label: widget.l10n.mapDestinationLabel(
+          widget.l10n.bethlehem,
         ),
-        size: 38,
+        size: 42,
       ),
 
-      if (location != null)
+      // DRIVER LOCATION
+      if (widget.location != null)
         MasariMapMarker(
           position: GeoPoint(
-            location!.lat,
-            location!.lng,
+            widget.location!.lat,
+            widget.location!.lng,
           ),
           icon: Icons.local_shipping_rounded,
           color: SemanticColors.passenger,
-          label: l10n.mapYourLocation,
-          size: 46,
+          label: widget.l10n.mapYourLocation,
+          size: 50,
         ),
 
-      for (final checkpoint in snapshot.checkpoints)
+      // CHECKPOINTS
+      for (final checkpoint in widget.snapshot.checkpoints)
         MasariMapMarker(
           position: checkpoint.position,
           icon: _checkpointIcon(checkpoint.status),
           color: _checkpointColor(checkpoint.status),
-          foreground: checkpoint.status ==
-                  CheckpointStatus.unknown
+          foreground: checkpoint.status == CheckpointStatus.unknown
               ? AppTheme.onSurface
               : Colors.white,
-          label: l10n.checkpointLabel(
+          label: widget.l10n.checkpointLabel(
             _checkpointName(
-              l10n,
+              widget.l10n,
               checkpoint,
               Localizations.localeOf(context).languageCode == 'ar',
             ),
             _checkpointStatus(
-              l10n,
+              widget.l10n,
               checkpoint.status,
             ),
           ),
-          size: 32,
+          size: 38,
         ),
     ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        MasariMap(
-          height: 380,
-          emptyLabel: l10n.mapRouteMissingCoordinates,
-          attributionLabel: l10n.mapAttribution,
-          paths: [
-            MasariMapPath(
-              points: [
-                origin,
-                destination,
-              ],
-              color: SemanticColors.upcomingRoute,
-              width: 6,
-            ),
-          ],
-          markers: markers,
-          banner: checkpointsLoading
-              ? _MapNotice(
-                  icon: Icons.sync_rounded,
-                  message: l10n.checkpointsUnavailable,
-                )
-              : checkpointsError
-                  ? _MapNotice(
-                      icon: Icons.warning_amber_rounded,
-                      message: l10n.checkpointsUnavailable,
-                    )
-                  : null,
-          overlay: _MapLegend(
-            l10n: l10n,
-            hasDriverLocation: location != null,
+        // ============================================================
+        // MAP
+        // ============================================================
+
+        ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: FutureBuilder<OsrmRouteResult>(
+            future: _routeFuture,
+            builder: (context, snapshot) {
+              final routedPoints = snapshot.data?.points
+                  .map(
+                    (point) => GeoPoint(
+                      point.latitude,
+                      point.longitude,
+                    ),
+                  )
+                  .toList(growable: false);
+
+              final pathPoints =
+                  routedPoints != null && routedPoints.length >= 2
+                      ? routedPoints
+                      : <GeoPoint>[
+                          origin,
+                          destination,
+                        ];
+
+              return MasariMap(
+                height: 405,
+                emptyLabel: widget.l10n.mapRouteMissingCoordinates,
+                attributionLabel: widget.l10n.mapAttribution,
+                paths: [
+                  MasariMapPath(
+                    points: pathPoints,
+                    color: SemanticColors.upcomingRoute,
+                    width: 8,
+                  ),
+                ],
+                markers: markers,
+                banner: widget.checkpointsLoading
+                    ? _MapNotice(
+                        icon: Icons.sync_rounded,
+                        message: widget.l10n.checkpointsUnavailable,
+                      )
+                    : widget.checkpointsError
+                        ? _MapNotice(
+                            icon: Icons.warning_amber_rounded,
+                            message: widget.l10n.checkpointsUnavailable,
+                          )
+                        : null,
+                overlay: _MapLegend(
+                  l10n: widget.l10n,
+                  hasDriverLocation: widget.location != null,
+                ),
+              );
+            },
           ),
         ),
-        const SizedBox(
-          height: AppTokens.spaceSmall,
-        ),
+
+        const SizedBox(height: 10),
+
+        // ============================================================
+        // REMAINING ETA
+        // ============================================================
+
+        if (_remainingRouteFuture != null)
+          FutureBuilder<OsrmRouteResult>(
+            future: _remainingRouteFuture,
+            builder: (context, routeSnapshot) {
+              final result = routeSnapshot.data;
+
+              if (result == null ||
+                  result.durationSeconds <= 0 ||
+                  result.distanceMeters <= 0) {
+                return const SizedBox.shrink();
+              }
+
+              return _RemainingRouteCard(
+                result: result,
+              );
+            },
+          ),
+
+        const SizedBox(height: 8),
+
         Row(
           children: [
             Icon(
               Icons.touch_app_outlined,
-              size: 18,
+              size: 17,
               color: Theme.of(context)
                   .colorScheme
                   .onSurfaceVariant,
             ),
-            const SizedBox(
-              width: AppTokens.spaceExtraSmall,
-            ),
+            const SizedBox(width: 5),
             Expanded(
               child: Text(
                 'اضغط على أي علامة لمعرفة تفاصيلها',
@@ -752,6 +1060,107 @@ class _DriverMapSection extends StatelessWidget {
   }
 }
 
+// ============================================================================
+// REMAINING ROUTE CARD
+// ============================================================================
+
+class _RemainingRouteCard extends StatelessWidget {
+  const _RemainingRouteCard({
+    required this.result,
+  });
+
+  final OsrmRouteResult result;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: 14,
+      ),
+      decoration: BoxDecoration(
+        color: const Color(0xFF102A43),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF97316)
+                  .withValues(alpha: 0.14),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.access_time_rounded,
+              color: Color(0xFFF97316),
+              size: 21,
+            ),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'الوقت المتبقي',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  result.formattedDuration,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            width: 1,
+            height: 32,
+            color: Colors.white24,
+          ),
+          const SizedBox(width: 14),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              const Text(
+                'المسافة',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                '${result.distanceKilometers.toStringAsFixed(1)} km',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// MAP LEGEND
+// ============================================================================
+
 class _MapLegend extends StatelessWidget {
   const _MapLegend({
     required this.l10n,
@@ -769,15 +1178,15 @@ class _MapLegend extends StatelessWidget {
       color: theme.colorScheme.surface.withValues(
         alpha: 0.94,
       ),
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(15),
       child: Padding(
         padding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 9,
+          horizontal: 11,
+          vertical: 8,
         ),
         child: Wrap(
-          spacing: 13,
-          runSpacing: 7,
+          spacing: 12,
+          runSpacing: 6,
           children: [
             if (hasDriverLocation)
               _LegendItem(
@@ -825,7 +1234,7 @@ class _LegendItem extends StatelessWidget {
       children: [
         Icon(
           icon,
-          size: 16,
+          size: 15,
           color: color,
         ),
         const SizedBox(width: 4),
@@ -863,18 +1272,18 @@ class _MapNotice extends StatelessWidget {
       borderRadius: BorderRadius.circular(14),
       child: Padding(
         padding: const EdgeInsets.symmetric(
-          horizontal: 13,
-          vertical: 9,
+          horizontal: 12,
+          vertical: 8,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               icon,
-              size: 18,
+              size: 17,
               color: theme.colorScheme.onSurfaceVariant,
             ),
-            const SizedBox(width: 7),
+            const SizedBox(width: 6),
             Flexible(
               child: Text(
                 message,
@@ -891,11 +1300,11 @@ class _MapNotice extends StatelessWidget {
 }
 
 // ============================================================================
-// ROUTE SUMMARY
+// TRIP INFORMATION
 // ============================================================================
 
-class _RouteSummaryCard extends StatelessWidget {
-  const _RouteSummaryCard({
+class _TripInformationCard extends StatelessWidget {
+  const _TripInformationCard({
     required this.l10n,
     required this.trip,
     required this.location,
@@ -909,78 +1318,139 @@ class _RouteSummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return MasariCard(
+    final passengerCount =
+        trip.passengerRequest?.passengerCount ?? 0;
+
+    final parcelCount =
+        trip.merchantOrder?.parcelCount ?? 0;
+
+    return Container(
+      padding: const EdgeInsets.all(17),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant,
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            'مسار الرحلة',
-            style: theme.textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(
-            height: AppTokens.spaceMedium,
-          ),
-          _RoutePoint(
-            icon: Icons.trip_origin_rounded,
-            color: SemanticColors.upcomingRoute,
-            title: 'من',
-            value: localizedOrigin(
-              context,
-              trip.route.originLabel,
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsetsDirectional.only(
-              start: 12,
-            ),
-            child: Container(
-              width: 2,
-              height: 25,
-              color: theme.colorScheme.outlineVariant,
-            ),
-          ),
-          _RoutePoint(
-            icon: Icons.flag_rounded,
-            color: SemanticColors.completedRoute,
-            title: 'إلى',
-            value: l10n.bethlehem,
-          ),
-          if (location != null) ...[
-            const SizedBox(
-              height: AppTokens.spaceMedium,
-            ),
-            Container(
-              padding: const EdgeInsets.all(
-                AppTokens.spaceSmall,
-              ),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primaryContainer
-                    .withValues(alpha: 0.45),
-                borderRadius: BorderRadius.circular(
-                  AppTokens.radiusDefault,
+          // Header
+          Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.route_rounded,
+                  size: 20,
+                  color: theme.colorScheme.onPrimaryContainer,
                 ),
               ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.my_location_rounded,
-                    color: theme.colorScheme.primary,
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'معلومات الرحلة',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w900,
                   ),
-                  const SizedBox(
-                    width: AppTokens.spaceSmall,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
+          // Main metrics
+          Row(
+            children: [
+              Expanded(
+                child: _TripMetric(
+                  icon: Icons.people_alt_rounded,
+                  value: '$passengerCount',
+                  label: l10n.passengerCount,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _TripMetric(
+                  icon: Icons.inventory_2_rounded,
+                  value: '$parcelCount',
+                  label: l10n.parcelCount,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          // Route details
+          Container(
+            padding: const EdgeInsets.all(13),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHighest
+                  .withValues(alpha: 0.52),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              children: [
+                _TripRouteRow(
+                  icon: Icons.trip_origin_rounded,
+                  color: SemanticColors.upcomingRoute,
+                  title: 'نقطة الانطلاق',
+                  value: localizedOrigin(
+                    context,
+                    trip.route.originLabel,
                   ),
-                  Expanded(
-                    child: Text(
-                      'آخر موقع مسجل للسائق متوفر',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                ),
+                Padding(
+                  padding: const EdgeInsetsDirectional.only(
+                    start: 10,
+                  ),
+                  child: Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: Container(
+                      width: 2,
+                      height: 18,
+                      color: theme.colorScheme.outlineVariant,
                     ),
                   ),
-                ],
-              ),
+                ),
+                _TripRouteRow(
+                  icon: Icons.flag_rounded,
+                  color: SemanticColors.completedRoute,
+                  title: 'الوجهة',
+                  value: l10n.bethlehem,
+                ),
+              ],
+            ),
+          ),
+
+          if (location != null) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Icon(
+                  Icons.my_location_rounded,
+                  size: 17,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 7),
+                Expanded(
+                  child: Text(
+                    'آخر موقع مسجل للسائق متوفر',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ],
@@ -989,8 +1459,70 @@ class _RouteSummaryCard extends StatelessWidget {
   }
 }
 
-class _RoutePoint extends StatelessWidget {
-  const _RoutePoint({
+class _TripMetric extends StatelessWidget {
+  const _TripMetric({
+    required this.icon,
+    required this.value,
+    required this.label,
+  });
+
+  final IconData icon;
+  final String value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 13,
+        vertical: 14,
+      ),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer
+            .withValues(alpha: 0.42),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 23,
+            color: theme.colorScheme.primary,
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TripRouteRow extends StatelessWidget {
+  const _TripRouteRow({
     required this.icon,
     required this.color,
     required this.title,
@@ -1007,144 +1539,46 @@ class _RoutePoint extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          width: 27,
-          height: 27,
+          width: 22,
+          height: 22,
           decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.14),
+            color: color.withValues(alpha: 0.13),
             shape: BoxShape.circle,
           ),
           child: Icon(
             icon,
-            size: 17,
+            size: 14,
             color: color,
           ),
         ),
-        const SizedBox(
-          width: AppTokens.spaceSmall,
-        ),
-        Text(
-          '$title: ',
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
+        const SizedBox(width: 9),
         Expanded(
-          child: Text(
-            value,
-            style: theme.textTheme.bodyLarge?.copyWith(
-              fontWeight: FontWeight.w800,
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
           ),
         ),
       ],
-    );
-  }
-}
-
-// ============================================================================
-// ASSIGNMENT SUMMARY
-// ============================================================================
-
-class _AssignmentSummary extends StatelessWidget {
-  const _AssignmentSummary({
-    required this.l10n,
-    required this.trip,
-  });
-
-  final AppLocalizations l10n;
-  final DriverTrip trip;
-
-  @override
-  Widget build(BuildContext context) {
-    return MasariSection(
-      title: 'تفاصيل الحمولة',
-      child: Row(
-        children: [
-          if (trip.passengerRequest != null)
-            Expanded(
-              child: _LargeMetricCard(
-                icon: Icons.people_alt_rounded,
-                value:
-                    '${trip.passengerRequest!.passengerCount}',
-                label: l10n.passengerCount,
-              ),
-            ),
-          if (trip.passengerRequest != null &&
-              trip.merchantOrder != null)
-            const SizedBox(
-              width: AppTokens.spaceSmall,
-            ),
-          if (trip.merchantOrder != null)
-            Expanded(
-              child: _LargeMetricCard(
-                icon: Icons.inventory_2_rounded,
-                value:
-                    '${trip.merchantOrder!.parcelCount}',
-                label: l10n.parcelCount,
-              ),
-            ),
-          if (trip.passengerRequest == null &&
-              trip.merchantOrder == null)
-            Expanded(
-              child: _LargeMetricCard(
-                icon: Icons.local_shipping_rounded,
-                value: '—',
-                label: l10n.activeTrip,
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LargeMetricCard extends StatelessWidget {
-  const _LargeMetricCard({
-    required this.icon,
-    required this.value,
-    required this.label,
-  });
-
-  final IconData icon;
-  final String value;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return MasariCard(
-      child: Column(
-        children: [
-          Icon(
-            icon,
-            size: 30,
-            color: theme.colorScheme.primary,
-          ),
-          const SizedBox(
-            height: AppTokens.spaceSmall,
-          ),
-          Text(
-            value,
-            style: theme.textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(
-            height: AppTokens.spaceExtraSmall,
-          ),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -1358,6 +1792,7 @@ class _CheckpointCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
     final color = _checkpointColor(
       checkpoint.status,
     );
@@ -1379,9 +1814,7 @@ class _CheckpointCard extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(
-          AppTokens.radiusDefault,
-        ),
+        borderRadius: BorderRadius.circular(17),
         border: Border.all(
           color: theme.colorScheme.outlineVariant,
         ),
@@ -1389,16 +1822,16 @@ class _CheckpointCard extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 46,
-            height: 46,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.13),
+              color: color.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
             child: Icon(
               _checkpointIcon(checkpoint.status),
               color: color,
-              size: 24,
+              size: 23,
             ),
           ),
           const SizedBox(
@@ -1421,7 +1854,7 @@ class _CheckpointCard extends StatelessWidget {
                 ),
                 Text(
                   status,
-                  style: theme.textTheme.bodyMedium?.copyWith(
+                  style: theme.textTheme.bodySmall?.copyWith(
                     color: color,
                     fontWeight: FontWeight.w800,
                   ),
@@ -1472,13 +1905,20 @@ class _LocationDetailsCard extends StatelessWidget {
           if (demoFeaturesEnabled) ...[
             Row(
               children: [
-                Icon(
-                  Icons.route_rounded,
-                  color: theme.colorScheme.primary,
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    Icons.route_rounded,
+                    color: theme.colorScheme.onPrimaryContainer,
+                    size: 20,
+                  ),
                 ),
-                const SizedBox(
-                  width: AppTokens.spaceSmall,
-                ),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     l10n.routeProgress,
@@ -1503,13 +1943,14 @@ class _LocationDetailsCard extends StatelessWidget {
               child: LinearProgressIndicator(
                 key: const ValueKey('routeProgress'),
                 value: progress,
-                minHeight: 9,
+                minHeight: 8,
               ),
             ),
             const SizedBox(
               height: AppTokens.spaceLarge,
             ),
           ],
+
           if (location == null)
             Container(
               padding: const EdgeInsets.all(
@@ -1526,7 +1967,7 @@ class _LocationDetailsCard extends StatelessWidget {
                   Icon(
                     Icons.location_searching_rounded,
                     color: theme.colorScheme.onSurfaceVariant,
-                    size: 27,
+                    size: 26,
                   ),
                   const SizedBox(
                     width: AppTokens.spaceSmall,
@@ -1584,6 +2025,7 @@ class _LocationDetailsCard extends StatelessWidget {
               icon: Icons.access_time_rounded,
             ),
           ],
+
           if (demoFeaturesEnabled) ...[
             const SizedBox(
               height: AppTokens.spaceLarge,
@@ -1683,8 +2125,7 @@ IconData _checkpointIcon(
       CheckpointStatus.congested =>
         Icons.hourglass_bottom_rounded,
       CheckpointStatus.closed => Icons.block_rounded,
-      CheckpointStatus.unknown =>
-        Icons.question_mark_rounded,
+      CheckpointStatus.unknown => Icons.question_mark_rounded,
     };
 
 Color _checkpointColor(
