@@ -204,7 +204,7 @@ class _Reputation extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(Icons.star, size: 14, color: SemanticColors.actionBright),
+        const Icon(Icons.star, size: 14, color: SemanticColors.warning),
         const SizedBox(width: AppTokens.spaceExtraSmall),
         Flexible(
           child: Text(

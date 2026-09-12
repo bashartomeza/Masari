@@ -7,8 +7,8 @@
   "DEMO_DRIVER_EMAIL": "demo.driver@masari.app",
   "DEMO_DRIVER_PASSWORD": "dKptblExHDPAaJha",
   "DEMO_MERCHANT_EMAIL": "demo.merchant@masari.app",
-  "DEMO_MERCHANT_PASSWORD": "l89yP1Gjz_7I827I",
-  "GOOGLE_WEB_CLIENT_ID": "",
+  "DEMO_MERCHANT_PASSWORD": "l89yP1Gjz_7I827I",
+  "GOOGLE_WEB_CLIENT_ID": "1022684049298-9b93jtqtip50jua3grjnrvovu90f7jho.apps.googleusercontent.com",
   "GOOGLE_IOS_CLIENT_ID": "",
-  "GOOGLE_SERVER_CLIENT_ID": ""
+  "GOOGLE_SERVER_CLIENT_ID": "1022684049298-9b93jtqtip50jua3grjnrvovu90f7jho.apps.googleusercontent.com"
 }

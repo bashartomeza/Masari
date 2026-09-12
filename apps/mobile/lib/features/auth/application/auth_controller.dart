@@ -136,8 +136,17 @@ class AuthController extends AsyncNotifier<AuthState> {
       _bindAuthenticatedActor(result.user);
       state = AsyncData(AuthState.authenticated(result.user));
     } on ApiException catch (error, stackTrace) {
+      // Riverpod keeps the prior value alongside an error, so settle back to
+      // unauthenticated first: leaving `authenticating` as the retained value
+      // would strand every screen watching this provider on a spinner.
+      state = const AsyncData(AuthState.unauthenticated());
       state = AsyncError(error, stackTrace);
     }
+  }
+
+  /// Drops a failed attempt's error so it cannot surface on another screen.
+  void clearError() {
+    if (state.hasError) state = const AsyncData(AuthState.unauthenticated());
   }
 
   Future<void> retryRefresh() async {

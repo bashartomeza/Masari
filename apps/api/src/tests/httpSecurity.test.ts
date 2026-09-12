@@ -347,6 +347,38 @@ describe("production HTTP security baseline", () => {
     expect(response.headers["access-control-expose-headers"]).toContain("Retry-After");
   });
 
+  it("allows unlisted loopback ports outside staging and production", async () => {
+    const response = await request(createApp(testConfig()))
+      .options("/api/v1/auth/register")
+      .set("Origin", "http://localhost:54681")
+      .set("Access-Control-Request-Method", "POST")
+      .expect(204);
+    expect(response.headers["access-control-allow-origin"]).toBe("http://localhost:54681");
+  });
+
+  it("rejects unlisted loopback and non-loopback origins in production", async () => {
+    const app = createApp(productionConfig());
+    const loopback = await request(app)
+      .options("/api/v1/auth/register")
+      .set("Origin", "http://localhost:54681")
+      .expect(204);
+    expect(loopback.headers["access-control-allow-origin"]).toBeUndefined();
+
+    const foreign = await request(app)
+      .options("/api/v1/auth/register")
+      .set("Origin", "https://evil.masari.example")
+      .expect(204);
+    expect(foreign.headers["access-control-allow-origin"]).toBeUndefined();
+  });
+
+  it("does not treat lookalike hostnames as loopback", async () => {
+    const response = await request(createApp(testConfig()))
+      .options("/api/v1/auth/register")
+      .set("Origin", "http://localhost.evil.example")
+      .expect(204);
+    expect(response.headers["access-control-allow-origin"]).toBeUndefined();
+  });
+
   it("returns a controlled 413 without echoing oversized content", async () => {
     const marker = "oversized-body-secret-marker";
     const response = await request(createApp(testConfig()))

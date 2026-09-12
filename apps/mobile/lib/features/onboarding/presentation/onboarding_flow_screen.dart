@@ -715,7 +715,7 @@ class _RoleOptionCard extends StatelessWidget {
             width: AppTokens.minTouchTarget,
             height: AppTokens.minTouchTarget,
             decoration: BoxDecoration(
-              color: AppTheme.secondaryContainer,
+              color: AppTheme.primaryContainer,
               borderRadius: BorderRadius.circular(AppTokens.radiusFull),
             ),
             child: Icon(icon, color: AppTheme.primary, size: 22),

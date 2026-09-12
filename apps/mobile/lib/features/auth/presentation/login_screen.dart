@@ -87,7 +87,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 height: 64,
                 decoration: BoxDecoration(
                   color: AppTheme.primary,
-                  borderRadius: BorderRadius.circular(AppTokens.radiusLarge),
+                  borderRadius: BorderRadius.circular(AppTokens.radiusMedium),
                 ),
                 alignment: Alignment.center,
                 child: const Icon(
@@ -208,7 +208,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     const SizedBox(height: AppTokens.spaceSmall),
                     TextButton(
                       key: const ValueKey('goToSignUpButton'),
-                      onPressed: loading ? null : () => context.push('/signup'),
+                      onPressed: loading ? null : _openSignUp,
                       child: Text(l10n.newToMasari),
                     ),
                     if (onboardingEnabled) ...[
@@ -323,6 +323,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _googleBusy = false;
       _googleErrorKey = 'failed';
     });
+  }
+
+  Future<void> _openSignUp() async {
+    setState(() => _googleErrorKey = null);
+    ref.read(authControllerProvider.notifier).clearError();
+    await context.push<void>('/signup');
+    if (!mounted) return;
+    ref.read(authControllerProvider.notifier).clearError();
   }
 
   Future<void> _openOnboarding(String route) async {

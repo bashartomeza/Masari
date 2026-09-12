@@ -259,12 +259,12 @@ class _AssistantWelcome extends StatelessWidget {
             width: 52,
             height: 52,
             decoration: BoxDecoration(
-              color: AppTheme.secondaryContainer,
+              color: AppTheme.primaryContainer,
               borderRadius: BorderRadius.circular(AppTokens.radiusMedium),
             ),
             child: const Icon(
               Icons.auto_awesome,
-              color: AppTheme.onSecondaryContainer,
+              color: AppTheme.onPrimaryContainer,
               size: 26,
             ),
           ),
@@ -608,10 +608,13 @@ class _MessageBubble extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final isPassenger = message.role == PassengerAssistantMessageRole.passenger;
+    // `.bubble-user` is pinned to `--ms-secondary` (navy) in the spec
+    // regardless of the app's general orange emphasis, so it always uses
+    // AppTheme.secondary rather than the brand `primary`.
     final background = isPassenger
-        ? AppTheme.primary
-        : AppTheme.surfaceContainerLowest;
-    final foreground = isPassenger ? AppTheme.onPrimary : AppTheme.onSurface;
+        ? AppTheme.secondary
+        : AppTheme.surfaceContainerHigh;
+    final foreground = isPassenger ? AppTheme.onSecondary : AppTheme.onSurface;
 
     return Align(
       alignment: isPassenger
@@ -635,13 +638,13 @@ class _MessageBubble extends StatelessWidget {
             decoration: BoxDecoration(
               color: background,
               borderRadius: BorderRadiusDirectional.only(
-                topStart: const Radius.circular(AppTokens.radiusLarge),
-                topEnd: const Radius.circular(AppTokens.radiusLarge),
+                topStart: const Radius.circular(AppTokens.radiusBubble),
+                topEnd: const Radius.circular(AppTokens.radiusBubble),
                 bottomStart: Radius.circular(
-                  isPassenger ? AppTokens.radiusLarge : AppTokens.radiusSmall,
+                  isPassenger ? AppTokens.radiusBubble : AppTokens.radiusSmall,
                 ),
                 bottomEnd: Radius.circular(
-                  isPassenger ? AppTokens.radiusSmall : AppTokens.radiusLarge,
+                  isPassenger ? AppTokens.radiusSmall : AppTokens.radiusBubble,
                 ),
               ),
               border: isPassenger
@@ -760,7 +763,7 @@ class _AssistantLoadingView extends StatelessWidget {
       key: const ValueKey('assistantLoadingState'),
       padding: const EdgeInsets.all(AppTokens.marginMobile),
       children: const [
-        LoadingSkeleton(height: 160, radius: AppTokens.radiusLarge),
+        LoadingSkeleton(height: 160, radius: AppTokens.radiusDefault),
         SizedBox(height: AppTokens.spaceMedium),
         Align(
           alignment: AlignmentDirectional.centerStart,

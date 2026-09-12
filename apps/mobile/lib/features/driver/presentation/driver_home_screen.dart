@@ -6,6 +6,7 @@ import 'package:masari_mobile/l10n/app_localizations.dart';
 import '../../../core/presentation/localized_labels.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/theme/semantic_colors.dart';
 import '../../../core/widgets/language_switch.dart';
 import '../../../core/widgets/map_placeholder.dart';
 import '../../../core/widgets/masari_section.dart';
@@ -94,8 +95,8 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                     key: const ValueKey('openDriverRoute'),
                     onPressed: () => context.go('/driver/route'),
                     style: FilledButton.styleFrom(
-                      backgroundColor: AppTheme.tertiaryContainer,
-                      foregroundColor: AppTheme.onPrimary,
+                      backgroundColor: SemanticColors.action,
+                      foregroundColor: SemanticColors.onAction,
                       minimumSize: const Size.fromHeight(64),
                     ),
                     icon: const Icon(Icons.route_outlined),

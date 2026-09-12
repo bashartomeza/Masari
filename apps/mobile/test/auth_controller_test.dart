@@ -132,6 +132,34 @@ void main() {
     );
   });
 
+  test('a rejected register settles out of the authenticating state', () async {
+    FlutterSecureStorage.setMockInitialValues(<String, String>{});
+    final container = _container(
+      (request) async => http.Response('{"error":"email_taken"}', 409),
+    );
+    addTearDown(container.dispose);
+    await container.read(authControllerProvider.future);
+
+    await container
+        .read(authControllerProvider.notifier)
+        .register(
+          name: 'Sara',
+          email: 'taken@example.com',
+          password: 'supersecret1',
+        );
+
+    final state = container.read(authControllerProvider);
+    expect(state.hasError, isTrue);
+    // A retained `authenticating` value would leave every screen watching this
+    // provider stuck on a disabled spinner.
+    expect(state.value?.status, isNot(AuthStatus.authenticating));
+
+    container.read(authControllerProvider.notifier).clearError();
+    final cleared = container.read(authControllerProvider);
+    expect(cleared.hasError, isFalse);
+    expect(cleared.value?.status, AuthStatus.unauthenticated);
+  });
+
   test('loginWithGoogle posts the id token to /auth/google', () async {
     FlutterSecureStorage.setMockInitialValues(<String, String>{});
     String? calledPath;

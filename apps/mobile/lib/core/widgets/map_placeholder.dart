@@ -54,14 +54,14 @@ class MapPlaceholder extends StatelessWidget {
     final theme = Theme.of(context);
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(AppTokens.radiusLarge),
+      borderRadius: BorderRadius.circular(AppTokens.radiusMedium),
       child: Container(
         height: height,
         width: double.infinity,
         decoration: BoxDecoration(
           color: AppTheme.surfaceContainer,
           border: Border.all(color: AppTheme.outlineVariant),
-          borderRadius: BorderRadius.circular(AppTokens.radiusLarge),
+          borderRadius: BorderRadius.circular(AppTokens.radiusMedium),
         ),
         child: Stack(
           children: [
