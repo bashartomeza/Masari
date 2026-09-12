@@ -37,7 +37,7 @@ class SavingsHeroCard extends StatelessWidget {
       padding: const EdgeInsets.all(AppTokens.spaceMedium),
       decoration: BoxDecoration(
         color: AppTheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(AppTokens.radiusLarge),
+        borderRadius: BorderRadius.circular(AppTokens.radiusMedium),
         border: Border.all(color: AppTheme.outlineVariant),
       ),
       child: Column(

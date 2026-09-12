@@ -67,9 +67,17 @@ const compatibleRoute = {
   origin_lng: "35.099800",
   seats_available: 2,
   parcel_capacity_available: 5,
+  departure_at: new Date("2026-07-02T10:00:00.000Z"),
+  availability_window_end: new Date("2026-07-02T10:30:00.000Z"),
   status: "active",
   corridor_key: "hebron-ppu-bab-al-zawiya-to-bethlehem",
-  driver: { id: "driver_profile_1", verified: true, trust_score: 86 }
+  driver: {
+    id: "driver_profile_1",
+    verified: true,
+    trust_score: 86,
+    vehicle_type: "sedan",
+    user: { name: "Driver One" }
+  }
 };
 
 const wrongDirectionRoute = {
@@ -80,9 +88,17 @@ const wrongDirectionRoute = {
   origin_lng: "35.202400",
   seats_available: 2,
   parcel_capacity_available: 5,
+  departure_at: new Date("2026-07-02T10:00:00.000Z"),
+  availability_window_end: new Date("2026-07-02T10:30:00.000Z"),
   status: "active",
   corridor_key: "hebron-ppu-bab-al-zawiya-to-bethlehem",
-  driver: { id: "driver_profile_2", verified: true, trust_score: 95 }
+  driver: {
+    id: "driver_profile_2",
+    verified: true,
+    trust_score: 95,
+    vehicle_type: "van",
+    user: { name: "Driver Two" }
+  }
 };
 
 describe("matching, batching, comparison", () => {
@@ -115,6 +131,64 @@ describe("matching, batching, comparison", () => {
     const wrongDirection = scoreDriverRoute({ route: wrongDirectionRoute, passengerRequest, parcelCount: 0 });
 
     expect(compatible.finalScore).toBeGreaterThan(wrongDirection.finalScore);
+  });
+
+  it("previews ranked passenger candidates without creating a match", async () => {
+    prismaMock.driverRoute.findMany.mockResolvedValue([wrongDirectionRoute, compatibleRoute]);
+
+    const response = await request(createApp())
+      .post("/api/v1/matches/search")
+      .set(auth("passenger_1"))
+      .send({
+        pickup_label: "PPU Main Gate",
+        pickup_lat: 31.55,
+        pickup_lng: 35.1,
+        destination_label: "Bethlehem Center",
+        destination_lat: 31.7054,
+        destination_lng: 35.2024,
+        preferred_time: "2026-07-02T10:00:00.000Z",
+        passenger_count: 1
+      })
+      .expect(200);
+
+    expect(response.body.results).toHaveLength(2);
+    expect(response.body.results[0]).toMatchObject({
+      id: "route_compatible",
+      driver: {
+        name: "Driver One",
+        vehicle_type: "sedan",
+        trust_score: 86,
+        verified: true
+      },
+      origin_label: "Hebron / PPU / Bab Al-Zawiya",
+      destination_label: "Bethlehem",
+      seats_available: 2
+    });
+    expect(response.body.results[0].score).toEqual(expect.any(Number));
+    expect(response.body.results[0].scoring_breakdown.finalScore).toBe(
+      response.body.results[0].score
+    );
+    expect(prismaMock.match.create).not.toHaveBeenCalled();
+    expect(JSON.stringify(response.body)).not.toContain("+1");
+  });
+
+  it("keeps match preview passenger-only", async () => {
+    await request(createApp())
+      .post("/api/v1/matches/search")
+      .set(auth("merchant_1"))
+      .send({
+        pickup_label: "PPU Main Gate",
+        pickup_lat: 31.55,
+        pickup_lng: 35.1,
+        destination_label: "Bethlehem Center",
+        destination_lat: 31.7054,
+        destination_lng: 35.2024,
+        preferred_time: "2026-07-02T10:00:00.000Z",
+        passenger_count: 1
+      })
+      .expect(403);
+
+    expect(prismaMock.driverRoute.findMany).not.toHaveBeenCalled();
   });
 
   it("inactive and unverified routes are ignored by candidate query", async () => {
@@ -201,6 +275,55 @@ describe("matching, batching, comparison", () => {
 
     expect(response.body.match.driver_route_id).toBe("route_compatible");
     expect(response.body.scoringBreakdown.finalScore).toEqual(expect.any(Number));
+  });
+
+  it("creates the match for the passenger-selected candidate", async () => {
+    const selectedRoute = {
+      ...compatibleRoute,
+      id: "route_selected",
+      driver: {
+        ...compatibleRoute.driver,
+        id: "driver_profile_selected",
+        trust_score: 70,
+        user: { name: "Selected Driver" }
+      }
+    };
+    prismaMock.passengerRequest.findUnique.mockResolvedValue(passengerRequest);
+    prismaMock.merchantOrder.findUnique.mockResolvedValue(null);
+    prismaMock.driverRoute.findMany.mockResolvedValue([compatibleRoute, selectedRoute]);
+    prismaMock.match.create.mockImplementation(({ data }) => ({
+      id: "match_selected",
+      ...data,
+      driver_route: selectedRoute
+    }));
+
+    const response = await request(createApp())
+      .post("/api/v1/matches/run")
+      .set(auth("passenger_1"))
+      .send({ passengerRequestId: "req_1", driverRouteId: "route_selected" })
+      .expect(201);
+
+    expect(response.body.match.driver_route_id).toBe("route_selected");
+    expect(prismaMock.match.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ driver_route_id: "route_selected" })
+      })
+    );
+  });
+
+  it("rejects a selected candidate that is no longer available", async () => {
+    prismaMock.passengerRequest.findUnique.mockResolvedValue(passengerRequest);
+    prismaMock.merchantOrder.findUnique.mockResolvedValue(null);
+    prismaMock.driverRoute.findMany.mockResolvedValue([compatibleRoute]);
+
+    const response = await request(createApp())
+      .post("/api/v1/matches/run")
+      .set(auth("passenger_1"))
+      .send({ passengerRequestId: "req_1", driverRouteId: "route_gone" })
+      .expect(409);
+
+    expect(response.body.error).toBe("selected_driver_route_unavailable");
+    expect(prismaMock.match.create).not.toHaveBeenCalled();
   });
 
   it("combined matching links the merchant's persisted parcel batch", async () => {

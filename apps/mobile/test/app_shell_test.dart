@@ -123,14 +123,20 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('demo-passenger')));
     await tester.pump();
 
-    final phone = tester.widget<TextField>(
-      find.byKey(const ValueKey('phoneField')),
+    final email = tester.widget<EditableText>(
+      find.descendant(
+        of: find.byKey(const ValueKey('emailField')),
+        matching: find.byType(EditableText),
+      ),
     );
-    final password = tester.widget<TextField>(
-      find.byKey(const ValueKey('passwordField')),
+    final password = tester.widget<EditableText>(
+      find.descendant(
+        of: find.byKey(const ValueKey('passwordField')),
+        matching: find.byType(EditableText),
+      ),
     );
-    expect(phone.controller?.text, '+970590000001');
-    expect(password.controller?.text, 'mobile-test-passenger-secret');
+    expect(email.controller.text, 'passenger@demo.masari');
+    expect(password.controller.text, 'mobile-test-passenger-secret');
   });
 
   testWidgets('production login does not render demo account presets', (
@@ -177,7 +183,10 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('loginButton')));
     await tester.pump(const Duration(milliseconds: 100));
 
-    expect(find.text('رقم الهاتف أو كلمة المرور غير صحيحة.'), findsOneWidget);
+    expect(
+      find.text('البريد الإلكتروني أو كلمة المرور غير صحيحة.'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('passenger reaches passenger home', (tester) async {

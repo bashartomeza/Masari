@@ -45,7 +45,9 @@ class Checkpoint {
           CheckpointStatus.unknown,
       nameAr: json['name_ar'] is String ? json['name_ar'] as String : null,
       nameEn: json['name_en'] is String ? json['name_en'] as String : null,
-      updatedAt: updatedAt is String ? DateTime.tryParse(updatedAt)?.toUtc() : null,
+      updatedAt: updatedAt is String
+          ? DateTime.tryParse(updatedAt)?.toUtc()
+          : null,
     );
   }
 }

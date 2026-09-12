@@ -18,7 +18,7 @@ void main() {
     });
 
     final result = await repository.login(
-      phone: '+970590000001',
+      email: 'passenger@example.com',
       password: 'mobile-test-passenger-secret',
     );
 
@@ -40,7 +40,7 @@ void main() {
     });
 
     final result = await repository.login(
-      phone: '+970590000005',
+      email: 'admin@example.com',
       password: 'password-value',
     );
 
@@ -58,7 +58,10 @@ void main() {
     });
 
     await expectLater(
-      repository.login(phone: '+970590000001', password: 'password-value'),
+      repository.login(
+        email: 'passenger@example.com',
+        password: 'password-value',
+      ),
       throwsA(
         isA<ApiException>()
             .having((error) => error.type, 'type', ApiErrorType.validation)
@@ -80,7 +83,10 @@ void main() {
     });
 
     await expectLater(
-      repository.login(phone: '+970590000001', password: 'password-value'),
+      repository.login(
+        email: 'passenger@example.com',
+        password: 'password-value',
+      ),
       throwsA(isA<ApiException>()),
     );
   });
@@ -91,7 +97,7 @@ void main() {
     });
 
     await expectLater(
-      repository.login(phone: '+970590000001', password: 'bad'),
+      repository.login(email: 'passenger@example.com', password: 'bad'),
       throwsA(
         isA<ApiException>().having(
           (error) => error.type,

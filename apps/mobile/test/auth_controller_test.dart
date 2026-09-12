@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -87,7 +88,7 @@ void main() {
 
       await container
           .read(authControllerProvider.notifier)
-          .login(phone: '+970590000001', password: 'password-value');
+          .login(email: 'passenger@example.com', password: 'password-value');
       final bundle = await container.read(tokenStorageProvider).readBundle();
 
       expect(bundle?.accessToken, 'access-value');
@@ -101,6 +102,87 @@ void main() {
       );
     },
   );
+
+  test('register posts to /auth/register and authenticates', () async {
+    FlutterSecureStorage.setMockInitialValues(<String, String>{});
+    String? calledPath;
+    Map<String, dynamic>? sentBody;
+    final container = _container((request) async {
+      calledPath = request.url.path;
+      sentBody = jsonDecode(request.body) as Map<String, dynamic>;
+      return http.Response(_authBody('passenger'), 201);
+    });
+    addTearDown(container.dispose);
+    await container.read(authControllerProvider.future);
+
+    await container
+        .read(authControllerProvider.notifier)
+        .register(
+          name: 'Sara',
+          email: 'sara@example.com',
+          password: 'supersecret1',
+        );
+
+    expect(calledPath, endsWith('/auth/register'));
+    expect(sentBody?['email'], 'sara@example.com');
+    expect(sentBody?['name'], 'Sara');
+    expect(
+      container.read(authControllerProvider).value?.status,
+      AuthStatus.authenticated,
+    );
+  });
+
+  test('a rejected register settles out of the authenticating state', () async {
+    FlutterSecureStorage.setMockInitialValues(<String, String>{});
+    final container = _container(
+      (request) async => http.Response('{"error":"email_taken"}', 409),
+    );
+    addTearDown(container.dispose);
+    await container.read(authControllerProvider.future);
+
+    await container
+        .read(authControllerProvider.notifier)
+        .register(
+          name: 'Sara',
+          email: 'taken@example.com',
+          password: 'supersecret1',
+        );
+
+    final state = container.read(authControllerProvider);
+    expect(state.hasError, isTrue);
+    // A retained `authenticating` value would leave every screen watching this
+    // provider stuck on a disabled spinner.
+    expect(state.value?.status, isNot(AuthStatus.authenticating));
+
+    container.read(authControllerProvider.notifier).clearError();
+    final cleared = container.read(authControllerProvider);
+    expect(cleared.hasError, isFalse);
+    expect(cleared.value?.status, AuthStatus.unauthenticated);
+  });
+
+  test('loginWithGoogle posts the id token to /auth/google', () async {
+    FlutterSecureStorage.setMockInitialValues(<String, String>{});
+    String? calledPath;
+    Map<String, dynamic>? sentBody;
+    final container = _container((request) async {
+      calledPath = request.url.path;
+      sentBody = jsonDecode(request.body) as Map<String, dynamic>;
+      return http.Response(_authBody('passenger'), 200);
+    });
+    addTearDown(container.dispose);
+    await container.read(authControllerProvider.future);
+
+    await container
+        .read(authControllerProvider.notifier)
+        .loginWithGoogle(idToken: 'google-id-token');
+
+    expect(calledPath, endsWith('/auth/google'));
+    expect(sentBody?['id_token'], 'google-id-token');
+    expect(
+      container.read(authControllerProvider).value?.status,
+      AuthStatus.authenticated,
+    );
+  });
 
   test('corrupt stored bundle clears safely and routes to login', () async {
     FlutterSecureStorage.setMockInitialValues({
@@ -308,7 +390,10 @@ void main() {
           await _terminate(container, termination);
           await container
               .read(authControllerProvider.notifier)
-              .login(phone: '+970590000009', password: 'password-value');
+              .login(
+                email: 'passenger@example.com',
+                password: 'password-value',
+              );
 
           expect(
             container.read(authenticatedActorBindingProvider).actorId,
@@ -358,6 +443,17 @@ Future<void> _terminate(
         .read(authControllerProvider.notifier)
         .completeCurrentSessionRevocation(),
 };
+
+String _authBody(String role) =>
+    '{"token":"access-$role","access_token":"access-$role",'
+    '"access_token_expires_in":900,"refresh_token":"refresh-$role",'
+    '"refresh_token_expires_in":3600,'
+    '"session":{"id":"session_1","client_type":"mobile",'
+    '"device_name":"test","created_at":"2026-07-17T10:00:00.000Z",'
+    '"last_used_at":"2026-07-17T10:00:00.000Z",'
+    '"expires_at":"2099-07-17T11:00:00.000Z","is_current":true,'
+    '"revoked":false},"user":{"id":"user_1","name":"Sara",'
+    '"email":"sara@example.com","role":"$role","demo_account":false}}';
 
 String _driverBody(String id, int? score) =>
     '{"user":{"id":"$id","name":"Driver","phone":"+970590000002",'

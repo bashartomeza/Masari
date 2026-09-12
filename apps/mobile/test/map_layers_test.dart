@@ -2,20 +2,21 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:masari_mobile/features/canonical_routes/domain/canonical_route_models.dart';
 import 'package:masari_mobile/features/checkpoints/domain/checkpoint_models.dart';
 
-Map<String, dynamic> _stop(String id, double? lat, double? lng, int sequence) => {
-  'sequence': sequence,
-  'passenger_pickup_allowed': true,
-  'passenger_dropoff_allowed': true,
-  'parcel_pickup_allowed': true,
-  'parcel_dropoff_allowed': true,
-  'stop': {
-    'id': id,
-    'name_ar': 'محطة $id',
-    'name_en': 'Stop $id',
-    'latitude': ?lat,
-    'longitude': ?lng,
-  },
-};
+Map<String, dynamic> _stop(String id, double? lat, double? lng, int sequence) =>
+    {
+      'sequence': sequence,
+      'passenger_pickup_allowed': true,
+      'passenger_dropoff_allowed': true,
+      'parcel_pickup_allowed': true,
+      'parcel_dropoff_allowed': true,
+      'stop': {
+        'id': id,
+        'name_ar': 'محطة $id',
+        'name_en': 'Stop $id',
+        'latitude': ?lat,
+        'longitude': ?lng,
+      },
+    };
 
 Map<String, dynamic> _route({
   Map<String, dynamic>? geometry,
@@ -69,7 +70,14 @@ void main() {
 
     test('falls back to the ordered stops when geometry is not ready', () {
       final route = CanonicalRoute.fromJson(
-        _route(geometry: {'status': 'pending', 'ready': false, 'encoded': null, 'encoding': null}),
+        _route(
+          geometry: {
+            'status': 'pending',
+            'ready': false,
+            'encoded': null,
+            'encoding': null,
+          },
+        ),
       );
       expect(route.geometry.hasPoints, isFalse);
       expect(route.path, hasLength(3));
@@ -97,9 +105,7 @@ void main() {
 
     test('a route whose stops carry no coordinates is not drawable', () {
       final route = CanonicalRoute.fromJson(
-        _route(
-          stops: [_stop('a', null, null, 1), _stop('b', null, null, 2)],
-        ),
+        _route(stops: [_stop('a', null, null, 1), _stop('b', null, null, 2)]),
       );
       expect(route.path, isEmpty);
       expect(route.originStop?.id, 'a');
@@ -126,7 +132,10 @@ void main() {
       });
       expect(snapshot.stale, isTrue);
       expect(snapshot.checkpoints.single.status, CheckpointStatus.closed);
-      expect(snapshot.checkpoints.single.position, const GeoPoint(31.7054, 35.2024));
+      expect(
+        snapshot.checkpoints.single.position,
+        const GeoPoint(31.7054, 35.2024),
+      );
       expect(snapshot.checkpoints.single.nameAr, 'حاجز الكونتينر');
     });
 

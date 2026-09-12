@@ -195,6 +195,9 @@ enum TripStatus {
 
 enum AuditAction {
   auth_login
+  auth_register
+  auth_google_login
+  auth_google_link
   session_created
   session_refreshed
   session_revoked
@@ -348,8 +351,10 @@ enum IdempotencyState {
 model User {
   id                String        @id @default(cuid())
   name              String
-  phone             String        @unique
-  password_hash     String
+  phone             String?       @unique
+  email             String?       @unique
+  google_sub        String?       @unique
+  password_hash     String?
   role              UserRole
   account_status    AccountStatus @default(active)
   security_version  Int           @default(1)

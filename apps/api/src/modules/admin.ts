@@ -14,6 +14,7 @@ const safeUserSelect = {
   id: true,
   name: true,
   phone: true,
+  email: true,
   role: true,
   account_status: true,
   status_reason: true,
@@ -60,7 +61,8 @@ type UserDirectoryDetailRecord = Prisma.UserGetPayload<{ select: typeof userDire
 function serializeSafeUser(user: {
   id: string;
   name: string;
-  phone: string;
+  phone: string | null;
+  email: string | null;
   role: string;
   account_status: string;
   status_reason: string | null;
@@ -73,6 +75,7 @@ function serializeSafeUser(user: {
     id: user.id,
     name: user.name,
     phone: user.phone,
+    email: user.email,
     role: user.role,
     account_status: user.account_status,
     status_reason: user.status_reason,
