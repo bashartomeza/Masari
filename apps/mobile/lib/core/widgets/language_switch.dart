@@ -13,17 +13,15 @@ class LanguageSwitch extends ConsumerWidget {
     final locale =
         ref.watch(localeControllerProvider).value ?? DomainLabels.defaultLocale;
     final l10n = AppLocalizations.of(context);
+    final isArabic = locale.languageCode == 'ar';
 
-    return SegmentedButton<String>(
-      segments: [
-        ButtonSegment(value: 'ar', label: Text(l10n.arabic)),
-        ButtonSegment(value: 'en', label: Text(l10n.english)),
-      ],
-      selected: {locale.languageCode},
-      onSelectionChanged: (selection) {
+    return IconButton(
+      icon: const Icon(Icons.language),
+      tooltip: isArabic ? l10n.english : l10n.arabic,
+      onPressed: () {
         ref
             .read(localeControllerProvider.notifier)
-            .setLocale(Locale(selection.first));
+            .setLocale(Locale(isArabic ? 'en' : 'ar'));
       },
     );
   }

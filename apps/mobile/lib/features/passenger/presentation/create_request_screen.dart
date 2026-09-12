@@ -27,18 +27,19 @@ class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const BackButtonIcon(),
+          onPressed: () =>
+              context.canPop() ? context.pop() : context.go('/passenger'),
+        ),
+        title: Text(l10n.createRequest),
+        actions: const [LanguageSwitch()],
+      ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(AppTokens.spaceLarge),
           children: [
-            const Align(
-              alignment: AlignmentDirectional.centerEnd,
-              child: LanguageSwitch(),
-            ),
-            Text(
-              l10n.createRequest,
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
             const SizedBox(height: AppTokens.spaceLarge),
             MasariCard(
               child: Column(
