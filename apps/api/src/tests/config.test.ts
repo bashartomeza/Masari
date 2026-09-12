@@ -18,6 +18,25 @@ function environment(overrides: Record<string, string | undefined> = {}) {
 }
 
 describe("fail-closed application configuration", () => {
+  it("keeps xAI optional but validates configured credentials", () => {
+    expect(createConfig(environment()).assistant).toEqual({
+      provider: "groq",
+      apiKey: undefined,
+      model: "openai/gpt-oss-20b",
+      timeoutMs: 15_000
+    });
+    expect(createConfig(environment({ XAI_API_KEY: "" })).assistant.apiKey).toBeUndefined();
+    expect(() => createConfig(environment({ XAI_API_KEY: "replace-with-xai-api-key-value" }))).toThrow(
+      /XAI_API_KEY uses a known placeholder/
+    );
+    expect(() => createConfig(environment({ GEMINI_API_KEY: "replace-with-gemini-api-key" }))).toThrow(
+      /GEMINI_API_KEY uses a known placeholder/
+    );
+    expect(() => createConfig(environment({ GROQ_API_KEY: "replace-with-groq-api-key" }))).toThrow(
+      /GROQ_API_KEY uses a known placeholder/
+    );
+  });
+
   it("rejects staging without DATABASE_URL", () => {
     expect(() => createConfig(environment({ APP_ENV: "staging", DATABASE_URL: undefined }))).toThrow(ConfigurationError);
   });

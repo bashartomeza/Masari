@@ -158,7 +158,7 @@ class DriverStatusCard extends StatelessWidget {
               decoration: BoxDecoration(
                 color: isOnline ? SemanticColors.success : AppTheme.outline,
                 borderRadius: const BorderRadiusDirectional.horizontal(
-                  end: Radius.circular(AppTokens.radiusLarge),
+                  end: Radius.circular(AppTokens.radiusMedium),
                 ),
               ),
             ),
@@ -251,8 +251,8 @@ class EarningsCard extends StatelessWidget {
       height: 150,
       padding: const EdgeInsets.all(AppTokens.spaceMedium),
       decoration: BoxDecoration(
-        color: AppTheme.primaryContainer,
-        borderRadius: BorderRadius.circular(AppTokens.radiusLarge),
+        color: AppTheme.primary,
+        borderRadius: BorderRadius.circular(AppTokens.radiusMedium),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

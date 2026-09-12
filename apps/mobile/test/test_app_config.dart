@@ -5,11 +5,11 @@ const demoTestAppConfig = AppConfig(
   apiBaseUrl: 'http://10.0.2.2:3000',
   demoFeaturesEnabled: true,
   demoCredentials: DemoCredentialConfig(
-    passengerPhone: '+970590000001',
+    passengerEmail: 'passenger@demo.masari',
     passengerPassword: 'mobile-test-passenger-secret',
-    driverPhone: '+970590000002',
+    driverEmail: 'driver@demo.masari',
     driverPassword: 'mobile-test-driver-secret',
-    merchantPhone: '+970590000004',
+    merchantEmail: 'merchant@demo.masari',
     merchantPassword: 'mobile-test-merchant-secret',
   ),
 );

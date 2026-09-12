@@ -84,6 +84,7 @@ const version = {
   published_by_user_id: "must-not-leak",
   stops: [{
     id: "membership_1",
+    stop_id: "stop_1",
     sequence: 1,
     passenger_pickup: true,
     passenger_dropoff: false,
@@ -352,9 +353,9 @@ describe("M7B route management APIs", () => {
       .send({ expected_revision: 2, expected_current_version_id: null })
       .expect(200);
     for (const [action, body] of [
-      ["pause", { reason: "service review" }],
-      ["resume", {}],
-      ["retire", { reason: "superseded" }]
+      ["pause", { reason: "service review", expected_current_version_id: "version_1" }],
+      ["resume", { expected_current_version_id: "version_1" }],
+      ["retire", { reason: "superseded", expected_current_version_id: "version_1" }]
     ] as const) {
       await request(target.server)
         .post(`/api/v1/admin/route-versions/version_1/${action}`)
@@ -368,6 +369,163 @@ describe("M7B route management APIs", () => {
     expect(target.service.pauseVersion).toHaveBeenCalledOnce();
     expect(target.service.resumeVersion).toHaveBeenCalledOnce();
     expect(target.service.retireVersion).toHaveBeenCalledOnce();
+  });
+
+  it("requires and forwards the current-version expectation when pausing a version", async () => {
+    const target = app();
+    const admin = auth("admin_1");
+    await request(target.server)
+      .post("/api/v1/admin/route-versions/version_1/pause")
+      .set(admin)
+      .set("Idempotency-Key", "version-pause-001")
+      .send({ reason: "service review" })
+      .expect(400);
+    await request(target.server)
+      .post("/api/v1/admin/route-versions/version_1/pause")
+      .set(admin)
+      .set("Idempotency-Key", "version-pause-002")
+      .send({ reason: "service review", expected_current_version_id: "version_1" })
+      .expect(200);
+    expect(target.service.pauseVersion).toHaveBeenCalledWith(
+      "version_1",
+      { reason: "service review", expectedCurrentVersionId: "version_1" },
+      expect.objectContaining({ id: "admin_1" })
+    );
+  });
+
+  it("requires and forwards the current-version expectation when resuming a version", async () => {
+    const target = app();
+    const admin = auth("admin_1");
+    await request(target.server)
+      .post("/api/v1/admin/route-versions/version_1/resume")
+      .set(admin)
+      .set("Idempotency-Key", "version-resume-001")
+      .send({})
+      .expect(400);
+    await request(target.server)
+      .post("/api/v1/admin/route-versions/version_1/resume")
+      .set(admin)
+      .set("Idempotency-Key", "version-resume-002")
+      .send({ expected_current_version_id: "version_1" })
+      .expect(200);
+    expect(target.service.resumeVersion).toHaveBeenCalledWith(
+      "version_1",
+      { expectedCurrentVersionId: "version_1" },
+      expect.objectContaining({ id: "admin_1" })
+    );
+  });
+
+  it("requires and forwards the current-version expectation when retiring a version", async () => {
+    const target = app();
+    const admin = auth("admin_1");
+    await request(target.server)
+      .post("/api/v1/admin/route-versions/version_1/retire")
+      .set(admin)
+      .set("Idempotency-Key", "version-retire-001")
+      .send({ reason: "superseded" })
+      .expect(400);
+    await request(target.server)
+      .post("/api/v1/admin/route-versions/version_1/retire")
+      .set(admin)
+      .set("Idempotency-Key", "version-retire-002")
+      .send({ reason: "superseded", expected_current_version_id: "version_1" })
+      .expect(200);
+    expect(target.service.retireVersion).toHaveBeenCalledWith(
+      "version_1",
+      { reason: "superseded", expectedCurrentVersionId: "version_1" },
+      expect.objectContaining({ id: "admin_1" })
+    );
+  });
+
+  it("requires a null current-version expectation when retiring a route", async () => {
+    const target = app();
+    const admin = auth("admin_1");
+    await request(target.server)
+      .post("/api/v1/admin/service-routes/route_1/retire")
+      .set(admin)
+      .set("Idempotency-Key", "route-retire-001")
+      .send({ reason: "service ended" })
+      .expect(400);
+    await request(target.server)
+      .post("/api/v1/admin/service-routes/route_1/retire")
+      .set(admin)
+      .set("Idempotency-Key", "route-retire-002")
+      .send({ reason: "service ended", expected_current_version_id: "version_1" })
+      .expect(400);
+    await request(target.server)
+      .post("/api/v1/admin/service-routes/route_1/retire")
+      .set(admin)
+      .set("Idempotency-Key", "route-retire-003")
+      .send({ reason: "service ended", expected_current_version_id: null })
+      .expect(200);
+    expect(target.service.retireRoute).toHaveBeenCalledWith(
+      "route_1",
+      { reason: "service ended", expectedCurrentVersionId: null },
+      expect.objectContaining({ id: "admin_1" })
+    );
+  });
+
+  it("bounds admin route detail history and excludes raw route internals", async () => {
+    const target = app();
+    const forbiddenValues = ["encoded-geometry", "geometry-provider", "actor-id", "geometry-checksum"];
+    const versions = Array.from({ length: 51 }, (_, versionIndex) => ({
+      ...version,
+      id: `version_${versionIndex + 1}`,
+      version_number: versionIndex + 1,
+      encoded_geometry: `${forbiddenValues[0]}-${versionIndex + 1}`,
+      geometry_provider: `${forbiddenValues[1]}-${versionIndex + 1}`,
+      created_by_user_id: `${forbiddenValues[2]}-${versionIndex + 1}`,
+      published_by_user_id: `${forbiddenValues[2]}-published-${versionIndex + 1}`,
+      geometry_checksum: `${forbiddenValues[3]}-${versionIndex + 1}`,
+      stops: Array.from({ length: 101 }, (_, stopIndex) => ({
+        ...version.stops[0],
+        id: `membership_${versionIndex + 1}_${stopIndex + 1}`,
+        sequence: stopIndex + 1,
+        stop: {
+          ...stop,
+          id: `stop_${versionIndex + 1}_${stopIndex + 1}`,
+          created_by_user_id: `${forbiddenValues[2]}-stop-${versionIndex + 1}-${stopIndex + 1}`
+        }
+      }))
+    }));
+    target.service.getAdminRoute.mockResolvedValueOnce({
+      ...route,
+      versions,
+      _count: { versions: 51 }
+    });
+
+    const response = await request(target.server)
+      .get("/api/v1/admin/service-routes/route_1")
+      .set(auth("admin_1"))
+      .expect(200);
+
+    expect(response.body.route.version_count).toBe(51);
+    expect(response.body.route.versions).toHaveLength(50);
+    expect(response.body.route.versions[0].stops).toHaveLength(100);
+    expect(response.body.route.versions[0].stops[0]).toEqual(expect.objectContaining({
+      stop_id: expect.any(String),
+      stop: expect.objectContaining({ id: expect.any(String) })
+    }));
+    const serialized = JSON.stringify(response.body);
+    for (const forbidden of ["encoded_geometry", "geometry_provider", "created_by_user_id", "published_by_user_id", "geometry_checksum", ...forbiddenValues]) {
+      expect(serialized).not.toContain(forbidden);
+    }
+  });
+
+  it("keeps admin route directory rows summary-only", async () => {
+    const target = app();
+    const response = await request(target.server)
+      .get("/api/v1/admin/service-routes")
+      .set(auth("admin_1"))
+      .expect(200);
+
+    expect(response.body.routes[0]).not.toHaveProperty("versions");
+    expect(response.body.routes[0].current_version).not.toHaveProperty("stops");
+    expect(response.body.routes[0].current_version).not.toHaveProperty("geometry");
+    const serialized = JSON.stringify(response.body);
+    for (const forbidden of ["encoded_geometry", "geometry_provider", "geometry_checksum", "must-not-leak"]) {
+      expect(serialized).not.toContain(forbidden);
+    }
   });
 
   it("returns only safe catalog fields and preserves bilingual RTL text", async () => {
@@ -495,4 +653,64 @@ describe("M7B route management APIs", () => {
       })
       .expect(409);
   });
+});
+
+// detail controls projection size; maps controls public geographic disclosure.
+// Neither flag may be interpreted as the other during a branch integration.
+const { routeManagementSerializers } = await import("../modules/routeManagement.js");
+describe("independent detail and Maps serialization", () => {
+  for (const admin of [false, true]) {
+    for (const detail of [false, true]) {
+      for (const maps of [false, true]) {
+        it(`admin=${admin}, detail=${detail}, maps=${maps}`, () => {
+          const ready = { ...version, geometry_status: "available", geometry_encoding: "demo-json-v1", encoded_geometry: "ready-public-points" };
+          const result = JSON.parse(JSON.stringify(routeManagementSerializers.serializeVersion(ready, admin, detail, maps)));
+          expect(result.stops !== undefined).toBe(detail);
+          expect(result.draft_revision !== undefined).toBe(admin && detail);
+          expect(result.origin_stop_id !== undefined).toBe(admin && detail);
+          expect(result.destination_stop_id !== undefined).toBe(admin && detail);
+          expect(result.geometry !== undefined).toBe(detail && (admin || maps));
+          if (detail) {
+            expect(result.stops[0].stop_id !== undefined).toBe(admin);
+            expect(result.stops[0].stop.latitude !== undefined).toBe(admin || maps);
+          }
+          if (result.geometry) {
+            expect(result.geometry.encoded).toBe(admin ? undefined : "ready-public-points");
+          }
+        });
+      }
+    }
+  }
+});
+
+it("preserves public route endpoints and Admin bounds with Maps enabled or disabled", async () => {
+  const destination = { ...stop, id: "stop_2", latitude: "31.700000", longitude: "35.200000" };
+  const ready = {
+    ...version, geometry_status: "available", geometry_encoding: "demo-json-v1", encoded_geometry: "ready-public-points",
+    stops: [version.stops[0], { ...version.stops[0], id: "membership_2", stop_id: "stop_2", sequence: 2, stop: destination }]
+  };
+  for (const maps of [false, true]) {
+    const service = serviceMock();
+    const readyRoute = { ...route, current_version: ready, versions: [ready] };
+    service.getPublishedRoute.mockResolvedValue(readyRoute);
+    service.getAdminRoute.mockResolvedValue(readyRoute);
+    service.listAdminRoutes.mockResolvedValue({ routes: [readyRoute], total: 1, page: 1, limit: 25 });
+    const target = app(service, maps ? mapsEnabledConfig : enabledConfig);
+    const publicDetail = (await request(target.server).get("/api/v1/routes/route_1").set(auth("passenger_1")).expect(200)).body.route.current_version;
+    expect(publicDetail.stops.map((item: { stop: { id: string } }) => item.stop.id)).toEqual(["stop_1", "stop_2"]);
+    expect(publicDetail.stops[0].stop.latitude).toBe(maps ? 31.5326 : undefined);
+    expect(publicDetail.stops[1].stop.latitude).toBe(maps ? 31.7 : undefined);
+    expect(publicDetail.geometry?.encoded).toBe(maps ? "ready-public-points" : undefined);
+    expect(publicDetail).not.toHaveProperty("draft_revision");
+    const summary = (await request(target.server).get("/api/v1/admin/service-routes").set(auth("admin_1")).expect(200)).body.routes[0];
+    expect(summary).not.toHaveProperty("versions");
+    expect(summary.current_version).not.toHaveProperty("stops");
+    expect(summary.current_version).not.toHaveProperty("geometry");
+    const adminDetail = (await request(target.server).get("/api/v1/admin/service-routes/route_1").set(auth("admin_1")).expect(200)).body.route.current_version;
+    expect(adminDetail.origin_stop_id).toBe("stop_1");
+    expect(adminDetail.destination_stop_id).toBe("stop_2");
+    expect(adminDetail.stops.map((item: { stop_id: string }) => item.stop_id)).toEqual(["stop_1", "stop_2"]);
+    expect(adminDetail.draft_revision).toBe(2);
+    expect(adminDetail.geometry).not.toHaveProperty("encoded");
+  }
 });

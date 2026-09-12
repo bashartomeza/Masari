@@ -166,7 +166,7 @@ class LoadingSkeleton extends StatefulWidget {
   const LoadingSkeleton.card({super.key})
     : height = 120,
       width = double.infinity,
-      radius = AppTokens.radiusLarge;
+      radius = AppTokens.radiusDefault;
 
   final double height;
   final double? width;

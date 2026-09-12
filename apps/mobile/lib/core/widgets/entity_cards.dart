@@ -186,7 +186,7 @@ class _RatingRow extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(Icons.star, size: 14, color: SemanticColors.actionBright),
+        const Icon(Icons.star, size: 14, color: SemanticColors.warning),
         const SizedBox(width: AppTokens.spaceExtraSmall),
         // Latin digits for figures.
         Flexible(
@@ -536,7 +536,7 @@ class MetricTile extends StatelessWidget {
       padding: const EdgeInsets.all(AppTokens.spaceMedium),
       decoration: BoxDecoration(
         color: emphasis ? AppTheme.primary : AppTheme.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(AppTokens.radiusLarge),
+        borderRadius: BorderRadius.circular(AppTokens.radiusMedium),
         border: Border.all(
           color: emphasis ? AppTheme.primary : AppTheme.outlineVariant,
         ),

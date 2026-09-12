@@ -16,6 +16,8 @@ import '../../onboarding/domain/onboarding_models.dart';
 import '../application/auth_controller.dart';
 import '../domain/auth_models.dart';
 import 'demo_accounts.dart';
+import 'widgets/auth_divider.dart';
+import 'widgets/google_auth_button.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -25,16 +27,19 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  final _phoneController = TextEditingController();
+  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
   bool _showPassword = false;
   bool _submitting = false;
+  bool _googleBusy = false;
   bool _openingOnboarding = false;
   bool _restorationNavigationScheduled = false;
+  String? _googleErrorKey;
 
   @override
   void dispose() {
-    _phoneController.dispose();
+    _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -45,12 +50,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final auth = ref.watch(authControllerProvider);
     final loading =
         _submitting ||
+        _googleBusy ||
         _openingOnboarding ||
         auth.value?.status == AuthStatus.authenticating;
     final error = auth.error;
     final sessionEndReason = auth.value?.sessionEndReason;
-    final config = ref.watch(appConfigProvider);
-    final demoAccounts = demoAccountsFor(config);
+    final demoAccounts = demoAccountsFor(ref.watch(appConfigProvider));
     final onboarding = ref.watch(onboardingControllerProvider).value;
     final onboardingEnabled = onboarding?.enabled == true;
     ref.listen(onboardingControllerProvider, (previous, next) {
@@ -76,15 +81,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               child: LanguageSwitch(),
             ),
             const SizedBox(height: AppTokens.spaceMedium),
-            // Brand mark: the app title carries the identity on this screen,
-            // so it is given display weight rather than a headline.
             Center(
               child: Container(
                 width: 64,
                 height: 64,
                 decoration: BoxDecoration(
                   color: AppTheme.primary,
-                  borderRadius: BorderRadius.circular(AppTokens.radiusLarge),
+                  borderRadius: BorderRadius.circular(AppTokens.radiusMedium),
                 ),
                 alignment: Alignment.center,
                 child: const Icon(
@@ -112,102 +115,121 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
             const SizedBox(height: AppTokens.spaceLarge),
             MasariCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    l10n.signIn,
-                    style: Theme.of(context).textTheme.headlineSmall,
-                  ),
-                  const SizedBox(height: AppTokens.spaceMedium),
-                  Directionality(
-                    textDirection: TextDirection.ltr,
-                    child: TextField(
-                      key: const ValueKey('phoneField'),
-                      controller: _phoneController,
-                      keyboardType: TextInputType.phone,
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      l10n.signIn,
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
+                    const SizedBox(height: AppTokens.spaceMedium),
+                    TextFormField(
+                      key: const ValueKey('emailField'),
+                      controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      autofillHints: const [AutofillHints.email],
                       inputFormatters: [
-                        FilteringTextInputFormatter.allow(
-                          RegExp(r'[+0-9٠-٩۰-۹ ()-]'),
-                        ),
-                        LengthLimitingTextInputFormatter(32),
+                        FilteringTextInputFormatter.deny(RegExp(r'\s')),
+                        LengthLimitingTextInputFormatter(191),
                       ],
-                      decoration: InputDecoration(
-                        labelText: l10n.phone,
-                        hintText: '+[country code][number]',
-                      ),
+                      textInputAction: TextInputAction.next,
+                      decoration: InputDecoration(labelText: l10n.email),
+                      validator: (value) => _validateEmail(l10n, value),
                     ),
-                  ),
-                  const SizedBox(height: AppTokens.spaceMedium),
-                  TextField(
-                    key: const ValueKey('passwordField'),
-                    controller: _passwordController,
-                    obscureText: !_showPassword,
-                    decoration: InputDecoration(
-                      labelText: l10n.password,
-                      suffixIcon: IconButton(
-                        tooltip: _showPassword
-                            ? l10n.hidePassword
-                            : l10n.showPassword,
-                        onPressed: () =>
-                            setState(() => _showPassword = !_showPassword),
-                        icon: Icon(
-                          _showPassword
-                              ? Icons.visibility_off
-                              : Icons.visibility,
+                    const SizedBox(height: AppTokens.spaceMedium),
+                    TextFormField(
+                      key: const ValueKey('passwordField'),
+                      controller: _passwordController,
+                      obscureText: !_showPassword,
+                      autofillHints: const [AutofillHints.password],
+                      onFieldSubmitted: (_) => _login(),
+                      decoration: InputDecoration(
+                        labelText: l10n.password,
+                        suffixIcon: IconButton(
+                          tooltip: _showPassword
+                              ? l10n.hidePassword
+                              : l10n.showPassword,
+                          onPressed: () =>
+                              setState(() => _showPassword = !_showPassword),
+                          icon: Icon(
+                            _showPassword
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                          ),
                         ),
                       ),
+                      validator: (value) => (value == null || value.isEmpty)
+                          ? l10n.passwordRequired
+                          : null,
                     ),
-                  ),
-                  if (error != null) ...[
-                    const SizedBox(height: AppTokens.spaceMedium),
-                    Text(
-                      _errorMessage(l10n, error),
-                      key: const ValueKey('loginError'),
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
+                    if (error != null || _googleErrorKey != null) ...[
+                      const SizedBox(height: AppTokens.spaceMedium),
+                      Text(
+                        _googleErrorKey != null
+                            ? _googleMessage(l10n, _googleErrorKey!)
+                            : _errorMessage(l10n, error!),
+                        key: const ValueKey('loginError'),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
                       ),
-                    ),
-                  ],
-                  if (sessionEndReason != null) ...[
-                    const SizedBox(height: AppTokens.spaceMedium),
-                    Text(
-                      _sessionEndMessage(l10n, sessionEndReason),
-                      key: const ValueKey('sessionEndedMessage'),
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
+                    ],
+                    if (sessionEndReason != null) ...[
+                      const SizedBox(height: AppTokens.spaceMedium),
+                      Text(
+                        _sessionEndMessage(l10n, sessionEndReason),
+                        key: const ValueKey('sessionEndedMessage'),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
                       ),
+                    ],
+                    const SizedBox(height: AppTokens.spaceLarge),
+                    FilledButton(
+                      key: const ValueKey('loginButton'),
+                      onPressed: loading ? null : _login,
+                      child: loading
+                          ? const SizedBox.square(
+                              dimension: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : Text(l10n.signIn),
                     ),
-                  ],
-                  const SizedBox(height: AppTokens.spaceLarge),
-                  FilledButton(
-                    key: const ValueKey('loginButton'),
-                    onPressed: loading ? null : _login,
-                    child: loading
-                        ? const SizedBox.square(
-                            dimension: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Text(l10n.signIn),
-                  ),
-                  if (onboardingEnabled) ...[
                     const SizedBox(height: AppTokens.spaceMedium),
-                    OutlinedButton(
-                      key: const ValueKey('createInvitedAccountButton'),
-                      onPressed: loading
-                          ? null
-                          : () => _openOnboarding('/onboarding'),
-                      child: Text(l10n.createInvitedAccount),
+                    AuthDivider(label: l10n.orSeparator),
+                    const SizedBox(height: AppTokens.spaceMedium),
+                    GoogleAuthButton(
+                      enabled: !loading,
+                      onIdToken: _loginWithGoogle,
+                      onError: _handleGoogleError,
                     ),
+                    const SizedBox(height: AppTokens.spaceSmall),
                     TextButton(
-                      key: const ValueKey('checkApplicationStatusButton'),
-                      onPressed: loading
-                          ? null
-                          : () => _openOnboarding('/onboarding/recover'),
-                      child: Text(l10n.checkApplicationStatus),
+                      key: const ValueKey('goToSignUpButton'),
+                      onPressed: loading ? null : _openSignUp,
+                      child: Text(l10n.newToMasari),
                     ),
+                    if (onboardingEnabled) ...[
+                      const Divider(height: AppTokens.spaceLarge),
+                      OutlinedButton(
+                        key: const ValueKey('createInvitedAccountButton'),
+                        onPressed: loading
+                            ? null
+                            : () => _openOnboarding('/onboarding'),
+                        child: Text(l10n.createInvitedAccount),
+                      ),
+                      TextButton(
+                        key: const ValueKey('checkApplicationStatusButton'),
+                        onPressed: loading
+                            ? null
+                            : () => _openOnboarding('/onboarding/recover'),
+                        child: Text(l10n.checkApplicationStatus),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
             if (demoAccounts.isNotEmpty) ...[
@@ -267,21 +289,48 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   void _fillDemo(DemoAccount account) {
-    _phoneController.text = account.phone;
+    _emailController.text = account.email;
     _passwordController.text = account.password;
   }
 
   Future<void> _login() async {
+    setState(() => _googleErrorKey = null);
+    if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _submitting = true);
     await ref
         .read(authControllerProvider.notifier)
         .login(
-          phone: _phoneController.text.trim(),
+          email: _emailController.text.trim().toLowerCase(),
           password: _passwordController.text,
         );
-    if (mounted) {
-      setState(() => _submitting = false);
-    }
+    if (mounted) setState(() => _submitting = false);
+  }
+
+  Future<void> _loginWithGoogle(String idToken) async {
+    setState(() {
+      _googleErrorKey = null;
+      _googleBusy = true;
+    });
+    await ref
+        .read(authControllerProvider.notifier)
+        .loginWithGoogle(idToken: idToken);
+    if (mounted) setState(() => _googleBusy = false);
+  }
+
+  void _handleGoogleError(Object error) {
+    if (!mounted) return;
+    setState(() {
+      _googleBusy = false;
+      _googleErrorKey = 'failed';
+    });
+  }
+
+  Future<void> _openSignUp() async {
+    setState(() => _googleErrorKey = null);
+    ref.read(authControllerProvider.notifier).clearError();
+    await context.push<void>('/signup');
+    if (!mounted) return;
+    ref.read(authControllerProvider.notifier).clearError();
   }
 
   Future<void> _openOnboarding(String route) async {
@@ -296,17 +345,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 }
 
-bool _isRestorableOnboardingStage(OnboardingStage stage) => switch (stage) {
-  OnboardingStage.otpSent ||
-  OnboardingStage.enteringAccountDetails ||
-  OnboardingStage.pendingReview ||
-  OnboardingStage.approvedSignIn ||
-  OnboardingStage.retryableFailure => true,
-  _ => false,
-};
-
-/// Role glyph for a demo shortcut, matching the role indicators used across
-/// the app (person / car / storefront).
 IconData _demoIcon(String labelKey) => switch (labelKey) {
   'passenger' => Icons.person_outline,
   'driver' => Icons.directions_car_outlined,
@@ -321,8 +359,29 @@ String _demoLabel(AppLocalizations l10n, DemoAccount account) {
     'merchant' => l10n.merchant,
     _ => account.labelKey,
   };
-  return '$role  ${account.phone}';
+  return '$role  ${account.email}';
 }
+
+String? _validateEmail(AppLocalizations l10n, String? value) {
+  final email = value?.trim() ?? '';
+  if (email.isEmpty) return l10n.emailRequired;
+  final pattern = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+  return pattern.hasMatch(email) ? null : l10n.emailInvalid;
+}
+
+bool _isRestorableOnboardingStage(OnboardingStage stage) => switch (stage) {
+  OnboardingStage.otpSent ||
+  OnboardingStage.enteringAccountDetails ||
+  OnboardingStage.pendingReview ||
+  OnboardingStage.approvedSignIn ||
+  OnboardingStage.retryableFailure => true,
+  _ => false,
+};
+
+String _googleMessage(AppLocalizations l10n, String key) => switch (key) {
+  'unavailable' => l10n.googleSignInUnavailable,
+  _ => l10n.googleSignInFailed,
+};
 
 String _errorMessage(AppLocalizations l10n, Object error) {
   if (error is! ApiException) {
@@ -330,6 +389,13 @@ String _errorMessage(AppLocalizations l10n, Object error) {
   }
   if (error.message == 'account_unavailable') {
     return l10n.accountUnavailable;
+  }
+  if (error.message == 'google_email_unverified' ||
+      error.message == 'invalid_google_token') {
+    return l10n.googleSignInFailed;
+  }
+  if (error.message == 'google_auth_not_configured') {
+    return l10n.googleSignInUnavailable;
   }
   return switch (error.type) {
     ApiErrorType.unauthorized => l10n.invalidCredentials,

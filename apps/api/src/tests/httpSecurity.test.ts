@@ -115,7 +115,7 @@ describe("production HTTP security baseline", () => {
       .post("/api/v1/auth/login?token=query-secret")
       .set("Authorization", "Bearer header-secret")
       .send({
-        phone: "+970590001234",
+        email: "logged-in-secret@example.com",
         password: "body-password-secret",
         latitude: 31.53261234,
         longitude: 35.09981234,
@@ -141,7 +141,7 @@ describe("production HTTP security baseline", () => {
     for (const forbidden of [
       "query-secret",
       "header-secret",
-      "+970590001234",
+      "logged-in-secret@example.com",
       "body-password-secret",
       "31.53261234",
       "35.09981234",
@@ -296,16 +296,16 @@ describe("production HTTP security baseline", () => {
 
   it("uses a stricter login limiter without exposing account existence", async () => {
     const app = createApp(testConfig({ RATE_LIMIT_GLOBAL_MAX: "20", RATE_LIMIT_LOGIN_MAX: "2" }));
-    for (const phone of ["+972 56-952-3636", "+972569523636"]) {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
       const response = await request(app)
         .post("/api/v1/auth/login")
-        .send({ phone, password: "not-a-password" })
+        .send({ email: "nobody-9999@example.com", password: "not-a-password" })
         .expect(401);
       expect(response.body.error).toBe("invalid_credentials");
     }
     const limited = await request(app)
       .post("/api/v1/auth/login")
-      .send({ phone: "+972569523636", password: "not-a-password" })
+      .send({ email: "nobody-9999@example.com", password: "not-a-password" })
       .expect(429);
     expect(limited.body.error).toBe("rate_limited");
     expect(limited.headers["retry-after"]).toBeDefined();
@@ -345,6 +345,38 @@ describe("production HTTP security baseline", () => {
     expect(response.headers["access-control-allow-headers"]).toContain("X-Request-Id");
     expect(response.headers["access-control-allow-headers"]).toContain("Idempotency-Key");
     expect(response.headers["access-control-expose-headers"]).toContain("Retry-After");
+  });
+
+  it("allows unlisted loopback ports outside staging and production", async () => {
+    const response = await request(createApp(testConfig()))
+      .options("/api/v1/auth/register")
+      .set("Origin", "http://localhost:54681")
+      .set("Access-Control-Request-Method", "POST")
+      .expect(204);
+    expect(response.headers["access-control-allow-origin"]).toBe("http://localhost:54681");
+  });
+
+  it("rejects unlisted loopback and non-loopback origins in production", async () => {
+    const app = createApp(productionConfig());
+    const loopback = await request(app)
+      .options("/api/v1/auth/register")
+      .set("Origin", "http://localhost:54681")
+      .expect(204);
+    expect(loopback.headers["access-control-allow-origin"]).toBeUndefined();
+
+    const foreign = await request(app)
+      .options("/api/v1/auth/register")
+      .set("Origin", "https://evil.masari.example")
+      .expect(204);
+    expect(foreign.headers["access-control-allow-origin"]).toBeUndefined();
+  });
+
+  it("does not treat lookalike hostnames as loopback", async () => {
+    const response = await request(createApp(testConfig()))
+      .options("/api/v1/auth/register")
+      .set("Origin", "http://localhost.evil.example")
+      .expect(204);
+    expect(response.headers["access-control-allow-origin"]).toBeUndefined();
   });
 
   it("returns a controlled 413 without echoing oversized content", async () => {

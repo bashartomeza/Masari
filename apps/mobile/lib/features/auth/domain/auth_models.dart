@@ -24,22 +24,28 @@ class AuthUser {
   const AuthUser({
     required this.id,
     required this.name,
-    required this.phone,
     required this.role,
     required this.demoAccount,
+    this.phone,
+    this.email,
   });
 
   final String id;
   final String name;
-  final String phone;
+  final String? phone;
+  final String? email;
   final UserRole role;
   final bool demoAccount;
+
+  /// A human-facing account handle for UI that used to show the phone number.
+  String get contact => email ?? phone ?? '';
 
   factory AuthUser.fromJson(Map<String, dynamic> json) {
     return AuthUser(
       id: _readString(json, 'id'),
       name: _readString(json, 'name'),
-      phone: _readString(json, 'phone'),
+      phone: _optionalString(json, 'phone'),
+      email: _optionalString(json, 'email'),
       role: parseUserRole(_readString(json, 'role')),
       demoAccount: json['demo_account'] == true,
     );

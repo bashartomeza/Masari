@@ -4,19 +4,19 @@ enum MasariAppEnvironment { local, test, demo, staging, production }
 
 class DemoCredentialConfig {
   const DemoCredentialConfig({
-    required this.passengerPhone,
+    required this.passengerEmail,
     required this.passengerPassword,
-    required this.driverPhone,
+    required this.driverEmail,
     required this.driverPassword,
-    required this.merchantPhone,
+    required this.merchantEmail,
     required this.merchantPassword,
   });
 
-  final String passengerPhone;
+  final String passengerEmail;
   final String passengerPassword;
-  final String driverPhone;
+  final String driverEmail;
   final String driverPassword;
-  final String merchantPhone;
+  final String merchantEmail;
   final String merchantPassword;
 }
 
@@ -30,16 +30,22 @@ class AppConfig {
 
   factory AppConfig.fromEnvironment() {
     return AppConfig.fromValues(
-      appEnvironment: const String.fromEnvironment('APP_ENV'),
-      apiBaseUrl: const String.fromEnvironment('API_BASE_URL'),
+      appEnvironment: const String.fromEnvironment(
+        'APP_ENV',
+        defaultValue: 'local',
+      ),
+      apiBaseUrl: const String.fromEnvironment(
+        'API_BASE_URL',
+        defaultValue: 'http://localhost:3000',
+      ),
       enableDemoFeatures: const bool.fromEnvironment('ENABLE_DEMO_FEATURES'),
-      passengerPhone: const String.fromEnvironment('DEMO_PASSENGER_PHONE'),
+      passengerEmail: const String.fromEnvironment('DEMO_PASSENGER_EMAIL'),
       passengerPassword: const String.fromEnvironment(
         'DEMO_PASSENGER_PASSWORD',
       ),
-      driverPhone: const String.fromEnvironment('DEMO_DRIVER_PHONE'),
+      driverEmail: const String.fromEnvironment('DEMO_DRIVER_EMAIL'),
       driverPassword: const String.fromEnvironment('DEMO_DRIVER_PASSWORD'),
-      merchantPhone: const String.fromEnvironment('DEMO_MERCHANT_PHONE'),
+      merchantEmail: const String.fromEnvironment('DEMO_MERCHANT_EMAIL'),
       merchantPassword: const String.fromEnvironment('DEMO_MERCHANT_PASSWORD'),
     );
   }
@@ -48,11 +54,11 @@ class AppConfig {
     required String appEnvironment,
     required String apiBaseUrl,
     required bool enableDemoFeatures,
-    String passengerPhone = '',
+    String passengerEmail = '',
     String passengerPassword = '',
-    String driverPhone = '',
+    String driverEmail = '',
     String driverPassword = '',
-    String merchantPhone = '',
+    String merchantEmail = '',
     String merchantPassword = '',
   }) {
     final environment = MasariAppEnvironment.values
@@ -81,11 +87,11 @@ class AppConfig {
         environment == MasariAppEnvironment.demo;
     final demoFeaturesEnabled = demoAllowed && enableDemoFeatures;
     final demoValues = [
-      passengerPhone,
+      passengerEmail,
       passengerPassword,
-      driverPhone,
+      driverEmail,
       driverPassword,
-      merchantPhone,
+      merchantEmail,
       merchantPassword,
     ];
     if (demoFeaturesEnabled && demoValues.any((value) => value.isEmpty)) {
@@ -99,11 +105,11 @@ class AppConfig {
       demoFeaturesEnabled: demoFeaturesEnabled,
       demoCredentials: demoFeaturesEnabled
           ? DemoCredentialConfig(
-              passengerPhone: passengerPhone,
+              passengerEmail: passengerEmail,
               passengerPassword: passengerPassword,
-              driverPhone: driverPhone,
+              driverEmail: driverEmail,
               driverPassword: driverPassword,
-              merchantPhone: merchantPhone,
+              merchantEmail: merchantEmail,
               merchantPassword: merchantPassword,
             )
           : null,

@@ -167,6 +167,28 @@ void main() {
       expect(find.byType(NavigationBar), findsOneWidget);
     });
 
+    testWidgets('the assistant opens inside the passenger home branch', (
+      tester,
+    ) async {
+      await _pumpApp(tester, handler: _passengerHandler);
+
+      await tester.tap(find.byKey(const ValueKey('openPassengerAssistant')));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('passengerAssistantScreen')),
+        findsOneWidget,
+      );
+      expect(find.byType(NavigationBar), findsOneWidget);
+      expect(_bar(tester).selectedIndex, 0);
+      expect(
+        Directionality.of(
+          tester.element(find.byKey(const ValueKey('assistantTextInput'))),
+        ),
+        TextDirection.rtl,
+      );
+    });
+
     testWidgets('the account tab reaches session management', (tester) async {
       await _pumpApp(tester, handler: _passengerHandler);
 
