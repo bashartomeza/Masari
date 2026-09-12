@@ -6,6 +6,8 @@ const prismaMock = vi.hoisted(() => ({
   $transaction: vi.fn(),
   user: {
     findUnique: vi.fn(),
+    findFirst: vi.fn(),
+    create: vi.fn(),
     update: vi.fn(),
     updateMany: vi.fn()
   },
@@ -16,9 +18,34 @@ const prismaMock = vi.hoisted(() => ({
   }
 }));
 
+const verifyGoogleIdTokenMock = vi.hoisted(() => vi.fn());
+
 vi.mock("../lib/prisma.js", () => ({ prisma: prismaMock }));
+vi.mock("../lib/googleIdToken.js", async () => {
+  const actual = await vi.importActual<typeof import("../lib/googleIdToken.js")>(
+    "../lib/googleIdToken.js"
+  );
+  return { ...actual, verifyGoogleIdToken: verifyGoogleIdTokenMock };
+});
 
 const { createApp } = await import("../app.js");
+const { GoogleIdTokenError } = await import("../lib/googleIdToken.js");
+
+function passengerRow(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "user_1",
+    name: "Demo Passenger",
+    phone: "+970590000001",
+    email: "passenger@example.com",
+    google_sub: null,
+    password_hash: null as string | null,
+    role: "passenger",
+    account_status: "active",
+    security_version: 1,
+    demo_account: true,
+    ...overrides
+  };
+}
 
 describe("auth", () => {
   beforeEach(() => {
@@ -34,26 +61,22 @@ describe("auth", () => {
       revoked_at: null
     });
     prismaMock.refreshToken.create.mockResolvedValue({});
-    prismaMock.user.update.mockResolvedValue({});
+    prismaMock.user.update.mockImplementation(({ data }: { data: Record<string, unknown> }) =>
+      Promise.resolve(passengerRow(data))
+    );
     prismaMock.user.updateMany.mockResolvedValue({ count: 1 });
+    prismaMock.user.findFirst.mockResolvedValue(null);
     prismaMock.auditEvent.create.mockResolvedValue({ id: "audit_1" });
   });
 
-  it("logs in a seeded demo account and returns a token", async () => {
-    prismaMock.user.findUnique.mockResolvedValue({
-      id: "user_1",
-      name: "Demo Passenger",
-      phone: "+970590000001",
-      password_hash: await bcrypt.hash("test-passenger-password", 4),
-      role: "passenger",
-      account_status: "active",
-      security_version: 1,
-      demo_account: true
-    });
+  it("logs in a seeded account by email and returns a token", async () => {
+    prismaMock.user.findUnique.mockResolvedValue(
+      passengerRow({ password_hash: await bcrypt.hash("test-passenger-password", 4) })
+    );
 
     const response = await request(createApp())
       .post("/api/v1/auth/login")
-      .send({ phone: "+970590000001", password: "test-passenger-password" })
+      .send({ email: "passenger@example.com", password: "test-passenger-password" })
       .expect(200);
 
     expect(response.body.token).toEqual(expect.any(String));
@@ -61,6 +84,10 @@ describe("auth", () => {
     expect(response.body.refresh_token).toEqual(expect.any(String));
     expect(response.body.session).toEqual(expect.objectContaining({ id: "session_1", is_current: true }));
     expect(response.body.user.role).toBe("passenger");
+    expect(response.body.user.email).toBe("passenger@example.com");
+    expect(prismaMock.user.findUnique).toHaveBeenCalledWith({
+      where: { email: "passenger@example.com" }
+    });
     expect(prismaMock.authSession.create).toHaveBeenCalledOnce();
     expect(prismaMock.user.updateMany).toHaveBeenCalledWith({
       where: {
@@ -78,43 +105,25 @@ describe("auth", () => {
     expect(JSON.stringify(response.body)).not.toContain(storedHash);
   });
 
-  it("normalizes a global international phone before account lookup", async () => {
-    prismaMock.user.findUnique.mockResolvedValue({
-      id: "admin_global",
-      name: "Global Admin",
-      phone: "+972569523636",
-      password_hash: await bcrypt.hash("test-global-admin-password", 4),
-      role: "admin",
-      account_status: "active",
-      security_version: 1,
-      demo_account: false
-    });
+  it("normalises the email before lookup", async () => {
+    prismaMock.user.findUnique.mockResolvedValue(
+      passengerRow({ password_hash: await bcrypt.hash("test-passenger-password", 4) })
+    );
 
-    const response = await request(createApp())
+    await request(createApp())
       .post("/api/v1/auth/login")
-      .send({ phone: "+972 (56) 952-3636", password: "test-global-admin-password" })
+      .send({ email: "  Passenger@Example.com ", password: "test-passenger-password" })
       .expect(200);
 
-    expect(response.body.user).toEqual(expect.objectContaining({
-      name: "Global Admin",
-      phone: "+972569523636",
-      role: "admin",
-      demo_account: false
-    }));
-    expect(prismaMock.user.findUnique).toHaveBeenCalledWith({ where: { phone: "+972569523636" } });
+    expect(prismaMock.user.findUnique).toHaveBeenCalledWith({
+      where: { email: "passenger@example.com" }
+    });
   });
 
   it("creates the access credential before the login transaction callback resolves", async () => {
-    prismaMock.user.findUnique.mockResolvedValue({
-      id: "user_1",
-      name: "Demo Passenger",
-      phone: "+970590000001",
-      password_hash: await bcrypt.hash("test-passenger-password", 4),
-      role: "passenger",
-      account_status: "active",
-      security_version: 1,
-      demo_account: true
-    });
+    prismaMock.user.findUnique.mockResolvedValue(
+      passengerRow({ password_hash: await bcrypt.hash("test-passenger-password", 4) })
+    );
     prismaMock.$transaction.mockImplementationOnce(async (callback: (tx: typeof prismaMock) => unknown) => {
       const result = await callback(prismaMock);
       expect(result).toEqual(expect.objectContaining({ kind: "success", token: expect.any(String) }));
@@ -123,21 +132,20 @@ describe("auth", () => {
 
     await request(createApp())
       .post("/api/v1/auth/login")
-      .send({ phone: "+970590000001", password: "test-passenger-password" })
+      .send({ email: "passenger@example.com", password: "test-passenger-password" })
       .expect(200);
   });
 
   it("creates an admin session without issuing a browser refresh token", async () => {
-    prismaMock.user.findUnique.mockResolvedValue({
-      id: "admin_1",
-      name: "Admin",
-      phone: "+970590000005",
-      password_hash: await bcrypt.hash("test-admin-password", 4),
-      role: "admin",
-      account_status: "active",
-      security_version: 1,
-      demo_account: true
-    });
+    prismaMock.user.findUnique.mockResolvedValue(
+      passengerRow({
+        id: "admin_1",
+        name: "Admin",
+        email: "admin@example.com",
+        role: "admin",
+        password_hash: await bcrypt.hash("test-admin-password", 4)
+      })
+    );
     prismaMock.authSession.create.mockResolvedValue({
       id: "session_admin",
       client_type: "admin",
@@ -150,7 +158,7 @@ describe("auth", () => {
 
     const response = await request(createApp())
       .post("/api/v1/auth/login")
-      .send({ phone: "+970590000005", password: "test-admin-password" })
+      .send({ email: "admin@example.com", password: "test-admin-password" })
       .expect(200);
 
     expect(response.body.token).toEqual(expect.any(String));
@@ -162,20 +170,18 @@ describe("auth", () => {
 
   for (const accountStatus of ["pending", "suspended", "disabled"] as const) {
     it(`blocks login for a ${accountStatus} account with a safe error`, async () => {
-      prismaMock.user.findUnique.mockResolvedValue({
-        id: "user_1",
-        name: "Unavailable User",
-        phone: "+970590000001",
-        password_hash: await bcrypt.hash("test-passenger-password", 4),
-        role: "passenger",
-        account_status: accountStatus,
-        security_version: 2,
-        demo_account: false
-      });
+      prismaMock.user.findUnique.mockResolvedValue(
+        passengerRow({
+          demo_account: false,
+          security_version: 2,
+          account_status: accountStatus,
+          password_hash: await bcrypt.hash("test-passenger-password", 4)
+        })
+      );
 
       const response = await request(createApp())
         .post("/api/v1/auth/login")
-        .send({ phone: "+970590000001", password: "test-passenger-password" })
+        .send({ email: "passenger@example.com", password: "test-passenger-password" })
         .expect(403);
 
       expect(response.body).toEqual(
@@ -193,44 +199,41 @@ describe("auth", () => {
 
     const missingUser = await request(createApp())
       .post("/api/v1/auth/login")
-      .send({ phone: "+970590000001", password: "bad" })
+      .send({ email: "passenger@example.com", password: "bad" })
       .expect(401);
 
-    prismaMock.user.findUnique.mockResolvedValue({
-      id: "user_1",
-      name: "Demo Passenger",
-      phone: "+970590000001",
-      password_hash: await bcrypt.hash("different-password", 4),
-      role: "passenger",
-      account_status: "active",
-      security_version: 1,
-      demo_account: true
-    });
+    prismaMock.user.findUnique.mockResolvedValue(
+      passengerRow({ password_hash: await bcrypt.hash("different-password", 4) })
+    );
     const wrongPassword = await request(createApp())
       .post("/api/v1/auth/login")
-      .send({ phone: "+970590000001", password: "bad" })
+      .send({ email: "passenger@example.com", password: "bad" })
       .expect(401);
 
     expect(missingUser.body.error).toBe("invalid_credentials");
     expect(wrongPassword.body.error).toBe("invalid_credentials");
   });
 
+  it("rejects password login for an account that only has Google linked", async () => {
+    prismaMock.user.findUnique.mockResolvedValue(passengerRow({ password_hash: null, google_sub: "g-1" }));
+
+    const response = await request(createApp())
+      .post("/api/v1/auth/login")
+      .send({ email: "passenger@example.com", password: "anything" })
+      .expect(401);
+
+    expect(response.body.error).toBe("invalid_credentials");
+  });
+
   it("does not create a session when account eligibility changes before the transaction", async () => {
-    prismaMock.user.findUnique.mockResolvedValue({
-      id: "user_1",
-      name: "Demo Passenger",
-      phone: "+970590000001",
-      password_hash: await bcrypt.hash("test-passenger-password", 4),
-      role: "passenger",
-      account_status: "active",
-      security_version: 1,
-      demo_account: true
-    });
+    prismaMock.user.findUnique.mockResolvedValue(
+      passengerRow({ password_hash: await bcrypt.hash("test-passenger-password", 4) })
+    );
     prismaMock.user.updateMany.mockResolvedValue({ count: 0 });
 
     const response = await request(createApp())
       .post("/api/v1/auth/login")
-      .send({ phone: "+970590000001", password: "test-passenger-password" })
+      .send({ email: "passenger@example.com", password: "test-passenger-password" })
       .expect(403);
 
     expect(response.body.error).toBe("account_unavailable");
@@ -247,5 +250,186 @@ describe("auth", () => {
       .expect(204);
 
     expect(response.headers["access-control-allow-origin"]).toBe("http://localhost:5175");
+  });
+});
+
+describe("auth register", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    prismaMock.$transaction.mockImplementation((callback: (tx: typeof prismaMock) => unknown) => callback(prismaMock));
+    prismaMock.authSession.create.mockResolvedValue({
+      id: "session_1",
+      client_type: "mobile",
+      device_name: null,
+      created_at: new Date(),
+      last_used_at: new Date(),
+      expires_at: new Date(Date.now() + 86_400_000),
+      revoked_at: null
+    });
+    prismaMock.refreshToken.create.mockResolvedValue({});
+    prismaMock.user.updateMany.mockResolvedValue({ count: 1 });
+    prismaMock.auditEvent.create.mockResolvedValue({ id: "audit_1" });
+  });
+
+  it("creates an active passenger and returns a session", async () => {
+    prismaMock.user.findUnique.mockResolvedValue(null);
+    prismaMock.user.create.mockResolvedValue(
+      passengerRow({ id: "new_1", name: "Sara", email: "sara@example.com", demo_account: false })
+    );
+
+    const response = await request(createApp())
+      .post("/api/v1/auth/register")
+      .send({ name: "Sara", email: "sara@example.com", password: "supersecret1" })
+      .expect(201);
+
+    expect(response.body.user).toEqual(
+      expect.objectContaining({ role: "passenger", email: "sara@example.com", account_status: "active" })
+    );
+    expect(response.body.refresh_token).toEqual(expect.any(String));
+    expect(prismaMock.user.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        name: "Sara",
+        email: "sara@example.com",
+        role: "passenger",
+        account_status: "active",
+        password_hash: expect.any(String)
+      })
+    });
+    const created = prismaMock.user.create.mock.calls[0]?.[0]?.data as { password_hash: string };
+    expect(created.password_hash).not.toBe("supersecret1");
+  });
+
+  it("rejects a duplicate email", async () => {
+    prismaMock.user.findUnique.mockResolvedValue(passengerRow({ email: "taken@example.com" }));
+
+    const response = await request(createApp())
+      .post("/api/v1/auth/register")
+      .send({ name: "Sara", email: "taken@example.com", password: "supersecret1" })
+      .expect(409);
+
+    expect(response.body.error).toBe("email_taken");
+    expect(prismaMock.user.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects a short password", async () => {
+    const response = await request(createApp())
+      .post("/api/v1/auth/register")
+      .send({ name: "Sara", email: "sara@example.com", password: "short" })
+      .expect(400);
+
+    expect(response.body.error).toBeDefined();
+  });
+});
+
+describe("auth google", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    verifyGoogleIdTokenMock.mockReset();
+    prismaMock.$transaction.mockImplementation((callback: (tx: typeof prismaMock) => unknown) => callback(prismaMock));
+    prismaMock.authSession.create.mockResolvedValue({
+      id: "session_1",
+      client_type: "mobile",
+      device_name: null,
+      created_at: new Date(),
+      last_used_at: new Date(),
+      expires_at: new Date(Date.now() + 86_400_000),
+      revoked_at: null
+    });
+    prismaMock.refreshToken.create.mockResolvedValue({});
+    prismaMock.user.updateMany.mockResolvedValue({ count: 1 });
+    prismaMock.user.update.mockImplementation(({ data }: { data: Record<string, unknown> }) =>
+      Promise.resolve(passengerRow(data))
+    );
+    prismaMock.auditEvent.create.mockResolvedValue({ id: "audit_1" });
+  });
+
+  it("returns 501 when Google is not configured", async () => {
+    verifyGoogleIdTokenMock.mockRejectedValue(new GoogleIdTokenError("google_auth_not_configured"));
+
+    const response = await request(createApp())
+      .post("/api/v1/auth/google")
+      .send({ id_token: "x" })
+      .expect(501);
+
+    expect(response.body.error).toBe("google_auth_not_configured");
+  });
+
+  it("creates a passenger on first Google sign-in", async () => {
+    verifyGoogleIdTokenMock.mockResolvedValue({
+      sub: "google-123",
+      email: "gmailuser@example.com",
+      emailVerified: true,
+      name: "Gmail User",
+      picture: null
+    });
+    prismaMock.user.findFirst.mockResolvedValue(null);
+    prismaMock.user.create.mockResolvedValue(
+      passengerRow({
+        id: "g_new",
+        email: "gmailuser@example.com",
+        google_sub: "google-123",
+        name: "Gmail User"
+      })
+    );
+
+    const response = await request(createApp())
+      .post("/api/v1/auth/google")
+      .send({ id_token: "valid-token" })
+      .expect(201);
+
+    expect(response.body.user.email).toBe("gmailuser@example.com");
+    expect(prismaMock.user.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ google_sub: "google-123", role: "passenger", account_status: "active" })
+    });
+  });
+
+  it("links Google to an existing email account", async () => {
+    verifyGoogleIdTokenMock.mockResolvedValue({
+      sub: "google-777",
+      email: "passenger@example.com",
+      emailVerified: true,
+      name: "Demo Passenger",
+      picture: null
+    });
+    prismaMock.user.findFirst.mockResolvedValue(passengerRow({ google_sub: null }));
+
+    await request(createApp())
+      .post("/api/v1/auth/google")
+      .send({ id_token: "valid-token" })
+      .expect(200);
+
+    expect(prismaMock.user.update).toHaveBeenCalledWith({
+      where: { id: "user_1" },
+      data: { google_sub: "google-777" }
+    });
+    expect(prismaMock.user.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects an unverified Google email", async () => {
+    verifyGoogleIdTokenMock.mockResolvedValue({
+      sub: "google-1",
+      email: "spoof@example.com",
+      emailVerified: false,
+      name: null,
+      picture: null
+    });
+
+    const response = await request(createApp())
+      .post("/api/v1/auth/google")
+      .send({ id_token: "valid-token" })
+      .expect(401);
+
+    expect(response.body.error).toBe("google_email_unverified");
+  });
+
+  it("rejects an invalid Google token", async () => {
+    verifyGoogleIdTokenMock.mockRejectedValue(new GoogleIdTokenError("google_token_invalid"));
+
+    const response = await request(createApp())
+      .post("/api/v1/auth/google")
+      .send({ id_token: "bad" })
+      .expect(401);
+
+    expect(response.body.error).toBe("invalid_google_token");
   });
 });

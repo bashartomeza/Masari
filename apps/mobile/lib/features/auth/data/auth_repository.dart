@@ -21,15 +21,51 @@ class AuthRepository {
   final ApiClient apiClient;
   final AuthenticatedApiClient authenticatedApiClient;
 
+  static const _deviceName = 'Masari App';
+
   Future<LoginResult> login({
-    required String phone,
+    required String email,
     required String password,
-    String deviceName = 'Masari Android',
+    String deviceName = _deviceName,
   }) async {
-    final json = await apiClient.postJson(
+    return _authRequest(
       '/auth/login',
-      body: {'phone': phone, 'password': password, 'device_name': deviceName},
+      body: {'email': email, 'password': password, 'device_name': deviceName},
     );
+  }
+
+  Future<LoginResult> register({
+    required String name,
+    required String email,
+    required String password,
+    String deviceName = _deviceName,
+  }) async {
+    return _authRequest(
+      '/auth/register',
+      body: {
+        'name': name,
+        'email': email,
+        'password': password,
+        'device_name': deviceName,
+      },
+    );
+  }
+
+  Future<LoginResult> loginWithGoogle({
+    required String idToken,
+    String deviceName = _deviceName,
+  }) async {
+    return _authRequest(
+      '/auth/google',
+      body: {'id_token': idToken, 'device_name': deviceName},
+    );
+  }
+
+  Future<LoginResult> _authRequest(
+    String path, {
+    required Map<String, dynamic> body,
+  }) async {
+    final json = await apiClient.postJson(path, body: body);
     try {
       return LoginResult.fromJson(json);
     } on FormatException {

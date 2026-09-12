@@ -83,6 +83,12 @@ class AppLocalizationsAr extends AppLocalizations {
   String get phone => 'رقم الهاتف';
 
   @override
+  String get email => 'البريد الإلكتروني';
+
+  @override
+  String get fullName => 'الاسم الكامل';
+
+  @override
   String get password => 'كلمة المرور';
 
   @override
@@ -90,6 +96,55 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get hidePassword => 'إخفاء كلمة المرور';
+
+  @override
+  String get signUp => 'إنشاء الحساب';
+
+  @override
+  String get createAccount => 'إنشاء الحساب';
+
+  @override
+  String get createAccountSubtitle => 'أنشئ حساب مسافر للبدء.';
+
+  @override
+  String get newToMasari => 'جديد في مساري؟ أنشئ حساباً';
+
+  @override
+  String get alreadyHaveAccount => 'لديك حساب؟ سجّل الدخول';
+
+  @override
+  String get continueWithGoogle => 'المتابعة عبر Google';
+
+  @override
+  String get orSeparator => 'أو';
+
+  @override
+  String get emailRequired => 'أدخل بريدك الإلكتروني.';
+
+  @override
+  String get emailInvalid => 'أدخل بريداً إلكترونياً صحيحاً.';
+
+  @override
+  String get nameRequired => 'أدخل اسمك.';
+
+  @override
+  String get passwordRequired => 'أدخل كلمة المرور.';
+
+  @override
+  String get passwordTooShort =>
+      'يجب أن تتكون كلمة المرور من 8 أحرف على الأقل.';
+
+  @override
+  String get emailAlreadyRegistered =>
+      'هذا البريد الإلكتروني مسجّل بالفعل. حاول تسجيل الدخول.';
+
+  @override
+  String get googleSignInFailed =>
+      'فشل تسجيل الدخول عبر Google. حاول مرة أخرى.';
+
+  @override
+  String get googleSignInUnavailable =>
+      'تسجيل الدخول عبر Google غير متاح حالياً.';
 
   @override
   String get demoAccounts => 'حسابات تجريبية';
@@ -116,7 +171,8 @@ class AppLocalizationsAr extends AppLocalizations {
   String get sessionExpired => 'انتهت جلستك، يرجى تسجيل الدخول مرة أخرى';
 
   @override
-  String get invalidCredentials => 'رقم الهاتف أو كلمة المرور غير صحيحة.';
+  String get invalidCredentials =>
+      'البريد الإلكتروني أو كلمة المرور غير صحيحة.';
 
   @override
   String get networkUnavailable =>
@@ -771,9 +827,6 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get acceptAndContinue => 'قبول ومتابعة';
-
-  @override
-  String get createAccount => 'إنشاء الحساب';
 
   @override
   String get accountCreated => 'تم إنشاء الحساب';
@@ -1595,6 +1648,84 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get notLiveNotice =>
       'هذه الشاشة ليست مباشرة. استخدم التحديث للتحقق من المستجدات.';
+
+  @override
+  String get assistantTitle => 'مساعد مساري';
+
+  @override
+  String get assistantHomeTitle => 'اسأل مساعد مساري';
+
+  @override
+  String get assistantHomeBody => 'استفسر عن رحلاتك والمسارات المتاحة.';
+
+  @override
+  String get assistantWelcomeTitle => 'كيف يمكنني مساعدتك؟';
+
+  @override
+  String get assistantWelcomeBody =>
+      'اسأل عن بيانات رحلاتك أو المسارات المتاحة في مساري. إذا كانت التفاصيل ناقصة، سأطلب منك توضيحها.';
+
+  @override
+  String get assistantTryAsking => 'جرّب أن تسأل';
+
+  @override
+  String get assistantExampleTripTime => 'متى موعد رحلتي القادمة؟';
+
+  @override
+  String get assistantExampleAvailableTrip => 'هل توجد رحلة إلى بيت لحم؟';
+
+  @override
+  String get assistantInputHint => 'اكتب سؤالك هنا';
+
+  @override
+  String get assistantSend => 'إرسال';
+
+  @override
+  String get assistantProcessing => 'جارٍ التحقق من بيانات مساري…';
+
+  @override
+  String get assistantErrorTitle => 'تعذّر إكمال الطلب';
+
+  @override
+  String get assistantErrorBody =>
+      'لم يتمكن المساعد من إكمال طلبك. حاول مرة أخرى.';
+
+  @override
+  String get assistantUnavailable =>
+      'خدمة المساعد غير متاحة في هذا الإصدار. لم يتم إنشاء أي نتيجة.';
+
+  @override
+  String get assistantClarificationLabel => 'يحتاج مساعد مساري إلى توضيح';
+
+  @override
+  String get assistantResultLabel => 'رد مساعد مساري';
+
+  @override
+  String get assistantPassengerMessage => 'رسالتك';
+
+  @override
+  String get assistantExampleFindTrip =>
+      'ابحث لي عن رحلة من باب الزاوية إلى بيت لحم الساعة 3 لشخص واحد';
+
+  @override
+  String get assistantReviewTitle => 'راجع معلومات الرحلة';
+
+  @override
+  String get assistantReviewBody =>
+      'تأكد من المعلومات وعدّلها قبل بدء البحث الحقيقي.';
+
+  @override
+  String get assistantConfirmSearch => 'تأكيد وبدء البحث';
+
+  @override
+  String get assistantSearching => 'جارٍ البحث عن رحلة…';
+
+  @override
+  String get assistantSearchError =>
+      'تعذّر إنشاء الطلب أو العثور على مسار مناسب. لم يتم إنشاء نتيجة وهمية.';
+
+  @override
+  String get assistantFutureTimeRequired => 'اختر وقتاً قادماً قبل بدء البحث.';
 
   @override
   String get mapAttribution => '© مساهمو OpenStreetMap';

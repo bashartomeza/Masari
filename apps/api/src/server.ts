@@ -1,3 +1,7 @@
+// Load .env before anything reads process.env (config.js parses it on import).
+// A no-op when the file is absent, so real deployment env vars still win.
+import "dotenv/config";
+
 import { createApp } from "./app.js";
 import { config } from "./config.js";
 import { startCanonicalDispatchWorker } from "./lib/canonicalDispatchWorker.js";

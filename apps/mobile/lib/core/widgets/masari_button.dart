@@ -4,22 +4,31 @@ import '../theme/app_theme.dart';
 import '../theme/app_tokens.dart';
 import '../theme/semantic_colors.dart';
 
-/// The emphasis levels defined by the Masari design system.
+/// The emphasis levels defined by the Masari design system's §G.1 button
+/// hierarchy.
 enum MasariButtonVariant {
-  /// Deep teal, white text. High emphasis — the main path forward.
+  /// Warm orange, white text. High emphasis — the one action for this
+  /// screen or sheet.
   primary,
 
-  /// Warm orange. Reserved for movement: "Start Trip", "Accept",
-  /// "Confirm Delivery". Never used for ordinary navigation.
+  /// Same orange fill as [primary]. Reserved for movement: "Start Trip",
+  /// "Accept", "Confirm Delivery". The design system's ratio rule treats
+  /// this and [primary] as the same "one orange element" budget, so the two
+  /// render identically — kept as separate variants only so call sites can
+  /// name their intent.
   action,
 
-  /// Teal tint background with teal text. Medium emphasis.
+  /// Orange-tinted container background with orange-tinted text. Medium
+  /// emphasis — `.ms-btn-secondary`.
   secondary,
 
-  /// 1.5px teal border on a transparent background. Low emphasis.
+  /// Transparent background, navy text, no border. Low emphasis —
+  /// `.ms-btn-tertiary`. The design system defines no separate outlined
+  /// variant, so this collapses into Tertiary.
   outline,
 
-  /// Error red. Destructive, e.g. "Cancel Trip".
+  /// Solid error red, white text. Destructive, e.g. "Cancel Trip" —
+  /// `.ms-btn-destructive`.
   destructive,
 }
 
@@ -93,8 +102,8 @@ class MasariButton extends StatelessWidget {
   ({Color background, Color foreground, BorderSide? border}) get _palette =>
       switch (variant) {
         MasariButtonVariant.primary => (
-          background: AppTheme.primary,
-          foreground: AppTheme.onPrimary,
+          background: SemanticColors.action,
+          foreground: SemanticColors.onAction,
           border: null,
         ),
         MasariButtonVariant.action => (
@@ -103,18 +112,18 @@ class MasariButton extends StatelessWidget {
           border: null,
         ),
         MasariButtonVariant.secondary => (
-          background: AppTheme.secondaryContainer,
-          foreground: AppTheme.onSecondaryContainer,
+          background: AppTheme.primaryContainer,
+          foreground: AppTheme.onPrimaryContainer,
           border: null,
         ),
         MasariButtonVariant.outline => (
           background: Colors.transparent,
-          foreground: AppTheme.primary,
-          border: const BorderSide(color: AppTheme.primary, width: 1.5),
+          foreground: AppTheme.secondary,
+          border: null,
         ),
         MasariButtonVariant.destructive => (
-          background: SemanticColors.errorContainer,
-          foreground: SemanticColors.onErrorContainer,
+          background: SemanticColors.error,
+          foreground: SemanticColors.onError,
           border: null,
         ),
       };
@@ -168,12 +177,12 @@ class MasariButton extends StatelessWidget {
         minimumSize: Size(expand ? double.infinity : 0, AppTokens.buttonHeight),
         padding: const EdgeInsets.symmetric(horizontal: AppTokens.spaceMedium),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppTokens.radiusDefault),
+          borderRadius: BorderRadius.circular(AppTokens.radiusLarge),
         ),
         textStyle: const TextStyle(
           fontFamily: AppTheme.fontFamily,
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
+          fontSize: 15,
+          fontWeight: FontWeight.w700,
         ),
       ),
       child: child,

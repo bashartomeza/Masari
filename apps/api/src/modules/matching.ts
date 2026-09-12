@@ -3,7 +3,8 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { auditEvent } from "../lib/audit.js";
 import { clamp01, haversineKm, LOCKED_DESTINATION, LOCKED_ORIGIN, round, toNumber } from "../lib/geo.js";
-import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
+import { latitudeSchema, longitudeSchema } from "../lib/validation.js";
+import { requireAuth, requireRole, type AuthenticatedRequest } from "../middleware/auth.js";
 import { HttpError } from "../middleware/error.js";
 import { LOCKED_CORRIDOR_KEY, LOCKED_CORRIDOR_LABEL } from "./demoReset.js";
 import type { Prisma } from "../generated/prisma/client.js";
@@ -12,13 +13,30 @@ import { AuditAction, MatchStatus } from "../generated/prisma/enums.js";
 const runMatchSchema = z
   .object({
     passengerRequestId: z.string().optional(),
-    merchantOrderId: z.string().optional()
+    merchantOrderId: z.string().optional(),
+    driverRouteId: z.string().optional()
   })
   .refine((value) => value.passengerRequestId || value.merchantOrderId, {
     message: "passengerRequestId or merchantOrderId is required"
+  })
+  .refine((value) => !value.driverRouteId || value.passengerRequestId, {
+    message: "driverRouteId requires passengerRequestId"
   });
 
 type MatchInput = z.infer<typeof runMatchSchema>;
+
+const passengerMatchSearchSchema = z.object({
+  pickup_label: z.string().trim().min(1).max(191),
+  pickup_lat: latitudeSchema,
+  pickup_lng: longitudeSchema,
+  destination_label: z.string().trim().min(1).max(191),
+  destination_lat: latitudeSchema,
+  destination_lng: longitudeSchema,
+  preferred_time: z.coerce.date(),
+  passenger_count: z.coerce.number().int().min(1).max(4)
+}).strict();
+
+type PassengerMatchSearchInput = z.infer<typeof passengerMatchSearchSchema>;
 
 const listMatchesQuerySchema = z.object({
   status: z.enum(MatchStatus).optional()
@@ -231,9 +249,17 @@ export function scoreDriverRoute(input: {
   };
 }
 
-async function createBestMatch(req: AuthenticatedRequest, input: MatchInput) {
-  const { passengerRequest, merchantOrder } = await loadAuthorizedInput(req, input);
-  const parcelCount = merchantOrder?.parcels.length ?? 0;
+type PassengerDemand = {
+  pickup_lat: unknown;
+  pickup_lng: unknown;
+  passenger_count: number;
+  preferred_time: Date | string;
+};
+
+async function rankDriverRoutes(input: {
+  passengerRequest?: PassengerDemand | null;
+  parcelCount: number;
+}) {
   const routes = await prisma.driverRoute.findMany({
     where: {
       status: "active",
@@ -242,25 +268,83 @@ async function createBestMatch(req: AuthenticatedRequest, input: MatchInput) {
       operational_mode: "legacy",
       driver: { verified: true }
     },
-    include: { driver: true },
+    include: {
+      driver: {
+        include: {
+          user: { select: { name: true } }
+        }
+      }
+    },
     orderBy: { id: "asc" }
   });
 
-  const candidates = routes
-    .filter((route) => !passengerRequest || route.seats_available >= passengerRequest.passenger_count)
-    .filter((route) => parcelCount === 0 || route.parcel_capacity_available >= parcelCount)
-    .map((route) => ({ route, breakdown: scoreDriverRoute({ route, passengerRequest, parcelCount }) }))
+  return routes
+    .filter((route) => !input.passengerRequest || route.seats_available >= input.passengerRequest.passenger_count)
+    .filter((route) => input.parcelCount === 0 || route.parcel_capacity_available >= input.parcelCount)
+    .map((route) => ({
+      route,
+      breakdown: scoreDriverRoute({
+        route,
+        passengerRequest: input.passengerRequest,
+        parcelCount: input.parcelCount
+      })
+    }))
     .sort((a, b) => {
       if (b.breakdown.finalScore !== a.breakdown.finalScore) return b.breakdown.finalScore - a.breakdown.finalScore;
       if (a.breakdown.estimatedDeviationKm !== b.breakdown.estimatedDeviationKm) {
         return a.breakdown.estimatedDeviationKm - b.breakdown.estimatedDeviationKm;
       }
-      if (b.route.driver.trust_score !== a.route.driver.trust_score) return b.route.driver.trust_score - a.route.driver.trust_score;
+      if (b.route.driver.trust_score !== a.route.driver.trust_score) {
+        return b.route.driver.trust_score - a.route.driver.trust_score;
+      }
       return a.route.id.localeCompare(b.route.id);
     });
+}
 
-  const best = candidates[0];
-  if (!best) throw new HttpError(404, "no_compatible_driver_route");
+type RankedDriverRoute = Awaited<ReturnType<typeof rankDriverRoutes>>[number];
+
+function passengerSearchResult(candidate: RankedDriverRoute) {
+  return {
+    id: candidate.route.id,
+    origin_label: candidate.route.origin_label,
+    destination_label: candidate.route.destination_label,
+    departure_at: candidate.route.departure_at,
+    availability_window_end: candidate.route.availability_window_end,
+    seats_available: candidate.route.seats_available,
+    score: candidate.breakdown.finalScore,
+    scoring_breakdown: candidate.breakdown,
+    driver: {
+      name: candidate.route.driver.user.name,
+      vehicle_type: candidate.route.driver.vehicle_type,
+      trust_score: candidate.route.driver.trust_score,
+      verified: candidate.route.driver.verified
+    }
+  };
+}
+
+function passengerDemandFromSearch(input: PassengerMatchSearchInput): PassengerDemand {
+  return {
+    pickup_lat: input.pickup_lat,
+    pickup_lng: input.pickup_lng,
+    passenger_count: input.passenger_count,
+    preferred_time: input.preferred_time
+  };
+}
+
+async function createBestMatch(req: AuthenticatedRequest, input: MatchInput) {
+  const { passengerRequest, merchantOrder } = await loadAuthorizedInput(req, input);
+  const parcelCount = merchantOrder?.parcels.length ?? 0;
+  const candidates = await rankDriverRoutes({ passengerRequest, parcelCount });
+
+  const best = input.driverRouteId
+    ? candidates.find((candidate) => candidate.route.id === input.driverRouteId)
+    : candidates[0];
+  if (!best) {
+    throw new HttpError(
+      input.driverRouteId ? 409 : 404,
+      input.driverRouteId ? "selected_driver_route_unavailable" : "no_compatible_driver_route"
+    );
+  }
 
   const explanation =
     `Driver selected because the route matches the ${LOCKED_CORRIDOR_LABEL} corridor, ` +
@@ -291,6 +375,36 @@ async function createBestMatch(req: AuthenticatedRequest, input: MatchInput) {
 
   return { match, scoringBreakdown: best.breakdown, candidatesConsidered: candidates.length };
 }
+
+matchingRouter.post(
+  "/matches/search",
+  requireAuth,
+  requireRole("passenger"),
+  async (req: AuthenticatedRequest, res, next) => {
+    try {
+      const input = passengerMatchSearchSchema.parse(req.body);
+      const destinationDistanceKm = haversineKm(
+        { lat: input.destination_lat, lng: input.destination_lng },
+        LOCKED_DESTINATION
+      );
+      if (destinationDistanceKm > 1) {
+        throw new HttpError(422, "unsupported_destination");
+      }
+
+      const candidates = await rankDriverRoutes({
+        passengerRequest: passengerDemandFromSearch(input),
+        parcelCount: 0
+      });
+
+      res.json({
+        results: candidates.map(passengerSearchResult),
+        request_id: req.requestId
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 
 matchingRouter.post("/matches/run", requireAuth, async (req: AuthenticatedRequest, res, next) => {
   try {

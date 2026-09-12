@@ -22,20 +22,38 @@ import {
 } from "../middleware/auth.js";
 import { HttpError } from "../middleware/error.js";
 import { AuditAction, Prisma } from "../generated/prisma/client.js";
-import { PHONE_INPUT_MAX_LENGTH, normalizePhoneToE164 } from "../lib/phone.js";
+import { GoogleIdTokenError, verifyGoogleIdToken } from "../lib/googleIdToken.js";
+
+const emailField = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .email()
+  .max(191);
+const deviceNameField = z.string().trim().min(1).max(120).optional();
 
 const loginSchema = z.object({
-  phone: z.string().min(5).max(PHONE_INPUT_MAX_LENGTH),
-  region: z.string().trim().regex(/^[A-Za-z]{2}$/).optional(),
-  password: z.string().min(1),
-  device_name: z.string().trim().min(1).max(120).optional()
+  email: emailField,
+  password: z.string().min(1).max(200),
+  device_name: deviceNameField
+});
+const registerSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  email: emailField,
+  password: z.string().min(8).max(200),
+  device_name: deviceNameField
+});
+const googleSchema = z.object({
+  id_token: z.string().min(1).max(8192),
+  device_name: deviceNameField
 });
 const refreshSchema = z.object({ refresh_token: z.string().min(1).max(160) });
 
 function publicUser(user: {
   id: string;
   name: string;
-  phone: string;
+  phone: string | null;
+  email: string | null;
   role: string;
   account_status: string;
   demo_account: boolean;
@@ -44,10 +62,130 @@ function publicUser(user: {
     id: user.id,
     name: user.name,
     phone: user.phone,
+    email: user.email,
     role: user.role,
     account_status: user.account_status,
     demo_account: user.demo_account
   };
+}
+
+type SessionUser = {
+  id: string;
+  role: AuthUser["role"];
+  security_version: number;
+  demo_account: boolean;
+};
+
+/**
+ * Creates a mobile/admin session for an already-authenticated user: rotates in
+ * a fresh refresh token, writes the login + session-created audit trail, and
+ * signs an access token. Shared by password login, email registration, and
+ * Google sign-in so the session invariants live in exactly one place.
+ */
+async function establishMobileSession(
+  user: SessionUser,
+  options: {
+    deviceName?: string;
+    loginAction: AuditAction;
+    loginMetadata?: Prisma.InputJsonValue;
+  }
+) {
+  const now = new Date();
+  const refreshMaterial = isRefreshTokenRole(user.role) ? createRefreshToken(user.role) : null;
+  const clientType = refreshMaterial ? "mobile" : "admin";
+  const refreshExpiresAt = refreshMaterial ? refreshTokenExpiresAt(now) : null;
+  const sessionExpiresAt =
+    refreshExpiresAt ?? new Date(now.getTime() + config.accessTokenTtlSeconds * 1_000);
+
+  const result = await prisma.$transaction(async (tx) => {
+    const eligible = await tx.user.updateMany({
+      where: {
+        id: user.id,
+        role: user.role,
+        account_status: "active",
+        security_version: user.security_version
+      },
+      data: { last_login_at: now }
+    });
+    if (eligible.count !== 1) return { kind: "account_unavailable" } as const;
+
+    const created = await tx.authSession.create({
+      data: {
+        user_id: user.id,
+        client_type: clientType,
+        device_name: options.deviceName?.replace(/\s+/g, " "),
+        created_at: now,
+        last_used_at: now,
+        expires_at: sessionExpiresAt,
+        security_version_at_issue: user.security_version
+      }
+    });
+    if (refreshMaterial && refreshExpiresAt) {
+      await tx.refreshToken.create({
+        data: {
+          id: refreshMaterial.id,
+          session_id: created.id,
+          token_hash: refreshMaterial.tokenHash,
+          created_at: now,
+          expires_at: refreshExpiresAt
+        }
+      });
+    }
+    await auditEvent(tx, {
+      userId: user.id,
+      action: options.loginAction,
+      entityType: "User",
+      entityId: user.id,
+      metadata: options.loginMetadata ?? { role: user.role, demo_account: user.demo_account }
+    });
+    await auditEvent(tx, {
+      userId: user.id,
+      action: AuditAction.session_created,
+      entityType: "AuthSession",
+      entityId: created.id,
+      metadata: { client_type: clientType }
+    });
+    const token = accessToken(user, created.id);
+    return { kind: "success", session: created, token } as const;
+  });
+
+  if (result.kind === "account_unavailable") {
+    await auditEvent(prisma, {
+      userId: user.id,
+      action: AuditAction.login_blocked_by_status,
+      entityType: "User",
+      entityId: user.id,
+      metadata: { account_status: "changed_during_login" }
+    });
+    throw new HttpError(403, "account_unavailable");
+  }
+
+  return { token: result.token, session: result.session, refreshMaterial };
+}
+
+function sessionResponseBody(
+  established: Awaited<ReturnType<typeof establishMobileSession>>,
+  user: Parameters<typeof publicUser>[0]
+) {
+  return {
+    token: established.token,
+    access_token: established.token,
+    access_token_expires_in: config.accessTokenTtlSeconds,
+    ...(established.refreshMaterial
+      ? {
+          refresh_token: established.refreshMaterial.rawToken,
+          refresh_token_expires_in: config.refreshTokenTtlDays * 24 * 60 * 60
+        }
+      : {}),
+    session: safeSession(established.session, established.session.id),
+    user: publicUser(user)
+  };
+}
+
+function isUniqueConstraintError(error: unknown): boolean {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002"
+  );
 }
 
 function safeSession(
@@ -106,14 +244,8 @@ export const authRouter = Router();
 authRouter.post("/auth/login", async (req, res, next) => {
   try {
     const input = loginSchema.parse(req.body);
-    let phone: string;
-    try {
-      phone = normalizePhoneToE164(input.phone, { region: input.region });
-    } catch {
-      throw new HttpError(401, "invalid_credentials");
-    }
-    const user = await prisma.user.findUnique({ where: { phone } });
-    if (!user) throw new HttpError(401, "invalid_credentials");
+    const user = await prisma.user.findUnique({ where: { email: input.email } });
+    if (!user || !user.password_hash) throw new HttpError(401, "invalid_credentials");
 
     const validPassword = await bcrypt.compare(input.password, user.password_hash);
     if (!validPassword) throw new HttpError(401, "invalid_credentials");
@@ -128,89 +260,127 @@ authRouter.post("/auth/login", async (req, res, next) => {
       throw new HttpError(403, "account_unavailable");
     }
 
-    const now = new Date();
-    const refreshMaterial = isRefreshTokenRole(user.role) ? createRefreshToken(user.role) : null;
-    const clientType = refreshMaterial ? "mobile" : "admin";
-    const refreshExpiresAt = refreshMaterial ? refreshTokenExpiresAt(now) : null;
-    const sessionExpiresAt =
-      refreshExpiresAt ?? new Date(now.getTime() + config.accessTokenTtlSeconds * 1_000);
+    const established = await establishMobileSession(user, {
+      deviceName: input.device_name,
+      loginAction: AuditAction.auth_login,
+      loginMetadata: { role: user.role, demo_account: user.demo_account, method: "password" }
+    });
+    res.json(sessionResponseBody(established, user));
+  } catch (error) {
+    next(error);
+  }
+});
 
-    const result = await prisma.$transaction(async (tx) => {
-      const eligible = await tx.user.updateMany({
-        where: {
-          id: user.id,
-          role: user.role,
-          account_status: "active",
-          security_version: user.security_version
-        },
-        data: { last_login_at: now }
-      });
-      if (eligible.count !== 1) return { kind: "account_unavailable" } as const;
+authRouter.post("/auth/register", async (req, res, next) => {
+  try {
+    const input = registerSchema.parse(req.body);
 
-      const created = await tx.authSession.create({
+    const existing = await prisma.user.findUnique({ where: { email: input.email } });
+    if (existing) throw new HttpError(409, "email_taken");
+
+    const passwordHash = await bcrypt.hash(input.password, 12);
+    let user;
+    try {
+      user = await prisma.user.create({
         data: {
-          user_id: user.id,
-          client_type: clientType,
-          device_name: input.device_name?.replace(/\s+/g, " "),
-          created_at: now,
-          last_used_at: now,
-          expires_at: sessionExpiresAt,
-          security_version_at_issue: user.security_version
+          name: input.name,
+          email: input.email,
+          password_hash: passwordHash,
+          role: "passenger",
+          account_status: "active"
         }
       });
-      if (refreshMaterial && refreshExpiresAt) {
-        await tx.refreshToken.create({
+    } catch (error) {
+      if (isUniqueConstraintError(error)) throw new HttpError(409, "email_taken");
+      throw error;
+    }
+
+    const established = await establishMobileSession(user, {
+      deviceName: input.device_name,
+      loginAction: AuditAction.auth_register,
+      loginMetadata: { role: user.role, method: "email" }
+    });
+    res.status(201).json(sessionResponseBody(established, user));
+  } catch (error) {
+    next(error);
+  }
+});
+
+authRouter.post("/auth/google", async (req, res, next) => {
+  try {
+    const input = googleSchema.parse(req.body);
+
+    let identity;
+    try {
+      identity = await verifyGoogleIdToken(input.id_token, config.googleOAuthClientIds);
+    } catch (error) {
+      if (error instanceof GoogleIdTokenError) {
+        if (error.message === "google_auth_not_configured") {
+          throw new HttpError(501, "google_auth_not_configured");
+        }
+        throw new HttpError(401, "invalid_google_token");
+      }
+      throw error;
+    }
+    if (!identity.emailVerified) throw new HttpError(401, "google_email_unverified");
+
+    const findLinked = () =>
+      prisma.user.findFirst({
+        where: { OR: [{ google_sub: identity.sub }, { email: identity.email }] }
+      });
+
+    let user = await findLinked();
+    let created = false;
+    if (!user) {
+      try {
+        user = await prisma.user.create({
           data: {
-            id: refreshMaterial.id,
-            session_id: created.id,
-            token_hash: refreshMaterial.tokenHash,
-            created_at: now,
-            expires_at: refreshExpiresAt
+            name: identity.name ?? identity.email.split("@")[0],
+            email: identity.email,
+            google_sub: identity.sub,
+            role: "passenger",
+            account_status: "active"
           }
         });
+        created = true;
+      } catch (error) {
+        if (!isUniqueConstraintError(error)) throw error;
+        user = await findLinked();
       }
-      await auditEvent(tx, {
-        userId: user.id,
-        action: AuditAction.auth_login,
-        entityType: "User",
-        entityId: user.id,
-        metadata: { role: user.role, demo_account: user.demo_account }
-      });
-      await auditEvent(tx, {
-        userId: user.id,
-        action: AuditAction.session_created,
-        entityType: "AuthSession",
-        entityId: created.id,
-        metadata: { client_type: clientType }
-      });
-      const token = accessToken(user, created.id);
-      return { kind: "success", session: created, token } as const;
-    });
+    }
+    if (!user) throw new HttpError(409, "account_conflict");
 
-    if (result.kind === "account_unavailable") {
+    if (user.account_status !== "active") {
       await auditEvent(prisma, {
         userId: user.id,
         action: AuditAction.login_blocked_by_status,
         entityType: "User",
         entityId: user.id,
-        metadata: { account_status: "changed_during_login" }
+        metadata: { account_status: user.account_status }
       });
       throw new HttpError(403, "account_unavailable");
     }
 
-    res.json({
-      token: result.token,
-      access_token: result.token,
-      access_token_expires_in: config.accessTokenTtlSeconds,
-      ...(refreshMaterial
-        ? {
-            refresh_token: refreshMaterial.rawToken,
-            refresh_token_expires_in: config.refreshTokenTtlDays * 24 * 60 * 60
-          }
-        : {}),
-      session: safeSession(result.session, result.session.id),
-      user: publicUser(user)
+    if (!user.google_sub) {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: { google_sub: identity.sub }
+      });
+      await auditEvent(prisma, {
+        userId: user.id,
+        action: AuditAction.auth_google_link,
+        entityType: "User",
+        entityId: user.id,
+        metadata: { linked_existing: true }
+      });
+    }
+
+    const established = await establishMobileSession(user, {
+      deviceName: input.device_name,
+      loginAction: AuditAction.auth_google_login,
+      loginMetadata: { role: user.role, created }
     });
+    res.status(created ? 201 : 200).json(sessionResponseBody(established, user));
   } catch (error) {
     next(error);
   }
