@@ -298,7 +298,7 @@ Future<void> _pumpApp(
 }
 
 const _enabledConfigBody =
-    '{"enabled":true,"registration_roles":["passenger","driver","merchant"],"supported_region":"PS","supported_locales":["ar","en"],"password_policy":{"minimum_characters":15,"maximum_characters":64,"maximum_utf8_bytes":72},"otp_digits":6,"resend_cooldown_seconds":60,"request_id":"req"}';
+    '{"enabled":true,"registration_roles":["passenger","driver","merchant"],"phone_policy":{"canonical_format":"E.164","international_prefix_required_without_region":true,"local_numbers_require_region":true},"supported_locales":["ar","en"],"password_policy":{"minimum_characters":15,"maximum_characters":64,"maximum_utf8_bytes":72},"otp_digits":6,"resend_cooldown_seconds":60,"request_id":"req"}';
 
 String _consentBody(String version) => jsonEncode({
   'documents': [

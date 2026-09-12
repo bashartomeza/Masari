@@ -120,6 +120,22 @@ describe("auth", () => {
     });
   });
 
+  it("creates the access credential before the login transaction callback resolves", async () => {
+    prismaMock.user.findUnique.mockResolvedValue(
+      passengerRow({ password_hash: await bcrypt.hash("test-passenger-password", 4) })
+    );
+    prismaMock.$transaction.mockImplementationOnce(async (callback: (tx: typeof prismaMock) => unknown) => {
+      const result = await callback(prismaMock);
+      expect(result).toEqual(expect.objectContaining({ kind: "success", token: expect.any(String) }));
+      return result;
+    });
+
+    await request(createApp())
+      .post("/api/v1/auth/login")
+      .send({ email: "passenger@example.com", password: "test-passenger-password" })
+      .expect(200);
+  });
+
   it("creates an admin session without issuing a browser refresh token", async () => {
     prismaMock.user.findUnique.mockResolvedValue(
       passengerRow({

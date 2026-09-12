@@ -8,7 +8,7 @@ const prismaMock = vi.hoisted(() => ({
   authSession: { findUnique: vi.fn(), update: vi.fn() },
   auditEvent: { create: vi.fn() },
   match: { findUnique: vi.fn(), update: vi.fn() },
-  trip: { findFirst: vi.fn(), create: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), update: vi.fn() },
+  trip: { findFirst: vi.fn(), create: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
   driverRoute: { update: vi.fn() },
   passengerRequest: { update: vi.fn() },
   merchantOrder: { update: vi.fn() },
@@ -98,6 +98,7 @@ describe("trip acceptance, status, and tracking", () => {
     });
     prismaMock.authSession.update.mockResolvedValue({});
     prismaMock.auditEvent.create.mockResolvedValue({ id: "audit_1" });
+    prismaMock.trip.updateMany.mockResolvedValue({ count: 1 });
     prismaMock.$transaction.mockImplementation((callback: (tx: typeof prismaMock) => unknown) => callback(prismaMock));
   });
 

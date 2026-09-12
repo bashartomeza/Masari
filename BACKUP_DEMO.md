@@ -37,7 +37,7 @@ Use this only when a live surface cannot recover quickly. Keep the same eight-mi
 
 ### MySQL failure
 
-1. Start the existing `MySQL80` Windows service; do not create a new database or edit records manually.
+1. Start the existing `MySQL80` Windows service and use only the explicitly allow-listed disposable demo database; do not edit records manually or use `masari`.
 2. Run `npm run demo:preflight`.
 3. When every check passes, run `npm run db:migrate:status`, `npm run demo:smoke`, then the protected reset.
 
@@ -49,7 +49,7 @@ Use this only when a live surface cannot recover quickly. Keep the same eight-mi
 
 ### Failed reset
 
-1. Confirm `DEMO_RESET_KEY` exists only in the safe local environment or use the authenticated admin reset.
+1. Confirm `DEMO_RESET_KEY` exists only in the safe local environment and the exact disposable database is listed in `DEMO_RESET_ALLOWED_DATABASES`; an authenticated Admin alone cannot authorize reset.
 2. Confirm API/MySQL health and retry once.
 3. Run `npm run demo:smoke`; do not edit MySQL manually.
 

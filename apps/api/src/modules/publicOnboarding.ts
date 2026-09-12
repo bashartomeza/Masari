@@ -30,7 +30,8 @@ import {
   onboardingSessionTokenData,
   revokeOnboardingSessions
 } from "../lib/onboardingSessions.js";
-import { maskPhone, normalizePhoneToE164, phoneLast4 } from "../lib/phone.js";
+import { PHONE_INPUT_MAX_LENGTH, maskPhone, normalizePhoneToE164, phoneLast4 } from "../lib/phone.js";
+import { consentDigestMatches } from "../lib/consentContent.js";
 import { prisma } from "../lib/prisma.js";
 import {
   requireOnboardingToken,
@@ -53,8 +54,8 @@ const localeSchema = z.enum(SUPPORTED_LOCALES);
 const startSchema = z.strictObject({
   invitation_code: z.string().trim().min(20).max(32),
   role: roleSchema,
-  phone: z.string().trim().min(7).max(32),
-  region: z.literal("PS"),
+  phone: z.string().trim().min(7).max(PHONE_INPUT_MAX_LENGTH),
+  region: z.string().trim().regex(/^[A-Za-z]{2}$/).optional(),
   locale: localeSchema
 });
 const verifySchema = z.strictObject({ otp: z.string().regex(/^\d{6}$/) });
@@ -72,8 +73,8 @@ const completionSchema = z.strictObject({
   adult_self_attestation: z.literal(true)
 });
 const recoverySchema = z.strictObject({
-  phone: z.string().trim().min(7).max(32),
-  region: z.literal("PS"),
+  phone: z.string().trim().min(7).max(PHONE_INPUT_MAX_LENGTH),
+  region: z.string().trim().regex(/^[A-Za-z]{2}$/).optional(),
   password: z.string().min(1).max(128)
 });
 
@@ -135,6 +136,11 @@ async function currentConsentDocuments(db: Db, locale: ConsentLocale, now = new 
     where: {
       locale,
       document_type: { in: [...REQUIRED_CONSENTS] },
+      release: {
+        status: "effective",
+        activated_at: { lte: now },
+        retired_at: null
+      },
       legal_approved_at: { not: null },
       effective_at: { lte: now },
       OR: [{ retired_at: null }, { retired_at: { gt: now } }]
@@ -149,7 +155,11 @@ async function currentConsentDocuments(db: Db, locale: ConsentLocale, now = new 
     const matches = byType.get(type) ?? [];
     return matches.length === 1 ? matches[0] : null;
   });
-  if (selected.some((document) => document === null)) return [];
+  if (selected.some((document) =>
+    document === null ||
+    !document.content_body ||
+    !consentDigestMatches(document.content_body, document.content_digest)
+  )) return [];
   return selected as Array<(typeof documents)[number]>;
 }
 
@@ -412,7 +422,11 @@ export function createPublicOnboardingRouter(
         registration_roles: enabled ? [...SUPPORTED_ROLES] : [],
         ...(enabled
           ? {
-              supported_region: "PS",
+              phone_policy: {
+                canonical_format: "E.164",
+                international_prefix_required_without_region: true,
+                local_numbers_require_region: true
+              },
               supported_locales: [...SUPPORTED_LOCALES],
               password_policy: {
                 minimum_characters: PASSWORD_MIN_CHARACTERS,
@@ -450,7 +464,7 @@ export function createPublicOnboardingRouter(
           type: document.document_type,
           version: document.version,
           locale: document.locale,
-          content: document.content_reference,
+          content: document.content_body,
           content_hash: document.content_digest,
           effective_at: document.effective_at
         })),
@@ -870,6 +884,15 @@ export function createPublicOnboardingRouter(
             demo_account: false
           }
         });
+        if (attempt.intended_role === "driver") {
+          await tx.driverVerification.create({
+            data: {
+              user_id: user.id,
+              status: "pending",
+              submitted_at: now
+            }
+          });
+        }
         await tx.userConsent.createMany({
           data: documents.map((document) => ({
             user_id: user.id,

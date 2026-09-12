@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -24,11 +25,11 @@ void main() {
   });
 
   test(
-    'enabled config fails closed when policy or region is malformed',
+    'enabled config fails closed when the global phone policy is malformed',
     () async {
       final repository = _repository((_) async {
         return http.Response(
-          '{"enabled":true,"registration_roles":["passenger","admin"],"supported_region":"ZZ","supported_locales":["ar","en"],"otp_digits":6,"resend_cooldown_seconds":60}',
+          '{"enabled":true,"registration_roles":["passenger","admin"],"phone_policy":{"canonical_format":"regional"},"supported_locales":["ar","en"],"otp_digits":6,"resend_cooldown_seconds":60}',
           200,
         );
       });
@@ -45,7 +46,10 @@ void main() {
         expect(request.url.path, '/api/v1/onboarding/attempts');
         expect(request.headers['Idempotency-Key'], 'idem-start');
         expect(request.headers[HttpHeaders.authorizationHeader], isNull);
-        expect(request.body, contains('invitation_code'));
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        expect(body['invitation_code'], isNotNull);
+        expect(body['phone'], '+972569523636');
+        expect(body, isNot(contains('region')));
         return http.Response(
           '{"attempt":{"id":"attempt_1","status":"otp_sent","phone":"+970*****01","expires_at":"2026-07-20T10:00:00.000Z","resend_available_at":"2026-07-20T09:01:00.000Z"},"onboarding_token":"continuation","onboarding_token_expires_at":"2026-07-20T09:30:00.000Z","next_action":"verify_otp","request_id":"req"}',
           201,
@@ -55,7 +59,7 @@ void main() {
       final result = await repository.start(
         invitationCode: 'INVITE-CODE-1234567890',
         role: OnboardingRole.passenger,
-        phone: '0590000001',
+        phone: '+972569523636',
         locale: 'ar',
         idempotencyKey: 'idem-start',
       );
@@ -198,11 +202,15 @@ void main() {
   test('pending recovery maps generic invalid credentials safely', () async {
     final repository = _repository((request) async {
       expect(request.headers[HttpHeaders.authorizationHeader], isNull);
+      expect(jsonDecode(request.body), {
+        'phone': '+962790000000',
+        'password': 'bad',
+      });
       return http.Response('{"error":"invalid_credentials"}', 401);
     });
 
     await expectLater(
-      repository.recoverPendingStatus(phone: '0590000002', password: 'bad'),
+      repository.recoverPendingStatus(phone: '+962790000000', password: 'bad'),
       throwsA(
         isA<ApiException>().having(
           (error) => error.message,

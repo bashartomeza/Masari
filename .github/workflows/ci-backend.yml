@@ -39,6 +39,7 @@ jobs:
       LOG_LEVEL: silent
       PORT: "3000"
       DEMO_RESET_KEY: ci-only-reset-key
+      DEMO_RESET_ALLOWED_DATABASES: masari_ci,masari_canonical_matching_ci,masari_canonical_shared_ci
       DEMO_PASSENGER_PASSWORD: ci-only-passenger-password
       DEMO_DRIVER_PASSWORD: ci-only-driver-password
       DEMO_MERCHANT_PASSWORD: ci-only-merchant-password
@@ -79,6 +80,26 @@ jobs:
       - name: Confirm migration deploy is idempotent
         run: npm run db:migrate
       - run: npm run db:migrate:status
+      - name: Verify disposable migration upgrade from 20 to 21
+        env:
+          MYSQL_PWD: ci-only-root-password
+          DATABASE_URL: mysql://masari_ci:ci-only-password@127.0.0.1:3306/masari_upgrade_ci
+        run: |
+          mysql --protocol=tcp --host=127.0.0.1 --port=3306 --user=root \
+            --execute="CREATE DATABASE masari_upgrade_ci CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; GRANT ALL PRIVILEGES ON masari_upgrade_ci.* TO 'masari_ci'@'%';"
+          mkdir -p .staging-data/migration-upgrade/prisma/migrations
+          cp apps/api/prisma.config.ts .staging-data/migration-upgrade/
+          cp apps/api/prisma/schema.prisma .staging-data/migration-upgrade/prisma/
+          cp apps/api/prisma/migrations/migration_lock.toml .staging-data/migration-upgrade/prisma/migrations/
+          mapfile -t migrations < <(find apps/api/prisma/migrations -mindepth 1 -maxdepth 1 -type d | sort)
+          test "${#migrations[@]}" -eq 21
+          for migration in "${migrations[@]:0:20}"; do cp -R "$migration" .staging-data/migration-upgrade/prisma/migrations/; done
+          node node_modules/prisma/build/index.js migrate deploy --config .staging-data/migration-upgrade/prisma.config.ts
+          test "$(mysql --protocol=tcp --host=127.0.0.1 --port=3306 --user=root --batch --skip-column-names masari_upgrade_ci --execute='SELECT COUNT(*) FROM _prisma_migrations WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL')" -eq 20
+          cp -R "${migrations[20]}" .staging-data/migration-upgrade/prisma/migrations/
+          node node_modules/prisma/build/index.js migrate deploy --config .staging-data/migration-upgrade/prisma.config.ts
+          node node_modules/prisma/build/index.js migrate deploy --config .staging-data/migration-upgrade/prisma.config.ts
+          test "$(mysql --protocol=tcp --host=127.0.0.1 --port=3306 --user=root --batch --skip-column-names masari_upgrade_ci --execute='SELECT COUNT(*) FROM _prisma_migrations WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL')" -eq 21
       - run: npm run typecheck
       - run: npm run test
       - run: npm run build

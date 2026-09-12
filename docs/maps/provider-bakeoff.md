@@ -1,33 +1,41 @@
-# M7D1 provider bakeoff evidence
+# M7D1/M7D1B provider bakeoff evidence
 
 Evidence date: 2026-08-07. This is an engineering review of public official material, not legal advice or completed legal/licensing approval. The committed fixture is public canonical planning data for Hebron, Palestine Polytechnic University, Bab Al-Zawiya, and Bethlehem in Arabic and English; it contains no user address or live location.
 
-## Execution result
+## M7D1B execution result
 
 | Candidate | Result | Live credentials | Geocode ≥95% | Arabic | Route validity | Live route p95 <2s |
 |---|---|---:|---:|---:|---:|---:|
-| Mapbox | NOT_EXECUTED | absent | not measured | not measured | no human review | not measured |
-| Google | NOT_EXECUTED | absent | not measured | not measured | no human review | not measured |
-| HERE | NOT_EXECUTED | absent | not measured | not measured | no human review | not measured |
-| Stadia/MapLibre stack | NOT_EXECUTED | absent | not measured | not measured | no human review | not measured |
+| Mapbox | NOT_EXECUTED | NOT_AVAILABLE | NOT_EXECUTED | NOT_EXECUTED | NOT_EXECUTED | INSUFFICIENT_EVIDENCE |
+| Google | EXECUTED_EVIDENCE_ONLY | AVAILABLE_DEMO_KEY | address v4 21/60 FAIL; Places top-1 48/60 FAIL | address 11/30; Places 25/30 | corrected controls returned empty route arrays; INSUFFICIENT_EVIDENCE | INSUFFICIENT_EVIDENCE |
+| HERE | NOT_EXECUTED | NOT_AVAILABLE | NOT_EXECUTED | NOT_EXECUTED | NOT_EXECUTED | INSUFFICIENT_EVIDENCE |
+| Stadia/MapLibre stack | NOT_EXECUTED | NOT_AVAILABLE | NOT_EXECUTED | NOT_EXECUTED | NOT_EXECUTED | INSUFFICIENT_EVIDENCE |
+| OSM self-hosted Valhalla | EXECUTED_ROUTING | NOT_REQUIRED | NOT_EXECUTED_BY_VALHALLA | separate Nominatim 26/30 Arabic | corrected 4/4 required; 12/12 expanded structural PASS | PASS (14.627 ms warm p95) |
 
-The fake-provider harness ran 10 sequential local samples with zero failures, 100% fixture geocoding, and Arabic/English acceptance. This proves only harness determinism; it is not live-provider performance or Palestine route-quality evidence. The harness reports geocode and route p50/p95 separately using a monotonic clock, explicit sample/call/Arabic counts, safe failure categories, and unresolved human-review, storage, attribution, privacy, and commercial gates. Run with `ROUTE_BAKEOFF_PROVIDER=<candidate>` and server-side `ROUTE_PROVIDER_SECRET`; missing credentials deliberately emits null latency/success evidence and exits as `NOT_EXECUTED`.
+Categorical checks initially found no hosted-provider credential. Mapbox, HERE, and Stadia retained zero samples, null latency, `credential_unavailable`, and `NOT_EXECUTED`. Google was later evaluated with a separately supplied Demo Key without printing, documenting, or committing its value.
+
+The fake-provider harness ran 10 sequential local samples with zero failures: 8/8 fixture geocodes (4 Arabic, 4 English) and 2/2 fixture routes. This proves only harness determinism; it is not live-provider performance or Palestine route-quality evidence. The harness reports geocode and route p50/p95 separately using a monotonic clock, explicit sample/call/Arabic counts, safe failure categories, and unresolved human-review, storage, attribution, privacy, and commercial gates. Run with `ROUTE_BAKEOFF_PROVIDER=<candidate>` and server-side `ROUTE_PROVIDER_SECRET`; missing credentials deliberately emit null evidence and process exit 2 as `NOT_EXECUTED`.
+
+The keyless OSM path is separate from Stadia. Independent review corrected materially misplaced PPU and Bab Al-Zawiya fixtures, reran the four required routes, and expanded structural routing to 12 public routes plus restriction controls. Self-hosted Nominatim was technically provisioned, but strict representative acceptance was 51/60 overall, 26/30 Arabic and 25/30 English, below the 95% target. Detailed reproducibility and limitations are in [OSM/Valhalla routing evidence](osm-valhalla-palestine-evidence.md), [operations](osm-self-hosted-operational-evaluation.md), and [Nominatim evidence](osm-nominatim-evidence.md).
 
 ## Storage and attribution matrix
 
 | Candidate | Geocode storage | Published route geometry/distance/duration | Attribution | Status |
 |---|---|---|---|---|
-| Mapbox | Temporary results cannot be stored; Permanent Geocoding requires the permanent endpoint/account terms. | Directions persistence rights were not explicit enough in reviewed public docs for Masari's immutable record. | Mapbox/underlying map-data attribution required. | unresolved |
-| Google | Place IDs may be stored; most geocoding content storage is restricted. | Routes terms describe limited caching and prohibit use with a non-Google map; permanent canonical polyline rights are not approved. | Google Maps attribution and UI rules required. | incompatible/unresolved without reviewed license and renderer choice |
-| HERE | Standard platform terms limit most cached/stored results to 30 days. | Immutable multi-year geometry needs separate contractual rights. | HERE and applicable third-party attribution required. | unresolved |
-| Stadia | Persistent geocoding requires an eligible Standard/Professional/Enterprise subscription. | Public terms prohibit server-side caching generally; plan-specific persistent routing rights need written confirmation. | Stadia Maps plus original data sources such as OpenStreetMap. | unresolved |
+| Mapbox | Temporary results cannot be stored; Permanent Geocoding allows indefinite storage with required billing/contract. | Published Directions persistence rights remain unresolved for the immutable record. | Mapbox response and applicable underlying map-data attribution required. | conditional/unresolved |
+| Google | Place IDs may be stored; the indefinite geocode exception is end-user-specific and isolated, not a shared canonical record. | Routes caching is restricted and content cannot be used with a non-Google map. | Google Maps attribution/UI rules and Google map restrictions apply. | incompatible for proposed design |
+| HERE | Public standard terms limit Location Services Results outside the platform to 30 days. | Immutable multi-year geometry needs separate contractual rights. | HERE and applicable supplier attribution required. | restricted without separate rights |
+| Stadia | Persistent geocoding requires an eligible Standard/Professional/Enterprise subscription and permissions. | Server-side caching is prohibited; persistent routing rights need written confirmation. | Stadia Maps plus applicable original sources such as OpenStreetMap. | conditional/unresolved |
+| OSM self-hosted | Individual geocodes may be insubstantial under OSMF guidance; systematic collections/derivative databases differ. | Dynamic instructions may be a Produced Work; systematic canonical geometry is unresolved and needs legal review. | `© OpenStreetMap contributors` plus license access required. | conditional/unresolved legal review |
 
 Official evidence: [Mapbox geocoding storage](https://docs.mapbox.com/api/search/geocoding/), [Mapbox directions](https://docs.mapbox.com/api/navigation/directions/), [Mapbox pricing](https://www.mapbox.com/pricing), [Google Routes policies](https://developers.google.com/maps/documentation/routes/policies), [Google service-specific terms](https://cloud.google.com/maps-platform/terms/maps-service-terms), [HERE platform terms](https://legal.here.com/us-en/terms/here-platform/terms-november-2021), [Stadia terms](https://stadiamaps.com/terms-of-service/), [Stadia attribution](https://docs.stadiamaps.com/attribution/), and [Stadia pricing](https://stadiamaps.com/pricing).
 
-## Telemetry/privacy and budget
+## Telemetry/privacy, budget, and decision
 
-All server APIs necessarily receive canonical stop queries/coordinates, account/network metadata, and usage timing. No mobile SDK was added, so M7D1 adds no device telemetry, advertising identifier, location permission, or background service. Stadia's DPA explicitly lists IP, approximate IP-derived location, device identifiers, usage data, and request parameters that may contain location data; equivalent provider-specific DPA/account review remains required.
+All server APIs receive canonical stop queries/coordinates and network/account request metadata. No mobile SDK was added, so M7D1B adds no device telemetry, advertising identifier, location permission, or background service. Mapbox is privacy-conditional; Google Maps Platform's contractual role and retention need account review; HERE's standard versus Essential Data Processing path is unresolved; Stadia publishes a DPA and approximately 7–14-day API log retention but still needs account and transfer review.
 
-Pricing models are documented but Masari volume and billing-account terms have not been approved: Mapbox bills geocoding/navigation by request; Google bills Geocoding and Compute Routes SKUs; HERE currently advertises free/pay-as-you-grow but detailed account pricing needs review; Stadia uses plan credits (standard routing and forward geocoding currently 20 credits/request). No budget-fit claim is made.
+At the required LOW/MEDIUM/HIGH scenarios, list-price modeling is: Mapbox Permanent Geocoding plus Directions $5/$50/$500; Google Essentials $0/$0/$900; HERE unresolved; and Stadia Standard $80/$80/$80 while included credits suffice. These are not approved budgets and do not cure storage or privacy blockers. Renderer/map-load costs remain separate.
 
-`PREFERRED_PROVIDER_RECOMMENDATION=NO_PROVIDER_APPROVED_YET`. Mapbox remains the conditional lead only. M7D2 requires credentials, repeated cold/warm runs, ≥95% acceptable geocoding, Arabic review, human route-map review in the actual corridor, p95 evidence, written storage approval for every persisted field, attribution/renderer approval, telemetry/DPA review, and an approved budget.
+The mandatory G1–G10 rubric is defined in [provider-live-evidence.md](provider-live-evidence.md). `M7D1B_EVIDENCE_QUALITY=APPROVED`, `OSM_VALHALLA_CANDIDATE=CONDITIONAL`, and `PROVIDER_SELECTION=NO_PROVIDER_APPROVED_YET`. No tested generic search product met the 95% gates, so `GENERIC_GEOCODER_AS_SOURCE_OF_TRUTH=NOT_APPROVED`. The next recommended design milestone is M7D1C — Canonical Palestinian Place Catalog & Search Architecture; it has not started. Legal storage approval, attribution/renderer design, production SRE/TCO evidence, and human merge approval remain separate requirements.
+
+Focused evidence: [live methodology and scoring](provider-live-evidence.md), [Palestine route review](provider-palestine-route-review.md), [storage-rights matrix](provider-storage-rights-matrix.md), [commercial evaluation](provider-commercial-evaluation.md), and [privacy evaluation](provider-privacy-evaluation.md).

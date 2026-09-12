@@ -1,0 +1,85 @@
+{
+  "classification": "public-canonical-evidence-no-user-location-data",
+  "extract": {
+    "name": "israel-and-palestine-260806.osm.pbf",
+    "sha256": "36e45cb73d7fa584fbdf58836b615174122c32f22bf1871ec691161826af79aa"
+  },
+  "search": {
+    "viewbox": [34.85, 32.6, 35.65, 31.3],
+    "bounded": true,
+    "top_result_only": true,
+    "acceptance_target": 0.95
+  },
+  "geocode_locations": [
+    { "id": "hebron", "kind": "city", "bbox": [31.45, 31.60, 35.00, 35.18], "accept": { "categories": ["place", "boundary"], "types": ["city", "town", "administrative"] }, "queries": { "en": { "city": "Hebron", "country": "Palestinian Territories" }, "ar": { "city": "الخليل", "country": "Palestinian Territories" } } },
+    { "id": "bethlehem", "kind": "city", "bbox": [31.65, 31.76, 35.12, 35.28], "accept": { "categories": ["place", "boundary"], "types": ["city", "town", "administrative"] }, "queries": { "en": { "city": "Bethlehem", "country": "Palestinian Territories" }, "ar": { "city": "بيت لحم", "country": "Palestinian Territories" } } },
+    { "id": "ramallah", "kind": "city", "bbox": [31.84, 31.98, 35.10, 35.30], "accept": { "categories": ["place", "boundary"], "types": ["city", "town", "administrative"] }, "queries": { "en": { "city": "Ramallah", "country": "Palestinian Territories" }, "ar": { "city": "رام الله", "country": "Palestinian Territories" } } },
+    { "id": "al-bireh", "kind": "city", "bbox": [31.84, 31.98, 35.10, 35.30], "accept": { "categories": ["place", "boundary"], "types": ["city", "town", "administrative"] }, "queries": { "en": { "q": "Al-Bireh, West Bank" }, "ar": { "city": "البيرة", "country": "Palestinian Territories" } } },
+    { "id": "nablus", "kind": "city", "bbox": [32.15, 32.30, 35.15, 35.38], "accept": { "categories": ["place", "boundary"], "types": ["city", "town", "administrative"] }, "queries": { "en": { "city": "Nablus", "country": "Palestinian Territories" }, "ar": { "city": "نابلس", "country": "Palestinian Territories" } } },
+    { "id": "jericho", "kind": "city", "bbox": [31.78, 31.95, 35.35, 35.55], "accept": { "categories": ["place", "boundary"], "types": ["city", "town", "administrative"] }, "queries": { "en": { "city": "Jericho", "country": "Palestinian Territories" }, "ar": { "city": "أريحا", "country": "Palestinian Territories" } } },
+    { "id": "jenin", "kind": "city", "bbox": [32.38, 32.55, 35.20, 35.40], "accept": { "categories": ["place", "boundary"], "types": ["city", "town", "administrative"] }, "queries": { "en": { "city": "Jenin", "country": "Palestinian Territories" }, "ar": { "city": "جنين", "country": "Palestinian Territories" } } },
+    { "id": "tulkarm", "kind": "city", "bbox": [32.25, 32.38, 34.95, 35.10], "accept": { "categories": ["place", "boundary"], "types": ["city", "town", "administrative"] }, "queries": { "en": { "city": "Tulkarm", "country": "Palestinian Territories" }, "ar": { "city": "طولكرم", "country": "Palestinian Territories" } } },
+    { "id": "qalqilya", "kind": "city", "bbox": [32.14, 32.24, 34.90, 35.08], "accept": { "categories": ["place", "boundary"], "types": ["city", "town", "administrative"] }, "queries": { "en": { "city": "Qalqilya", "country": "Palestinian Territories" }, "ar": { "city": "قلقيلية", "country": "Palestinian Territories" } } },
+
+    { "id": "ppu-main", "kind": "university", "bbox": [31.50, 31.515, 35.08, 35.10], "accept": { "categories": ["amenity"], "types": ["university"] }, "queries": { "en": { "q": "Palestine Polytechnic University, Hebron" }, "ar": { "q": "جامعة بوليتكنك فلسطين، ضاحية البلدية، الخليل" } } },
+    { "id": "bethlehem-university", "kind": "university", "bbox": [31.68, 31.73, 35.17, 35.23], "accept": { "categories": ["amenity"], "types": ["university"] }, "queries": { "en": { "q": "Bethlehem University, Bethlehem" }, "ar": { "q": "جامعة بيت لحم، بيت لحم" } } },
+    { "id": "birzeit-university", "kind": "university", "bbox": [31.95, 32.02, 35.16, 35.23], "accept": { "categories": ["amenity"], "types": ["university"] }, "queries": { "en": { "q": "Birzeit University, Birzeit" }, "ar": { "q": "جامعة بيرزيت، بيرزيت" } } },
+    { "id": "an-najah-new-campus", "kind": "university", "bbox": [32.18, 32.26, 35.18, 35.30], "accept": { "categories": ["amenity"], "types": ["university"] }, "queries": { "en": { "q": "An-Najah National University, Nablus" }, "ar": { "q": "جامعة النجاح الوطنية، نابلس" } } },
+    { "id": "aaup-jenin", "kind": "university", "bbox": [32.38, 32.50, 35.25, 35.38], "accept": { "categories": ["amenity"], "types": ["university"] }, "queries": { "en": { "q": "Arab American University - Jenin" }, "ar": { "q": "الجامعة العربية الأمريكية، جنين" } } },
+    { "id": "hisham-palace", "kind": "landmark", "bbox": [31.83, 31.92, 35.42, 35.50], "accept": { "categories": ["tourism", "historic"], "types": ["attraction", "museum", "archaeological_site"] }, "queries": { "en": { "q": "Hisham Palace, Jericho" }, "ar": { "q": "قصر هشام، النويعمة" } } },
+    { "id": "arafat-museum", "kind": "landmark", "bbox": [31.87, 31.94, 35.17, 35.24], "accept": { "categories": ["tourism"], "types": ["museum"] }, "queries": { "en": { "q": "Yasser Arafat Museum, Ramallah" }, "ar": { "q": "متحف ياسر عرفات، رام الله" } } },
+    { "id": "bab-al-zawiya", "kind": "route_stop", "bbox": [31.52, 31.535, 35.095, 35.11], "accept": { "categories": ["highway", "place"], "types": ["tertiary", "square"] }, "queries": { "en": { "q": "Bab Al-Zawiya Square, Hebron" }, "ar": { "q": "باب الزاوية، الخليل" } } },
+    { "id": "hebron-university", "kind": "university", "bbox": [31.53, 31.57, 35.07, 35.12], "accept": { "categories": ["amenity"], "types": ["university"] }, "queries": { "en": { "q": "Hebron University, Hebron" }, "ar": { "q": "جامعة الخليل، الخليل" } } },
+    { "id": "ibrahimi-mosque", "kind": "landmark", "bbox": [31.515, 31.535, 35.10, 35.12], "accept": { "categories": ["tourism", "amenity"], "types": ["attraction", "place_of_worship"] }, "queries": { "en": { "q": "Cave of the Patriarchs, Hebron" }, "ar": { "q": "الحرم الإبراهيمي، الخليل" } } },
+    { "id": "church-nativity", "kind": "landmark", "bbox": [31.695, 31.715, 35.195, 35.215], "accept": { "categories": ["amenity", "tourism"], "types": ["place_of_worship", "attraction"] }, "queries": { "en": { "q": "Church of the Nativity, Bethlehem" }, "ar": { "q": "كنيسة المهد، بيت لحم" } } },
+    { "id": "manger-square", "kind": "landmark", "bbox": [31.695, 31.715, 35.195, 35.215], "accept": { "categories": ["highway", "place"], "types": ["pedestrian", "square"] }, "queries": { "en": { "q": "Manger Square, Bethlehem" }, "ar": { "q": "ساحة المهد، بيت لحم" } } },
+    { "id": "manara-square", "kind": "landmark", "bbox": [31.895, 31.915, 35.195, 35.215], "accept": { "categories": ["place", "highway"], "types": ["square", "pedestrian"] }, "queries": { "en": { "q": "Al-Manara Square, Ramallah" }, "ar": { "q": "ميدان المنارة، رام الله" } } },
+    { "id": "darwish-museum", "kind": "landmark", "bbox": [31.88, 31.90, 35.18, 35.20], "accept": { "categories": ["tourism"], "types": ["museum"] }, "queries": { "en": { "q": "Mahmoud Darwish Museum, Ramallah" }, "ar": { "q": "متحف محمود درويش، رام الله" } } },
+    { "id": "nablus-municipality", "kind": "public_building", "bbox": [32.21, 32.23, 35.25, 35.275], "accept": { "categories": ["office", "amenity"], "types": ["government", "townhall"] }, "queries": { "en": { "q": "Nablus Municipality, Nablus" }, "ar": { "q": "بلدية نابلس، نابلس" } } },
+    { "id": "tell-balata", "kind": "landmark", "bbox": [32.20, 32.225, 35.27, 35.295], "accept": { "categories": ["historic", "tourism"], "types": ["archaeological_site", "attraction"] }, "queries": { "en": { "q": "Tell Balata, Nablus" }, "ar": { "q": "تل بلاطة، نابلس" } } },
+    { "id": "monastery-temptation", "kind": "landmark", "bbox": [31.86, 31.89, 35.42, 35.45], "accept": { "categories": ["amenity", "tourism"], "types": ["monastery", "attraction"] }, "queries": { "en": { "q": "Monastery of the Temptation, Jericho" }, "ar": { "q": "دير قرنطل، أريحا" } } },
+    { "id": "kadoorie", "kind": "university", "bbox": [32.30, 32.325, 35.01, 35.04], "accept": { "categories": ["amenity"], "types": ["university"] }, "queries": { "en": { "q": "Palestine Technical University Kadoorie, Tulkarm" }, "ar": { "q": "جامعة فلسطين التقنية خضوري، طولكرم" } } },
+    { "id": "qalqilya-zoo", "kind": "landmark", "bbox": [32.17, 32.21, 34.96, 35.00], "accept": { "categories": ["tourism"], "types": ["zoo"] }, "queries": { "en": { "q": "Qalqilya Zoo, Qalqilya" }, "ar": { "q": "حديقة حيوانات قلقيلية" } } },
+    { "id": "freedom-theatre", "kind": "landmark", "bbox": [32.45, 32.475, 35.275, 35.305], "accept": { "categories": ["amenity"], "types": ["theatre"] }, "queries": { "en": { "q": "The Freedom Theatre, Jenin" }, "ar": { "q": "مسرح الحرية، جنين" } } },
+    { "id": "bethlehem-peace-center", "kind": "public_building", "bbox": [31.695, 31.715, 35.195, 35.215], "accept": { "categories": ["amenity"], "types": ["community_centre"] }, "queries": { "en": { "q": "Bethlehem Peace Center, Bethlehem" }, "ar": { "q": "مركز بيت لحم للسلام" } } }
+  ],
+  "route_locations": {
+    "hebron-center": [31.5326, 35.0998],
+    "ppu-main": [31.5073157, 35.0908933],
+    "bab-al-zawiya": [31.5275134, 35.1018593],
+    "bethlehem-center": [31.7043556, 35.2061876],
+    "church-nativity": [31.7043165, 35.207355],
+    "bethlehem-university": [31.7105814, 35.2017784],
+    "ramallah-center": [31.8978012, 35.1924223],
+    "al-bireh-center": [31.9007401, 35.2117585],
+    "nablus-center": [32.2205316, 35.2569374],
+    "an-najah-new-campus": [32.2280769, 35.222255],
+    "jericho-center": [31.8560483, 35.4598241],
+    "hisham-palace": [31.8831678, 35.4600399],
+    "jenin-center": [32.4618837, 35.297566],
+    "freedom-theatre": [32.4633666, 35.2872324],
+    "tulkarm-center": [32.3111468, 35.0275505],
+    "kadoorie": [32.3133763, 35.0224377],
+    "qalqilya-center": [32.1881333, 34.9679208],
+    "qalqilya-municipality": [32.1876863, 34.9656848]
+  },
+  "routes": [
+    { "id": "intra-hebron-ppu-bab", "scope": "local", "ordered_location_ids": ["ppu-main", "bab-al-zawiya"] },
+    { "id": "hebron-bethlehem", "scope": "intercity", "ordered_location_ids": ["hebron-center", "bethlehem-center"] },
+    { "id": "bethlehem-local", "scope": "local", "ordered_location_ids": ["church-nativity", "bethlehem-university"] },
+    { "id": "ramallah-al-bireh-local", "scope": "local", "ordered_location_ids": ["ramallah-center", "al-bireh-center"] },
+    { "id": "nablus-local", "scope": "local", "ordered_location_ids": ["nablus-center", "an-najah-new-campus"] },
+    { "id": "jericho-local", "scope": "local", "ordered_location_ids": ["jericho-center", "hisham-palace"] },
+    { "id": "jenin-local", "scope": "local", "ordered_location_ids": ["jenin-center", "freedom-theatre"] },
+    { "id": "tulkarm-local", "scope": "local", "ordered_location_ids": ["tulkarm-center", "kadoorie"] },
+    { "id": "qalqilya-local", "scope": "local", "ordered_location_ids": ["qalqilya-center", "qalqilya-municipality"] },
+    { "id": "ramallah-nablus", "scope": "intercity", "ordered_location_ids": ["ramallah-center", "nablus-center"] },
+    { "id": "nablus-jenin", "scope": "intercity", "ordered_location_ids": ["nablus-center", "jenin-center"] },
+    { "id": "bethlehem-ramallah", "scope": "intercity", "ordered_location_ids": ["bethlehem-center", "ramallah-center"] }
+  ],
+  "restriction_controls": [
+    { "id": "hebron-no-left-turn-13252221", "type": "no_left_turn", "osm_relation_id": 13252221, "origin": [31.5417061, 35.1330326], "destination": [31.5416654, 35.1329267], "origin_options": { "heading": 301, "heading_tolerance": 45, "node_snap_tolerance": 0 }, "destination_options": { "heading": 190, "heading_tolerance": 45, "node_snap_tolerance": 0 }, "direct_distance_meters": 15, "minimum_expected_route_meters": 1000 },
+    { "id": "hebron-oneway-337051667", "type": "oneway_reverse", "osm_way_id": 337051667, "origin": [31.5417564, 35.1329426], "destination": [31.5417061, 35.1330326], "origin_options": { "heading": 121, "heading_tolerance": 45, "node_snap_tolerance": 0 }, "destination_options": { "heading": 121, "heading_tolerance": 45, "node_snap_tolerance": 0 }, "direct_distance_meters": 10, "minimum_expected_route_meters": 1000 },
+    { "id": "hebron-shuhada-pedestrian-barrier", "type": "pedestrian_and_motor_vehicle_no", "osm_way_id": 1457807736, "barrier_node_id": 4973647884, "origin": [31.5265735, 35.1018738], "destination": [31.5265168, 35.102545], "direct_distance_meters": 64, "minimum_expected_route_meters": 500 }
+  ]
+}

@@ -58,6 +58,7 @@ try {
     ENABLE_DEMO_FEATURES: "true",
     APP_RELEASE: "m6c1a-local-integration",
     DATABASE_URL: databaseUrlFor(url, database),
+    DEMO_RESET_ALLOWED_DATABASES: database,
     ACCESS_TOKEN_TTL_SECONDS: "3600",
     REFRESH_TOKEN_TTL_DAYS: "30",
     CORS_ORIGINS: "http://localhost:5173",

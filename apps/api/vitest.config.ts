@@ -14,6 +14,7 @@ export default defineConfig({
       REFRESH_TOKEN_PEPPER: "test-only-refresh-pepper-with-at-least-thirty-two-characters",
       CORS_ORIGINS: "http://localhost:5173,http://localhost:5174,http://localhost:5175",
       DEMO_RESET_KEY: "test-reset-key",
+      DEMO_RESET_ALLOWED_DATABASES: "masari_test",
       DEMO_PASSENGER_PASSWORD: "test-passenger-password",
       DEMO_DRIVER_PASSWORD: "test-driver-password",
       DEMO_MERCHANT_PASSWORD: "test-merchant-password",

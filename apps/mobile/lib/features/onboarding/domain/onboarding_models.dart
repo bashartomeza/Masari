@@ -66,8 +66,12 @@ class OnboardingConfig {
     final rawRoles = _requiredStringList(json, 'registration_roles');
     final roles = rawRoles.map(_roleFromApi).toList(growable: false);
     final rawLocales = _requiredStringList(json, 'supported_locales');
+    final phonePolicy = json['phone_policy'];
     final policy = json['password_policy'];
-    if (json['supported_region'] != 'PS' ||
+    if (phonePolicy is! Map<String, dynamic> ||
+        phonePolicy['canonical_format'] != 'E.164' ||
+        phonePolicy['international_prefix_required_without_region'] != true ||
+        phonePolicy['local_numbers_require_region'] != true ||
         roles.isEmpty ||
         roles.any((role) => role == null) ||
         roles.toSet().length != roles.length ||

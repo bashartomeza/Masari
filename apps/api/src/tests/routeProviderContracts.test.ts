@@ -18,7 +18,14 @@ describe("M7D1 provider-neutral route contract", () => {
   it("returns deterministic Arabic and English fake geocodes", async () => {
     const provider = new FakeRouteProvider();
     expect((await provider.geocodeStop({ query: "الخليل", locale: "ar" })).coordinates.latitude).toBe(31.5326);
-    expect((await provider.geocodeStop({ query: "Palestine Polytechnic University", locale: "en" })).category).toBe("university");
+    expect(await provider.geocodeStop({ query: "Palestine Polytechnic University", locale: "en" })).toMatchObject({
+      coordinates: { latitude: 31.5073157, longitude: 35.0908933 },
+      category: "university"
+    });
+    expect(await provider.geocodeStop({ query: "ميدان باب الزاوية", locale: "ar" })).toMatchObject({
+      coordinates: { latitude: 31.5275134, longitude: 35.1018593 },
+      category: "public_square"
+    });
   });
 
   it("returns deterministic route geometry, distance, duration, and checksums", async () => {

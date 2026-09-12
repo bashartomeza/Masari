@@ -1,0 +1,115 @@
+{
+  "provider": "google-routes-v2",
+  "audit_mode": "coordinate-matrix",
+  "request_count": 4,
+  "methodology": {
+    "corrected_public_fixture_coordinates": true,
+    "travel_mode": "DRIVE",
+    "routing_preference": "TRAFFIC_UNAWARE",
+    "normal_stopover_intermediates": true,
+    "waypoint_optimization": false,
+    "modifiers": false,
+    "heading": false,
+    "side_of_road": false,
+    "departure_time": false,
+    "field_mask": "routes.distanceMeters,routes.duration,routes.polyline.encodedPolyline",
+    "raw_responses_retained": false,
+    "encoded_polylines_retained": false,
+    "canonical_persistence": false
+  },
+  "results": [
+    {
+      "fixture_id": "hebron-bethlehem",
+      "waypoint_representation": "COORDINATE_LOCATION_LATLNG",
+      "http_success": true,
+      "http_status": 200,
+      "response_top_level_fields": [],
+      "safe_error_code": null,
+      "safe_error_status": null,
+      "routes_array_count": 0,
+      "distance_meters": null,
+      "duration_seconds": null,
+      "decoded_geometry_valid": false,
+      "decoded_point_count": 0,
+      "waypoint_order": [
+        "hebron-center",
+        "bethlehem-center"
+      ],
+      "waypoint_order_preserved": false,
+      "endpoint_snap_meters": null,
+      "intermediate_snap_meters": [],
+      "latency_ms": 518.0825,
+      "failure_category": "NO_ROUTE"
+    },
+    {
+      "fixture_id": "ppu-bethlehem",
+      "waypoint_representation": "COORDINATE_LOCATION_LATLNG",
+      "http_success": true,
+      "http_status": 200,
+      "response_top_level_fields": [],
+      "safe_error_code": null,
+      "safe_error_status": null,
+      "routes_array_count": 0,
+      "distance_meters": null,
+      "duration_seconds": null,
+      "decoded_geometry_valid": false,
+      "decoded_point_count": 0,
+      "waypoint_order": [
+        "ppu-main",
+        "bethlehem-center"
+      ],
+      "waypoint_order_preserved": false,
+      "endpoint_snap_meters": null,
+      "intermediate_snap_meters": [],
+      "latency_ms": 190.6019,
+      "failure_category": "NO_ROUTE"
+    },
+    {
+      "fixture_id": "bab-al-zawiya-bethlehem",
+      "waypoint_representation": "COORDINATE_LOCATION_LATLNG",
+      "http_success": true,
+      "http_status": 200,
+      "response_top_level_fields": [],
+      "safe_error_code": null,
+      "safe_error_status": null,
+      "routes_array_count": 0,
+      "distance_meters": null,
+      "duration_seconds": null,
+      "decoded_geometry_valid": false,
+      "decoded_point_count": 0,
+      "waypoint_order": [
+        "bab-al-zawiya",
+        "bethlehem-center"
+      ],
+      "waypoint_order_preserved": false,
+      "endpoint_snap_meters": null,
+      "intermediate_snap_meters": [],
+      "latency_ms": 109.0154,
+      "failure_category": "NO_ROUTE"
+    },
+    {
+      "fixture_id": "ppu-bab-al-zawiya-bethlehem",
+      "waypoint_representation": "COORDINATE_LOCATION_LATLNG",
+      "http_success": true,
+      "http_status": 200,
+      "response_top_level_fields": [],
+      "safe_error_code": null,
+      "safe_error_status": null,
+      "routes_array_count": 0,
+      "distance_meters": null,
+      "duration_seconds": null,
+      "decoded_geometry_valid": false,
+      "decoded_point_count": 0,
+      "waypoint_order": [
+        "ppu-main",
+        "bab-al-zawiya",
+        "bethlehem-center"
+      ],
+      "waypoint_order_preserved": false,
+      "endpoint_snap_meters": null,
+      "intermediate_snap_meters": [],
+      "latency_ms": 114.21969999999999,
+      "failure_category": "NO_ROUTE"
+    }
+  ]
+}

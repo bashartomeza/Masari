@@ -4,8 +4,8 @@
   "locales": ["ar", "en"],
   "stops": [
     { "id": "hebron-center", "name_ar": "الخليل", "name_en": "Hebron", "latitude": 31.5326, "longitude": 35.0998 },
-    { "id": "ppu", "name_ar": "جامعة بوليتكنك فلسطين", "name_en": "Palestine Polytechnic University", "latitude": 31.5782, "longitude": 35.0801 },
-    { "id": "bab-al-zawiya", "name_ar": "باب الزاوية", "name_en": "Bab Al-Zawiya", "latitude": 31.5279, "longitude": 35.0938 },
+    { "id": "ppu", "name_ar": "جامعة بوليتكنك فلسطين - حرم ضاحية البلدية", "name_en": "Palestine Polytechnic University - Dahiat Al-Baladiyah campus", "latitude": 31.5073157, "longitude": 35.0908933 },
+    { "id": "bab-al-zawiya", "name_ar": "ميدان باب الزاوية", "name_en": "Bab Al-Zawiya Square", "latitude": 31.5275134, "longitude": 35.1018593 },
     { "id": "bethlehem-center", "name_ar": "بيت لحم", "name_en": "Bethlehem", "latitude": 31.7054, "longitude": 35.2024 }
   ],
   "routes": [

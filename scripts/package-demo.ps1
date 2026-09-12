@@ -72,7 +72,9 @@ These are placeholder templates only. They contain no database password, JWT sec
 
 - Copy values into local process environment variables.
 - Never save the completed secret-bearing file in this package.
-- The MySQL database name is masari, the default port is 3306, and utf8mb4 is required.
+- The reset-safe MySQL database name is masari_demo, the default port is 3306, and utf8mb4 is required.
+- The real/pilot masari database is permanently ineligible for demo reset.
+- Set DEMO_RESET_ALLOWED_DATABASES=masari_demo explicitly before rehearsal.
 - Apply schema changes from the source repository with npm run db:migrate; do not execute migration SQL manually.
 - The Android APK is already configured for http://10.0.2.2:3000.
 "@

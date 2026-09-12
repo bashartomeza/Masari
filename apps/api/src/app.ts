@@ -1,7 +1,7 @@
 import express from "express";
 import type { Logger } from "pino";
 import { authRouter } from "./modules/auth.js";
-import { demoRouter } from "./modules/demoReset.js";
+import { createDemoRouter } from "./modules/demoReset.js";
 import { passengerRouter } from "./modules/passenger.js";
 import { createDriverRouter } from "./modules/driver.js";
 import { merchantRouter } from "./modules/merchant.js";
@@ -36,6 +36,8 @@ import type { DriverAvailabilityService } from "./services/driverAvailability.js
 import { createCanonicalDemandRouter } from "./modules/canonicalDemand.js";
 import type { CanonicalDemandService } from "./services/canonicalDemand.js";
 import { createCapabilitiesRouter } from "./modules/capabilities.js";
+import { createCheckpointRouter } from "./modules/checkpoints.js";
+import type { CheckpointService } from "./services/checkpoints.js";
 import { createCanonicalMatchingRouter } from "./modules/canonicalMatching.js";
 import { createCanonicalSharedMatchingRouter } from "./modules/canonicalSharedMatching.js";
 import type { CanonicalMatchingService } from "./services/canonicalMatching.js";
@@ -46,8 +48,12 @@ import { createRoutePreviewService, type RoutePreviewService } from "./maps/prev
 import { createRoutePreviewRouter } from "./modules/routePreview.js";
 import { createPassengerAssistantRouter } from "./modules/passengerAssistant.js";
 import type { PassengerAssistantService } from "./services/passengerAssistant.js";
+import { createAdminConsentRouter } from "./modules/adminConsents.js";
+import type { ConsentReleaseService } from "./services/consentReleases.js";
+import { adminTripsRouter } from "./modules/adminTrips.js";
 
 export const HTTP_JSON_LIMIT = "64kb";
+export const CONSENT_RELEASE_JSON_LIMIT = "256kb";
 export const HTTP_FORM_LIMIT = "16kb";
 
 type AppDependencies = {
@@ -59,9 +65,11 @@ type AppDependencies = {
   canonicalDemandService?: CanonicalDemandService;
   canonicalMatchingService?: CanonicalMatchingService;
   canonicalSharedMatchingService?: CanonicalSharedMatchingService;
+  checkpointService?: CheckpointService;
   legacyDriverOnlineStateService?: LegacyDriverOnlineStateService;
   routePreviewService?: RoutePreviewService;
   passengerAssistantService?: PassengerAssistantService;
+  consentReleaseService?: ConsentReleaseService;
 };
 
 export function createApp(
@@ -77,6 +85,7 @@ export function createApp(
   app.use(operationalLogMiddleware(logger));
   app.use(securityHeaders(appConfig));
   app.use(createCors(appConfig));
+  app.use("/api/v1/admin/consent-releases", express.json({ limit: CONSENT_RELEASE_JSON_LIMIT }));
   app.use(express.json({ limit: HTTP_JSON_LIMIT }));
   app.use(express.urlencoded({ extended: false, limit: HTTP_FORM_LIMIT }));
 
@@ -96,7 +105,11 @@ export function createApp(
 
   app.use("/api/v1", authRouter);
   app.use("/api/v1", createCapabilitiesRouter(appConfig));
-  if (appConfig.demoFeaturesEnabled) app.use("/api/v1", demoRouter);
+  app.use(
+    "/api/v1",
+    createCheckpointRouter(appConfig, dependencies.checkpointService),
+  );
+  if (appConfig.demoFeaturesEnabled) app.use("/api/v1", createDemoRouter(appConfig));
   app.use(
     "/api/v1",
     createCanonicalDemandRouter(appConfig, dependencies.canonicalDemandService),
@@ -158,6 +171,8 @@ export function createApp(
     cacheTtlMs: appConfig.routeMaps.cacheTtlSeconds * 1_000
   });
   app.use("/api/v1", createRoutePreviewRouter(appConfig, routePreviewService));
+  app.use("/api/v1", createAdminConsentRouter(dependencies.consentReleaseService));
+  app.use("/api/v1", adminTripsRouter);
   app.use("/api/v1", adminRouter);
 
   app.use(notFoundHandler);

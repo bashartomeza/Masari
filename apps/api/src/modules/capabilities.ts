@@ -1,6 +1,7 @@
 import { Router } from "express";
 import type { AppConfig } from "../config.js";
 import { requireAuth } from "../middleware/auth.js";
+import { evaluateDemoResetSafety } from "../lib/demoResetSafety.js";
 
 export function createCapabilitiesRouter(appConfig: AppConfig) {
   const router = Router();
@@ -26,8 +27,12 @@ export function createCapabilitiesRouter(appConfig: AppConfig) {
       canonical_shared_trip_presentation_available: canonicalSharedTripPresentationAvailable,
       canonical_shared_driver_offers_available: canonicalSharedTripPresentationAvailable,
       canonical_shared_assignment_status_available: canonicalSharedTripPresentationAvailable,
-      maps_available: false,
-      live_tracking_available: false
+      // Coordinates and geometry reach clients only through the canonical
+      // catalog, so the map gate is the catalog gate plus the maps flag.
+      maps_available: appConfig.mapsEnabled && appConfig.routeManagementEnabled,
+      checkpoints_available: appConfig.checkpointsEnabled,
+      live_tracking_available: false,
+      demo_reset_available: evaluateDemoResetSafety(appConfig).allowed
     });
   });
 

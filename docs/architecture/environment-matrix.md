@@ -2,6 +2,12 @@
 
 `APP_ENV` is the backend and Flutter product-capability boundary. `VITE_APP_ENV` is its admin-build equivalent. `NODE_ENV` and Vite modes may control framework behavior, but they do not enable Masari demo capabilities.
 
+Demo features do not authorize destructive reset. Reset additionally requires
+an exact database name in `DEMO_RESET_ALLOWED_DATABASES`; `masari` is permanently
+protected, and a Serializable guard rejects any database containing a non-demo
+user. Missing reset isolation configuration leaves normal API usage available
+while advertising reset as unavailable.
+
 | Environment | Demo reset | Simulation mutations | Deterministic comparison | Demo credentials/UI | URL policy |
 | --- | --- | --- | --- | --- | --- |
 | `local` | Disabled by default; explicit local opt-in allowed | Same as reset | Same as reset | Optional explicit build/config only | Local HTTP allowed |

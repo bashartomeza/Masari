@@ -1,0 +1,101 @@
+{
+  "provider": "google-routes-v2",
+  "request_count": 4,
+  "successful_requests": 4,
+  "failed_requests": 0,
+  "available_routes": 0,
+  "methodology": {
+    "exact_reviewed_public_coordinates": true,
+    "travel_mode": "DRIVE",
+    "routing_preference": "TRAFFIC_UNAWARE",
+    "field_masked": true,
+    "authentication": "X-Goog-Api-Key header",
+    "clock": "performance.now monotonic",
+    "raw_responses_retained": false,
+    "google_geometry_retained": false,
+    "canonical_persistence": false
+  },
+  "results": [
+    {
+      "fixture_id": "hebron-bethlehem",
+      "api_request_success": true,
+      "route_available": false,
+      "distance_meters": null,
+      "duration_seconds": null,
+      "latency_ms": 332.8454,
+      "waypoint_order": [
+        "hebron-center",
+        "bethlehem-center"
+      ],
+      "structural_plausibility": "FAIL",
+      "failure_reason": "NO_ROUTE",
+      "valhalla_comparison": {
+        "distance_meters": 28163,
+        "duration_seconds": 2342.147,
+        "distance_delta_percent": null,
+        "duration_delta_percent": null
+      }
+    },
+    {
+      "fixture_id": "ppu-bethlehem",
+      "api_request_success": true,
+      "route_available": false,
+      "distance_meters": null,
+      "duration_seconds": null,
+      "latency_ms": 117.88539999999995,
+      "waypoint_order": [
+        "ppu-main",
+        "bethlehem-center"
+      ],
+      "structural_plausibility": "FAIL",
+      "failure_reason": "NO_ROUTE",
+      "valhalla_comparison": {
+        "distance_meters": 36440,
+        "duration_seconds": 2695.82,
+        "distance_delta_percent": null,
+        "duration_delta_percent": null
+      }
+    },
+    {
+      "fixture_id": "bab-al-zawiya-bethlehem",
+      "api_request_success": true,
+      "route_available": false,
+      "distance_meters": null,
+      "duration_seconds": null,
+      "latency_ms": 110.23289999999997,
+      "waypoint_order": [
+        "bab-al-zawiya",
+        "bethlehem-center"
+      ],
+      "structural_plausibility": "FAIL",
+      "failure_reason": "NO_ROUTE",
+      "valhalla_comparison": {
+        "distance_meters": 28786,
+        "duration_seconds": 2400.186,
+        "distance_delta_percent": null,
+        "duration_delta_percent": null
+      }
+    },
+    {
+      "fixture_id": "ppu-bab-al-zawiya-bethlehem",
+      "api_request_success": true,
+      "route_available": false,
+      "distance_meters": null,
+      "duration_seconds": null,
+      "latency_ms": 114.83219999999994,
+      "waypoint_order": [
+        "ppu-main",
+        "bab-al-zawiya",
+        "bethlehem-center"
+      ],
+      "structural_plausibility": "FAIL",
+      "failure_reason": "NO_ROUTE",
+      "valhalla_comparison": {
+        "distance_meters": 32964,
+        "duration_seconds": 2952.371,
+        "distance_delta_percent": null,
+        "duration_delta_percent": null
+      }
+    }
+  ]
+}

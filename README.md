@@ -1,5 +1,5 @@
 # Masari — مساري
-
+ 
 Masari is a Palestine-focused, Arabic-first smart route-sharing logistics MVP for the locked Hebron / PPU / Bab Al-Zawiya to Bethlehem corridor.
 
 ## Local setup

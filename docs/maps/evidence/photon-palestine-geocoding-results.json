@@ -1,0 +1,5917 @@
+{
+  "provider": "photon",
+  "fixture_classification": "public-canonical-evidence-no-user-location-data",
+  "query_count": 60,
+  "methodology": {
+    "exact_committed_queries": true,
+    "top_result_only": true,
+    "candidate_limit": 3,
+    "regional_bounds": [
+      34.85,
+      31.3,
+      35.65,
+      32.6
+    ],
+    "focus": [
+      31.9,
+      35.2
+    ],
+    "timeout_ms": 5000,
+    "clock": "performance.now monotonic",
+    "adjudication": "automated provider-taxonomy check",
+    "provider_taxonomy_note": "OSM key/value compared to predeclared fixture category/type."
+  },
+  "arabic": {
+    "acceptable": 19,
+    "total": 30,
+    "percentage": 63.333333333333336
+  },
+  "english": {
+    "acceptable": 26,
+    "total": 30,
+    "percentage": 86.66666666666667
+  },
+  "overall": {
+    "acceptable": 45,
+    "total": 60,
+    "percentage": 75
+  },
+  "failures": {
+    "incorrect_admin_area": 5,
+    "missing_source_data": 1,
+    "ranking_problem": 9
+  },
+  "latency_ms": {
+    "p50": 16.767500000000155,
+    "p95": 71.67840000000001,
+    "maximum": 794.4077
+  },
+  "results": [
+    {
+      "fixture_id": "hebron",
+      "language": "ar",
+      "query": {
+        "city": "الخليل",
+        "country": "Palestinian Territories"
+      },
+      "returned_result": {
+        "latitude": 31.528902,
+        "longitude": 35.0944873,
+        "name": "الخليل",
+        "category": "place",
+        "type": "town",
+        "provider_metadata": {
+          "osm_type": "R",
+          "osm_id": 3797325,
+          "osm_key": "place",
+          "osm_value": "town",
+          "type": "city",
+          "name": "الخليل",
+          "city": "الخليل",
+          "county": "منطقة H1",
+          "state": "الضفة الغربية",
+          "country": "Palestinian Territories",
+          "postcode": "150",
+          "countrycode": "PS",
+          "extent": [
+            35.0343316,
+            31.5650355,
+            35.1220773,
+            31.4955154
+          ]
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 31.528902,
+          "longitude": 35.0944873,
+          "name": "الخليل",
+          "category": "place",
+          "type": "town",
+          "provider_metadata": {
+            "osm_type": "R",
+            "osm_id": 3797325,
+            "osm_key": "place",
+            "osm_value": "town",
+            "type": "city",
+            "name": "الخليل",
+            "city": "الخليل",
+            "county": "منطقة H1",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "postcode": "150",
+            "countrycode": "PS",
+            "extent": [
+              35.0343316,
+              31.5650355,
+              35.1220773,
+              31.4955154
+            ]
+          }
+        },
+        {
+          "latitude": 31.5304303,
+          "longitude": 35.0879406,
+          "name": "الخليل",
+          "category": "landuse",
+          "type": "residential",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 290775790,
+            "osm_key": "landuse",
+            "osm_value": "residential",
+            "type": "locality",
+            "name": "الخليل",
+            "district": "مربعة سبتة",
+            "city": "الخليل",
+            "county": "منطقة H1",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "postcode": "150",
+            "countrycode": "PS",
+            "extent": [
+              35.057114,
+              31.5649922,
+              35.1275458,
+              31.4964371
+            ]
+          }
+        },
+        {
+          "latitude": 31.3498743,
+          "longitude": 34.9290872,
+          "name": "الخليل",
+          "category": "landuse",
+          "type": "residential",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 786236465,
+            "osm_key": "landuse",
+            "osm_value": "residential",
+            "type": "locality",
+            "name": "الخليل",
+            "county": "منطقة ج",
+            "state": "يهودا والسامرة",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              34.9261232,
+              31.3517711,
+              34.9300744,
+              31.3481428
+            ]
+          }
+        }
+      ],
+      "acceptable": true,
+      "expected_area_match": true,
+      "failure_category": null,
+      "candidate_rank": 1,
+      "latency_ms": 794.4077
+    },
+    {
+      "fixture_id": "hebron",
+      "language": "en",
+      "query": {
+        "city": "Hebron",
+        "country": "Palestinian Territories"
+      },
+      "returned_result": {
+        "latitude": 31.528902,
+        "longitude": 35.0944873,
+        "name": "Hebron",
+        "category": "place",
+        "type": "town",
+        "provider_metadata": {
+          "osm_type": "R",
+          "osm_id": 3797325,
+          "osm_key": "place",
+          "osm_value": "town",
+          "type": "city",
+          "name": "Hebron",
+          "city": "الخليل",
+          "county": "Area H1",
+          "state": "West Bank",
+          "country": "Palestinian Territories",
+          "postcode": "150",
+          "countrycode": "PS",
+          "extent": [
+            35.0343316,
+            31.5650355,
+            35.1220773,
+            31.4955154
+          ]
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 31.528902,
+          "longitude": 35.0944873,
+          "name": "Hebron",
+          "category": "place",
+          "type": "town",
+          "provider_metadata": {
+            "osm_type": "R",
+            "osm_id": 3797325,
+            "osm_key": "place",
+            "osm_value": "town",
+            "type": "city",
+            "name": "Hebron",
+            "city": "الخليل",
+            "county": "Area H1",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "postcode": "150",
+            "countrycode": "PS",
+            "extent": [
+              35.0343316,
+              31.5650355,
+              35.1220773,
+              31.4955154
+            ]
+          }
+        },
+        {
+          "latitude": 32.102872,
+          "longitude": 35.1949093,
+          "name": "Hebron",
+          "category": "highway",
+          "type": "living_street",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 85663186,
+            "osm_key": "highway",
+            "osm_value": "living_street",
+            "type": "street",
+            "name": "Hebron",
+            "city": "Ariel",
+            "county": "Area C",
+            "state": "Judea and Samaria",
+            "country": "Palestinian Territories",
+            "postcode": "390",
+            "countrycode": "PS",
+            "extent": [
+              35.1937976,
+              32.103,
+              35.1960537,
+              32.1027887
+            ]
+          }
+        },
+        {
+          "latitude": 32.1928537,
+          "longitude": 35.2673457,
+          "name": "Hebron",
+          "category": "highway",
+          "type": "residential",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 78495362,
+            "osm_key": "highway",
+            "osm_value": "residential",
+            "type": "street",
+            "name": "Hebron",
+            "city": "Har Bracha",
+            "county": "Area C",
+            "state": "Judea and Samaria",
+            "country": "Palestinian Territories",
+            "postcode": "803",
+            "countrycode": "PS",
+            "extent": [
+              35.2670131,
+              32.1936618,
+              35.2674443,
+              32.1920927
+            ]
+          }
+        }
+      ],
+      "acceptable": true,
+      "expected_area_match": true,
+      "failure_category": null,
+      "candidate_rank": 1,
+      "latency_ms": 41.89429999999993
+    },
+    {
+      "fixture_id": "bethlehem",
+      "language": "ar",
+      "query": {
+        "city": "بيت لحم",
+        "country": "Palestinian Territories"
+      },
+      "returned_result": {
+        "latitude": 31.7043556,
+        "longitude": 35.2061876,
+        "name": "بيت لحم",
+        "category": "place",
+        "type": "town",
+        "provider_metadata": {
+          "osm_type": "R",
+          "osm_id": 6759715,
+          "osm_key": "place",
+          "osm_value": "town",
+          "type": "city",
+          "name": "بيت لحم",
+          "county": "منطقة أ",
+          "state": "الضفة الغربية",
+          "country": "Palestinian Territories",
+          "countrycode": "PS",
+          "extent": [
+            35.1823598,
+            31.7236093,
+            35.2234568,
+            31.6907232
+          ]
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 31.7043556,
+          "longitude": 35.2061876,
+          "name": "بيت لحم",
+          "category": "place",
+          "type": "town",
+          "provider_metadata": {
+            "osm_type": "R",
+            "osm_id": 6759715,
+            "osm_key": "place",
+            "osm_value": "town",
+            "type": "city",
+            "name": "بيت لحم",
+            "county": "منطقة أ",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              35.1823598,
+              31.7236093,
+              35.2234568,
+              31.6907232
+            ]
+          }
+        },
+        {
+          "latitude": 31.9106596,
+          "longitude": 35.2085567,
+          "name": "رام الله-بيت لحم",
+          "category": "highway",
+          "type": "residential",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 217141196,
+            "osm_key": "highway",
+            "osm_value": "residential",
+            "type": "street",
+            "name": "رام الله-بيت لحم",
+            "district": "عين مصباح",
+            "city": "رام الله",
+            "county": "منطقة أ",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "postcode": "009",
+            "countrycode": "PS",
+            "extent": [
+              35.2074872,
+              31.9107399,
+              35.2096232,
+              31.9105162
+            ]
+          }
+        },
+        {
+          "latitude": 31.7093097,
+          "longitude": 35.2060137,
+          "name": "مركز العمل الكاثوليكي بيت لحم",
+          "category": "landuse",
+          "type": "religious",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 183544545,
+            "osm_key": "landuse",
+            "osm_value": "religious",
+            "type": "other",
+            "name": "مركز العمل الكاثوليكي بيت لحم",
+            "locality": "حارة التراجمة",
+            "city": "بيت لحم",
+            "county": "منطقة أ",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              35.2049345,
+              31.7100988,
+              35.2072834,
+              31.7084456
+            ]
+          }
+        }
+      ],
+      "acceptable": true,
+      "expected_area_match": true,
+      "failure_category": null,
+      "candidate_rank": 1,
+      "latency_ms": 71.67840000000001
+    },
+    {
+      "fixture_id": "bethlehem",
+      "language": "en",
+      "query": {
+        "city": "Bethlehem",
+        "country": "Palestinian Territories"
+      },
+      "returned_result": {
+        "latitude": 31.7043556,
+        "longitude": 35.2061876,
+        "name": "Bethlehem",
+        "category": "place",
+        "type": "town",
+        "provider_metadata": {
+          "osm_type": "R",
+          "osm_id": 6759715,
+          "osm_key": "place",
+          "osm_value": "town",
+          "type": "city",
+          "name": "Bethlehem",
+          "county": "Area A",
+          "state": "West Bank",
+          "country": "Palestinian Territories",
+          "countrycode": "PS",
+          "extent": [
+            35.1823598,
+            31.7236093,
+            35.2234568,
+            31.6907232
+          ]
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 31.7043556,
+          "longitude": 35.2061876,
+          "name": "Bethlehem",
+          "category": "place",
+          "type": "town",
+          "provider_metadata": {
+            "osm_type": "R",
+            "osm_id": 6759715,
+            "osm_key": "place",
+            "osm_value": "town",
+            "type": "city",
+            "name": "Bethlehem",
+            "county": "Area A",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              35.1823598,
+              31.7236093,
+              35.2234568,
+              31.6907232
+            ]
+          }
+        },
+        {
+          "latitude": 31.7082944,
+          "longitude": 35.2001854,
+          "name": "Bethlehem",
+          "category": "amenity",
+          "type": "cinema",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 4460015297,
+            "osm_key": "amenity",
+            "osm_value": "cinema",
+            "type": "house",
+            "name": "Bethlehem",
+            "street": "Sharia Gamal Abdel Nasser",
+            "locality": "Haret Al-Farahiyeh",
+            "city": "Bethlehem",
+            "county": "Area A",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "countrycode": "PS"
+          }
+        },
+        {
+          "latitude": 31.7054203,
+          "longitude": 35.212098,
+          "name": "Bethlehem-Beit Sahour",
+          "category": "highway",
+          "type": "secondary",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 37140254,
+            "osm_key": "highway",
+            "osm_value": "secondary",
+            "type": "street",
+            "name": "Bethlehem-Beit Sahour",
+            "locality": "Haret Al-Anatreh",
+            "city": "Bethlehem",
+            "county": "Area A",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              35.209761,
+              31.7057277,
+              35.2141792,
+              31.7045906
+            ]
+          }
+        }
+      ],
+      "acceptable": true,
+      "expected_area_match": true,
+      "failure_category": null,
+      "candidate_rank": 1,
+      "latency_ms": 28.280199999999923
+    },
+    {
+      "fixture_id": "ramallah",
+      "language": "ar",
+      "query": {
+        "city": "رام الله",
+        "country": "Palestinian Territories"
+      },
+      "returned_result": {
+        "latitude": 31.8978012,
+        "longitude": 35.1924223,
+        "name": "رام الله",
+        "category": "place",
+        "type": "city",
+        "provider_metadata": {
+          "osm_type": "W",
+          "osm_id": 316511713,
+          "osm_key": "place",
+          "osm_value": "city",
+          "type": "city",
+          "name": "رام الله",
+          "county": "منطقة أ",
+          "state": "الضفة الغربية",
+          "country": "Palestinian Territories",
+          "countrycode": "PS",
+          "extent": [
+            35.1613928,
+            31.9328784,
+            35.2329399,
+            31.8628371
+          ]
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 31.8978012,
+          "longitude": 35.1924223,
+          "name": "رام الله",
+          "category": "place",
+          "type": "city",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 316511713,
+            "osm_key": "place",
+            "osm_value": "city",
+            "type": "city",
+            "name": "رام الله",
+            "county": "منطقة أ",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              35.1613928,
+              31.9328784,
+              35.2329399,
+              31.8628371
+            ]
+          }
+        },
+        {
+          "latitude": 31.9030543,
+          "longitude": 35.1952255,
+          "name": "رام الله",
+          "category": "place",
+          "type": "town",
+          "provider_metadata": {
+            "osm_type": "R",
+            "osm_id": 2717915,
+            "osm_key": "place",
+            "osm_value": "town",
+            "type": "city",
+            "name": "رام الله",
+            "county": "منطقة أ",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              35.1645328,
+              31.929562,
+              35.210244,
+              31.8838703
+            ]
+          }
+        },
+        {
+          "latitude": 31.9042626,
+          "longitude": 35.1970906,
+          "name": "رام الله التحتة",
+          "category": "place",
+          "type": "suburb",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 432282318,
+            "osm_key": "place",
+            "osm_value": "suburb",
+            "type": "district",
+            "name": "رام الله التحتة",
+            "city": "رام الله",
+            "county": "منطقة أ",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "postcode": "123",
+            "countrycode": "PS"
+          }
+        }
+      ],
+      "acceptable": true,
+      "expected_area_match": true,
+      "failure_category": null,
+      "candidate_rank": 1,
+      "latency_ms": 38.27209999999991
+    },
+    {
+      "fixture_id": "ramallah",
+      "language": "en",
+      "query": {
+        "city": "Ramallah",
+        "country": "Palestinian Territories"
+      },
+      "returned_result": {
+        "latitude": 31.9030543,
+        "longitude": 35.1952255,
+        "name": "Ramallah",
+        "category": "place",
+        "type": "town",
+        "provider_metadata": {
+          "osm_type": "R",
+          "osm_id": 2717915,
+          "osm_key": "place",
+          "osm_value": "town",
+          "type": "city",
+          "name": "Ramallah",
+          "county": "Area A",
+          "state": "West Bank",
+          "country": "Palestinian Territories",
+          "countrycode": "PS",
+          "extent": [
+            35.1645328,
+            31.929562,
+            35.210244,
+            31.8838703
+          ]
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 31.9030543,
+          "longitude": 35.1952255,
+          "name": "Ramallah",
+          "category": "place",
+          "type": "town",
+          "provider_metadata": {
+            "osm_type": "R",
+            "osm_id": 2717915,
+            "osm_key": "place",
+            "osm_value": "town",
+            "type": "city",
+            "name": "Ramallah",
+            "county": "Area A",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              35.1645328,
+              31.929562,
+              35.210244,
+              31.8838703
+            ]
+          }
+        },
+        {
+          "latitude": 31.8978012,
+          "longitude": 35.1924223,
+          "name": "Ramallah",
+          "category": "place",
+          "type": "city",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 316511713,
+            "osm_key": "place",
+            "osm_value": "city",
+            "type": "city",
+            "name": "Ramallah",
+            "county": "Area A",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              35.1613928,
+              31.9328784,
+              35.2329399,
+              31.8628371
+            ]
+          }
+        },
+        {
+          "latitude": 31.9042626,
+          "longitude": 35.1970906,
+          "name": "Ramallah Altahtah",
+          "category": "place",
+          "type": "suburb",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 432282318,
+            "osm_key": "place",
+            "osm_value": "suburb",
+            "type": "district",
+            "name": "Ramallah Altahtah",
+            "city": "Ramallah",
+            "county": "Area A",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "postcode": "123",
+            "countrycode": "PS"
+          }
+        }
+      ],
+      "acceptable": true,
+      "expected_area_match": true,
+      "failure_category": null,
+      "candidate_rank": 1,
+      "latency_ms": 22.153599999999983
+    },
+    {
+      "fixture_id": "al-bireh",
+      "language": "ar",
+      "query": {
+        "city": "البيرة",
+        "country": "Palestinian Territories"
+      },
+      "returned_result": {
+        "latitude": 31.9007401,
+        "longitude": 35.2117585,
+        "name": "البيرة",
+        "category": "place",
+        "type": "town",
+        "provider_metadata": {
+          "osm_type": "R",
+          "osm_id": 2904396,
+          "osm_key": "place",
+          "osm_value": "town",
+          "type": "city",
+          "name": "البيرة",
+          "county": "منطقة أ",
+          "state": "الضفة الغربية",
+          "country": "Palestinian Territories",
+          "postcode": "611",
+          "countrycode": "PS",
+          "extent": [
+            35.1948948,
+            31.9400344,
+            35.2327311,
+            31.8812824
+          ]
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 31.9007401,
+          "longitude": 35.2117585,
+          "name": "البيرة",
+          "category": "place",
+          "type": "town",
+          "provider_metadata": {
+            "osm_type": "R",
+            "osm_id": 2904396,
+            "osm_key": "place",
+            "osm_value": "town",
+            "type": "city",
+            "name": "البيرة",
+            "county": "منطقة أ",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "postcode": "611",
+            "countrycode": "PS",
+            "extent": [
+              35.1948948,
+              31.9400344,
+              35.2327311,
+              31.8812824
+            ]
+          }
+        },
+        {
+          "latitude": 31.9200277,
+          "longitude": 35.1785643,
+          "name": "الطيرة",
+          "category": "place",
+          "type": "village",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 432293792,
+            "osm_key": "place",
+            "osm_value": "village",
+            "type": "district",
+            "name": "الطيرة",
+            "city": "رام الله",
+            "county": "منطقة أ",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "postcode": "606",
+            "countrycode": "PS"
+          }
+        },
+        {
+          "latitude": 31.8692595,
+          "longitude": 35.1234264,
+          "name": "الطيرة",
+          "category": "place",
+          "type": "village",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 244087213,
+            "osm_key": "place",
+            "osm_value": "village",
+            "type": "city",
+            "name": "الطيرة",
+            "county": "منطقة ب",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              35.1173785,
+              31.8737328,
+              35.1321689,
+              31.8678677
+            ]
+          }
+        }
+      ],
+      "acceptable": true,
+      "expected_area_match": true,
+      "failure_category": null,
+      "candidate_rank": 1,
+      "latency_ms": 31.64140000000009
+    },
+    {
+      "fixture_id": "al-bireh",
+      "language": "en",
+      "query": {
+        "q": "Al-Bireh, West Bank"
+      },
+      "returned_result": {
+        "latitude": 31.9569684,
+        "longitude": 35.1979632,
+        "name": "Ramallah and al-Bireh Governorate",
+        "category": "boundary",
+        "type": "disputed",
+        "provider_metadata": {
+          "osm_type": "R",
+          "osm_id": 4733525,
+          "osm_key": "boundary",
+          "osm_value": "disputed",
+          "type": "other",
+          "name": "Ramallah and al-Bireh Governorate",
+          "county": "Area B",
+          "state": "West Bank",
+          "country": "Palestinian Territories",
+          "countrycode": "PS",
+          "extent": [
+            34.9775764,
+            32.0858793,
+            35.430072,
+            31.8284716
+          ]
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 31.9569684,
+          "longitude": 35.1979632,
+          "name": "Ramallah and al-Bireh Governorate",
+          "category": "boundary",
+          "type": "disputed",
+          "provider_metadata": {
+            "osm_type": "R",
+            "osm_id": 4733525,
+            "osm_key": "boundary",
+            "osm_value": "disputed",
+            "type": "other",
+            "name": "Ramallah and al-Bireh Governorate",
+            "county": "Area B",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              34.9775764,
+              32.0858793,
+              35.430072,
+              31.8284716
+            ]
+          }
+        },
+        {
+          "latitude": 31.9052699,
+          "longitude": 35.2152806,
+          "name": "Mughtaribi Al-Bireh School",
+          "category": "amenity",
+          "type": "school",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 432264166,
+            "osm_key": "amenity",
+            "osm_value": "school",
+            "type": "house",
+            "name": "Mughtaribi Al-Bireh School",
+            "street": "Alalali",
+            "district": "Alshurafa",
+            "city": "Albireh",
+            "county": "Area A",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "postcode": "611",
+            "countrycode": "PS"
+          }
+        },
+        {
+          "latitude": 31.9220552,
+          "longitude": 35.2117399,
+          "name": "Ramallah And Bireh Municipality",
+          "category": "amenity",
+          "type": "public_building",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 432283243,
+            "osm_key": "amenity",
+            "osm_value": "public_building",
+            "type": "house",
+            "name": "Ramallah And Bireh Municipality",
+            "street": "Al-Kauther",
+            "district": "Albaloo'",
+            "city": "Albireh",
+            "county": "Area A",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "postcode": "009",
+            "countrycode": "PS"
+          }
+        }
+      ],
+      "acceptable": false,
+      "expected_area_match": true,
+      "failure_category": "ranking_problem",
+      "candidate_rank": 1,
+      "latency_ms": 45.88670000000002
+    },
+    {
+      "fixture_id": "nablus",
+      "language": "ar",
+      "query": {
+        "city": "نابلس",
+        "country": "Palestinian Territories"
+      },
+      "returned_result": {
+        "latitude": 32.2205316,
+        "longitude": 35.2569374,
+        "name": "نابلس",
+        "category": "place",
+        "type": "town",
+        "provider_metadata": {
+          "osm_type": "W",
+          "osm_id": 265619988,
+          "osm_key": "place",
+          "osm_value": "town",
+          "type": "city",
+          "name": "نابلس",
+          "county": "منطقة أ",
+          "state": "الضفة الغربية",
+          "country": "Palestinian Territories",
+          "countrycode": "PS",
+          "extent": [
+            35.2181117,
+            32.2481879,
+            35.2826205,
+            32.2071333
+          ]
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 32.2205316,
+          "longitude": 35.2569374,
+          "name": "نابلس",
+          "category": "place",
+          "type": "town",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 265619988,
+            "osm_key": "place",
+            "osm_value": "town",
+            "type": "city",
+            "name": "نابلس",
+            "county": "منطقة أ",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              35.2181117,
+              32.2481879,
+              35.2826205,
+              32.2071333
+            ]
+          }
+        },
+        {
+          "latitude": 32.2128188,
+          "longitude": 35.173003,
+          "name": "نابلس",
+          "category": "highway",
+          "type": "service",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 37170525,
+            "osm_key": "highway",
+            "osm_value": "service",
+            "type": "street",
+            "name": "نابلس",
+            "district": "Kedumim East",
+            "county": "منطقة ج",
+            "state": "يهودا والسامرة",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              35.172466,
+              32.214456,
+              35.1738265,
+              32.2113179
+            ]
+          }
+        },
+        {
+          "latitude": 32.2231542,
+          "longitude": 35.261819,
+          "name": "نابلس",
+          "category": "amenity",
+          "type": "taxi",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 431950984,
+            "osm_key": "amenity",
+            "osm_value": "taxi",
+            "type": "house",
+            "name": "نابلس",
+            "street": "شارع الملك فيصل",
+            "locality": "Nablus - City Center",
+            "district": "Old City",
+            "city": "نابلس",
+            "county": "منطقة أ",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "postcode": "803",
+            "countrycode": "PS"
+          }
+        }
+      ],
+      "acceptable": true,
+      "expected_area_match": true,
+      "failure_category": null,
+      "candidate_rank": 1,
+      "latency_ms": 21.082400000000007
+    },
+    {
+      "fixture_id": "nablus",
+      "language": "en",
+      "query": {
+        "city": "Nablus",
+        "country": "Palestinian Territories"
+      },
+      "returned_result": {
+        "latitude": 32.2205316,
+        "longitude": 35.2569374,
+        "name": "Nablus",
+        "category": "place",
+        "type": "town",
+        "provider_metadata": {
+          "osm_type": "W",
+          "osm_id": 265619988,
+          "osm_key": "place",
+          "osm_value": "town",
+          "type": "city",
+          "name": "Nablus",
+          "county": "Area A",
+          "state": "West Bank",
+          "country": "Palestinian Territories",
+          "countrycode": "PS",
+          "extent": [
+            35.2181117,
+            32.2481879,
+            35.2826205,
+            32.2071333
+          ]
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 32.2205316,
+          "longitude": 35.2569374,
+          "name": "Nablus",
+          "category": "place",
+          "type": "town",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 265619988,
+            "osm_key": "place",
+            "osm_value": "town",
+            "type": "city",
+            "name": "Nablus",
+            "county": "Area A",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              35.2181117,
+              32.2481879,
+              35.2826205,
+              32.2071333
+            ]
+          }
+        },
+        {
+          "latitude": 32.1907722,
+          "longitude": 34.9674877,
+          "name": "Nablus",
+          "category": "highway",
+          "type": "residential",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 37171798,
+            "osm_key": "highway",
+            "osm_value": "residential",
+            "type": "street",
+            "name": "Nablus",
+            "city": "Qalqilya",
+            "county": "Area A",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "postcode": "342",
+            "countrycode": "PS",
+            "extent": [
+              34.9669826,
+              32.1910957,
+              34.9681012,
+              32.1902149
+            ]
+          }
+        },
+        {
+          "latitude": 32.2128188,
+          "longitude": 35.173003,
+          "name": "Nablus",
+          "category": "highway",
+          "type": "service",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 37170525,
+            "osm_key": "highway",
+            "osm_value": "service",
+            "type": "street",
+            "name": "Nablus",
+            "district": "Kedumim East",
+            "county": "Area C",
+            "state": "Judea and Samaria",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              35.172466,
+              32.214456,
+              35.1738265,
+              32.2113179
+            ]
+          }
+        }
+      ],
+      "acceptable": true,
+      "expected_area_match": true,
+      "failure_category": null,
+      "candidate_rank": 1,
+      "latency_ms": 23.175899999999956
+    },
+    {
+      "fixture_id": "jericho",
+      "language": "ar",
+      "query": {
+        "city": "أريحا",
+        "country": "Palestinian Territories"
+      },
+      "returned_result": {
+        "latitude": 31.8560483,
+        "longitude": 35.4598241,
+        "name": "أريحا",
+        "category": "place",
+        "type": "town",
+        "provider_metadata": {
+          "osm_type": "R",
+          "osm_id": 8488590,
+          "osm_key": "place",
+          "osm_value": "town",
+          "type": "city",
+          "name": "أريحا",
+          "county": "منطقة أ",
+          "state": "الضفة الغربية",
+          "country": "Palestinian Territories",
+          "countrycode": "PS",
+          "extent": [
+            35.4306538,
+            31.8836136,
+            35.4911158,
+            31.8452831
+          ]
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 31.8560483,
+          "longitude": 35.4598241,
+          "name": "أريحا",
+          "category": "place",
+          "type": "town",
+          "provider_metadata": {
+            "osm_type": "R",
+            "osm_id": 8488590,
+            "osm_key": "place",
+            "osm_value": "town",
+            "type": "city",
+            "name": "أريحا",
+            "county": "منطقة أ",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              35.4306538,
+              31.8836136,
+              35.4911158,
+              31.8452831
+            ]
+          }
+        },
+        {
+          "latitude": 31.9080303,
+          "longitude": 35.4171007,
+          "name": "مفئوت أريحا",
+          "category": "place",
+          "type": "village",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 659368086,
+            "osm_key": "place",
+            "osm_value": "village",
+            "type": "district",
+            "name": "مفئوت أريحا",
+            "city": "مجلس غور الأردن الإقليمي",
+            "county": "منطقة ج",
+            "state": "يهودا والسامرة",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              35.4128495,
+              31.91025,
+              35.4191204,
+              31.9042708
+            ]
+          }
+        },
+        {
+          "latitude": 31.7684815,
+          "longitude": 35.2719132,
+          "name": "طريق أريحا",
+          "category": "highway",
+          "type": "secondary",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 313159749,
+            "osm_key": "highway",
+            "osm_value": "secondary",
+            "type": "street",
+            "name": "طريق أريحا",
+            "city": "العيزرية",
+            "county": "منطقة ب",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              35.2619975,
+              31.7701028,
+              35.2809842,
+              31.7640696
+            ]
+          }
+        }
+      ],
+      "acceptable": true,
+      "expected_area_match": true,
+      "failure_category": null,
+      "candidate_rank": 1,
+      "latency_ms": 20.459299999999985
+    },
+    {
+      "fixture_id": "jericho",
+      "language": "en",
+      "query": {
+        "city": "Jericho",
+        "country": "Palestinian Territories"
+      },
+      "returned_result": {
+        "latitude": 31.8560483,
+        "longitude": 35.4598241,
+        "name": "Jericho",
+        "category": "place",
+        "type": "town",
+        "provider_metadata": {
+          "osm_type": "R",
+          "osm_id": 8488590,
+          "osm_key": "place",
+          "osm_value": "town",
+          "type": "city",
+          "name": "Jericho",
+          "county": "Area A",
+          "state": "West Bank",
+          "country": "Palestinian Territories",
+          "countrycode": "PS",
+          "extent": [
+            35.4306538,
+            31.8836136,
+            35.4911158,
+            31.8452831
+          ]
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 31.8560483,
+          "longitude": 35.4598241,
+          "name": "Jericho",
+          "category": "place",
+          "type": "town",
+          "provider_metadata": {
+            "osm_type": "R",
+            "osm_id": 8488590,
+            "osm_key": "place",
+            "osm_value": "town",
+            "type": "city",
+            "name": "Jericho",
+            "county": "Area A",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              35.4306538,
+              31.8836136,
+              35.4911158,
+              31.8452831
+            ]
+          }
+        },
+        {
+          "latitude": 31.7681908,
+          "longitude": 35.2525866,
+          "name": "Jericho",
+          "category": "highway",
+          "type": "secondary",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 1301823755,
+            "osm_key": "highway",
+            "osm_value": "secondary",
+            "type": "street",
+            "name": "Jericho",
+            "county": "Area C",
+            "state": "Judea and Samaria",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              35.2523602,
+              31.7681917,
+              35.2528886,
+              31.7680672
+            ]
+          }
+        },
+        {
+          "latitude": 31.8189701,
+          "longitude": 35.3895527,
+          "name": "Jericho",
+          "category": "highway",
+          "type": "secondary",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 632310960,
+            "osm_key": "highway",
+            "osm_value": "secondary",
+            "type": "street",
+            "name": "Jericho",
+            "county": "Area C",
+            "state": "Judea and Samaria",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              35.389497,
+              31.8189778,
+              35.3896062,
+              31.8189525
+            ]
+          }
+        }
+      ],
+      "acceptable": true,
+      "expected_area_match": true,
+      "failure_category": null,
+      "candidate_rank": 1,
+      "latency_ms": 13.596299999999928
+    },
+    {
+      "fixture_id": "jenin",
+      "language": "ar",
+      "query": {
+        "city": "جنين",
+        "country": "Palestinian Territories"
+      },
+      "returned_result": {
+        "latitude": 32.4618837,
+        "longitude": 35.297566,
+        "name": "جنين",
+        "category": "place",
+        "type": "town",
+        "provider_metadata": {
+          "osm_type": "R",
+          "osm_id": 19807826,
+          "osm_key": "place",
+          "osm_value": "town",
+          "type": "city",
+          "name": "جنين",
+          "county": "منطقة أ",
+          "state": "الضفة الغربية",
+          "country": "Palestinian Territories",
+          "countrycode": "PS",
+          "extent": [
+            35.2709329,
+            32.4802391,
+            35.3295252,
+            32.4423765
+          ]
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 32.4618837,
+          "longitude": 35.297566,
+          "name": "جنين",
+          "category": "place",
+          "type": "town",
+          "provider_metadata": {
+            "osm_type": "R",
+            "osm_id": 19807826,
+            "osm_key": "place",
+            "osm_value": "town",
+            "type": "city",
+            "name": "جنين",
+            "county": "منطقة أ",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              35.2709329,
+              32.4802391,
+              35.3295252,
+              32.4423765
+            ]
+          }
+        },
+        {
+          "latitude": 32.4580625,
+          "longitude": 35.3013233,
+          "name": "جنين",
+          "category": "tourism",
+          "type": "caravan_site",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 5180661122,
+            "osm_key": "tourism",
+            "osm_value": "caravan_site",
+            "type": "house",
+            "name": "جنين",
+            "street": "الراضون",
+            "district": "مرح سعد",
+            "city": "جنين",
+            "county": "منطقة أ",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "postcode": "180",
+            "countrycode": "PS"
+          }
+        },
+        {
+          "latitude": 32.3697235,
+          "longitude": 35.2764894,
+          "name": "جنين",
+          "category": "highway",
+          "type": "residential",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 275185669,
+            "osm_key": "highway",
+            "osm_value": "residential",
+            "type": "street",
+            "name": "جنين",
+            "county": "منطقة أ",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "postcode": "971",
+            "countrycode": "PS",
+            "extent": [
+              35.2736634,
+              32.3828199,
+              35.2790468,
+              32.3557955
+            ]
+          }
+        }
+      ],
+      "acceptable": true,
+      "expected_area_match": true,
+      "failure_category": null,
+      "candidate_rank": 1,
+      "latency_ms": 13.707300000000032
+    },
+    {
+      "fixture_id": "jenin",
+      "language": "en",
+      "query": {
+        "city": "Jenin",
+        "country": "Palestinian Territories"
+      },
+      "returned_result": {
+        "latitude": 32.4618837,
+        "longitude": 35.297566,
+        "name": "Jenin",
+        "category": "place",
+        "type": "town",
+        "provider_metadata": {
+          "osm_type": "R",
+          "osm_id": 19807826,
+          "osm_key": "place",
+          "osm_value": "town",
+          "type": "city",
+          "name": "Jenin",
+          "county": "Area A",
+          "state": "West Bank",
+          "country": "Palestinian Territories",
+          "countrycode": "PS",
+          "extent": [
+            35.2709329,
+            32.4802391,
+            35.3295252,
+            32.4423765
+          ]
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 32.4618837,
+          "longitude": 35.297566,
+          "name": "Jenin",
+          "category": "place",
+          "type": "town",
+          "provider_metadata": {
+            "osm_type": "R",
+            "osm_id": 19807826,
+            "osm_key": "place",
+            "osm_value": "town",
+            "type": "city",
+            "name": "Jenin",
+            "county": "Area A",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              35.2709329,
+              32.4802391,
+              35.3295252,
+              32.4423765
+            ]
+          }
+        },
+        {
+          "latitude": 32.3697235,
+          "longitude": 35.2764894,
+          "name": "Jenin",
+          "category": "highway",
+          "type": "residential",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 275185669,
+            "osm_key": "highway",
+            "osm_value": "residential",
+            "type": "street",
+            "name": "Jenin",
+            "county": "Area A",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "postcode": "971",
+            "countrycode": "PS",
+            "extent": [
+              35.2736634,
+              32.3828199,
+              35.2790468,
+              32.3557955
+            ]
+          }
+        },
+        {
+          "latitude": 32.460533,
+          "longitude": 35.2881918,
+          "name": "Jenin Refugee Camp",
+          "category": "place",
+          "type": "town",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 8261267460,
+            "osm_key": "place",
+            "osm_value": "town",
+            "type": "district",
+            "name": "Jenin Refugee Camp",
+            "city": "Jenin",
+            "county": "Area A",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "postcode": "202",
+            "countrycode": "PS"
+          }
+        }
+      ],
+      "acceptable": true,
+      "expected_area_match": true,
+      "failure_category": null,
+      "candidate_rank": 1,
+      "latency_ms": 16.46210000000019
+    },
+    {
+      "fixture_id": "tulkarm",
+      "language": "ar",
+      "query": {
+        "city": "طولكرم",
+        "country": "Palestinian Territories"
+      },
+      "returned_result": {
+        "latitude": 32.3111468,
+        "longitude": 35.0275505,
+        "name": "طولكرم",
+        "category": "place",
+        "type": "city",
+        "provider_metadata": {
+          "osm_type": "R",
+          "osm_id": 19747818,
+          "osm_key": "place",
+          "osm_value": "city",
+          "type": "city",
+          "name": "طولكرم",
+          "county": "منطقة أ",
+          "state": "الضفة الغربية",
+          "country": "Palestinian Territories",
+          "postcode": "302",
+          "countrycode": "PS",
+          "extent": [
+            35.013484,
+            32.3433412,
+            35.0644353,
+            32.2899253
+          ]
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 32.3111468,
+          "longitude": 35.0275505,
+          "name": "طولكرم",
+          "category": "place",
+          "type": "city",
+          "provider_metadata": {
+            "osm_type": "R",
+            "osm_id": 19747818,
+            "osm_key": "place",
+            "osm_value": "city",
+            "type": "city",
+            "name": "طولكرم",
+            "county": "منطقة أ",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "postcode": "302",
+            "countrycode": "PS",
+            "extent": [
+              35.013484,
+              32.3433412,
+              35.0644353,
+              32.2899253
+            ]
+          }
+        },
+        {
+          "latitude": 32.3092963,
+          "longitude": 35.0274429,
+          "name": "طولكرم",
+          "category": "landuse",
+          "type": "residential",
+          "provider_metadata": {
+            "osm_type": "R",
+            "osm_id": 12253700,
+            "osm_key": "landuse",
+            "osm_value": "residential",
+            "type": "locality",
+            "name": "طولكرم",
+            "district": "خربة التيا",
+            "city": "طولكرم",
+            "county": "منطقة أ",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "postcode": "302",
+            "countrycode": "PS",
+            "extent": [
+              35.0174062,
+              32.3216254,
+              35.0657933,
+              32.2969707
+            ]
+          }
+        },
+        {
+          "latitude": 32.3204817,
+          "longitude": 35.069123,
+          "name": "طولكرم",
+          "category": "landuse",
+          "type": "forest",
+          "provider_metadata": {
+            "osm_type": "R",
+            "osm_id": 12075251,
+            "osm_key": "landuse",
+            "osm_value": "forest",
+            "type": "other",
+            "name": "طولكرم",
+            "county": "منطقة ج",
+            "state": "يهودا والسامرة",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              35.0591539,
+              32.3235144,
+              35.1041018,
+              32.317476
+            ]
+          }
+        }
+      ],
+      "acceptable": true,
+      "expected_area_match": true,
+      "failure_category": null,
+      "candidate_rank": 1,
+      "latency_ms": 23.21329999999989
+    },
+    {
+      "fixture_id": "tulkarm",
+      "language": "en",
+      "query": {
+        "city": "Tulkarm",
+        "country": "Palestinian Territories"
+      },
+      "returned_result": {
+        "latitude": 32.3111468,
+        "longitude": 35.0275505,
+        "name": "Tulkarm",
+        "category": "place",
+        "type": "city",
+        "provider_metadata": {
+          "osm_type": "R",
+          "osm_id": 19747818,
+          "osm_key": "place",
+          "osm_value": "city",
+          "type": "city",
+          "name": "Tulkarm",
+          "county": "Area A",
+          "state": "West Bank",
+          "country": "Palestinian Territories",
+          "postcode": "302",
+          "countrycode": "PS",
+          "extent": [
+            35.013484,
+            32.3433412,
+            35.0644353,
+            32.2899253
+          ]
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 32.3111468,
+          "longitude": 35.0275505,
+          "name": "Tulkarm",
+          "category": "place",
+          "type": "city",
+          "provider_metadata": {
+            "osm_type": "R",
+            "osm_id": 19747818,
+            "osm_key": "place",
+            "osm_value": "city",
+            "type": "city",
+            "name": "Tulkarm",
+            "county": "Area A",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "postcode": "302",
+            "countrycode": "PS",
+            "extent": [
+              35.013484,
+              32.3433412,
+              35.0644353,
+              32.2899253
+            ]
+          }
+        },
+        {
+          "latitude": 32.3106038,
+          "longitude": 35.0215064,
+          "name": "Tulkarm",
+          "category": "landuse",
+          "type": "cemetery",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 1314013482,
+            "osm_key": "landuse",
+            "osm_value": "cemetery",
+            "type": "other",
+            "name": "Tulkarm",
+            "district": "Khirbet at-Tayyah",
+            "city": "Tulkarm",
+            "county": "Area A",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              35.019669,
+              32.3114334,
+              35.0226972,
+              32.3096381
+            ]
+          }
+        },
+        {
+          "latitude": 32.3190901,
+          "longitude": 35.0475685,
+          "name": "Tulkarm",
+          "category": "amenity",
+          "type": "fuel",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 432380270,
+            "osm_key": "amenity",
+            "osm_value": "fuel",
+            "type": "house",
+            "name": "Tulkarm",
+            "street": "Sharia Nablus",
+            "locality": "طولكرم",
+            "district": "Iktaba",
+            "city": "Tulkarm Municipal boundary",
+            "county": "Area A",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "postcode": "302",
+            "countrycode": "PS"
+          }
+        }
+      ],
+      "acceptable": true,
+      "expected_area_match": true,
+      "failure_category": null,
+      "candidate_rank": 1,
+      "latency_ms": 16.90780000000018
+    },
+    {
+      "fixture_id": "qalqilya",
+      "language": "ar",
+      "query": {
+        "city": "قلقيلية",
+        "country": "Palestinian Territories"
+      },
+      "returned_result": {
+        "latitude": 32.1881333,
+        "longitude": 34.9679208,
+        "name": "قلقيلية",
+        "category": "place",
+        "type": "town",
+        "provider_metadata": {
+          "osm_type": "W",
+          "osm_id": 346277986,
+          "osm_key": "place",
+          "osm_value": "town",
+          "type": "city",
+          "name": "قلقيلية",
+          "county": "منطقة أ",
+          "state": "الضفة الغربية",
+          "country": "Palestinian Territories",
+          "countrycode": "PS",
+          "extent": [
+            34.9585732,
+            32.198104,
+            34.9864253,
+            32.1779285
+          ]
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 32.1881333,
+          "longitude": 34.9679208,
+          "name": "قلقيلية",
+          "category": "place",
+          "type": "town",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 346277986,
+            "osm_key": "place",
+            "osm_value": "town",
+            "type": "city",
+            "name": "قلقيلية",
+            "county": "منطقة أ",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              34.9585732,
+              32.198104,
+              34.9864253,
+              32.1779285
+            ]
+          }
+        },
+        {
+          "latitude": 31.9086646,
+          "longitude": 35.2070828,
+          "name": "موقف سرفيس قلقيلية",
+          "category": "highway",
+          "type": "bus_stop",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 4693158389,
+            "osm_key": "highway",
+            "osm_value": "bus_stop",
+            "type": "house",
+            "name": "موقف سرفيس قلقيلية",
+            "street": "شارع الإرسال",
+            "district": "عين مصباح",
+            "city": "رام الله",
+            "county": "منطقة أ",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "postcode": "009",
+            "countrycode": "PS"
+          }
+        },
+        {
+          "latitude": 32.2054001,
+          "longitude": 35.0959862,
+          "name": "شارع قلقيلية",
+          "category": "highway",
+          "type": "residential",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 343053093,
+            "osm_key": "highway",
+            "osm_value": "residential",
+            "type": "street",
+            "name": "شارع قلقيلية",
+            "city": "باقة الحطب",
+            "county": "منطقة ب",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              35.0828499,
+              32.2056924,
+              35.1098478,
+              32.2024588
+            ]
+          }
+        }
+      ],
+      "acceptable": true,
+      "expected_area_match": true,
+      "failure_category": null,
+      "candidate_rank": 1,
+      "latency_ms": 32.89570000000003
+    },
+    {
+      "fixture_id": "qalqilya",
+      "language": "en",
+      "query": {
+        "city": "Qalqilya",
+        "country": "Palestinian Territories"
+      },
+      "returned_result": {
+        "latitude": 32.1881333,
+        "longitude": 34.9679208,
+        "name": "Qalqilya",
+        "category": "place",
+        "type": "town",
+        "provider_metadata": {
+          "osm_type": "W",
+          "osm_id": 346277986,
+          "osm_key": "place",
+          "osm_value": "town",
+          "type": "city",
+          "name": "Qalqilya",
+          "county": "Area A",
+          "state": "West Bank",
+          "country": "Palestinian Territories",
+          "countrycode": "PS",
+          "extent": [
+            34.9585732,
+            32.198104,
+            34.9864253,
+            32.1779285
+          ]
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 32.1881333,
+          "longitude": 34.9679208,
+          "name": "Qalqilya",
+          "category": "place",
+          "type": "town",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 346277986,
+            "osm_key": "place",
+            "osm_value": "town",
+            "type": "city",
+            "name": "Qalqilya",
+            "county": "Area A",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              34.9585732,
+              32.198104,
+              34.9864253,
+              32.1779285
+            ]
+          }
+        },
+        {
+          "latitude": 32.1862276,
+          "longitude": 34.9685658,
+          "name": "Qalqilya Cemetery",
+          "category": "landuse",
+          "type": "cemetery",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 347515525,
+            "osm_key": "landuse",
+            "osm_value": "cemetery",
+            "type": "other",
+            "name": "Qalqilya Cemetery",
+            "city": "Qalqilya",
+            "county": "Area A",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              34.9676249,
+              32.1869894,
+              34.9695653,
+              32.1853729
+            ]
+          }
+        },
+        {
+          "latitude": 32.1807598,
+          "longitude": 35.0666051,
+          "name": "Qalqilya Governorate",
+          "category": "boundary",
+          "type": "disputed",
+          "provider_metadata": {
+            "osm_type": "R",
+            "osm_id": 4733524,
+            "osm_key": "boundary",
+            "osm_value": "disputed",
+            "type": "other",
+            "name": "Qalqilya Governorate",
+            "county": "Area C",
+            "state": "Judea and Samaria",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              34.9570901,
+              32.2544116,
+              35.1949337,
+              32.1072697
+            ]
+          }
+        }
+      ],
+      "acceptable": true,
+      "expected_area_match": true,
+      "failure_category": null,
+      "candidate_rank": 1,
+      "latency_ms": 16.054300000000012
+    },
+    {
+      "fixture_id": "ppu-main",
+      "language": "ar",
+      "query": {
+        "q": "جامعة بوليتكنك فلسطين، ضاحية البلدية، الخليل"
+      },
+      "returned_result": {
+        "latitude": 31.5085767,
+        "longitude": 35.0924634,
+        "name": "جامعة بوليتكنك فلسطين مبنى A",
+        "category": "amenity",
+        "type": "university",
+        "provider_metadata": {
+          "osm_type": "N",
+          "osm_id": 432205690,
+          "osm_key": "amenity",
+          "osm_value": "university",
+          "type": "house",
+          "name": "جامعة بوليتكنك فلسطين مبنى A",
+          "street": "شارع ضاحية إسكان البلدية",
+          "locality": "الخليل",
+          "district": "الحاووز الاول",
+          "city": "الخليل",
+          "county": "منطقة H1",
+          "state": "الضفة الغربية",
+          "country": "Palestinian Territories",
+          "postcode": "150",
+          "countrycode": "PS"
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 31.5085767,
+          "longitude": 35.0924634,
+          "name": "جامعة بوليتكنك فلسطين مبنى A",
+          "category": "amenity",
+          "type": "university",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 432205690,
+            "osm_key": "amenity",
+            "osm_value": "university",
+            "type": "house",
+            "name": "جامعة بوليتكنك فلسطين مبنى A",
+            "street": "شارع ضاحية إسكان البلدية",
+            "locality": "الخليل",
+            "district": "الحاووز الاول",
+            "city": "الخليل",
+            "county": "منطقة H1",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "postcode": "150",
+            "countrycode": "PS"
+          }
+        },
+        {
+          "latitude": 31.5057963,
+          "longitude": 35.090014,
+          "name": "جامعة بوليتكنك فلسطين مبنى ب",
+          "category": "amenity",
+          "type": "university",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 431862481,
+            "osm_key": "amenity",
+            "osm_value": "university",
+            "type": "house",
+            "name": "جامعة بوليتكنك فلسطين مبنى ب",
+            "street": "شارع ضاحية إسكان البلدية",
+            "locality": "الخليل",
+            "district": "الحاووز الاول",
+            "city": "الخليل",
+            "county": "منطقة H1",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "postcode": "150",
+            "countrycode": "PS"
+          }
+        },
+        {
+          "latitude": 31.5072403,
+          "longitude": 35.0911129,
+          "name": "جامعة بوليتكنك فلسطين مبنى ت",
+          "category": "amenity",
+          "type": "university",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 431940500,
+            "osm_key": "amenity",
+            "osm_value": "university",
+            "type": "house",
+            "name": "جامعة بوليتكنك فلسطين مبنى ت",
+            "street": "شارع ضاحية إسكان البلدية",
+            "locality": "الخليل",
+            "district": "الحاووز الاول",
+            "city": "الخليل",
+            "county": "منطقة H1",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "postcode": "150",
+            "countrycode": "PS"
+          }
+        }
+      ],
+      "acceptable": true,
+      "expected_area_match": true,
+      "failure_category": null,
+      "candidate_rank": 1,
+      "latency_ms": 27.74929999999995
+    },
+    {
+      "fixture_id": "ppu-main",
+      "language": "en",
+      "query": {
+        "q": "Palestine Polytechnic University, Hebron"
+      },
+      "returned_result": {
+        "latitude": 31.5085383,
+        "longitude": 35.0918385,
+        "name": "Palestine Polytechnic University",
+        "category": "amenity",
+        "type": "university",
+        "provider_metadata": {
+          "osm_type": "N",
+          "osm_id": 12815098428,
+          "osm_key": "amenity",
+          "osm_value": "university",
+          "type": "house",
+          "name": "Palestine Polytechnic University",
+          "street": "Dahyit Iskan Al-Baladiyah",
+          "locality": "Al-Khalil",
+          "district": "الحاووز الاول",
+          "city": "Hebron",
+          "county": "Area H1",
+          "state": "West Bank",
+          "country": "Palestinian Territories",
+          "postcode": "150",
+          "countrycode": "PS"
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 31.5085383,
+          "longitude": 35.0918385,
+          "name": "Palestine Polytechnic University",
+          "category": "amenity",
+          "type": "university",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 12815098428,
+            "osm_key": "amenity",
+            "osm_value": "university",
+            "type": "house",
+            "name": "Palestine Polytechnic University",
+            "street": "Dahyit Iskan Al-Baladiyah",
+            "locality": "Al-Khalil",
+            "district": "الحاووز الاول",
+            "city": "Hebron",
+            "county": "Area H1",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "postcode": "150",
+            "countrycode": "PS"
+          }
+        },
+        {
+          "latitude": 31.5336282,
+          "longitude": 35.0979762,
+          "name": "Palestine Polytechnic University",
+          "category": "amenity",
+          "type": "university",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 432191180,
+            "osm_key": "amenity",
+            "osm_value": "university",
+            "type": "house",
+            "name": "Palestine Polytechnic University",
+            "street": "Sharia Ain Sarah",
+            "locality": "Al-Khalil",
+            "district": "Old City",
+            "city": "Hebron",
+            "county": "Area H1",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "postcode": "150",
+            "countrycode": "PS"
+          }
+        },
+        {
+          "latitude": 31.5066071,
+          "longitude": 35.0909358,
+          "name": "Palestine Polytechnic University (Building activities)",
+          "category": "amenity",
+          "type": "university",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 1384124976,
+            "osm_key": "amenity",
+            "osm_value": "university",
+            "type": "house",
+            "name": "Palestine Polytechnic University (Building activities)",
+            "street": "Dahyit Iskan Al-Baladiyah",
+            "locality": "Al-Khalil",
+            "district": "الحاووز الاول",
+            "city": "Hebron",
+            "county": "Area H1",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "postcode": "150",
+            "countrycode": "PS",
+            "extent": [
+              35.090742,
+              31.5068122,
+              35.0911214,
+              31.5063801
+            ]
+          }
+        }
+      ],
+      "acceptable": true,
+      "expected_area_match": true,
+      "failure_category": null,
+      "candidate_rank": 1,
+      "latency_ms": 21.779200000000174
+    },
+    {
+      "fixture_id": "bethlehem-university",
+      "language": "ar",
+      "query": {
+        "q": "جامعة بيت لحم، بيت لحم"
+      },
+      "returned_result": {
+        "latitude": 31.840336,
+        "longitude": 35.1332179,
+        "name": "مكتب جامعة بيت لحم",
+        "category": "amenity",
+        "type": "college",
+        "provider_metadata": {
+          "osm_type": "N",
+          "osm_id": 432277441,
+          "osm_key": "amenity",
+          "osm_value": "college",
+          "type": "house",
+          "name": "مكتب جامعة بيت لحم",
+          "street": "Al-Qubeibah - Beit Anan",
+          "city": "قطنّه‎",
+          "county": "منطقة ب",
+          "state": "الضفة الغربية",
+          "country": "Palestinian Territories",
+          "countrycode": "PS"
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 31.840336,
+          "longitude": 35.1332179,
+          "name": "مكتب جامعة بيت لحم",
+          "category": "amenity",
+          "type": "college",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 432277441,
+            "osm_key": "amenity",
+            "osm_value": "college",
+            "type": "house",
+            "name": "مكتب جامعة بيت لحم",
+            "street": "Al-Qubeibah - Beit Anan",
+            "city": "قطنّه‎",
+            "county": "منطقة ب",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "countrycode": "PS"
+          }
+        },
+        {
+          "latitude": 31.7100699,
+          "longitude": 35.2023153,
+          "name": "مكتبة جامعة بيت لحم",
+          "category": "amenity",
+          "type": "library",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 692146300,
+            "osm_key": "amenity",
+            "osm_value": "library",
+            "type": "house",
+            "name": "مكتبة جامعة بيت لحم",
+            "street": "شارع الجامعة",
+            "locality": "حارة التراجمة",
+            "city": "بيت لحم",
+            "county": "منطقة أ",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              35.2021111,
+              31.7101902,
+              35.2025195,
+              31.7099714
+            ]
+          }
+        },
+        {
+          "latitude": 31.7105814,
+          "longitude": 35.2017784,
+          "name": "جامعة بيت لحم",
+          "category": "amenity",
+          "type": "university",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 41845529,
+            "osm_key": "amenity",
+            "osm_value": "university",
+            "type": "house",
+            "name": "جامعة بيت لحم",
+            "street": "شارع الجامعة",
+            "locality": "حارة التراجمة",
+            "city": "بيت لحم",
+            "county": "منطقة أ",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              35.2008585,
+              31.7113634,
+              35.2027499,
+              31.7098408
+            ]
+          }
+        }
+      ],
+      "acceptable": false,
+      "expected_area_match": false,
+      "failure_category": "incorrect_admin_area",
+      "candidate_rank": 1,
+      "latency_ms": 18.29820000000018
+    },
+    {
+      "fixture_id": "bethlehem-university",
+      "language": "en",
+      "query": {
+        "q": "Bethlehem University, Bethlehem"
+      },
+      "returned_result": {
+        "latitude": 31.7105814,
+        "longitude": 35.2017784,
+        "name": "Bethlehem University",
+        "category": "amenity",
+        "type": "university",
+        "provider_metadata": {
+          "osm_type": "W",
+          "osm_id": 41845529,
+          "osm_key": "amenity",
+          "osm_value": "university",
+          "type": "house",
+          "name": "Bethlehem University",
+          "street": "Sharia University",
+          "locality": "Haret Al-Tarajmeh",
+          "city": "Bethlehem",
+          "county": "Area A",
+          "state": "West Bank",
+          "country": "Palestinian Territories",
+          "countrycode": "PS",
+          "extent": [
+            35.2008585,
+            31.7113634,
+            35.2027499,
+            31.7098408
+          ]
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 31.7105814,
+          "longitude": 35.2017784,
+          "name": "Bethlehem University",
+          "category": "amenity",
+          "type": "university",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 41845529,
+            "osm_key": "amenity",
+            "osm_value": "university",
+            "type": "house",
+            "name": "Bethlehem University",
+            "street": "Sharia University",
+            "locality": "Haret Al-Tarajmeh",
+            "city": "Bethlehem",
+            "county": "Area A",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              35.2008585,
+              31.7113634,
+              35.2027499,
+              31.7098408
+            ]
+          }
+        },
+        {
+          "latitude": 31.7100699,
+          "longitude": 35.2023153,
+          "name": "Bethlehem University Library",
+          "category": "amenity",
+          "type": "library",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 692146300,
+            "osm_key": "amenity",
+            "osm_value": "library",
+            "type": "house",
+            "name": "Bethlehem University Library",
+            "street": "Sharia University",
+            "locality": "Haret Al-Tarajmeh",
+            "city": "Bethlehem",
+            "county": "Area A",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              35.2021111,
+              31.7101902,
+              35.2025195,
+              31.7099714
+            ]
+          }
+        },
+        {
+          "latitude": 31.709664,
+          "longitude": 35.2010661,
+          "name": "Bethlehem University Parking",
+          "category": "amenity",
+          "type": "parking",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 431622891,
+            "osm_key": "amenity",
+            "osm_value": "parking",
+            "type": "house",
+            "name": "Bethlehem University Parking",
+            "street": "Children",
+            "locality": "Haret Al-Farahiyeh",
+            "city": "Bethlehem",
+            "county": "Area A",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "countrycode": "PS"
+          }
+        }
+      ],
+      "acceptable": true,
+      "expected_area_match": true,
+      "failure_category": null,
+      "candidate_rank": 1,
+      "latency_ms": 16.767500000000155
+    },
+    {
+      "fixture_id": "birzeit-university",
+      "language": "ar",
+      "query": {
+        "q": "جامعة بيرزيت، بيرزيت"
+      },
+      "returned_result": {
+        "latitude": 31.9587052,
+        "longitude": 35.1829571,
+        "name": "متحف جامعة بيرزيت",
+        "category": "building",
+        "type": "university",
+        "provider_metadata": {
+          "osm_type": "W",
+          "osm_id": 1264153450,
+          "osm_key": "building",
+          "osm_value": "university",
+          "type": "house",
+          "name": "متحف جامعة بيرزيت",
+          "street": "Birzeit Museum  entrance",
+          "city": "ابو قش",
+          "county": "منطقة ب",
+          "state": "الضفة الغربية",
+          "country": "Palestinian Territories",
+          "postcode": "620",
+          "countrycode": "PS",
+          "extent": [
+            35.18282,
+            31.9588187,
+            35.1830942,
+            31.9586343
+          ]
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 31.9587052,
+          "longitude": 35.1829571,
+          "name": "متحف جامعة بيرزيت",
+          "category": "building",
+          "type": "university",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 1264153450,
+            "osm_key": "building",
+            "osm_value": "university",
+            "type": "house",
+            "name": "متحف جامعة بيرزيت",
+            "street": "Birzeit Museum  entrance",
+            "city": "ابو قش",
+            "county": "منطقة ب",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "postcode": "620",
+            "countrycode": "PS",
+            "extent": [
+              35.18282,
+              31.9588187,
+              35.1830942,
+              31.9586343
+            ]
+          }
+        },
+        {
+          "latitude": 31.9600495,
+          "longitude": 35.1824122,
+          "name": "جامعة بيرزيت",
+          "category": "amenity",
+          "type": "university",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 193255177,
+            "osm_key": "amenity",
+            "osm_value": "university",
+            "type": "house",
+            "name": "جامعة بيرزيت",
+            "street": "St No. 4566",
+            "city": "بيرزيت‎",
+            "county": "منطقة ب",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "postcode": "620",
+            "countrycode": "PS",
+            "extent": [
+              35.1780599,
+              31.9632715,
+              35.1858858,
+              31.9568138
+            ]
+          }
+        }
+      ],
+      "acceptable": false,
+      "expected_area_match": true,
+      "failure_category": "ranking_problem",
+      "candidate_rank": 1,
+      "latency_ms": 14.072900000000118
+    },
+    {
+      "fixture_id": "birzeit-university",
+      "language": "en",
+      "query": {
+        "q": "Birzeit University, Birzeit"
+      },
+      "returned_result": {
+        "latitude": 31.9600495,
+        "longitude": 35.1824122,
+        "name": "Birzeit University",
+        "category": "amenity",
+        "type": "university",
+        "provider_metadata": {
+          "osm_type": "W",
+          "osm_id": 193255177,
+          "osm_key": "amenity",
+          "osm_value": "university",
+          "type": "house",
+          "name": "Birzeit University",
+          "street": "St No. 4566",
+          "city": "Bir Zeit",
+          "county": "Area B",
+          "state": "West Bank",
+          "country": "Palestinian Territories",
+          "postcode": "620",
+          "countrycode": "PS",
+          "extent": [
+            35.1780599,
+            31.9632715,
+            35.1858858,
+            31.9568138
+          ]
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 31.9600495,
+          "longitude": 35.1824122,
+          "name": "Birzeit University",
+          "category": "amenity",
+          "type": "university",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 193255177,
+            "osm_key": "amenity",
+            "osm_value": "university",
+            "type": "house",
+            "name": "Birzeit University",
+            "street": "St No. 4566",
+            "city": "Bir Zeit",
+            "county": "Area B",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "postcode": "620",
+            "countrycode": "PS",
+            "extent": [
+              35.1780599,
+              31.9632715,
+              35.1858858,
+              31.9568138
+            ]
+          }
+        },
+        {
+          "latitude": 31.9587052,
+          "longitude": 35.1829571,
+          "name": "BIRZEIT UNIVERSITY MUSEUM",
+          "category": "building",
+          "type": "university",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 1264153450,
+            "osm_key": "building",
+            "osm_value": "university",
+            "type": "house",
+            "name": "BIRZEIT UNIVERSITY MUSEUM",
+            "street": "Birzeit Museum  entrance",
+            "city": "Abu Qash",
+            "county": "Area B",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "postcode": "620",
+            "countrycode": "PS",
+            "extent": [
+              35.18282,
+              31.9588187,
+              35.1830942,
+              31.9586343
+            ]
+          }
+        }
+      ],
+      "acceptable": true,
+      "expected_area_match": true,
+      "failure_category": null,
+      "candidate_rank": 1,
+      "latency_ms": 14.454299999999876
+    },
+    {
+      "fixture_id": "an-najah-new-campus",
+      "language": "ar",
+      "query": {
+        "q": "جامعة النجاح الوطنية، نابلس"
+      },
+      "returned_result": {
+        "latitude": 32.2280769,
+        "longitude": 35.222255,
+        "name": "جامعة النجاح الوطنية - الحرم الجديد",
+        "category": "amenity",
+        "type": "university",
+        "provider_metadata": {
+          "osm_type": "W",
+          "osm_id": 345017904,
+          "osm_key": "amenity",
+          "osm_value": "university",
+          "type": "house",
+          "name": "جامعة النجاح الوطنية - الحرم الجديد",
+          "street": "شارع رفيديا",
+          "district": "Rafidia Al-Balad",
+          "city": "نابلس",
+          "county": "منطقة أ",
+          "state": "الضفة الغربية",
+          "country": "Palestinian Territories",
+          "countrycode": "PS",
+          "extent": [
+            35.2195167,
+            32.2295083,
+            35.2249573,
+            32.2268721
+          ]
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 32.2280769,
+          "longitude": 35.222255,
+          "name": "جامعة النجاح الوطنية - الحرم الجديد",
+          "category": "amenity",
+          "type": "university",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 345017904,
+            "osm_key": "amenity",
+            "osm_value": "university",
+            "type": "house",
+            "name": "جامعة النجاح الوطنية - الحرم الجديد",
+            "street": "شارع رفيديا",
+            "district": "Rafidia Al-Balad",
+            "city": "نابلس",
+            "county": "منطقة أ",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              35.2195167,
+              32.2295083,
+              35.2249573,
+              32.2268721
+            ]
+          }
+        },
+        {
+          "latitude": 32.2201412,
+          "longitude": 35.2442702,
+          "name": "جامعة النجاح الوطنية - الحرم القديم",
+          "category": "amenity",
+          "type": "university",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 345018868,
+            "osm_key": "amenity",
+            "osm_value": "university",
+            "type": "house",
+            "name": "جامعة النجاح الوطنية - الحرم القديم",
+            "street": "Omar Ibn Al-Khattab Street",
+            "district": "Al Makhfiyah",
+            "city": "نابلس",
+            "county": "منطقة أ",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "postcode": "803",
+            "countrycode": "PS",
+            "extent": [
+              35.2430464,
+              32.2210083,
+              35.2455761,
+              32.219493
+            ]
+          }
+        }
+      ],
+      "acceptable": true,
+      "expected_area_match": true,
+      "failure_category": null,
+      "candidate_rank": 1,
+      "latency_ms": 15.517300000000205
+    },
+    {
+      "fixture_id": "an-najah-new-campus",
+      "language": "en",
+      "query": {
+        "q": "An-Najah National University, Nablus"
+      },
+      "returned_result": {
+        "latitude": 32.2280769,
+        "longitude": 35.222255,
+        "name": "An-Najah National University - New Campus",
+        "category": "amenity",
+        "type": "university",
+        "provider_metadata": {
+          "osm_type": "W",
+          "osm_id": 345017904,
+          "osm_key": "amenity",
+          "osm_value": "university",
+          "type": "house",
+          "name": "An-Najah National University - New Campus",
+          "street": "Rafedya",
+          "district": "Rafidia Al-Balad",
+          "city": "Nablus",
+          "county": "Area A",
+          "state": "West Bank",
+          "country": "Palestinian Territories",
+          "countrycode": "PS",
+          "extent": [
+            35.2195167,
+            32.2295083,
+            35.2249573,
+            32.2268721
+          ]
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 32.2280769,
+          "longitude": 35.222255,
+          "name": "An-Najah National University - New Campus",
+          "category": "amenity",
+          "type": "university",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 345017904,
+            "osm_key": "amenity",
+            "osm_value": "university",
+            "type": "house",
+            "name": "An-Najah National University - New Campus",
+            "street": "Rafedya",
+            "district": "Rafidia Al-Balad",
+            "city": "Nablus",
+            "county": "Area A",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              35.2195167,
+              32.2295083,
+              35.2249573,
+              32.2268721
+            ]
+          }
+        }
+      ],
+      "acceptable": true,
+      "expected_area_match": true,
+      "failure_category": null,
+      "candidate_rank": 1,
+      "latency_ms": 14.112600000000157
+    },
+    {
+      "fixture_id": "aaup-jenin",
+      "language": "ar",
+      "query": {
+        "q": "الجامعة العربية الأمريكية، جنين"
+      },
+      "returned_result": {
+        "latitude": 31.93791,
+        "longitude": 35.173311,
+        "name": "حرم رام الله | الجامعة العربية الأمريكية",
+        "category": "amenity",
+        "type": "school",
+        "provider_metadata": {
+          "osm_type": "N",
+          "osm_id": 4426275499,
+          "osm_key": "amenity",
+          "osm_value": "school",
+          "type": "house",
+          "name": "حرم رام الله | الجامعة العربية الأمريكية",
+          "street": "شارع أبو ظبي",
+          "city": "ابو قش",
+          "county": "منطقة ب",
+          "state": "الضفة الغربية",
+          "country": "Palestinian Territories",
+          "postcode": "620",
+          "countrycode": "PS"
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 31.93791,
+          "longitude": 35.173311,
+          "name": "حرم رام الله | الجامعة العربية الأمريكية",
+          "category": "amenity",
+          "type": "school",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 4426275499,
+            "osm_key": "amenity",
+            "osm_value": "school",
+            "type": "house",
+            "name": "حرم رام الله | الجامعة العربية الأمريكية",
+            "street": "شارع أبو ظبي",
+            "city": "ابو قش",
+            "county": "منطقة ب",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "postcode": "620",
+            "countrycode": "PS"
+          }
+        },
+        {
+          "latitude": 31.9380357,
+          "longitude": 35.1733058,
+          "name": "حرم رام الله | الجامعة العربية الأمريكية",
+          "category": "amenity",
+          "type": "university",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 1175749360,
+            "osm_key": "amenity",
+            "osm_value": "university",
+            "type": "house",
+            "name": "حرم رام الله | الجامعة العربية الأمريكية",
+            "street": "شارع أبو ظبي",
+            "city": "ابو قش",
+            "county": "منطقة ب",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "postcode": "620",
+            "countrycode": "PS",
+            "extent": [
+              35.1720647,
+              31.9393668,
+              35.1740077,
+              31.9371039
+            ]
+          }
+        },
+        {
+          "latitude": 32.4073787,
+          "longitude": 35.3436904,
+          "name": "الجامعة العربية الامريكية - جنين",
+          "category": "amenity",
+          "type": "university",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 888585504,
+            "osm_key": "amenity",
+            "osm_value": "university",
+            "type": "house",
+            "name": "الجامعة العربية الامريكية - جنين",
+            "street": "الطريق الرئيسي للجامعة العربية الامريكية",
+            "district": "Tannin",
+            "city": "Telfit",
+            "county": "منطقة أ",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "postcode": "233",
+            "countrycode": "PS",
+            "extent": [
+              35.3403567,
+              32.4104472,
+              35.3468204,
+              32.4040679
+            ]
+          }
+        }
+      ],
+      "acceptable": false,
+      "expected_area_match": false,
+      "failure_category": "incorrect_admin_area",
+      "candidate_rank": 1,
+      "latency_ms": 137.69970000000012
+    },
+    {
+      "fixture_id": "aaup-jenin",
+      "language": "en",
+      "query": {
+        "q": "Arab American University - Jenin"
+      },
+      "returned_result": {
+        "latitude": 32.4073787,
+        "longitude": 35.3436904,
+        "name": "Arab American University - Jenin",
+        "category": "amenity",
+        "type": "university",
+        "provider_metadata": {
+          "osm_type": "W",
+          "osm_id": 888585504,
+          "osm_key": "amenity",
+          "osm_value": "university",
+          "type": "house",
+          "name": "Arab American University - Jenin",
+          "street": "Main Road Of American University",
+          "district": "تنين",
+          "city": "Telfit",
+          "county": "Area A",
+          "state": "West Bank",
+          "country": "Palestinian Territories",
+          "postcode": "233",
+          "countrycode": "PS",
+          "extent": [
+            35.3403567,
+            32.4104472,
+            35.3468204,
+            32.4040679
+          ]
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 32.4073787,
+          "longitude": 35.3436904,
+          "name": "Arab American University - Jenin",
+          "category": "amenity",
+          "type": "university",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 888585504,
+            "osm_key": "amenity",
+            "osm_value": "university",
+            "type": "house",
+            "name": "Arab American University - Jenin",
+            "street": "Main Road Of American University",
+            "district": "تنين",
+            "city": "Telfit",
+            "county": "Area A",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "postcode": "233",
+            "countrycode": "PS",
+            "extent": [
+              35.3403567,
+              32.4104472,
+              35.3468204,
+              32.4040679
+            ]
+          }
+        },
+        {
+          "latitude": 32.4081589,
+          "longitude": 35.342513,
+          "name": "American Arab University Jenin",
+          "category": "amenity",
+          "type": "university",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 431717960,
+            "osm_key": "amenity",
+            "osm_value": "university",
+            "type": "house",
+            "name": "American Arab University Jenin",
+            "street": "Main Road Of American University",
+            "district": "تنين",
+            "city": "Telfit",
+            "county": "Area A",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "postcode": "233",
+            "countrycode": "PS"
+          }
+        }
+      ],
+      "acceptable": true,
+      "expected_area_match": true,
+      "failure_category": null,
+      "candidate_rank": 1,
+      "latency_ms": 15.680000000000064
+    },
+    {
+      "fixture_id": "hisham-palace",
+      "language": "ar",
+      "query": {
+        "q": "قصر هشام، النويعمة"
+      },
+      "returned_result": {
+        "latitude": 31.8824366,
+        "longitude": 35.4566222,
+        "name": "شارع قصر هشام",
+        "category": "highway",
+        "type": "tertiary",
+        "provider_metadata": {
+          "osm_type": "W",
+          "osm_id": 1333746611,
+          "osm_key": "highway",
+          "osm_value": "tertiary",
+          "type": "street",
+          "name": "شارع قصر هشام",
+          "district": "النويعمة",
+          "county": "منطقة أ",
+          "state": "الضفة الغربية",
+          "country": "Palestinian Territories",
+          "countrycode": "PS",
+          "extent": [
+            35.4565713,
+            31.8824814,
+            35.4566661,
+            31.8823851
+          ]
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 31.8824366,
+          "longitude": 35.4566222,
+          "name": "شارع قصر هشام",
+          "category": "highway",
+          "type": "tertiary",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 1333746611,
+            "osm_key": "highway",
+            "osm_value": "tertiary",
+            "type": "street",
+            "name": "شارع قصر هشام",
+            "district": "النويعمة",
+            "county": "منطقة أ",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              35.4565713,
+              31.8824814,
+              35.4566661,
+              31.8823851
+            ]
+          }
+        },
+        {
+          "latitude": 31.8831678,
+          "longitude": 35.4600399,
+          "name": "قصر هشام",
+          "category": "tourism",
+          "type": "attraction",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 1457011728,
+            "osm_key": "tourism",
+            "osm_value": "attraction",
+            "type": "house",
+            "name": "قصر هشام",
+            "street": "شارع قصر هشام",
+            "district": "النويعمة",
+            "city": "أريحا",
+            "county": "منطقة أ",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              35.4593199,
+              31.8842476,
+              35.4607173,
+              31.8815398
+            ]
+          }
+        }
+      ],
+      "acceptable": false,
+      "expected_area_match": true,
+      "failure_category": "ranking_problem",
+      "candidate_rank": 1,
+      "latency_ms": 17.34789999999998
+    },
+    {
+      "fixture_id": "hisham-palace",
+      "language": "en",
+      "query": {
+        "q": "Hisham Palace, Jericho"
+      },
+      "returned_result": {
+        "latitude": 31.8816704,
+        "longitude": 35.460558,
+        "name": "Hisham's Palace Miseum",
+        "category": "tourism",
+        "type": "museum",
+        "provider_metadata": {
+          "osm_type": "W",
+          "osm_id": 1462061872,
+          "osm_key": "tourism",
+          "osm_value": "museum",
+          "type": "house",
+          "name": "Hisham's Palace Miseum",
+          "street": "Qaser Hisham",
+          "district": "An-Nuway'imah",
+          "city": "Jericho",
+          "county": "Area A",
+          "state": "West Bank",
+          "country": "Palestinian Territories",
+          "countrycode": "PS",
+          "extent": [
+            35.4605155,
+            31.8817002,
+            35.4605996,
+            31.8816175
+          ]
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 31.8816704,
+          "longitude": 35.460558,
+          "name": "Hisham's Palace Miseum",
+          "category": "tourism",
+          "type": "museum",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 1462061872,
+            "osm_key": "tourism",
+            "osm_value": "museum",
+            "type": "house",
+            "name": "Hisham's Palace Miseum",
+            "street": "Qaser Hisham",
+            "district": "An-Nuway'imah",
+            "city": "Jericho",
+            "county": "Area A",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              35.4605155,
+              31.8817002,
+              35.4605996,
+              31.8816175
+            ]
+          }
+        },
+        {
+          "latitude": 31.8819461,
+          "longitude": 35.4597391,
+          "name": "Inside the Palace",
+          "category": "information",
+          "type": "board",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 13410673743,
+            "osm_key": "information",
+            "osm_value": "board",
+            "type": "house",
+            "name": "Inside the Palace",
+            "street": "Qaser Hisham",
+            "district": "An-Nuway'imah",
+            "city": "Jericho",
+            "county": "Area A",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "countrycode": "PS"
+          }
+        },
+        {
+          "latitude": 31.8819178,
+          "longitude": 35.4604341,
+          "name": "Hisham's Palace",
+          "category": "information",
+          "type": "board",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 13410673721,
+            "osm_key": "information",
+            "osm_value": "board",
+            "type": "house",
+            "name": "Hisham's Palace",
+            "street": "Qaser Hisham",
+            "district": "An-Nuway'imah",
+            "city": "Jericho",
+            "county": "Area A",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "countrycode": "PS"
+          }
+        }
+      ],
+      "acceptable": true,
+      "expected_area_match": true,
+      "failure_category": null,
+      "candidate_rank": 1,
+      "latency_ms": 18.69360000000006
+    },
+    {
+      "fixture_id": "arafat-museum",
+      "language": "ar",
+      "query": {
+        "q": "متحف ياسر عرفات، رام الله"
+      },
+      "returned_result": {
+        "latitude": 31.9116752,
+        "longitude": 35.2087678,
+        "name": "متحف ياسر عرفات",
+        "category": "tourism",
+        "type": "museum",
+        "provider_metadata": {
+          "osm_type": "W",
+          "osm_id": 287710481,
+          "osm_key": "tourism",
+          "osm_value": "museum",
+          "type": "house",
+          "name": "متحف ياسر عرفات",
+          "street": "رام الله-بيت لحم",
+          "district": "عين مصباح",
+          "city": "رام الله",
+          "county": "منطقة أ",
+          "state": "الضفة الغربية",
+          "country": "Palestinian Territories",
+          "postcode": "009",
+          "countrycode": "PS",
+          "extent": [
+            35.2084682,
+            31.9118168,
+            35.2090674,
+            31.911519
+          ]
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 31.9116752,
+          "longitude": 35.2087678,
+          "name": "متحف ياسر عرفات",
+          "category": "tourism",
+          "type": "museum",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 287710481,
+            "osm_key": "tourism",
+            "osm_value": "museum",
+            "type": "house",
+            "name": "متحف ياسر عرفات",
+            "street": "رام الله-بيت لحم",
+            "district": "عين مصباح",
+            "city": "رام الله",
+            "county": "منطقة أ",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "postcode": "009",
+            "countrycode": "PS",
+            "extent": [
+              35.2084682,
+              31.9118168,
+              35.2090674,
+              31.911519
+            ]
+          }
+        }
+      ],
+      "acceptable": true,
+      "expected_area_match": true,
+      "failure_category": null,
+      "candidate_rank": 1,
+      "latency_ms": 17.528400000000147
+    },
+    {
+      "fixture_id": "arafat-museum",
+      "language": "en",
+      "query": {
+        "q": "Yasser Arafat Museum, Ramallah"
+      },
+      "returned_result": {
+        "latitude": 31.9116752,
+        "longitude": 35.2087678,
+        "name": "Yasser Arafat Museum",
+        "category": "tourism",
+        "type": "museum",
+        "provider_metadata": {
+          "osm_type": "W",
+          "osm_id": 287710481,
+          "osm_key": "tourism",
+          "osm_value": "museum",
+          "type": "house",
+          "name": "Yasser Arafat Museum",
+          "street": "Ramallah/bethlehem",
+          "district": "Ein Musbah",
+          "city": "Ramallah",
+          "county": "Area A",
+          "state": "West Bank",
+          "country": "Palestinian Territories",
+          "postcode": "009",
+          "countrycode": "PS",
+          "extent": [
+            35.2084682,
+            31.9118168,
+            35.2090674,
+            31.911519
+          ]
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 31.9116752,
+          "longitude": 35.2087678,
+          "name": "Yasser Arafat Museum",
+          "category": "tourism",
+          "type": "museum",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 287710481,
+            "osm_key": "tourism",
+            "osm_value": "museum",
+            "type": "house",
+            "name": "Yasser Arafat Museum",
+            "street": "Ramallah/bethlehem",
+            "district": "Ein Musbah",
+            "city": "Ramallah",
+            "county": "Area A",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "postcode": "009",
+            "countrycode": "PS",
+            "extent": [
+              35.2084682,
+              31.9118168,
+              35.2090674,
+              31.911519
+            ]
+          }
+        }
+      ],
+      "acceptable": true,
+      "expected_area_match": true,
+      "failure_category": null,
+      "candidate_rank": 1,
+      "latency_ms": 14.4221
+    },
+    {
+      "fixture_id": "bab-al-zawiya",
+      "language": "ar",
+      "query": {
+        "q": "باب الزاوية، الخليل"
+      },
+      "returned_result": {
+        "latitude": 31.5275134,
+        "longitude": 35.1018593,
+        "name": "ميدان باب الزاوية",
+        "category": "highway",
+        "type": "tertiary",
+        "provider_metadata": {
+          "osm_type": "W",
+          "osm_id": 1457807738,
+          "osm_key": "highway",
+          "osm_value": "tertiary",
+          "type": "street",
+          "name": "ميدان باب الزاوية",
+          "locality": "الخليل",
+          "district": "المدينة القديمة",
+          "city": "الخليل",
+          "county": "منطقة H1",
+          "state": "الضفة الغربية",
+          "country": "Palestinian Territories",
+          "postcode": "150",
+          "countrycode": "PS",
+          "extent": [
+            35.1017734,
+            31.5275952,
+            35.1019453,
+            31.5274494
+          ]
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 31.5275134,
+          "longitude": 35.1018593,
+          "name": "ميدان باب الزاوية",
+          "category": "highway",
+          "type": "tertiary",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 1457807738,
+            "osm_key": "highway",
+            "osm_value": "tertiary",
+            "type": "street",
+            "name": "ميدان باب الزاوية",
+            "locality": "الخليل",
+            "district": "المدينة القديمة",
+            "city": "الخليل",
+            "county": "منطقة H1",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "postcode": "150",
+            "countrycode": "PS",
+            "extent": [
+              35.1017734,
+              31.5275952,
+              35.1019453,
+              31.5274494
+            ]
+          }
+        },
+        {
+          "latitude": 31.5271419,
+          "longitude": 35.1030591,
+          "name": "مسجد باب الزاوية",
+          "category": "amenity",
+          "type": "place_of_worship",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 1167824492,
+            "osm_key": "amenity",
+            "osm_value": "place_of_worship",
+            "type": "house",
+            "name": "مسجد باب الزاوية",
+            "street": "شارع الشلالة القديم",
+            "locality": "Beit Hadassah",
+            "district": "المدينة القديمة",
+            "city": "الخليل",
+            "county": "منطقة H2",
+            "state": "يهودا والسامرة",
+            "country": "Palestinian Territories",
+            "postcode": "150",
+            "countrycode": "PS",
+            "extent": [
+              35.1029447,
+              31.5272313,
+              35.1031734,
+              31.5270562
+            ]
+          }
+        },
+        {
+          "latitude": 31.5285926,
+          "longitude": 35.1018978,
+          "name": "صيدلية ابن حيان - باب الزاوية",
+          "category": "amenity",
+          "type": "pharmacy",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 6777688402,
+            "osm_key": "amenity",
+            "osm_value": "pharmacy",
+            "type": "house",
+            "name": "صيدلية ابن حيان - باب الزاوية",
+            "street": "شارع المدينة المنورة",
+            "locality": "الخليل",
+            "district": "المدينة القديمة",
+            "city": "الخليل",
+            "county": "منطقة H1",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "postcode": "150",
+            "countrycode": "PS"
+          }
+        }
+      ],
+      "acceptable": true,
+      "expected_area_match": true,
+      "failure_category": null,
+      "candidate_rank": 1,
+      "latency_ms": 15.344100000000026
+    },
+    {
+      "fixture_id": "bab-al-zawiya",
+      "language": "en",
+      "query": {
+        "q": "Bab Al-Zawiya Square, Hebron"
+      },
+      "returned_result": {
+        "latitude": 31.5275134,
+        "longitude": 35.1018593,
+        "name": "Bab az Zawiyah Square",
+        "category": "highway",
+        "type": "tertiary",
+        "provider_metadata": {
+          "osm_type": "W",
+          "osm_id": 1457807738,
+          "osm_key": "highway",
+          "osm_value": "tertiary",
+          "type": "street",
+          "name": "Bab az Zawiyah Square",
+          "locality": "Al-Khalil",
+          "district": "Old City",
+          "city": "Hebron",
+          "county": "Area H1",
+          "state": "West Bank",
+          "country": "Palestinian Territories",
+          "postcode": "150",
+          "countrycode": "PS",
+          "extent": [
+            35.1017734,
+            31.5275952,
+            35.1019453,
+            31.5274494
+          ]
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 31.5275134,
+          "longitude": 35.1018593,
+          "name": "Bab az Zawiyah Square",
+          "category": "highway",
+          "type": "tertiary",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 1457807738,
+            "osm_key": "highway",
+            "osm_value": "tertiary",
+            "type": "street",
+            "name": "Bab az Zawiyah Square",
+            "locality": "Al-Khalil",
+            "district": "Old City",
+            "city": "Hebron",
+            "county": "Area H1",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "postcode": "150",
+            "countrycode": "PS",
+            "extent": [
+              35.1017734,
+              31.5275952,
+              35.1019453,
+              31.5274494
+            ]
+          }
+        }
+      ],
+      "acceptable": true,
+      "expected_area_match": true,
+      "failure_category": null,
+      "candidate_rank": 1,
+      "latency_ms": 14.212999999999965
+    },
+    {
+      "fixture_id": "hebron-university",
+      "language": "ar",
+      "query": {
+        "q": "جامعة الخليل، الخليل"
+      },
+      "returned_result": {
+        "latitude": 31.617634,
+        "longitude": 35.1145409,
+        "name": "جامعة الخليل",
+        "category": "amenity",
+        "type": "school",
+        "provider_metadata": {
+          "osm_type": "N",
+          "osm_id": 4511109689,
+          "osm_key": "amenity",
+          "osm_value": "school",
+          "type": "house",
+          "name": "جامعة الخليل",
+          "county": "منطقة ج",
+          "state": "يهودا والسامرة",
+          "country": "Palestinian Territories",
+          "countrycode": "PS"
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 31.617634,
+          "longitude": 35.1145409,
+          "name": "جامعة الخليل",
+          "category": "amenity",
+          "type": "school",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 4511109689,
+            "osm_key": "amenity",
+            "osm_value": "school",
+            "type": "house",
+            "name": "جامعة الخليل",
+            "county": "منطقة ج",
+            "state": "يهودا والسامرة",
+            "country": "Palestinian Territories",
+            "countrycode": "PS"
+          }
+        },
+        {
+          "latitude": 31.5502621,
+          "longitude": 35.093412,
+          "name": "جامعة الخليل",
+          "category": "amenity",
+          "type": "university",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 432216668,
+            "osm_key": "amenity",
+            "osm_value": "university",
+            "type": "house",
+            "name": "جامعة الخليل",
+            "street": "شارع الجامعة",
+            "locality": "الخليل",
+            "district": "حي الجامعة",
+            "city": "الخليل",
+            "county": "منطقة H1",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "postcode": "150",
+            "countrycode": "PS"
+          }
+        },
+        {
+          "latitude": 31.5085767,
+          "longitude": 35.0924634,
+          "name": "جامعة بوليتكنك فلسطين مبنى A",
+          "category": "amenity",
+          "type": "university",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 432205690,
+            "osm_key": "amenity",
+            "osm_value": "university",
+            "type": "house",
+            "name": "جامعة بوليتكنك فلسطين مبنى A",
+            "street": "شارع ضاحية إسكان البلدية",
+            "locality": "الخليل",
+            "district": "الحاووز الاول",
+            "city": "الخليل",
+            "county": "منطقة H1",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "postcode": "150",
+            "countrycode": "PS"
+          }
+        }
+      ],
+      "acceptable": false,
+      "expected_area_match": false,
+      "failure_category": "incorrect_admin_area",
+      "candidate_rank": 1,
+      "latency_ms": 21.123100000000022
+    },
+    {
+      "fixture_id": "hebron-university",
+      "language": "en",
+      "query": {
+        "q": "Hebron University, Hebron"
+      },
+      "returned_result": {
+        "latitude": 31.5502621,
+        "longitude": 35.093412,
+        "name": "Hebron University",
+        "category": "amenity",
+        "type": "university",
+        "provider_metadata": {
+          "osm_type": "N",
+          "osm_id": 432216668,
+          "osm_key": "amenity",
+          "osm_value": "university",
+          "type": "house",
+          "name": "Hebron University",
+          "street": "Sharia University",
+          "locality": "Al-Khalil",
+          "district": "حي الجامعة",
+          "city": "Hebron",
+          "county": "Area H1",
+          "state": "West Bank",
+          "country": "Palestinian Territories",
+          "postcode": "150",
+          "countrycode": "PS"
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 31.5502621,
+          "longitude": 35.093412,
+          "name": "Hebron University",
+          "category": "amenity",
+          "type": "university",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 432216668,
+            "osm_key": "amenity",
+            "osm_value": "university",
+            "type": "house",
+            "name": "Hebron University",
+            "street": "Sharia University",
+            "locality": "Al-Khalil",
+            "district": "حي الجامعة",
+            "city": "Hebron",
+            "county": "Area H1",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "postcode": "150",
+            "countrycode": "PS"
+          }
+        },
+        {
+          "latitude": 31.5508233,
+          "longitude": 35.09341,
+          "name": "Sharia University",
+          "category": "highway",
+          "type": "secondary",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 37161856,
+            "osm_key": "highway",
+            "osm_value": "secondary",
+            "type": "street",
+            "name": "Sharia University",
+            "locality": "Al-Khalil",
+            "district": "حي الجامعة",
+            "city": "Hebron",
+            "county": "Area H1",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "postcode": "150",
+            "countrycode": "PS",
+            "extent": [
+              35.0911617,
+              31.5525718,
+              35.094739,
+              31.5483866
+            ]
+          }
+        },
+        {
+          "latitude": 31.6969787,
+          "longitude": 35.1893536,
+          "name": "Dar al-Kalima University College of Arts and Culture",
+          "category": "amenity",
+          "type": "university",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 2874450311,
+            "osm_key": "amenity",
+            "osm_value": "university",
+            "type": "house",
+            "name": "Dar al-Kalima University College of Arts and Culture",
+            "street": "Jerusalem-Hebron",
+            "city": "Bethlehem",
+            "county": "Area A",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "countrycode": "PS"
+          }
+        }
+      ],
+      "acceptable": true,
+      "expected_area_match": true,
+      "failure_category": null,
+      "candidate_rank": 1,
+      "latency_ms": 15.038600000000088
+    },
+    {
+      "fixture_id": "ibrahimi-mosque",
+      "language": "ar",
+      "query": {
+        "q": "الحرم الإبراهيمي، الخليل"
+      },
+      "returned_result": {
+        "latitude": 31.5248942,
+        "longitude": 35.1104434,
+        "name": "شارع الحرم الإبراهيمي",
+        "category": "highway",
+        "type": "residential",
+        "provider_metadata": {
+          "osm_type": "W",
+          "osm_id": 37162096,
+          "osm_key": "highway",
+          "osm_value": "residential",
+          "type": "street",
+          "name": "شارع الحرم الإبراهيمي",
+          "locality": "سوق الخضار القديم",
+          "district": "المدينة القديمة",
+          "county": "منطقة H2",
+          "state": "يهودا والسامرة",
+          "country": "Palestinian Territories",
+          "postcode": "150",
+          "countrycode": "PS",
+          "extent": [
+            35.1100208,
+            31.5253445,
+            35.1116738,
+            31.5237188
+          ]
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 31.5248942,
+          "longitude": 35.1104434,
+          "name": "شارع الحرم الإبراهيمي",
+          "category": "highway",
+          "type": "residential",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 37162096,
+            "osm_key": "highway",
+            "osm_value": "residential",
+            "type": "street",
+            "name": "شارع الحرم الإبراهيمي",
+            "locality": "سوق الخضار القديم",
+            "district": "المدينة القديمة",
+            "county": "منطقة H2",
+            "state": "يهودا والسامرة",
+            "country": "Palestinian Territories",
+            "postcode": "150",
+            "countrycode": "PS",
+            "extent": [
+              35.1100208,
+              31.5253445,
+              35.1116738,
+              31.5237188
+            ]
+          }
+        },
+        {
+          "latitude": 31.5247862,
+          "longitude": 35.1107783,
+          "name": "الحرم الإبراهيمي",
+          "category": "tourism",
+          "type": "attraction",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 1302827171,
+            "osm_key": "tourism",
+            "osm_value": "attraction",
+            "type": "house",
+            "name": "الحرم الإبراهيمي",
+            "street": "شارع الحرم الإبراهيمي",
+            "locality": "سوق الخضار القديم",
+            "district": "المدينة القديمة",
+            "city": "Hebron",
+            "county": "منطقة H2",
+            "state": "يهودا والسامرة",
+            "country": "Palestinian Territories",
+            "postcode": "150",
+            "countrycode": "PS",
+            "extent": [
+              35.1104532,
+              31.5251159,
+              35.1111346,
+              31.5244435
+            ]
+          }
+        },
+        {
+          "latitude": 31.5219065,
+          "longitude": 35.1035388,
+          "name": "الصالة الابراهيمية",
+          "category": "amenity",
+          "type": "townhall",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 432180065,
+            "osm_key": "amenity",
+            "osm_value": "townhall",
+            "type": "house",
+            "name": "الصالة الابراهيمية",
+            "street": "شارع الرازي",
+            "locality": "الخليل",
+            "district": "المدينة القديمة",
+            "city": "الخليل",
+            "county": "منطقة H1",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "postcode": "150",
+            "countrycode": "PS"
+          }
+        }
+      ],
+      "acceptable": false,
+      "expected_area_match": true,
+      "failure_category": "ranking_problem",
+      "candidate_rank": 1,
+      "latency_ms": 96.28549999999996
+    },
+    {
+      "fixture_id": "ibrahimi-mosque",
+      "language": "en",
+      "query": {
+        "q": "Cave of the Patriarchs, Hebron"
+      },
+      "returned_result": {
+        "latitude": 31.5247862,
+        "longitude": 35.1107783,
+        "name": "Cave of the Patriarchs",
+        "category": "tourism",
+        "type": "attraction",
+        "provider_metadata": {
+          "osm_type": "W",
+          "osm_id": 1302827171,
+          "osm_key": "tourism",
+          "osm_value": "attraction",
+          "type": "house",
+          "name": "Cave of the Patriarchs",
+          "street": "Al-Haram Al-Ibrahimi",
+          "locality": "Avraham Avinu Neighborhood",
+          "district": "Old City",
+          "city": "Hebron",
+          "county": "Area H2",
+          "state": "Judea and Samaria",
+          "country": "Palestinian Territories",
+          "postcode": "150",
+          "countrycode": "PS",
+          "extent": [
+            35.1104532,
+            31.5251159,
+            35.1111346,
+            31.5244435
+          ]
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 31.5247862,
+          "longitude": 35.1107783,
+          "name": "Cave of the Patriarchs",
+          "category": "tourism",
+          "type": "attraction",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 1302827171,
+            "osm_key": "tourism",
+            "osm_value": "attraction",
+            "type": "house",
+            "name": "Cave of the Patriarchs",
+            "street": "Al-Haram Al-Ibrahimi",
+            "locality": "Avraham Avinu Neighborhood",
+            "district": "Old City",
+            "city": "Hebron",
+            "county": "Area H2",
+            "state": "Judea and Samaria",
+            "country": "Palestinian Territories",
+            "postcode": "150",
+            "countrycode": "PS",
+            "extent": [
+              35.1104532,
+              31.5251159,
+              35.1111346,
+              31.5244435
+            ]
+          }
+        }
+      ],
+      "acceptable": true,
+      "expected_area_match": true,
+      "failure_category": null,
+      "candidate_rank": 1,
+      "latency_ms": 14.894999999999982
+    },
+    {
+      "fixture_id": "church-nativity",
+      "language": "ar",
+      "query": {
+        "q": "كنيسة المهد، بيت لحم"
+      },
+      "returned_result": {
+        "latitude": 31.7043165,
+        "longitude": 35.207355,
+        "name": "كنيسة المهد",
+        "category": "amenity",
+        "type": "place_of_worship",
+        "provider_metadata": {
+          "osm_type": "W",
+          "osm_id": 550081368,
+          "osm_key": "amenity",
+          "osm_value": "place_of_worship",
+          "type": "house",
+          "name": "كنيسة المهد",
+          "street": "ساحة المهد",
+          "locality": "حارة العناترة",
+          "city": "بيت لحم",
+          "county": "منطقة أ",
+          "state": "الضفة الغربية",
+          "country": "Palestinian Territories",
+          "countrycode": "PS",
+          "extent": [
+            35.2069512,
+            31.7044769,
+            35.2077488,
+            31.7041505
+          ]
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 31.7043165,
+          "longitude": 35.207355,
+          "name": "كنيسة المهد",
+          "category": "amenity",
+          "type": "place_of_worship",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 550081368,
+            "osm_key": "amenity",
+            "osm_value": "place_of_worship",
+            "type": "house",
+            "name": "كنيسة المهد",
+            "street": "ساحة المهد",
+            "locality": "حارة العناترة",
+            "city": "بيت لحم",
+            "county": "منطقة أ",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              35.2069512,
+              31.7044769,
+              35.2077488,
+              31.7041505
+            ]
+          }
+        },
+        {
+          "latitude": 31.7045482,
+          "longitude": 35.2076559,
+          "name": "كنيسة القديسة كترينا",
+          "category": "amenity",
+          "type": "place_of_worship",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 551971928,
+            "osm_key": "amenity",
+            "osm_value": "place_of_worship",
+            "type": "house",
+            "name": "كنيسة القديسة كترينا",
+            "street": "ساحة المهد",
+            "locality": "حارة العناترة",
+            "city": "بيت لحم",
+            "county": "منطقة أ",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              35.2074084,
+              31.7046741,
+              35.2079035,
+              31.704436
+            ]
+          }
+        }
+      ],
+      "acceptable": true,
+      "expected_area_match": true,
+      "failure_category": null,
+      "candidate_rank": 1,
+      "latency_ms": 14.153099999999995
+    },
+    {
+      "fixture_id": "church-nativity",
+      "language": "en",
+      "query": {
+        "q": "Church of the Nativity, Bethlehem"
+      },
+      "returned_result": {
+        "latitude": 31.7043165,
+        "longitude": 35.207355,
+        "name": "Church of the Nativity",
+        "category": "amenity",
+        "type": "place_of_worship",
+        "provider_metadata": {
+          "osm_type": "W",
+          "osm_id": 550081368,
+          "osm_key": "amenity",
+          "osm_value": "place_of_worship",
+          "type": "house",
+          "name": "Church of the Nativity",
+          "street": "Manger Square",
+          "locality": "Haret Al-Anatreh",
+          "city": "Bethlehem",
+          "county": "Area A",
+          "state": "West Bank",
+          "country": "Palestinian Territories",
+          "countrycode": "PS",
+          "extent": [
+            35.2069512,
+            31.7044769,
+            35.2077488,
+            31.7041505
+          ]
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 31.7043165,
+          "longitude": 35.207355,
+          "name": "Church of the Nativity",
+          "category": "amenity",
+          "type": "place_of_worship",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 550081368,
+            "osm_key": "amenity",
+            "osm_value": "place_of_worship",
+            "type": "house",
+            "name": "Church of the Nativity",
+            "street": "Manger Square",
+            "locality": "Haret Al-Anatreh",
+            "city": "Bethlehem",
+            "county": "Area A",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              35.2069512,
+              31.7044769,
+              35.2077488,
+              31.7041505
+            ]
+          }
+        }
+      ],
+      "acceptable": true,
+      "expected_area_match": true,
+      "failure_category": null,
+      "candidate_rank": 1,
+      "latency_ms": 11.157400000000052
+    },
+    {
+      "fixture_id": "manger-square",
+      "language": "ar",
+      "query": {
+        "q": "ساحة المهد، بيت لحم"
+      },
+      "returned_result": {
+        "latitude": 31.7044098,
+        "longitude": 35.2067271,
+        "name": "ساحة المهد",
+        "category": "highway",
+        "type": "pedestrian",
+        "provider_metadata": {
+          "osm_type": "W",
+          "osm_id": 158170278,
+          "osm_key": "highway",
+          "osm_value": "pedestrian",
+          "type": "street",
+          "name": "ساحة المهد",
+          "locality": "حارة العناترة",
+          "city": "بيت لحم",
+          "county": "منطقة أ",
+          "state": "الضفة الغربية",
+          "country": "Palestinian Territories",
+          "countrycode": "PS",
+          "extent": [
+            35.2063583,
+            31.7045435,
+            35.2071034,
+            31.704321
+          ]
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 31.7044098,
+          "longitude": 35.2067271,
+          "name": "ساحة المهد",
+          "category": "highway",
+          "type": "pedestrian",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 158170278,
+            "osm_key": "highway",
+            "osm_value": "pedestrian",
+            "type": "street",
+            "name": "ساحة المهد",
+            "locality": "حارة العناترة",
+            "city": "بيت لحم",
+            "county": "منطقة أ",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              35.2063583,
+              31.7045435,
+              35.2071034,
+              31.704321
+            ]
+          }
+        },
+        {
+          "latitude": 31.7052413,
+          "longitude": 35.2059467,
+          "name": "الفندق ساحة المهد",
+          "category": "tourism",
+          "type": "hotel",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 339903909,
+            "osm_key": "tourism",
+            "osm_value": "hotel",
+            "type": "house",
+            "name": "الفندق ساحة المهد",
+            "street": "شارع المهد",
+            "locality": "حوش حنانيا",
+            "city": "بيت لحم",
+            "county": "منطقة أ",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              35.2054755,
+              31.7055058,
+              35.2063716,
+              31.704977
+            ]
+          }
+        },
+        {
+          "latitude": 31.7042822,
+          "longitude": 35.2075928,
+          "name": "مصلى المهد",
+          "category": "amenity",
+          "type": "place_of_worship",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 5312140437,
+            "osm_key": "amenity",
+            "osm_value": "place_of_worship",
+            "type": "house",
+            "name": "مصلى المهد",
+            "street": "ساحة المهد",
+            "locality": "حارة العناترة",
+            "city": "بيت لحم",
+            "county": "منطقة أ",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "countrycode": "PS"
+          }
+        }
+      ],
+      "acceptable": true,
+      "expected_area_match": true,
+      "failure_category": null,
+      "candidate_rank": 1,
+      "latency_ms": 14.824499999999944
+    },
+    {
+      "fixture_id": "manger-square",
+      "language": "en",
+      "query": {
+        "q": "Manger Square, Bethlehem"
+      },
+      "returned_result": {
+        "latitude": 31.704259,
+        "longitude": 35.2058914,
+        "name": "Manger Square",
+        "category": "highway",
+        "type": "pedestrian",
+        "provider_metadata": {
+          "osm_type": "W",
+          "osm_id": 119585913,
+          "osm_key": "highway",
+          "osm_value": "pedestrian",
+          "type": "street",
+          "name": "Manger Square",
+          "locality": "Haret Al-Najajreh",
+          "city": "Bethlehem",
+          "county": "Area A",
+          "state": "West Bank",
+          "country": "Palestinian Territories",
+          "countrycode": "PS",
+          "extent": [
+            35.2054823,
+            31.7045675,
+            35.2063274,
+            31.7039931
+          ]
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 31.704259,
+          "longitude": 35.2058914,
+          "name": "Manger Square",
+          "category": "highway",
+          "type": "pedestrian",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 119585913,
+            "osm_key": "highway",
+            "osm_value": "pedestrian",
+            "type": "street",
+            "name": "Manger Square",
+            "locality": "Haret Al-Najajreh",
+            "city": "Bethlehem",
+            "county": "Area A",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              35.2054823,
+              31.7045675,
+              35.2063274,
+              31.7039931
+            ]
+          }
+        },
+        {
+          "latitude": 31.7044098,
+          "longitude": 35.2067271,
+          "name": "Manger Square",
+          "category": "highway",
+          "type": "pedestrian",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 158170278,
+            "osm_key": "highway",
+            "osm_value": "pedestrian",
+            "type": "street",
+            "name": "Manger Square",
+            "locality": "Haret Al-Anatreh",
+            "city": "Bethlehem",
+            "county": "Area A",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              35.2063583,
+              31.7045435,
+              35.2071034,
+              31.704321
+            ]
+          }
+        },
+        {
+          "latitude": 31.7052413,
+          "longitude": 35.2059467,
+          "name": "Manger Square Hotel",
+          "category": "tourism",
+          "type": "hotel",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 339903909,
+            "osm_key": "tourism",
+            "osm_value": "hotel",
+            "type": "house",
+            "name": "Manger Square Hotel",
+            "street": "Manger",
+            "locality": "Hosh Hananiyah",
+            "city": "Bethlehem",
+            "county": "Area A",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              35.2054755,
+              31.7055058,
+              35.2063716,
+              31.704977
+            ]
+          }
+        }
+      ],
+      "acceptable": true,
+      "expected_area_match": true,
+      "failure_category": null,
+      "candidate_rank": 1,
+      "latency_ms": 15.81919999999991
+    },
+    {
+      "fixture_id": "manara-square",
+      "language": "ar",
+      "query": {
+        "q": "ميدان المنارة، رام الله"
+      },
+      "returned_result": {
+        "latitude": 31.9049627,
+        "longitude": 35.2044298,
+        "name": "ميدان المنارة",
+        "category": "place",
+        "type": "square",
+        "provider_metadata": {
+          "osm_type": "W",
+          "osm_id": 1005833414,
+          "osm_key": "place",
+          "osm_value": "square",
+          "type": "locality",
+          "name": "ميدان المنارة",
+          "district": "رام الله التحتة",
+          "city": "رام الله",
+          "county": "منطقة أ",
+          "state": "الضفة الغربية",
+          "country": "Palestinian Territories",
+          "countrycode": "PS",
+          "extent": [
+            35.2043168,
+            31.9050361,
+            35.2045327,
+            31.9048528
+          ]
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 31.9049627,
+          "longitude": 35.2044298,
+          "name": "ميدان المنارة",
+          "category": "place",
+          "type": "square",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 1005833414,
+            "osm_key": "place",
+            "osm_value": "square",
+            "type": "locality",
+            "name": "ميدان المنارة",
+            "district": "رام الله التحتة",
+            "city": "رام الله",
+            "county": "منطقة أ",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              35.2043168,
+              31.9050361,
+              35.2045327,
+              31.9048528
+            ]
+          }
+        }
+      ],
+      "acceptable": true,
+      "expected_area_match": true,
+      "failure_category": null,
+      "candidate_rank": 1,
+      "latency_ms": 12.08120000000008
+    },
+    {
+      "fixture_id": "manara-square",
+      "language": "en",
+      "query": {
+        "q": "Al-Manara Square, Ramallah"
+      },
+      "returned_result": {
+        "latitude": 31.9049627,
+        "longitude": 35.2044298,
+        "name": "Al Manara Square",
+        "category": "place",
+        "type": "square",
+        "provider_metadata": {
+          "osm_type": "W",
+          "osm_id": 1005833414,
+          "osm_key": "place",
+          "osm_value": "square",
+          "type": "locality",
+          "name": "Al Manara Square",
+          "district": "Ramallah Altahtah",
+          "city": "Ramallah",
+          "county": "Area A",
+          "state": "West Bank",
+          "country": "Palestinian Territories",
+          "countrycode": "PS",
+          "extent": [
+            35.2043168,
+            31.9050361,
+            35.2045327,
+            31.9048528
+          ]
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 31.9049627,
+          "longitude": 35.2044298,
+          "name": "Al Manara Square",
+          "category": "place",
+          "type": "square",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 1005833414,
+            "osm_key": "place",
+            "osm_value": "square",
+            "type": "locality",
+            "name": "Al Manara Square",
+            "district": "Ramallah Altahtah",
+            "city": "Ramallah",
+            "county": "Area A",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              35.2043168,
+              31.9050361,
+              35.2045327,
+              31.9048528
+            ]
+          }
+        },
+        {
+          "latitude": 31.9049441,
+          "longitude": 35.2044221,
+          "name": "al-Manara Square lion statues",
+          "category": "tourism",
+          "type": "artwork",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 3075993499,
+            "osm_key": "tourism",
+            "osm_value": "artwork",
+            "type": "house",
+            "name": "al-Manara Square lion statues",
+            "street": "Al Manarah دوار المنارة",
+            "district": "Ramallah Altahtah",
+            "city": "Ramallah",
+            "county": "Area A",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "postcode": "603",
+            "countrycode": "PS"
+          }
+        }
+      ],
+      "acceptable": true,
+      "expected_area_match": true,
+      "failure_category": null,
+      "candidate_rank": 1,
+      "latency_ms": 11.2954000000002
+    },
+    {
+      "fixture_id": "darwish-museum",
+      "language": "ar",
+      "query": {
+        "q": "متحف محمود درويش، رام الله"
+      },
+      "returned_result": {
+        "latitude": 31.890715,
+        "longitude": 35.1913366,
+        "name": "متحف محمود درويش (حديقة البروة)",
+        "category": "leisure",
+        "type": "park",
+        "provider_metadata": {
+          "osm_type": "W",
+          "osm_id": 231308770,
+          "osm_key": "leisure",
+          "osm_value": "park",
+          "type": "other",
+          "name": "متحف محمود درويش (حديقة البروة)",
+          "district": "عين منجد",
+          "city": "رام الله",
+          "county": "منطقة أ",
+          "state": "الضفة الغربية",
+          "country": "Palestinian Territories",
+          "countrycode": "PS",
+          "extent": [
+            35.1905905,
+            31.8912134,
+            35.192112,
+            31.8902365
+          ]
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 31.890715,
+          "longitude": 35.1913366,
+          "name": "متحف محمود درويش (حديقة البروة)",
+          "category": "leisure",
+          "type": "park",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 231308770,
+            "osm_key": "leisure",
+            "osm_value": "park",
+            "type": "other",
+            "name": "متحف محمود درويش (حديقة البروة)",
+            "district": "عين منجد",
+            "city": "رام الله",
+            "county": "منطقة أ",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              35.1905905,
+              31.8912134,
+              35.192112,
+              31.8902365
+            ]
+          }
+        }
+      ],
+      "acceptable": false,
+      "expected_area_match": true,
+      "failure_category": "ranking_problem",
+      "candidate_rank": 1,
+      "latency_ms": 28.340599999999995
+    },
+    {
+      "fixture_id": "darwish-museum",
+      "language": "en",
+      "query": {
+        "q": "Mahmoud Darwish Museum, Ramallah"
+      },
+      "returned_result": {
+        "latitude": 31.890715,
+        "longitude": 35.1913366,
+        "name": "Mahmoud Darwish Museum (Al-Birweh Park)",
+        "category": "leisure",
+        "type": "park",
+        "provider_metadata": {
+          "osm_type": "W",
+          "osm_id": 231308770,
+          "osm_key": "leisure",
+          "osm_value": "park",
+          "type": "other",
+          "name": "Mahmoud Darwish Museum (Al-Birweh Park)",
+          "district": "Aen Munjad",
+          "city": "Ramallah",
+          "county": "Area A",
+          "state": "West Bank",
+          "country": "Palestinian Territories",
+          "countrycode": "PS",
+          "extent": [
+            35.1905905,
+            31.8912134,
+            35.192112,
+            31.8902365
+          ]
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 31.890715,
+          "longitude": 35.1913366,
+          "name": "Mahmoud Darwish Museum (Al-Birweh Park)",
+          "category": "leisure",
+          "type": "park",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 231308770,
+            "osm_key": "leisure",
+            "osm_value": "park",
+            "type": "other",
+            "name": "Mahmoud Darwish Museum (Al-Birweh Park)",
+            "district": "Aen Munjad",
+            "city": "Ramallah",
+            "county": "Area A",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              35.1905905,
+              31.8912134,
+              35.192112,
+              31.8902365
+            ]
+          }
+        }
+      ],
+      "acceptable": false,
+      "expected_area_match": true,
+      "failure_category": "ranking_problem",
+      "candidate_rank": 1,
+      "latency_ms": 16.031999999999925
+    },
+    {
+      "fixture_id": "nablus-municipality",
+      "language": "ar",
+      "query": {
+        "q": "بلدية نابلس، نابلس"
+      },
+      "returned_result": {
+        "latitude": 32.2135022,
+        "longitude": 35.2801707,
+        "name": "بلدية نابلس قسم الميكانيك",
+        "category": "amenity",
+        "type": "public_building",
+        "provider_metadata": {
+          "osm_type": "N",
+          "osm_id": 431988264,
+          "osm_key": "amenity",
+          "osm_value": "public_building",
+          "type": "house",
+          "name": "بلدية نابلس قسم الميكانيك",
+          "street": "شارع الماتورات",
+          "district": "Old City",
+          "city": "نابلس",
+          "county": "منطقة أ",
+          "state": "الضفة الغربية",
+          "country": "Palestinian Territories",
+          "postcode": "803",
+          "countrycode": "PS"
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 32.2135022,
+          "longitude": 35.2801707,
+          "name": "بلدية نابلس قسم الميكانيك",
+          "category": "amenity",
+          "type": "public_building",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 431988264,
+            "osm_key": "amenity",
+            "osm_value": "public_building",
+            "type": "house",
+            "name": "بلدية نابلس قسم الميكانيك",
+            "street": "شارع الماتورات",
+            "district": "Old City",
+            "city": "نابلس",
+            "county": "منطقة أ",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "postcode": "803",
+            "countrycode": "PS"
+          }
+        },
+        {
+          "latitude": 32.222545,
+          "longitude": 35.2649526,
+          "name": "اطفائية بلدية نابلس",
+          "category": "amenity",
+          "type": "fire_station",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 433076824,
+            "osm_key": "amenity",
+            "osm_value": "fire_station",
+            "type": "house",
+            "name": "اطفائية بلدية نابلس",
+            "street": "الاطفائية",
+            "locality": "Nablus - City Center",
+            "district": "Old City",
+            "city": "نابلس",
+            "county": "منطقة أ",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "postcode": "803",
+            "countrycode": "PS",
+            "extent": [
+              35.2648333,
+              32.2227201,
+              35.2650719,
+              32.2223698
+            ]
+          }
+        },
+        {
+          "latitude": 32.2220412,
+          "longitude": 35.256283,
+          "name": "مكتبة بلدية نابلس",
+          "category": "amenity",
+          "type": "library",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 4443249195,
+            "osm_key": "amenity",
+            "osm_value": "library",
+            "type": "house",
+            "name": "مكتبة بلدية نابلس",
+            "street": "Ezz Almaslamani Street",
+            "locality": "Nablus - City Center",
+            "district": "Old City",
+            "city": "نابلس",
+            "county": "منطقة أ",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "postcode": "803",
+            "countrycode": "PS"
+          }
+        }
+      ],
+      "acceptable": false,
+      "expected_area_match": false,
+      "failure_category": "incorrect_admin_area",
+      "candidate_rank": 1,
+      "latency_ms": 19.10459999999989
+    },
+    {
+      "fixture_id": "nablus-municipality",
+      "language": "en",
+      "query": {
+        "q": "Nablus Municipality, Nablus"
+      },
+      "returned_result": {
+        "latitude": 32.2215459,
+        "longitude": 35.2631167,
+        "name": "Nablus Municipality",
+        "category": "office",
+        "type": "government",
+        "provider_metadata": {
+          "osm_type": "N",
+          "osm_id": 432093623,
+          "osm_key": "office",
+          "osm_value": "government",
+          "type": "house",
+          "name": "Nablus Municipality",
+          "street": "شارع الساقية",
+          "locality": "Nablus - City Center",
+          "district": "Old City",
+          "city": "Nablus",
+          "county": "Area A",
+          "state": "West Bank",
+          "country": "Palestinian Territories",
+          "postcode": "803",
+          "countrycode": "PS"
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 32.2215459,
+          "longitude": 35.2631167,
+          "name": "Nablus Municipality",
+          "category": "office",
+          "type": "government",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 432093623,
+            "osm_key": "office",
+            "osm_value": "government",
+            "type": "house",
+            "name": "Nablus Municipality",
+            "street": "شارع الساقية",
+            "locality": "Nablus - City Center",
+            "district": "Old City",
+            "city": "Nablus",
+            "county": "Area A",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "postcode": "803",
+            "countrycode": "PS"
+          }
+        },
+        {
+          "latitude": 32.2135022,
+          "longitude": 35.2801707,
+          "name": "Nablus Municipality- Mach.Department",
+          "category": "amenity",
+          "type": "public_building",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 431988264,
+            "osm_key": "amenity",
+            "osm_value": "public_building",
+            "type": "house",
+            "name": "Nablus Municipality- Mach.Department",
+            "street": "Electricity Station",
+            "district": "Old City",
+            "city": "Nablus",
+            "county": "Area A",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "postcode": "803",
+            "countrycode": "PS"
+          }
+        },
+        {
+          "latitude": 32.2084723,
+          "longitude": 35.3006525,
+          "name": "Nablus Municipality Stores",
+          "category": "building",
+          "type": "public",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 431937995,
+            "osm_key": "building",
+            "osm_value": "public",
+            "type": "house",
+            "name": "Nablus Municipality Stores",
+            "street": "عسكر الجديد",
+            "district": "Industrial Area",
+            "city": "Askar RC (al-Jadeed)",
+            "county": "Area B",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "postcode": "803",
+            "countrycode": "PS"
+          }
+        }
+      ],
+      "acceptable": true,
+      "expected_area_match": true,
+      "failure_category": null,
+      "candidate_rank": 1,
+      "latency_ms": 17.06230000000005
+    },
+    {
+      "fixture_id": "tell-balata",
+      "language": "ar",
+      "query": {
+        "q": "تل بلاطة، نابلس"
+      },
+      "returned_result": {
+        "latitude": 32.2128871,
+        "longitude": 35.2818941,
+        "name": "بلاطة البلد",
+        "category": "highway",
+        "type": "residential",
+        "provider_metadata": {
+          "osm_type": "W",
+          "osm_id": 37165967,
+          "osm_key": "highway",
+          "osm_value": "residential",
+          "type": "street",
+          "name": "بلاطة البلد",
+          "district": "Old City",
+          "city": "نابلس",
+          "county": "منطقة أ",
+          "state": "الضفة الغربية",
+          "country": "Palestinian Territories",
+          "postcode": "803",
+          "countrycode": "PS",
+          "extent": [
+            35.2800235,
+            32.2134138,
+            35.2837424,
+            32.2123019
+          ]
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 32.2128871,
+          "longitude": 35.2818941,
+          "name": "بلاطة البلد",
+          "category": "highway",
+          "type": "residential",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 37165967,
+            "osm_key": "highway",
+            "osm_value": "residential",
+            "type": "street",
+            "name": "بلاطة البلد",
+            "district": "Old City",
+            "city": "نابلس",
+            "county": "منطقة أ",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "postcode": "803",
+            "countrycode": "PS",
+            "extent": [
+              35.2800235,
+              32.2134138,
+              35.2837424,
+              32.2123019
+            ]
+          }
+        },
+        {
+          "latitude": 32.2079579,
+          "longitude": 35.2848366,
+          "name": "مدرسة بنات بلاطة الاعدادية",
+          "category": "amenity",
+          "type": "school",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 431989308,
+            "osm_key": "amenity",
+            "osm_value": "school",
+            "type": "house",
+            "name": "مدرسة بنات بلاطة الاعدادية",
+            "street": "شارع القدس",
+            "city": "نابلس",
+            "county": "منطقة أ",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "postcode": "803",
+            "countrycode": "PS"
+          }
+        },
+        {
+          "latitude": 32.202689,
+          "longitude": 35.2891841,
+          "name": "حديقة الفينيق - مخيم بلاطة",
+          "category": "amenity",
+          "type": "cafe",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 6578603209,
+            "osm_key": "amenity",
+            "osm_value": "cafe",
+            "type": "house",
+            "name": "حديقة الفينيق - مخيم بلاطة",
+            "street": "شارع القدس",
+            "city": "نابلس",
+            "county": "منطقة أ",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "postcode": "803",
+            "countrycode": "PS"
+          }
+        }
+      ],
+      "acceptable": false,
+      "expected_area_match": true,
+      "failure_category": "ranking_problem",
+      "candidate_rank": 1,
+      "latency_ms": 30.814699999999903
+    },
+    {
+      "fixture_id": "tell-balata",
+      "language": "en",
+      "query": {
+        "q": "Tell Balata, Nablus"
+      },
+      "returned_result": {
+        "latitude": 32.2135568,
+        "longitude": 35.2815224,
+        "name": "Tell Balata",
+        "category": "historic",
+        "type": "archaeological_site",
+        "provider_metadata": {
+          "osm_type": "N",
+          "osm_id": 5773512482,
+          "osm_key": "historic",
+          "osm_value": "archaeological_site",
+          "type": "house",
+          "name": "Tell Balata",
+          "street": "بلاطة البلد",
+          "district": "Old City",
+          "city": "Nablus",
+          "county": "Area A",
+          "state": "West Bank",
+          "country": "Palestinian Territories",
+          "postcode": "803",
+          "countrycode": "PS"
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 32.2135568,
+          "longitude": 35.2815224,
+          "name": "Tell Balata",
+          "category": "historic",
+          "type": "archaeological_site",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 5773512482,
+            "osm_key": "historic",
+            "osm_value": "archaeological_site",
+            "type": "house",
+            "name": "Tell Balata",
+            "street": "بلاطة البلد",
+            "district": "Old City",
+            "city": "Nablus",
+            "county": "Area A",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "postcode": "803",
+            "countrycode": "PS"
+          }
+        }
+      ],
+      "acceptable": true,
+      "expected_area_match": true,
+      "failure_category": null,
+      "candidate_rank": 1,
+      "latency_ms": 12.698200000000043
+    },
+    {
+      "fixture_id": "monastery-temptation",
+      "language": "ar",
+      "query": {
+        "q": "دير قرنطل، أريحا"
+      },
+      "returned_result": {
+        "latitude": 31.8727061,
+        "longitude": 35.4313161,
+        "name": "دير قرنطل",
+        "category": "amenity",
+        "type": "monastery",
+        "provider_metadata": {
+          "osm_type": "N",
+          "osm_id": 432342166,
+          "osm_key": "amenity",
+          "osm_value": "monastery",
+          "type": "house",
+          "name": "دير قرنطل",
+          "street": "شارع النخيل",
+          "locality": "عين الديوك‎ التحت",
+          "district": "الديوك",
+          "city": "أريحا",
+          "county": "منطقة أ",
+          "state": "الضفة الغربية",
+          "country": "Palestinian Territories",
+          "countrycode": "PS"
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 31.8727061,
+          "longitude": 35.4313161,
+          "name": "دير قرنطل",
+          "category": "amenity",
+          "type": "monastery",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 432342166,
+            "osm_key": "amenity",
+            "osm_value": "monastery",
+            "type": "house",
+            "name": "دير قرنطل",
+            "street": "شارع النخيل",
+            "locality": "عين الديوك‎ التحت",
+            "district": "الديوك",
+            "city": "أريحا",
+            "county": "منطقة أ",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "countrycode": "PS"
+          }
+        }
+      ],
+      "acceptable": true,
+      "expected_area_match": true,
+      "failure_category": null,
+      "candidate_rank": 1,
+      "latency_ms": 13.509999999999764
+    },
+    {
+      "fixture_id": "monastery-temptation",
+      "language": "en",
+      "query": {
+        "q": "Monastery of the Temptation, Jericho"
+      },
+      "returned_result": {
+        "latitude": 31.8727061,
+        "longitude": 35.4313161,
+        "name": "Deir al-Quruntal, Monastery of the Temptation",
+        "category": "amenity",
+        "type": "monastery",
+        "provider_metadata": {
+          "osm_type": "N",
+          "osm_id": 432342166,
+          "osm_key": "amenity",
+          "osm_value": "monastery",
+          "type": "house",
+          "name": "Deir al-Quruntal, Monastery of the Temptation",
+          "street": "Alnakheel",
+          "locality": "Ein ad-Duyuk at-Tahta",
+          "district": "Aldyok",
+          "city": "Jericho",
+          "county": "Area A",
+          "state": "West Bank",
+          "country": "Palestinian Territories",
+          "countrycode": "PS"
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 31.8727061,
+          "longitude": 35.4313161,
+          "name": "Deir al-Quruntal, Monastery of the Temptation",
+          "category": "amenity",
+          "type": "monastery",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 432342166,
+            "osm_key": "amenity",
+            "osm_value": "monastery",
+            "type": "house",
+            "name": "Deir al-Quruntal, Monastery of the Temptation",
+            "street": "Alnakheel",
+            "locality": "Ein ad-Duyuk at-Tahta",
+            "district": "Aldyok",
+            "city": "Jericho",
+            "county": "Area A",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "countrycode": "PS"
+          }
+        }
+      ],
+      "acceptable": true,
+      "expected_area_match": true,
+      "failure_category": null,
+      "candidate_rank": 1,
+      "latency_ms": 12.43269999999984
+    },
+    {
+      "fixture_id": "kadoorie",
+      "language": "ar",
+      "query": {
+        "q": "جامعة فلسطين التقنية خضوري، طولكرم"
+      },
+      "returned_result": {
+        "latitude": 32.3133763,
+        "longitude": 35.0224377,
+        "name": "جامعة فلسطين التقنية - خضوري",
+        "category": "amenity",
+        "type": "university",
+        "provider_metadata": {
+          "osm_type": "N",
+          "osm_id": 432372398,
+          "osm_key": "amenity",
+          "osm_value": "university",
+          "type": "house",
+          "name": "جامعة فلسطين التقنية - خضوري",
+          "street": "Jaffa Street",
+          "locality": "طولكرم",
+          "district": "خربة التيا",
+          "city": "طولكرم",
+          "county": "منطقة أ",
+          "state": "الضفة الغربية",
+          "country": "Palestinian Territories",
+          "postcode": "302",
+          "countrycode": "PS"
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 32.3133763,
+          "longitude": 35.0224377,
+          "name": "جامعة فلسطين التقنية - خضوري",
+          "category": "amenity",
+          "type": "university",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 432372398,
+            "osm_key": "amenity",
+            "osm_value": "university",
+            "type": "house",
+            "name": "جامعة فلسطين التقنية - خضوري",
+            "street": "Jaffa Street",
+            "locality": "طولكرم",
+            "district": "خربة التيا",
+            "city": "طولكرم",
+            "county": "منطقة أ",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "postcode": "302",
+            "countrycode": "PS"
+          }
+        }
+      ],
+      "acceptable": true,
+      "expected_area_match": true,
+      "failure_category": null,
+      "candidate_rank": 1,
+      "latency_ms": 12.476400000000012
+    },
+    {
+      "fixture_id": "kadoorie",
+      "language": "en",
+      "query": {
+        "q": "Palestine Technical University Kadoorie, Tulkarm"
+      },
+      "returned_result": {
+        "latitude": 32.3133763,
+        "longitude": 35.0224377,
+        "name": "Palestine technical university - kadoorie",
+        "category": "amenity",
+        "type": "university",
+        "provider_metadata": {
+          "osm_type": "N",
+          "osm_id": 432372398,
+          "osm_key": "amenity",
+          "osm_value": "university",
+          "type": "house",
+          "name": "Palestine technical university - kadoorie",
+          "street": "Jaffa Street",
+          "locality": "طولكرم",
+          "district": "Khirbet at-Tayyah",
+          "city": "Tulkarm",
+          "county": "Area A",
+          "state": "West Bank",
+          "country": "Palestinian Territories",
+          "postcode": "302",
+          "countrycode": "PS"
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 32.3133763,
+          "longitude": 35.0224377,
+          "name": "Palestine technical university - kadoorie",
+          "category": "amenity",
+          "type": "university",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 432372398,
+            "osm_key": "amenity",
+            "osm_value": "university",
+            "type": "house",
+            "name": "Palestine technical university - kadoorie",
+            "street": "Jaffa Street",
+            "locality": "طولكرم",
+            "district": "Khirbet at-Tayyah",
+            "city": "Tulkarm",
+            "county": "Area A",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "postcode": "302",
+            "countrycode": "PS"
+          }
+        }
+      ],
+      "acceptable": true,
+      "expected_area_match": true,
+      "failure_category": null,
+      "candidate_rank": 1,
+      "latency_ms": 10.211699999999837
+    },
+    {
+      "fixture_id": "qalqilya-zoo",
+      "language": "ar",
+      "query": {
+        "q": "حديقة حيوانات قلقيلية"
+      },
+      "returned_result": null,
+      "candidates": [],
+      "acceptable": false,
+      "expected_area_match": false,
+      "failure_category": "missing_source_data",
+      "candidate_rank": null,
+      "latency_ms": 31.052400000000034
+    },
+    {
+      "fixture_id": "qalqilya-zoo",
+      "language": "en",
+      "query": {
+        "q": "Qalqilya Zoo, Qalqilya"
+      },
+      "returned_result": {
+        "latitude": 32.1862276,
+        "longitude": 34.9685658,
+        "name": "Qalqilya Cemetery",
+        "category": "landuse",
+        "type": "cemetery",
+        "provider_metadata": {
+          "osm_type": "W",
+          "osm_id": 347515525,
+          "osm_key": "landuse",
+          "osm_value": "cemetery",
+          "type": "other",
+          "name": "Qalqilya Cemetery",
+          "city": "Qalqilya",
+          "county": "Area A",
+          "state": "West Bank",
+          "country": "Palestinian Territories",
+          "countrycode": "PS",
+          "extent": [
+            34.9676249,
+            32.1869894,
+            34.9695653,
+            32.1853729
+          ]
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 32.1862276,
+          "longitude": 34.9685658,
+          "name": "Qalqilya Cemetery",
+          "category": "landuse",
+          "type": "cemetery",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 347515525,
+            "osm_key": "landuse",
+            "osm_value": "cemetery",
+            "type": "other",
+            "name": "Qalqilya Cemetery",
+            "city": "Qalqilya",
+            "county": "Area A",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              34.9676249,
+              32.1869894,
+              34.9695653,
+              32.1853729
+            ]
+          }
+        },
+        {
+          "latitude": 32.1953194,
+          "longitude": 34.9708996,
+          "name": "Qalqilya Safari",
+          "category": "leisure",
+          "type": "park",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 143073003,
+            "osm_key": "leisure",
+            "osm_value": "park",
+            "type": "other",
+            "name": "Qalqilya Safari",
+            "street": "AlSabe' St",
+            "city": "Qalqilya",
+            "county": "Area A",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              34.969144,
+              32.1962284,
+              34.9721181,
+              32.1945098
+            ]
+          }
+        },
+        {
+          "latitude": 32.1876863,
+          "longitude": 34.9656848,
+          "name": "Qalqilya Municipality‎",
+          "category": "amenity",
+          "type": "community_centre",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 3528604218,
+            "osm_key": "amenity",
+            "osm_value": "community_centre",
+            "type": "house",
+            "name": "Qalqilya Municipality‎",
+            "street": "Sharia Al-Sabe",
+            "city": "Qalqilya",
+            "county": "Area A",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "postcode": "342",
+            "countrycode": "PS"
+          }
+        }
+      ],
+      "acceptable": false,
+      "expected_area_match": true,
+      "failure_category": "ranking_problem",
+      "candidate_rank": 1,
+      "latency_ms": 32.86649999999963
+    },
+    {
+      "fixture_id": "freedom-theatre",
+      "language": "ar",
+      "query": {
+        "q": "مسرح الحرية، جنين"
+      },
+      "returned_result": {
+        "latitude": 31.7170505,
+        "longitude": 35.1845369,
+        "name": "مسرح الحارة",
+        "category": "amenity",
+        "type": "arts_centre",
+        "provider_metadata": {
+          "osm_type": "N",
+          "osm_id": 431624430,
+          "osm_key": "amenity",
+          "osm_value": "arts_centre",
+          "type": "house",
+          "name": "مسرح الحارة",
+          "street": "شارع حارة السماعنة",
+          "city": "بيت جالا",
+          "county": "منطقة أ",
+          "state": "الضفة الغربية",
+          "country": "Palestinian Territories",
+          "countrycode": "PS"
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 31.7170505,
+          "longitude": 35.1845369,
+          "name": "مسرح الحارة",
+          "category": "amenity",
+          "type": "arts_centre",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 431624430,
+            "osm_key": "amenity",
+            "osm_value": "arts_centre",
+            "type": "house",
+            "name": "مسرح الحارة",
+            "street": "شارع حارة السماعنة",
+            "city": "بيت جالا",
+            "county": "منطقة أ",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "countrycode": "PS"
+          }
+        },
+        {
+          "latitude": 32.2275918,
+          "longitude": 35.2218318,
+          "name": "مسرح الأمير تركي",
+          "category": "amenity",
+          "type": "theatre",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 882596325,
+            "osm_key": "amenity",
+            "osm_value": "theatre",
+            "type": "house",
+            "name": "مسرح الأمير تركي",
+            "street": "ممر مشاه",
+            "district": "جنيد",
+            "city": "نابلس",
+            "county": "منطقة أ",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              35.2216921,
+              32.2277923,
+              35.2219487,
+              32.2273986
+            ]
+          }
+        },
+        {
+          "latitude": 31.8843094,
+          "longitude": 35.2064135,
+          "name": "مطعم جنين",
+          "category": "amenity",
+          "type": "restaurant",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 11222446037,
+            "osm_key": "amenity",
+            "osm_value": "restaurant",
+            "type": "house",
+            "name": "مطعم جنين",
+            "street": "شارع الخرطوم",
+            "district": "ام الشرايط",
+            "city": "البيرة",
+            "county": "منطقة أ",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "postcode": "611",
+            "countrycode": "PS"
+          }
+        }
+      ],
+      "acceptable": false,
+      "expected_area_match": false,
+      "failure_category": "incorrect_admin_area",
+      "candidate_rank": 1,
+      "latency_ms": 42.80069999999978
+    },
+    {
+      "fixture_id": "freedom-theatre",
+      "language": "en",
+      "query": {
+        "q": "The Freedom Theatre, Jenin"
+      },
+      "returned_result": {
+        "latitude": 32.4633666,
+        "longitude": 35.2872324,
+        "name": "The Freedom Theatre",
+        "category": "amenity",
+        "type": "theatre",
+        "provider_metadata": {
+          "osm_type": "N",
+          "osm_id": 2511165624,
+          "osm_key": "amenity",
+          "osm_value": "theatre",
+          "type": "house",
+          "name": "The Freedom Theatre",
+          "street": "School Street",
+          "district": "Al-Zahra'",
+          "city": "Jenin",
+          "county": "Area A",
+          "state": "West Bank",
+          "country": "Palestinian Territories",
+          "postcode": "202",
+          "countrycode": "PS"
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 32.4633666,
+          "longitude": 35.2872324,
+          "name": "The Freedom Theatre",
+          "category": "amenity",
+          "type": "theatre",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 2511165624,
+            "osm_key": "amenity",
+            "osm_value": "theatre",
+            "type": "house",
+            "name": "The Freedom Theatre",
+            "street": "School Street",
+            "district": "Al-Zahra'",
+            "city": "Jenin",
+            "county": "Area A",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "postcode": "202",
+            "countrycode": "PS"
+          }
+        }
+      ],
+      "acceptable": true,
+      "expected_area_match": true,
+      "failure_category": null,
+      "candidate_rank": 1,
+      "latency_ms": 9.514999999999873
+    },
+    {
+      "fixture_id": "bethlehem-peace-center",
+      "language": "ar",
+      "query": {
+        "q": "مركز بيت لحم للسلام"
+      },
+      "returned_result": {
+        "latitude": 31.7047123,
+        "longitude": 35.2060918,
+        "name": "مركز بيت لحم للسلام",
+        "category": "amenity",
+        "type": "community_centre",
+        "provider_metadata": {
+          "osm_type": "W",
+          "osm_id": 553082642,
+          "osm_key": "amenity",
+          "osm_value": "community_centre",
+          "type": "house",
+          "name": "مركز بيت لحم للسلام",
+          "street": "شارع المهد",
+          "locality": "حوش حنانيا",
+          "city": "بيت لحم",
+          "county": "منطقة أ",
+          "state": "الضفة الغربية",
+          "country": "Palestinian Territories",
+          "countrycode": "PS",
+          "extent": [
+            35.2058538,
+            31.7048616,
+            35.2063489,
+            31.7045596
+          ]
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 31.7047123,
+          "longitude": 35.2060918,
+          "name": "مركز بيت لحم للسلام",
+          "category": "amenity",
+          "type": "community_centre",
+          "provider_metadata": {
+            "osm_type": "W",
+            "osm_id": 553082642,
+            "osm_key": "amenity",
+            "osm_value": "community_centre",
+            "type": "house",
+            "name": "مركز بيت لحم للسلام",
+            "street": "شارع المهد",
+            "locality": "حوش حنانيا",
+            "city": "بيت لحم",
+            "county": "منطقة أ",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "countrycode": "PS",
+            "extent": [
+              35.2058538,
+              31.7048616,
+              35.2063489,
+              31.7045596
+            ]
+          }
+        },
+        {
+          "latitude": 31.7046392,
+          "longitude": 35.2059253,
+          "name": "مطعم مركز بيت لحم للسلام",
+          "category": "amenity",
+          "type": "restaurant",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 1972192231,
+            "osm_key": "amenity",
+            "osm_value": "restaurant",
+            "type": "house",
+            "name": "مطعم مركز بيت لحم للسلام",
+            "street": "ميدان المهد‎",
+            "locality": "حارة النجاجرة",
+            "city": "بيت لحم",
+            "county": "منطقة أ",
+            "state": "الضفة الغربية",
+            "country": "Palestinian Territories",
+            "countrycode": "PS"
+          }
+        }
+      ],
+      "acceptable": true,
+      "expected_area_match": true,
+      "failure_category": null,
+      "candidate_rank": 1,
+      "latency_ms": 11.065699999999651
+    },
+    {
+      "fixture_id": "bethlehem-peace-center",
+      "language": "en",
+      "query": {
+        "q": "Bethlehem Peace Center, Bethlehem"
+      },
+      "returned_result": {
+        "latitude": 31.7046392,
+        "longitude": 35.2059253,
+        "name": "Bethlehem Peace Center Restaurant",
+        "category": "amenity",
+        "type": "restaurant",
+        "provider_metadata": {
+          "osm_type": "N",
+          "osm_id": 1972192231,
+          "osm_key": "amenity",
+          "osm_value": "restaurant",
+          "type": "house",
+          "name": "Bethlehem Peace Center Restaurant",
+          "street": "Manger Square",
+          "locality": "Haret Al-Najajreh",
+          "city": "Bethlehem",
+          "county": "Area A",
+          "state": "West Bank",
+          "country": "Palestinian Territories",
+          "countrycode": "PS"
+        }
+      },
+      "candidates": [
+        {
+          "latitude": 31.7046392,
+          "longitude": 35.2059253,
+          "name": "Bethlehem Peace Center Restaurant",
+          "category": "amenity",
+          "type": "restaurant",
+          "provider_metadata": {
+            "osm_type": "N",
+            "osm_id": 1972192231,
+            "osm_key": "amenity",
+            "osm_value": "restaurant",
+            "type": "house",
+            "name": "Bethlehem Peace Center Restaurant",
+            "street": "Manger Square",
+            "locality": "Haret Al-Najajreh",
+            "city": "Bethlehem",
+            "county": "Area A",
+            "state": "West Bank",
+            "country": "Palestinian Territories",
+            "countrycode": "PS"
+          }
+        }
+      ],
+      "acceptable": false,
+      "expected_area_match": true,
+      "failure_category": "ranking_problem",
+      "candidate_rank": 1,
+      "latency_ms": 11.342799999999897
+    }
+  ]
+}
