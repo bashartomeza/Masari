@@ -132,7 +132,7 @@ Frontend request types permit server defaults without changing normalized servic
 
 **Produces:** shared DTOs/parsers; typed constants `eligiblePassenger`, `eligibleOrder`, `eligibleRoute`, `eligibleParcel`, `eligibleBatch`, `eligibleMatch` using corresponding Prisma WhereInput types; `matchSelect`, `batchSelect`, `parcelSelect` using corresponding Prisma Select types.
 
-- [ ] Write parser tests for defaults, limits, strict keys, arrays, dates and combined demand:
+- [x] Write parser tests for defaults, limits, strict keys, arrays, dates and combined demand:
 ```ts
 const now = new Date('2026-09-10T12:00:00.000Z');
 expect(parseMatchQuery({}, now)).toEqual({ page: 1, limit: 25,
@@ -143,9 +143,9 @@ expect(() => parseMatchQuery({ source: 'canonical' }, now)).toThrow();
 expect(() => parseBatchQuery({ status: 'completed' }, now)).toThrow();
 expect(parseMatchQuery({ demand_kind: 'combined', search: ' m1 ' }, now).search).toBe('m1');
 ```
-- [ ] Run `npm run test -w @masari/api -- src/tests/adminMatchingMonitoringContracts.test.ts`; confirm red before code.
-- [ ] Implement strict Zod parsing: numeric scalar strings only, integer bounds, paired UTC Z ranges, max31 days, no future until, blank search normalized absent, IDs/search max191. Preserve unknown-key rejection.
-- [ ] Implement typed predicates from spec section3 and selects from section6:
+- [x] Run `npm run test -w @masari/api -- src/tests/adminMatchingMonitoringContracts.test.ts`; confirm red before code.
+- [x] Implement strict Zod parsing: numeric scalar strings only, integer bounds, paired UTC Z ranges, max31 days, no future until, blank search normalized absent, IDs/search max191. Preserve unknown-key rejection.
+- [x] Implement typed predicates from spec section3 and selects from section6:
 ```ts
 export const eligibleParcel = { operational_mode: 'legacy',
   canonical_entry_version: null, route_version_id: null } satisfies Prisma.ParcelWhereInput;
@@ -155,14 +155,14 @@ export const eligiblePassenger = { operational_mode: 'legacy',
   passenger: { is: { demo_account: false } } } satisfies Prisma.PassengerRequestWhereInput;
 ```
   Order requires merchant.is.demo_account=false and parcels.every=eligibleParcel. Route requires driver.is.user.is.demo_account=false, with no current-active requirement. Batch requires eligible order plus null-or-eligible route. Match requires canonical identifiers null, eligible route, at least one demand and independent null-or-eligible clauses for EACH demand/batch relation. One valid link cannot authorize a different excluded link. Use filtered `_count.parcels` instead of nested arrays.
-- [ ] Test predicate composition and exact select key sets; do not claim mocks prove SQL eligibility (Task7 does). Run focused tests/typecheck to green. Commit these three files: `feat(api): define production-only monitoring contracts`.
+- [x] Test predicate composition and exact select key sets; do not claim mocks prove SQL eligibility (Task7 does). Run focused tests/typecheck to green. Commit these three files: `feat(api): define production-only monitoring contracts`.
 
 ## Task 2: Transactional read service
 
 **Files:** create service.ts and adminMatchingMonitoringService.test.ts.
 **Consumes:** Task1 contracts/policy. **Produces:** createMonitoringService and six interface methods.
 
-- [ ] Write tests with a Prisma read mock whose `$transaction` calls the callback with read delegates; all mutation delegates throw. Define selected fixtures with `Prisma.MatchGetPayload<{select:typeof matchSelect}>`; no any casts. Include combined Match selected fixture with request_1/order_1, score Decimal('0.8750') and clock now:
+- [x] Write tests with a Prisma read mock whose `$transaction` calls the callback with read delegates; all mutation delegates throw. Define selected fixtures with `Prisma.MatchGetPayload<{select:typeof matchSelect}>`; no any casts. Include combined Match selected fixture with request_1/order_1, score Decimal('0.8750') and clock now:
 ```ts
 const result = await service.matches(parseMatchQuery({}, now));
 expect(result.data.items[0].demand_kind).toBe('combined');
@@ -172,8 +172,8 @@ expect(result.data.items[0].score).toBe('0.875');
 expect(result.observed_at).toBe(now.toISOString());
 ```
   Score preserves decimal value, not trailing-zero display formatting. Test exact keys, method allowlist, null route, zero-filled maps, page/count and missing/excluded 404.
-- [ ] Run `npm run test -w @masari/api -- src/tests/adminMatchingMonitoringService.test.ts`; confirm red.
-- [ ] Implement all reads with shared eligibility and explicit serialization. Details use findFirst(id AND eligibility), missing -> HttpError(404,'not_found'). Each method captures observed_at before a RepeatableRead transaction with maxWait2000/timeout5000. Page/count share transaction; no N+1. Filters are typed WhereInput built from exact query fields:
+- [x] Run `npm run test -w @masari/api -- src/tests/adminMatchingMonitoringService.test.ts`; confirm red.
+- [x] Implement all reads with shared eligibility and explicit serialization. Details use findFirst(id AND eligibility), missing -> HttpError(404,'not_found'). Each method captures observed_at before a RepeatableRead transaction with maxWait2000/timeout5000. Page/count share transaction; no N+1. Filters are typed WhereInput built from exact query fields:
 ```ts
 const rows = await tx.match.findMany({
   where: { AND: [eligibleMatch, filters] }, select: matchSelect,
@@ -182,30 +182,30 @@ const rows = await tx.match.findMany({
 });
 ```
   `filters:Prisma.MatchWhereInput` is local to matches: created_at gte/lt, optional status, demand-kind null/non-null clauses and exact-ID OR. Client filters never overwrite eligibility. Overview uses groupBy/count and zero-filled enum maps. active_batches sums created/assigned/picked_up/in_transit. Member parent authorization and page/count share a transaction; filter Parcel by order_id and eligibleParcel, sort id ASC. No Trip queries.
-- [ ] Map recognized DB unavailability/timeouts to sanitized HttpError(503,'monitoring_unavailable'), never zero counts. Test timestamps do not cause expiry, current-state overview counts ignore cohort range, and batch/order mismatches stay visible. Assert canonical delegates/domain mutations are unused, exact fields contain no sensitive markers, transactions have correct settings.
-- [ ] Run Task1/2 tests and API typecheck to green; commit exact files: `feat(api): add bounded legacy monitoring reads`.
+- [x] Map recognized DB unavailability/timeouts to sanitized HttpError(503,'monitoring_unavailable'), never zero counts. Test timestamps do not cause expiry, current-state overview counts ignore cohort range, and batch/order mismatches stay visible. Assert canonical delegates/domain mutations are unused, exact fields contain no sensitive markers, transactions have correct settings.
+- [x] Run Task1/2 tests and API typecheck to green; commit exact files: `feat(api): add bounded legacy monitoring reads`.
 
 ## Task 3: Admin HTTP boundary
 
 **Files:** create router and adminMatchingMonitoringApi.test.ts; modify app.ts.
 **Consumes:** service/parsers. **Produces:** exactly six routes under `/api/v1/admin/matching-batching`: GET overview, matches, matches/:id, batches, batches/:id, batches/:id/parcels.
 
-- [ ] Copy only session-backed auth fixture setup from adminTrips.test.ts into the new suite. Inject a test-local `service` object satisfying MonitoringService with vi.fn methods. Add all-six-route role matrix: unauthenticated401, passenger/driver/merchant403, revoked/expired Admin401, active Admin200. Include:
+- [x] Copy only session-backed auth fixture setup from adminTrips.test.ts into the new suite. Inject a test-local `service` object satisfying MonitoringService with vi.fn methods. Add all-six-route role matrix: unauthenticated401, passenger/driver/merchant403, revoked/expired Admin401, active Admin200. Include:
 ```ts
 const app = createApp(undefined, { adminMatchingMonitoringService: service });
 await request(app).get('/api/v1/admin/matching-batching/overview').expect(401);
 expect(service.overview).not.toHaveBeenCalled();
 ```
-- [ ] Run `npm run test -w @masari/api -- src/tests/adminMatchingMonitoringApi.test.ts`; confirm intended failures.
-- [ ] Add factory, router-level requireAuth/requireRole('admin'), six handlers and app dependency/mount. Existing Express5 error handling handles rejected async handlers:
+- [x] Run `npm run test -w @masari/api -- src/tests/adminMatchingMonitoringApi.test.ts`; confirm intended failures.
+- [x] Add factory, router-level requireAuth/requireRole('admin'), six handlers and app dependency/mount. Existing Express5 error handling handles rejected async handlers:
 ```ts
 router.get('/matches/:id', async (req, res) => {
   z.object({}).strict().parse(req.query);
   res.json(await service.match(parseMonitoringId(req.params.id)));
 });
 ```
-- [ ] Apply the same strict empty-query validation to batches/:id. Test unknown/array query keys on both detail routes (including ?source=canonical) return400 before service reads. Test exact search, forbidden source toggles on directories, detail/member404 equivalence, 503 sanitization, and POST/PATCH/DELETE404 with no service writes. Both production and demo app configuration expose the same legacy-only service. Auth session touch is allowed; domain mutations are not.
-- [ ] Run new HTTP suite, existing environmentRoutes/httpSecurity and full API tests/typecheck. Commit exact files: `feat(api): expose Admin monitoring GET endpoints`.
+- [x] Apply the same strict empty-query validation to batches/:id. Test unknown/array query keys on both detail routes (including ?source=canonical) return400 before service reads. Test exact search, forbidden source toggles on directories, detail/member404 equivalence, 503 sanitization, and POST/PATCH/DELETE404 with no service writes. Both production and demo app configuration expose the same legacy-only service. Auth session touch is allowed; domain mutations are not.
+- [x] Run new HTTP suite, existing environmentRoutes/httpSecurity and full API tests/typecheck. Commit exact files: `feat(api): expose Admin monitoring GET endpoints`.
 
 ## Task 4: Admin client and observation state
 
@@ -220,7 +220,7 @@ router.get('/matches/:id', async (req, res) => {
 
 State exports `createObservationGate():{begin():number;isCurrent(generation:number):boolean;invalidate():void}` and `ObservationState<T>={last:Observed<T>|null;loading:boolean;error:string|null}`. For pages T is Page<TItem>['data'].
 
-- [ ] Write fetch-spy tests for six exact GET paths, URLSearchParams encoding, token headers, absent body and session callback. Test stale generations:
+- [x] Write fetch-spy tests for six exact GET paths, URLSearchParams encoding, token headers, absent body and session callback. Test stale generations:
 ```ts
 const gate = createObservationGate();
 const old = gate.begin(); const current = gate.begin();
@@ -228,23 +228,23 @@ expect(gate.isCurrent(old)).toBe(false);
 expect(gate.isCurrent(current)).toBe(true);
 gate.invalidate(); expect(gate.isCurrent(current)).toBe(false);
 ```
-- [ ] Run `npm run test -w @masari/admin -- src/api.test.ts src/features/monitoring/monitoringState.test.ts`; confirm red.
-- [ ] Add wrappers inside createApiClient using its private apiRequest (do not bypass session handling):
+- [x] Run `npm run test -w @masari/admin -- src/api.test.ts src/features/monitoring/monitoringState.test.ts`; confirm red.
+- [x] Add wrappers inside createApiClient using its private apiRequest (do not bypass session handling):
 ```ts
 monitoringMatch: (token: string, id: string) =>
   apiRequest<Observed<MatchRow>>(`/admin/matching-batching/matches/${encodeURIComponent(id)}`, { token }),
 ```
   Gate increments a counter on begin/invalidate. No timers. Mirror exact DTO property names; no ORM import on Admin.
-- [ ] Test 400/401/403/404/503 propagation and no mutation wrappers. Run focused tests/typecheck. Commit exact files: `feat(admin): add monitoring client and observation state`.
+- [x] Test 400/401/403/404/503 propagation and no mutation wrappers. Run focused tests/typecheck. Commit exact files: `feat(admin): add monitoring client and observation state`.
 
 ## Task 5: Overview and Matching UX
 
 **Files:** create MatchingBatchingMonitoring.tsx/.test.tsx and MatchingResults.tsx/.test.tsx; modify App.tsx, navigation.ts/.test.ts, translations.ts and scoped styles.css as needed.
 **Consumes:** client/types/gate. **Produces:** `MatchingBatchingMonitoring({api,token}:{api:ApiClient;token:string})` and `MatchingResults({api,token}:{api:ApiClient;token:string})` React components. Overview initial tab; Task6 connects Batches before feature completion.
 
-- [ ] Add React DOM tests using existing jsdom/React act/createRoot patterns and localized static rendering. Mock six monitoring methods; legacy action mocks throw if called. Assert separate request/order cards, current-state vs creation-cohort labels, unavailable notices, both combined links, Score label, no success-rate/confidence or algorithm controls. Extend existing navigation fixture with demoEnabled=false and require matchingBatching available.
-- [ ] Run `npm run test -w @masari/admin -- src/navigation.test.ts src/features/monitoring/MatchingBatchingMonitoring.test.tsx src/features/monitoring/MatchingResults.test.tsx`; confirm red.
-- [ ] Build table/detail and Overview using existing UI primitives. Matching filters are date/status/kind/exact-ID; change resets page1. Each endpoint has independent generation/state and last successful observed_at. Request function uses this pattern, with local state typed ObservationState<MatchRow>:
+- [x] Add React DOM tests using existing jsdom/React act/createRoot patterns and localized static rendering. Mock six monitoring methods; legacy action mocks throw if called. Assert separate request/order cards, current-state vs creation-cohort labels, unavailable notices, both combined links, Score label, no success-rate/confidence or algorithm controls. Extend existing navigation fixture with demoEnabled=false and require matchingBatching available.
+- [x] Run `npm run test -w @masari/admin -- src/navigation.test.ts src/features/monitoring/MatchingBatchingMonitoring.test.tsx src/features/monitoring/MatchingResults.test.tsx`; confirm red.
+- [x] Build table/detail and Overview using existing UI primitives. Matching filters are date/status/kind/exact-ID; change resets page1. Each endpoint has independent generation/state and last successful observed_at. Request function uses this pattern, with local state typed ObservationState<MatchRow>:
 ```tsx
 const generation = gate.begin();
 setState(previous => ({ ...previous, loading: true, error: null }));
@@ -254,15 +254,15 @@ api.monitoringMatch(token, selectedId).then(response => {
 });
 ```
   Add catch in that same function: ignore old generation; 401/403 clears last; 404 clears selected detail; other errors retain only same-selection data with stale indicator. Cleanup, token and selection changes invalidate gate and clear old selection before requests. No polling/subscriptions/render-time fetch. Omit date parameters for server-default range; echo response range on paging. Default-range manual refresh resets page1 and requests a new server range; explicit-range refresh retains selected dates and resets page1. Show 400 date validation clearly without silently changing an explicit selection.
-- [ ] Replace matchingBatching App case with new component using existing authenticated token narrowing; set navigation backing api, keep aliases. Remove only newly unused imports. Add complete EN/AR translations, RTL, accessible filters/table, focus trap/entry/return and responsive detail.
-- [ ] Test deferred response races, failed refresh timestamp retention, stale selection/session clearing, empty vs unavailable/error, zero counts, neutral Unknown status, page1000 narrow-filter instruction, Arabic and keyboard navigation. Run full Admin tests/typecheck/build; commit exact files: `feat(admin): monitor legacy matching results`.
+- [x] Replace matchingBatching App case with new component using existing authenticated token narrowing; set navigation backing api, keep aliases. Remove only newly unused imports. Add complete EN/AR translations, RTL, accessible filters/table, focus trap/entry/return and responsive detail.
+- [x] Test deferred response races, failed refresh timestamp retention, stale selection/session clearing, empty vs unavailable/error, zero counts, neutral Unknown status, page1000 narrow-filter instruction, Arabic and keyboard navigation. Run full Admin tests/typecheck/build; commit exact files: `feat(admin): monitor legacy matching results`.
 
 ## Task 6: Legacy Batches UX
 
 **Files:** create LegacyBatches.tsx/.test.tsx; connect Batches tab in MatchingBatchingMonitoring.tsx; add translations/scoped styles.
 **Consumes:** client/types/gate. **Produces:** `LegacyBatches({api,token}:{api:ApiClient;token:string})`.
 
-- [ ] Add tests with this allowed fixture and a separate 25+1 parcel page mock:
+- [x] Add tests with this allowed fixture and a separate 25+1 parcel page mock:
 ```ts
 const batch: BatchRow = { id: 'b1', status: 'assigned',
   created_at: '2026-09-10T10:00:00.000Z',
@@ -270,38 +270,38 @@ const batch: BatchRow = { id: 'b1', status: 'assigned',
   selected_driver_route: null };
 ```
   Render and assert BOTH different statuses, Current eligible order contents, No selected route, 25 rows then one row, and no completed/savings/timeline claims. Test list filters and independent detail/member timestamps.
-- [ ] Run `npm run test -w @masari/admin -- src/features/monitoring/LegacyBatches.test.tsx`; confirm red.
-- [ ] Implement directory/date/status/exact-ID filters, detail and independently paginated members. Invalidate both gates on parent change; clear member rows on parent404/auth failures. Never use Parcel.batch_id or query trips. Render only allowed fields:
+- [x] Run `npm run test -w @masari/admin -- src/features/monitoring/LegacyBatches.test.tsx`; confirm red.
+- [x] Implement directory/date/status/exact-ID filters, detail and independently paginated members. Invalidate both gates on parent change; clear member rows on parent404/auth failures. Never use Parcel.batch_id or query trips. Render only allowed fields:
 ```tsx
 <tr key={row.id}><td>{row.id}</td><td>{statusLabel(row.status)}</td></tr>
 ```
   Local `statusLabel(status:ParcelStatus):string` maps translations with Unknown fallback. BatchStatus and MerchantOrderStatus use their own maps. Member pages retain failed-refresh data only for the same parent. No lifecycle controls.
-- [ ] Test old-parent response cannot repopulate drawer, page/filter resets, keyboard focus and EN/AR. Run full Admin tests/typecheck/build. Commit exact files: `feat(admin): monitor legacy parcel batches`.
+- [x] Test old-parent response cannot repopulate drawer, page/filter resets, keyboard focus and EN/AR. Run full Admin tests/typecheck/build. Commit exact files: `feat(admin): monitor legacy parcel batches`.
 
 ## Task 7: Real MySQL proof and CI inclusion
 
 **Files:** create two integration scripts and safety test; modify package.json/ci-mysql-integration.mjs.
 **Consumes:** six routes and existing disposable CI auth setup. **Produces:** `test:integration:monitoring` script = `node apps/api/dist/scripts/adminMatchingMonitoringIntegration.js`; pure guard `assertMonitoringIntegrationTarget(appEnv:string|undefined,databaseUrl:string|undefined,allowed:string|undefined):void`.
 
-- [ ] Test absent/malformed URL, masari case-insensitive, non-_ci, unlisted DB and wrong environment; errors must not echo URLs:
+- [x] Test absent/malformed URL, masari case-insensitive, non-_ci, unlisted DB and wrong environment; errors must not echo URLs:
 ```ts
 expect(() => assertMonitoringIntegrationTarget('test','mysql://localhost/masari','masari')).toThrow();
 expect(() => assertMonitoringIntegrationTarget('test','mysql://localhost/card7_ci','other_ci')).toThrow();
 expect(() => assertMonitoringIntegrationTarget('test','mysql://localhost/card7_ci','card7_ci')).not.toThrow();
 ```
-- [ ] Run `npm run test -w @masari/api -- src/tests/adminMatchingMonitoringIntegrationSafety.test.ts`; confirm red.
-- [ ] Implement URL path decoding, strict alphanumeric/underscore DB name, case-insensitive masari rejection, _ci suffix, exact allowlist membership and demo/test environment. Call before dynamic Prisma import, no .env loading or connection logging:
+- [x] Run `npm run test -w @masari/api -- src/tests/adminMatchingMonitoringIntegrationSafety.test.ts`; confirm red.
+- [x] Implement URL path decoding, strict alphanumeric/underscore DB name, case-insensitive masari rejection, _ci suffix, exact allowlist membership and demo/test environment. Call before dynamic Prisma import, no .env loading or connection logging:
 ```ts
 assertMonitoringIntegrationTarget(process.env.APP_ENV, process.env.DATABASE_URL,
   process.env.DEMO_RESET_ALLOWED_DATABASES);
 const { prisma } = await import('../lib/prisma.js');
 ```
-- [ ] Create test-owned rows with unique run IDs: 60 eligible matches including combined, 26 parcels linked through order_id with batch_id null, seed/manual passengers, demo driver/passenger/merchant actors, canonical-marker rows and excluded nested links. Use legally constrained rows/builders; never disable FKs. Compare all six responses against expected eligible totals/pages/status maps and exact key allowlists. Verify guessed excluded parent/member IDs404. Clean only this run's fixtures in FK order.
-- [ ] Snapshot only fixture-owned domain rows before GET sequence and compare after; authSession excluded from no-write assertion. Use controlled fixture status updates between concurrent read calls to prove within-response consistency while allowing differing observations. Verify max50, default25, tied timestamp ordering and shrinking pages.
-- [ ] Add root npm script and invoke it after route integration in existing CI smoke loop, with canonical flags disabled. Run local disposable MySQL test and Backend CI. Measure query counts/timing with representative 10,000 synthetic matches including exact-ID, status/date pagination and overview. Read-only EXPLAIN slow reads. Target each endpoint <5 seconds on the documented fixture; no N+1. A failure requires read-query optimization or a reported blocker, never schema/index changes. This is fixture evidence, not a production SLA or proof that Prisma timeout cancels every SQL query.
-- [ ] Run safety/API/Admin tests and typechecks. Commit exact files: `test: verify monitoring against disposable MySQL`.
+- [x] Create test-owned rows with unique run IDs: 60 eligible matches including combined, 26 parcels linked through order_id with batch_id null, seed/manual passengers, demo driver/passenger/merchant actors, canonical-marker rows and excluded nested links. Use legally constrained rows/builders; never disable FKs. Compare all six responses against expected eligible totals/pages/status maps and exact key allowlists. Verify guessed excluded parent/member IDs404. Clean only this run's fixtures in FK order.
+- [x] Snapshot only fixture-owned domain rows before GET sequence and compare after; authSession excluded from no-write assertion. Use controlled fixture status updates between concurrent read calls to prove within-response consistency while allowing differing observations. Verify max50, default25, tied timestamp ordering and shrinking pages.
+- [x] Add root npm script and invoke it after route integration in existing CI smoke loop, with canonical flags disabled. Run local disposable MySQL test and Backend CI. Measure query counts/timing with representative 10,000 synthetic matches including exact-ID, status/date pagination and overview. Read-only EXPLAIN slow reads. Target each endpoint <5 seconds on the documented fixture; no N+1. A failure requires read-query optimization or a reported blocker, never schema/index changes. This is fixture evidence, not a production SLA or proof that Prisma timeout cancels every SQL query.
+- [x] Run safety/API/Admin tests and typechecks. Commit exact files: `test: verify monitoring against disposable MySQL`.
 
-## Task 8: Full validation and handoff
+## Implementation status\r\n\r\nTasks 1–7 are implemented and reviewed. Task 8 validation and handoff gates remain pending until exact-head local, hosted, and security evidence is complete.\r\n\r\n## Task 8: Full validation and handoff
 
 **Files:** no planned production edits; fix only technically verified Card7 failures. Keep secrets/QA credentials/DB contents out of evidence.
 
