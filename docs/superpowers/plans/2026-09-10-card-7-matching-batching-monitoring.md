@@ -21,7 +21,7 @@
 - Stored score is Score, never confidence. Accepted is not completed. No inferred expiry, global success rate or exhaustive failure reasons.
 - Safe projections only; no raw payloads/snapshots/fingerprints, unnecessary PII or coordinates.
 - No algorithm, Maps/GPS, realtime engine, mobile, AI or Trip lifecycle changes.
-- Prisma change = NO. Migration = NONE. Migration count remains 21; no Migration 22 or index migration.
+- Card 7 introduces no Prisma/schema changes or migrations; the current production-readiness baseline contains 22 migrations.
 - Never access real masari. Integration uses explicitly allowed disposable *_ci databases.
 - No implementation or PR now. No merge of the eventual PR, rebase or force-push.
 
@@ -306,7 +306,7 @@ const { prisma } = await import('../lib/prisma.js');
 **Files:** no planned production edits; fix only technically verified Card7 failures. Keep secrets/QA credentials/DB contents out of evidence.
 
 - [ ] Run `npm ci`, `npm audit`, `npm audit --omit=dev`, `npm run security:audit`; require vulnerabilities0, all severity counts0, no exceptions or force fix.
-- [ ] Run `npm run validate:all`: Prisma validate/generate, API/Admin tests/typechecks/build, security/tooling and Mobile format/analyze/test. Run `npm run test:integration:mysql` only in allowed disposable environment; it includes Card6 and new monitoring. Verify migration directory count21 and no Prisma diff. No real DB migration.
+- [ ] Run `npm run validate:all`: Prisma validate/generate, API/Admin tests/typechecks/build, security/tooling and Mobile format/analyze/test. Run `npm run test:integration:mysql` only in allowed disposable environment; it includes Card6 and new monitoring. Verify the latest base's 22 migration directories and no Card 7 Prisma diff. No real DB migration.
 - [ ] Match Mobile CI release build from apps/mobile: `flutter build apk --release --dart-define=APP_ENV=production --dart-define=ENABLE_DEMO_FEATURES=false --dart-define=API_BASE_URL=https://api.staging.masari.invalid`; then root `npm run security:artifacts -- --apk apps/mobile/build/app/outputs/flutter-apk/app-release.apk`. Do not modify Mobile for monitoring.
 - [ ] Human-smoke-ready disposable UI check: separate units/cohort labels, combined match detail, filters/pages/manual refresh, batch order contents, unauthorized clearing, Arabic RTL/keyboard. Monitoring must not issue algorithm mutations.
 - [ ] Whole-branch spec/quality review and Codex Security diff review. Validate findings technically before fixes. External CodeRabbit review requires Card7-specific private-diff/minimal-context authorization; earlier PR30/35 authorization does not cover it. Do not transmit any code during planning. Never transmit secrets/untracked QA files/DB contents.

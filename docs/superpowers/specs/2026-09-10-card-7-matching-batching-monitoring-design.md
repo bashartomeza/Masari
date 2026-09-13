@@ -8,7 +8,7 @@ Base audited and fetched: `798b1087865e38b7ed5d1b25f686c853708fdd0d` (production
 
 Build a dedicated read-only Admin monitoring query layer and Overview, Matching, and Legacy Batches screens. Monitor production-supported legacy runtime records only. Canonical entry, matching and shared-trip functionality is explicitly disabled in staging/production; show a static capability notice explaining that exclusion. The exclusion applies in every environment, even when demo flags are enabled. Never substitute demo/test canonical data for empty production-supported results.
 
-No matching or batching writes, algorithm controls, algorithm changes, Trip lifecycle changes, Maps/GPS dependency, realtime engine work, mobile changes, AI, raw algorithm/debug payloads, snapshots or fingerprints. Prisma change = NO. Migration = NONE. Migration count remains 21; no index/schema migration or Migration 22.
+No matching or batching writes, algorithm controls, algorithm changes, Trip lifecycle changes, Maps/GPS dependency, realtime engine work, mobile changes, AI, raw algorithm/debug payloads, snapshots or fingerprints. Card 7 introduces no Prisma/schema changes or migrations; the current production-readiness baseline contains 22 migrations.
 
 Monitoring is not certification that a row originated in production. Existing schema lacks comprehensive test provenance, particularly for merchant orders. Exclude known seeded passenger requests and demo-account participants, and label the scope “Production-supported legacy records; demo accounts and seeded passenger requests excluded.” QA fixtures must remain in disposable databases. Do not assert that `operational_mode=legacy` alone proves provenance. No database inspection or writes are needed for planning.
 
