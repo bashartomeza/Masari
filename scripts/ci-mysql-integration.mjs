@@ -12,7 +12,13 @@ if (database.toLowerCase() === "masari" || !resetAllowedDatabases.includes(datab
 }
 const root = resolve(new URL("../", import.meta.url).pathname.replace(/^\/(\w:)/, "$1"));
 const apiOrigin = (process.env.API_BASE_URL ?? "http://127.0.0.1:3000").replace(/\/$/, "");
-const child = spawn(process.execPath, ["apps/api/dist/server.js"], { cwd: root, env: process.env, stdio: "inherit" });
+const child = spawn(process.execPath, ["apps/api/dist/server.js"], { cwd: root, env: {
+  ...process.env,
+  MULTI_ROUTE_ENTRY_ENABLED: "false",
+  MULTI_ROUTE_MATCHING_ENABLED: "false",
+  CANONICAL_TRIP_CREATION_ENABLED: "false",
+  CANONICAL_SHARED_TRIPS_ENABLED: "false"
+}, stdio: "inherit" });
 try {
   let ready = false;
   for (let attempt = 0; attempt < 30; attempt++) {
@@ -35,6 +41,12 @@ try {
       IDEMPOTENCY_PAYLOAD_PEPPER: "ci-only-payload-pepper-at-least-thirty-two-characters"
     }],
     ["test:integration:routes", "route lifecycle and concurrency smoke"],
+    ["test:integration:monitoring", "read-only matching and batching monitoring smoke", {
+      MULTI_ROUTE_ENTRY_ENABLED: "false",
+      MULTI_ROUTE_MATCHING_ENABLED: "false",
+      CANONICAL_TRIP_CREATION_ENABLED: "false",
+      CANONICAL_SHARED_TRIPS_ENABLED: "false"
+    }],
     ["test:integration:multi-route", "multi-route operational concurrency smoke", {
       MULTI_ROUTE_ENTRY_ENABLED: "true",
       MULTI_ROUTE_MATCHING_ENABLED: "false"
