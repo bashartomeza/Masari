@@ -27,6 +27,19 @@ function isUnsafeRouteProviderSecret(value: string) {
   return isUnsafeSecret(value) || unsafeRouteProviderSecretMarkers.some((marker) => normalized.includes(marker));
 }
 
+const optionalXaiApiKey = z.preprocess(
+  (value) => typeof value === "string" && value.trim() === "" ? undefined : value,
+  z.string().trim().min(20).optional()
+);
+const optionalGeminiApiKey = z.preprocess(
+  (value) => typeof value === "string" && value.trim() === "" ? undefined : value,
+  z.string().trim().min(20).optional()
+);
+const optionalGroqApiKey = z.preprocess(
+  (value) => typeof value === "string" && value.trim() === "" ? undefined : value,
+  z.string().trim().min(20).optional()
+);
+
 const rawSchema = z.object({
   APP_ENV: z.enum(APP_ENVIRONMENTS),
   DATABASE_URL: z.string().min(1),
@@ -75,6 +88,18 @@ const rawSchema = z.object({
   INVITATIONS_ENABLED: z.string().optional(),
   PUBLIC_ONBOARDING_ENABLED: z.string().optional(),
   OTP_PROVIDER: z.enum(["disabled", "fake"]).default("disabled"),
+  SUPPORTED_PHONE_REGIONS: z.string().default("PS"),
+  GOOGLE_OAUTH_CLIENT_IDS: z.string().optional(),
+  XAI_API_KEY: optionalXaiApiKey,
+  XAI_MODEL: z.string().trim().min(1).max(100).default("grok-4.6"),
+  XAI_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(60_000).default(15_000),
+  ASSISTANT_PROVIDER: z.enum(["xai", "gemini", "groq"]).default("groq"),
+  GEMINI_API_KEY: optionalGeminiApiKey,
+  GEMINI_MODEL: z.string().trim().min(1).max(100).default("gemini-2.5-flash-lite"),
+  GEMINI_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(60_000).default(15_000),
+  GROQ_API_KEY: optionalGroqApiKey,
+  GROQ_MODEL: z.string().trim().min(1).max(100).default("openai/gpt-oss-20b"),
+  GROQ_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(60_000).default(15_000),
   INVITATION_CODE_PEPPER: z.string().min(MINIMUM_ONBOARDING_PEPPER_LENGTH).optional(),
   INVITATION_CODE_KEY_VERSION: z.coerce.number().int().positive().default(1),
   PHONE_DIGEST_PEPPER: z.string().min(MINIMUM_ONBOARDING_PEPPER_LENGTH).optional(),
@@ -284,11 +309,35 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
   if (routeMapsEnabled && raw.ROUTE_PROVIDER_SECRET && [raw.JWT_SECRET, raw.REFRESH_TOKEN_PEPPER].includes(raw.ROUTE_PROVIDER_SECRET)) {
     problems.push("ROUTE_PROVIDER_SECRET must be distinct from operational secrets");
   }
+  if (raw.XAI_API_KEY && isUnsafeSecret(raw.XAI_API_KEY)) {
+    problems.push("XAI_API_KEY uses a known placeholder or default value");
+  }
+  if (raw.GEMINI_API_KEY && isUnsafeSecret(raw.GEMINI_API_KEY)) {
+    problems.push("GEMINI_API_KEY uses a known placeholder or default value");
+  }
+  if (raw.GROQ_API_KEY && isUnsafeSecret(raw.GROQ_API_KEY)) {
+    problems.push("GROQ_API_KEY uses a known placeholder or default value");
+  }
   if (productionLike && raw.ROUTE_PROVIDER_CACHE_TTL_SECONDS !== 0) {
     problems.push("ROUTE_PROVIDER_CACHE_TTL_SECONDS must remain 0 until provider cache rights are approved");
   }
   if (raw.ROUTE_PROVIDER_REQUEST_TIMEOUT_MS < raw.ROUTE_PROVIDER_CONNECT_TIMEOUT_MS) {
     problems.push("ROUTE_PROVIDER_REQUEST_TIMEOUT_MS must be at least the connect timeout");
+  }
+
+  const supportedRegions = raw.SUPPORTED_PHONE_REGIONS.split(",")
+    .map((region) => region.trim().toUpperCase())
+    .filter(Boolean);
+  if (supportedRegions.length !== 1 || supportedRegions[0] !== "PS") {
+    problems.push("SUPPORTED_PHONE_REGIONS must be PS in M6C2B1");
+  }
+
+  const googleOAuthClientIds = (raw.GOOGLE_OAUTH_CLIENT_IDS ?? "")
+    .split(",")
+    .map((clientId) => clientId.trim())
+    .filter(Boolean);
+  if (googleOAuthClientIds.some((clientId) => isUnsafeSecret(clientId))) {
+    problems.push("GOOGLE_OAUTH_CLIENT_IDS contains a placeholder value");
   }
 
   const onboardingSecrets = {
@@ -440,6 +489,24 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
     canonicalTripCreationEnabled,
     canonicalSharedTripsEnabled,
     canonicalSharedTripMobileEnabled,
+    assistant: {
+      provider: raw.ASSISTANT_PROVIDER,
+      apiKey: raw.ASSISTANT_PROVIDER === "groq"
+        ? raw.GROQ_API_KEY
+        : raw.ASSISTANT_PROVIDER === "gemini"
+          ? raw.GEMINI_API_KEY
+          : raw.XAI_API_KEY,
+      model: raw.ASSISTANT_PROVIDER === "groq"
+        ? raw.GROQ_MODEL
+        : raw.ASSISTANT_PROVIDER === "gemini"
+          ? raw.GEMINI_MODEL
+          : raw.XAI_MODEL,
+      timeoutMs: raw.ASSISTANT_PROVIDER === "groq"
+        ? raw.GROQ_TIMEOUT_MS
+        : raw.ASSISTANT_PROVIDER === "gemini"
+          ? raw.GEMINI_TIMEOUT_MS
+          : raw.XAI_TIMEOUT_MS
+    },
     mapsEnabled,
     checkpointsEnabled,
     checkpoints: checkpointsEnabled
@@ -503,6 +570,7 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
         }
       : undefined,
     logLevel: raw.LOG_LEVEL ?? (isTest ? "silent" : "info"),
+    googleOAuthClientIds,
     trustProxy,
     readinessTimeoutMs: raw.READINESS_TIMEOUT_MS,
     rateLimits: {

@@ -6,93 +6,97 @@ import 'package:flutter/material.dart';
 /// no slot for "pending", "active route", or the per-role map indicators the
 /// design system calls for.
 ///
-/// Values marked *derived* are not given explicitly by the design system; they
-/// are built from its tertiary (warm) and neutral ramps so they sit in the same
-/// tonal family rather than being invented independently.
+/// Values come straight from design-system.html §B (semantic ramp) and §B
+/// "Semantic & map colors" — nothing here is invented.
 class SemanticColors {
   const SemanticColors._();
 
   // ---------------------------------------------------------------------------
-  // Success — *derived*, kept in the cool family so it reads as "settled"
-  // next to the teal primary rather than competing with the warm action colour.
+  // Success.
   // ---------------------------------------------------------------------------
-  static const success = Color(0xFF146C43);
+  static const success = Color(0xFF327B59);
   static const onSuccess = Color(0xFFFFFFFF);
-  static const successContainer = Color(0xFFC7F0D8);
-  static const onSuccessContainer = Color(0xFF04361D);
+  static const successContainer = Color(0xFFE5F5EE);
+  static const onSuccessContainer = Color(0xFF165A3A);
 
   // ---------------------------------------------------------------------------
-  // Warning — *derived* from the design system's tertiary (warm) ramp so
-  // warnings and the action colour stay visibly related.
+  // Warning.
   // ---------------------------------------------------------------------------
-  static const warning = Color(0xFF8A5300);
-  static const onWarning = Color(0xFFFFFFFF);
-  static const warningContainer = Color(0xFFFFDDB8); // tertiary-fixed
-  static const onWarningContainer = Color(0xFF2A1700); // on-tertiary-fixed
+  static const warning = Color(0xFFAE8509);
+  static const onWarning = Color(0xFF271E02);
+  static const warningContainer = Color(0xFFFCF1CF);
+  static const onWarningContainer = Color(0xFF59460D);
 
   // ---------------------------------------------------------------------------
-  // Error — taken directly from the design system.
+  // Error.
   // ---------------------------------------------------------------------------
-  static const error = Color(0xFFBA1A1A);
+  static const error = Color(0xFFB1252A);
   static const onError = Color(0xFFFFFFFF);
-  static const errorContainer = Color(0xFFFFDAD6);
-  static const onErrorContainer = Color(0xFF93000A);
+  static const errorContainer = Color(0xFFFBE4E5);
+  static const onErrorContainer = Color(0xFF72181B);
 
   // ---------------------------------------------------------------------------
-  // Pending / inactive — the design system's neutral ramp. Used for steps that
-  // have not happened yet, so they recede rather than compete.
+  // Info — the "confirmed" tone. Navy, since it marks a settled state rather
+  // than one awaiting action or currently moving.
   // ---------------------------------------------------------------------------
-  static const pending = Color(0xFF6F7979); // outline
+  static const info = Color(0xFF28408F); // navy.600
+  static const onInfo = Color(0xFFFFFFFF);
+  static const infoContainer = Color(0xFFF4F6FA); // navy.50
+  static const onInfoContainer = Color(0xFF172554); // navy.900
+
+  // ---------------------------------------------------------------------------
+  // Pending / inactive — the neutral ramp. Used for steps that have not
+  // happened yet, so they recede rather than compete.
+  // ---------------------------------------------------------------------------
+  static const pending = Color(0xFF6A6F81); // neutral.600
   static const onPending = Color(0xFFFFFFFF);
-  static const pendingContainer = Color(0xFFDFEAF1); // surface-container-high
-  static const onPendingContainer = Color(0xFF3F4949); // on-surface-variant
+  static const pendingContainer = Color(0xFFF3F3F4); // neutral.100
+  static const onPendingContainer = Color(0xFF4F525F); // neutral.700
 
   // ---------------------------------------------------------------------------
-  // Action / kinetic — reserved for movement: "Start Trip", "Confirm Delivery",
-  // the current step of a tracker, and the live driver marker. Never used for
-  // ordinary navigation, so that motion always reads as motion.
+  // Action / kinetic — reserved for movement: "Start Trip", "Confirm
+  // Delivery", the current step of a tracker, and the passenger map marker.
+  // Never used for ordinary chrome, so that orange always reads as motion or
+  // the one next action. Equal to the brand orange (design-system.html
+  // `--ms-primary`) — kept under its own name so call sites read by intent
+  // rather than by hue.
   // ---------------------------------------------------------------------------
-
-  /// Filled action buttons. From the design system's `tertiary-container`.
-  static const action = Color(0xFF7F4F00);
+  static const action = Color(0xFFE9561B); // orange.600
   static const onAction = Color(0xFFFFFFFF);
 
-  /// The live-movement accent: active tracker steps and the driver marker.
-  /// *Derived* — a brighter stop on the same warm ramp so it stays legible at
-  /// map-marker size against street tiles.
-  static const actionBright = Color(0xFFFFB95F); // tertiary-fixed-dim
-  static const onActionBright = Color(0xFF2A1700);
-
   // ---------------------------------------------------------------------------
-  // Route state.
+  // Route state — §G.8 Timeline.
   // ---------------------------------------------------------------------------
 
-  /// A route currently being travelled.
+  /// A route currently being travelled. `.ms-tl-node.active` — orange.600.
   static const activeRoute = action;
 
-  /// A completed leg.
-  static const completedRoute = Color(0xFF004B4C); // primary
+  /// A completed leg. `.ms-tl-node.done` — navy.600.
+  static const completedRoute = Color(0xFF28408F);
 
-  /// A leg not yet started.
-  static const upcomingRoute = pending;
+  /// A leg not yet started. The spec renders this as a hollow ring
+  /// (`.ms-tl-node.pending`); [TimelineTracker] fills its node solidly, so
+  /// this uses the spec's pending-border shade (neutral.400) as the closest
+  /// solid equivalent rather than restructuring the widget to draw a ring.
+  static const upcomingRoute = Color(0xFFABAEBA); // neutral.400
 
   // ---------------------------------------------------------------------------
-  // Role & entity indicators — used for map markers, avatars and badges so a
-  // role reads the same way everywhere in the app.
+  // Role & entity indicators — §B "Semantic & map colors". Used for map
+  // markers, avatars and badges so a role reads the same way everywhere.
   // ---------------------------------------------------------------------------
 
-  /// Passenger — teal circle with a person icon.
-  static const passenger = Color(0xFF004B4C); // primary
+  /// Passenger — orange, matching the passenger map marker.
+  static const passenger = action;
 
-  /// Driver — warm action colour, matching the moving car marker.
-  static const driver = action;
+  /// Driver — navy, matching the driver map marker.
+  static const driver = Color(0xFF203374); // navy.700
 
-  /// Merchant — the secondary teal, distinct from passenger without leaving
-  /// the brand family.
-  static const merchant = Color(0xFF006A6A); // secondary
+  /// Merchant — teal, matching the merchant map marker.
+  static const merchant = Color(0xFF25687E); // teal.base
 
-  /// Parcel / stop — teal pin with a centred dot.
-  static const parcel = Color(0xFF004B4C); // primary
+  /// Parcel — teal, grouped with merchant: the spec's box icon represents
+  /// both.
+  static const parcel = merchant;
 
   /// Indicator colour for a role name as used by the API (`passenger`,
   /// `driver`, `merchant`). Falls back to [pending] for anything unmapped,

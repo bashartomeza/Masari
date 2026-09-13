@@ -25,7 +25,7 @@ class DestinationSearchCard extends StatelessWidget {
       padding: const EdgeInsets.all(AppTokens.spaceMedium),
       decoration: BoxDecoration(
         color: AppTheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(AppTokens.radiusLarge),
+        borderRadius: BorderRadius.circular(AppTokens.radiusMedium),
         border: Border.all(color: AppTheme.outlineVariant),
       ),
       child: Column(
@@ -104,15 +104,16 @@ class _SmartSearchBadge extends StatelessWidget {
         vertical: AppTokens.spaceExtraSmall + 2,
       ),
       decoration: BoxDecoration(
-        // Warm accent, reserved by the design system for movement and
-        // high-priority action.
-        color: AppTheme.tertiaryContainer,
+        // A highlight badge, not an action — orange is reserved for the one
+        // actionable element per screen, so this stays on the structural
+        // navy accent instead.
+        color: AppTheme.primaryContainer,
         borderRadius: BorderRadius.circular(AppTokens.radiusDefault),
       ),
       child: Text(
         l10n.smartSearch,
         style: Theme.of(context).textTheme.labelMedium?.copyWith(
-          color: AppTheme.onTertiary,
+          color: AppTheme.onPrimaryContainer,
           fontWeight: FontWeight.w700,
         ),
         maxLines: 1,

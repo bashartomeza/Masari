@@ -607,7 +607,10 @@ async function verifyFixtures(prisma: PrismaClient, qaAdminPassword: string) {
     })
   ]);
 
-  if (actorRow) await assertRouteQaAdminPassword(qaAdminPassword, actorRow.password_hash);
+  if (actorRow) {
+    if (!actorRow.password_hash) throw new Error("route_qa_admin_password_missing");
+    await assertRouteQaAdminPassword(qaAdminPassword, actorRow.password_hash);
+  }
 
   assertRouteQaFixtureSnapshot({
     actor: actorRow ? {
@@ -615,7 +618,7 @@ async function verifyFixtures(prisma: PrismaClient, qaAdminPassword: string) {
       role: actorRow.role,
       accountStatus: actorRow.account_status,
       demoAccount: actorRow.demo_account,
-      hasPasswordHash: actorRow.password_hash.startsWith("$2") && actorRow.password_hash.length >= 59
+      hasPasswordHash: (actorRow.password_hash?.startsWith("$2") ?? false) && actorRow.password_hash!.length >= 59
     } : null,
     stops: stops.map((stop) => ({
       id: stop.id,

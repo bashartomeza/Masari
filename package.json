@@ -8,6 +8,7 @@
   "scripts": {
     "dev:api": "npm run dev -w @masari/api",
     "dev:admin": "npm run dev -w @masari/admin",
+    "dev:mobile": "cd apps/mobile && flutter run -d chrome --web-port=5173 --dart-define-from-file=config/demo.web.json",
     "build": "npm run build --workspaces",
     "build:api": "npm run build -w @masari/api",
     "build:admin": "npm run build -w @masari/admin",

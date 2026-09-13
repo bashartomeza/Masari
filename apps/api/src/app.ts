@@ -46,6 +46,8 @@ import type { LegacyDriverOnlineStateService } from "./services/legacyDriverOnli
 import { createRouteProvider } from "./maps/liveProviders.js";
 import { createRoutePreviewService, type RoutePreviewService } from "./maps/previewService.js";
 import { createRoutePreviewRouter } from "./modules/routePreview.js";
+import { createPassengerAssistantRouter } from "./modules/passengerAssistant.js";
+import type { PassengerAssistantService } from "./services/passengerAssistant.js";
 import { createAdminConsentRouter } from "./modules/adminConsents.js";
 import type { ConsentReleaseService } from "./services/consentReleases.js";
 import { adminTripsRouter } from "./modules/adminTrips.js";
@@ -68,6 +70,7 @@ type AppDependencies = {
   checkpointService?: CheckpointService;
   legacyDriverOnlineStateService?: LegacyDriverOnlineStateService;
   routePreviewService?: RoutePreviewService;
+  passengerAssistantService?: PassengerAssistantService;
   consentReleaseService?: ConsentReleaseService;
   adminMatchingMonitoringService?: MonitoringService;
 };
@@ -94,7 +97,10 @@ export function createApp(
     createHealthRouter(appConfig, dependencies.readinessCheck),
   );
   app.use("/api/v1", createGlobalRateLimiter(appConfig));
-  app.use("/api/v1/auth/login", createLoginRateLimiter(appConfig));
+  app.use(
+    ["/api/v1/auth/login", "/api/v1/auth/register", "/api/v1/auth/google"],
+    createLoginRateLimiter(appConfig),
+  );
   app.use(
     "/api/v1",
     createPublicOnboardingRouter(appConfig, dependencies.otpProvider),
@@ -126,6 +132,10 @@ export function createApp(
     ),
   );
   app.use("/api/v1", passengerRouter);
+  app.use(
+    "/api/v1",
+    createPassengerAssistantRouter(appConfig, dependencies.passengerAssistantService),
+  );
   app.use(
     "/api/v1",
     createDriverAvailabilityRouter(

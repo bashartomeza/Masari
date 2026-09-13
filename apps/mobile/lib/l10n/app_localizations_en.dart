@@ -82,6 +82,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get phone => 'Phone';
 
   @override
+  String get email => 'Email';
+
+  @override
+  String get fullName => 'Full name';
+
+  @override
   String get password => 'Password';
 
   @override
@@ -89,6 +95,53 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get hidePassword => 'Hide password';
+
+  @override
+  String get signUp => 'Sign up';
+
+  @override
+  String get createAccount => 'Create account';
+
+  @override
+  String get createAccountSubtitle => 'Sign up as a passenger to get started.';
+
+  @override
+  String get newToMasari => 'New to Masari? Create an account';
+
+  @override
+  String get alreadyHaveAccount => 'Already have an account? Sign in';
+
+  @override
+  String get continueWithGoogle => 'Continue with Google';
+
+  @override
+  String get orSeparator => 'or';
+
+  @override
+  String get emailRequired => 'Enter your email.';
+
+  @override
+  String get emailInvalid => 'Enter a valid email address.';
+
+  @override
+  String get nameRequired => 'Enter your name.';
+
+  @override
+  String get passwordRequired => 'Enter your password.';
+
+  @override
+  String get passwordTooShort => 'Password must be at least 8 characters.';
+
+  @override
+  String get emailAlreadyRegistered =>
+      'That email is already registered. Try signing in.';
+
+  @override
+  String get googleSignInFailed => 'Google sign-in failed. Please try again.';
+
+  @override
+  String get googleSignInUnavailable =>
+      'Google sign-in is not available right now.';
 
   @override
   String get demoAccounts => 'Demo accounts';
@@ -116,7 +169,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Your session has expired. Please sign in again.';
 
   @override
-  String get invalidCredentials => 'Invalid phone or password.';
+  String get invalidCredentials => 'Invalid email or password.';
 
   @override
   String get networkUnavailable =>
@@ -771,9 +824,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get acceptAndContinue => 'Accept and continue';
-
-  @override
-  String get createAccount => 'Create account';
 
   @override
   String get accountCreated => 'Account created';
@@ -1606,6 +1656,86 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get notLiveNotice =>
       'This screen is not live. Use Refresh to check for updates.';
+
+  @override
+  String get assistantTitle => 'Masari assistant';
+
+  @override
+  String get assistantHomeTitle => 'Ask Masari';
+
+  @override
+  String get assistantHomeBody => 'Ask about your trips and available routes.';
+
+  @override
+  String get assistantWelcomeTitle => 'How can I help?';
+
+  @override
+  String get assistantWelcomeBody =>
+      'Ask about your Masari trip data or available routes. If details are missing, I’ll ask you to clarify.';
+
+  @override
+  String get assistantTryAsking => 'Try asking';
+
+  @override
+  String get assistantExampleTripTime => 'When is my next trip?';
+
+  @override
+  String get assistantExampleAvailableTrip => 'Is there a trip to Bethlehem?';
+
+  @override
+  String get assistantInputHint => 'Type your question';
+
+  @override
+  String get assistantSend => 'Send';
+
+  @override
+  String get assistantProcessing => 'Checking Masari data…';
+
+  @override
+  String get assistantErrorTitle => 'Couldn’t complete the request';
+
+  @override
+  String get assistantErrorBody =>
+      'The assistant couldn’t complete your request. Try again.';
+
+  @override
+  String get assistantUnavailable =>
+      'The assistant service is not available in this build. No result was created.';
+
+  @override
+  String get assistantClarificationLabel =>
+      'Masari assistant needs clarification';
+
+  @override
+  String get assistantResultLabel => 'Masari assistant reply';
+
+  @override
+  String get assistantPassengerMessage => 'Your message';
+
+  @override
+  String get assistantExampleFindTrip =>
+      'Find me a ride from Bab Al-Zawiya to Bethlehem at 3 PM for one passenger';
+
+  @override
+  String get assistantReviewTitle => 'Review trip information';
+
+  @override
+  String get assistantReviewBody =>
+      'Check and edit the information before starting the real search.';
+
+  @override
+  String get assistantConfirmSearch => 'Confirm and search';
+
+  @override
+  String get assistantSearching => 'Searching for a ride…';
+
+  @override
+  String get assistantSearchError =>
+      'The request could not be created or no compatible route was found. No result was fabricated.';
+
+  @override
+  String get assistantFutureTimeRequired =>
+      'Choose a future time before searching.';
 
   @override
   String get mapAttribution => '© OpenStreetMap contributors';

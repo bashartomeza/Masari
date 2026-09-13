@@ -236,6 +236,18 @@ abstract class AppLocalizations {
   /// **'رقم الهاتف'**
   String get phone;
 
+  /// No description provided for @email.
+  ///
+  /// In ar, this message translates to:
+  /// **'البريد الإلكتروني'**
+  String get email;
+
+  /// No description provided for @fullName.
+  ///
+  /// In ar, this message translates to:
+  /// **'الاسم الكامل'**
+  String get fullName;
+
   /// No description provided for @password.
   ///
   /// In ar, this message translates to:
@@ -253,6 +265,96 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'إخفاء كلمة المرور'**
   String get hidePassword;
+
+  /// No description provided for @signUp.
+  ///
+  /// In ar, this message translates to:
+  /// **'إنشاء الحساب'**
+  String get signUp;
+
+  /// No description provided for @createAccount.
+  ///
+  /// In ar, this message translates to:
+  /// **'إنشاء الحساب'**
+  String get createAccount;
+
+  /// No description provided for @createAccountSubtitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'أنشئ حساب مسافر للبدء.'**
+  String get createAccountSubtitle;
+
+  /// No description provided for @newToMasari.
+  ///
+  /// In ar, this message translates to:
+  /// **'جديد في مساري؟ أنشئ حساباً'**
+  String get newToMasari;
+
+  /// No description provided for @alreadyHaveAccount.
+  ///
+  /// In ar, this message translates to:
+  /// **'لديك حساب؟ سجّل الدخول'**
+  String get alreadyHaveAccount;
+
+  /// No description provided for @continueWithGoogle.
+  ///
+  /// In ar, this message translates to:
+  /// **'المتابعة عبر Google'**
+  String get continueWithGoogle;
+
+  /// No description provided for @orSeparator.
+  ///
+  /// In ar, this message translates to:
+  /// **'أو'**
+  String get orSeparator;
+
+  /// No description provided for @emailRequired.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل بريدك الإلكتروني.'**
+  String get emailRequired;
+
+  /// No description provided for @emailInvalid.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل بريداً إلكترونياً صحيحاً.'**
+  String get emailInvalid;
+
+  /// No description provided for @nameRequired.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل اسمك.'**
+  String get nameRequired;
+
+  /// No description provided for @passwordRequired.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل كلمة المرور.'**
+  String get passwordRequired;
+
+  /// No description provided for @passwordTooShort.
+  ///
+  /// In ar, this message translates to:
+  /// **'يجب أن تتكون كلمة المرور من 8 أحرف على الأقل.'**
+  String get passwordTooShort;
+
+  /// No description provided for @emailAlreadyRegistered.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا البريد الإلكتروني مسجّل بالفعل. حاول تسجيل الدخول.'**
+  String get emailAlreadyRegistered;
+
+  /// No description provided for @googleSignInFailed.
+  ///
+  /// In ar, this message translates to:
+  /// **'فشل تسجيل الدخول عبر Google. حاول مرة أخرى.'**
+  String get googleSignInFailed;
+
+  /// No description provided for @googleSignInUnavailable.
+  ///
+  /// In ar, this message translates to:
+  /// **'تسجيل الدخول عبر Google غير متاح حالياً.'**
+  String get googleSignInUnavailable;
 
   /// No description provided for @demoAccounts.
   ///
@@ -305,7 +407,7 @@ abstract class AppLocalizations {
   /// No description provided for @invalidCredentials.
   ///
   /// In ar, this message translates to:
-  /// **'رقم الهاتف أو كلمة المرور غير صحيحة.'**
+  /// **'البريد الإلكتروني أو كلمة المرور غير صحيحة.'**
   String get invalidCredentials;
 
   /// No description provided for @networkUnavailable.
@@ -1579,12 +1681,6 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'قبول ومتابعة'**
   String get acceptAndContinue;
-
-  /// No description provided for @createAccount.
-  ///
-  /// In ar, this message translates to:
-  /// **'إنشاء الحساب'**
-  String get createAccount;
 
   /// No description provided for @accountCreated.
   ///
@@ -3073,6 +3169,150 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'هذه الشاشة ليست مباشرة. استخدم التحديث للتحقق من المستجدات.'**
   String get notLiveNotice;
+
+  /// No description provided for @assistantTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'مساعد مساري'**
+  String get assistantTitle;
+
+  /// No description provided for @assistantHomeTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'اسأل مساعد مساري'**
+  String get assistantHomeTitle;
+
+  /// No description provided for @assistantHomeBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'استفسر عن رحلاتك والمسارات المتاحة.'**
+  String get assistantHomeBody;
+
+  /// No description provided for @assistantWelcomeTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'كيف يمكنني مساعدتك؟'**
+  String get assistantWelcomeTitle;
+
+  /// No description provided for @assistantWelcomeBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'اسأل عن بيانات رحلاتك أو المسارات المتاحة في مساري. إذا كانت التفاصيل ناقصة، سأطلب منك توضيحها.'**
+  String get assistantWelcomeBody;
+
+  /// No description provided for @assistantTryAsking.
+  ///
+  /// In ar, this message translates to:
+  /// **'جرّب أن تسأل'**
+  String get assistantTryAsking;
+
+  /// No description provided for @assistantExampleTripTime.
+  ///
+  /// In ar, this message translates to:
+  /// **'متى موعد رحلتي القادمة؟'**
+  String get assistantExampleTripTime;
+
+  /// No description provided for @assistantExampleAvailableTrip.
+  ///
+  /// In ar, this message translates to:
+  /// **'هل توجد رحلة إلى بيت لحم؟'**
+  String get assistantExampleAvailableTrip;
+
+  /// No description provided for @assistantInputHint.
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتب سؤالك هنا'**
+  String get assistantInputHint;
+
+  /// No description provided for @assistantSend.
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال'**
+  String get assistantSend;
+
+  /// No description provided for @assistantProcessing.
+  ///
+  /// In ar, this message translates to:
+  /// **'جارٍ التحقق من بيانات مساري…'**
+  String get assistantProcessing;
+
+  /// No description provided for @assistantErrorTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر إكمال الطلب'**
+  String get assistantErrorTitle;
+
+  /// No description provided for @assistantErrorBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يتمكن المساعد من إكمال طلبك. حاول مرة أخرى.'**
+  String get assistantErrorBody;
+
+  /// No description provided for @assistantUnavailable.
+  ///
+  /// In ar, this message translates to:
+  /// **'خدمة المساعد غير متاحة في هذا الإصدار. لم يتم إنشاء أي نتيجة.'**
+  String get assistantUnavailable;
+
+  /// No description provided for @assistantClarificationLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'يحتاج مساعد مساري إلى توضيح'**
+  String get assistantClarificationLabel;
+
+  /// No description provided for @assistantResultLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'رد مساعد مساري'**
+  String get assistantResultLabel;
+
+  /// No description provided for @assistantPassengerMessage.
+  ///
+  /// In ar, this message translates to:
+  /// **'رسالتك'**
+  String get assistantPassengerMessage;
+
+  /// No description provided for @assistantExampleFindTrip.
+  ///
+  /// In ar, this message translates to:
+  /// **'ابحث لي عن رحلة من باب الزاوية إلى بيت لحم الساعة 3 لشخص واحد'**
+  String get assistantExampleFindTrip;
+
+  /// No description provided for @assistantReviewTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'راجع معلومات الرحلة'**
+  String get assistantReviewTitle;
+
+  /// No description provided for @assistantReviewBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'تأكد من المعلومات وعدّلها قبل بدء البحث الحقيقي.'**
+  String get assistantReviewBody;
+
+  /// No description provided for @assistantConfirmSearch.
+  ///
+  /// In ar, this message translates to:
+  /// **'تأكيد وبدء البحث'**
+  String get assistantConfirmSearch;
+
+  /// No description provided for @assistantSearching.
+  ///
+  /// In ar, this message translates to:
+  /// **'جارٍ البحث عن رحلة…'**
+  String get assistantSearching;
+
+  /// No description provided for @assistantSearchError.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر إنشاء الطلب أو العثور على مسار مناسب. لم يتم إنشاء نتيجة وهمية.'**
+  String get assistantSearchError;
+
+  /// No description provided for @assistantFutureTimeRequired.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر وقتاً قادماً قبل بدء البحث.'**
+  String get assistantFutureTimeRequired;
 
   /// No description provided for @mapAttribution.
   ///

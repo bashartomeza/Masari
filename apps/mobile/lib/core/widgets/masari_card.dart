@@ -57,7 +57,7 @@ class MasariCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final shape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(AppTokens.radiusLarge),
+      borderRadius: BorderRadius.circular(AppTokens.radiusMedium),
       side: border ?? const BorderSide(color: AppTheme.outlineVariant),
     );
 
