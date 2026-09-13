@@ -5,6 +5,7 @@ import { Button, Card, KpiCard, Notice, StatusBadge } from "../../ui";
 import type { Overview } from "./contracts";
 import { createObservationGate, type ObservationState } from "./monitoringState";
 import { MatchingResults } from "./MatchingResults";
+import { LegacyBatches } from "./LegacyBatches";
 
 type Tab = "overview" | "matching" | "batches";
 const tabs: Tab[] = ["overview", "matching", "batches"];
@@ -137,7 +138,7 @@ export function MatchingBatchingMonitoring({ api, token }: { api: ApiClient; tok
       <div role="tabpanel">
         {activeTab === "overview" && <OverviewPanel api={api} token={token} />}
         {activeTab === "matching" && <MatchingResults api={api} token={token} />}
-        {activeTab === "batches" && <Card className="monitoring-state"><h2>{t("monitoringBatchesTitle")}</h2><p>{t("monitoringBatchesPending")}</p></Card>}
+        {activeTab === "batches" && <LegacyBatches api={api} token={token} />}
       </div>
     </section>
   );

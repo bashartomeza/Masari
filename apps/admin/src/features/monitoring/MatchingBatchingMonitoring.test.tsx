@@ -137,6 +137,17 @@ describe("MatchingBatchingMonitoring", () => {
     expect(view.textContent).toContain("سجلات التشغيل القديمة المدعومة في الإنتاج");
   });
 
+  it("connects the Batches tab to the legacy batch directory", async () => {
+    const client = api();
+    const view = await mount(client);
+    const batchesTab = [...view.querySelectorAll<HTMLButtonElement>('[role="tab"]')].find((tab) => tab.textContent === "Legacy batches")!;
+    act(() => batchesTab.click());
+    await act(async () => undefined);
+    expect(client.monitoringBatches).toHaveBeenCalledWith("token", { page: 1, limit: 25 });
+    expect(view.textContent).toContain("Exact operational ID");
+    expect(view.textContent).not.toContain("will be connected in the next task");
+  });
+
   it("renders cross-entity aggregate keys as neutral Unknown statuses", async () => {
     const response = overview();
     Object.assign(response.data.match_results_by_status, { completed: 4 });

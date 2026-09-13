@@ -6,7 +6,8 @@
 }
 
 .matching-monitoring,
-.matching-results {
+.matching-results,
+.legacy-batches {
   min-inline-size: 0;
 }
 
@@ -62,7 +63,8 @@
 }
 
 .monitoring-overview,
-.matching-results {
+.matching-results,
+.legacy-batches {
   display: grid;
   gap: var(--space-base);
 }
@@ -136,6 +138,21 @@
 .monitoring-table-card {
   min-inline-size: 0;
   overflow: hidden;
+}
+
+.monitoring-batch-filters {
+  grid-template-columns: repeat(4, minmax(9rem, 1fr));
+}
+
+.monitoring-members {
+  display: grid;
+  gap: var(--space-sm);
+  margin-block-start: var(--space-lg);
+}
+
+.monitoring-members h3,
+.monitoring-members p {
+  margin-block: 0;
 }
 
 .trips-management__filters,
