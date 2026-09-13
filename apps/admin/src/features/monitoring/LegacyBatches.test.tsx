@@ -7,7 +7,7 @@ import type { ApiClient, ApiError } from "../../api";
 import { LocaleProvider } from "../../i18n/LocaleContext";
 import type { Locale } from "../../i18n/translations";
 import type { BatchRow, CurrentOrderParcelsPage, Observed, Page, ParcelRow } from "./contracts";
-import { LegacyBatches } from "./LegacyBatches";
+import { LegacyBatches, utcInput } from "./LegacyBatches";
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -86,6 +86,11 @@ afterEach(() => {
 });
 
 describe("LegacyBatches", () => {
+  it("rejects invalid datetime input without throwing", () => {
+    expect(utcInput("not-a-date")).toBeNull();
+    expect(utcInput("2026-09-02T00:00")).toBe("2026-09-02T00:00:00.000Z");
+  });
+
   it("renders only safe directory fields and keeps batch and order statuses distinct", async () => {
     const client = api();
     const view = await mount(client);

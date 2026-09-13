@@ -7,7 +7,7 @@ import type { ApiClient, ApiError } from "../../api";
 import { LocaleProvider } from "../../i18n/LocaleContext";
 import type { Locale } from "../../i18n/translations";
 import type { MatchRow, Observed, Page } from "./contracts";
-import { MatchingResults } from "./MatchingResults";
+import { MatchingResults, utcInput } from "./MatchingResults";
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -70,6 +70,11 @@ afterEach(() => {
 });
 
 describe("MatchingResults", () => {
+  it("rejects invalid datetime input without throwing", () => {
+    expect(utcInput("not-a-date")).toBeNull();
+    expect(utcInput("2026-09-02T00:00")).toBe("2026-09-02T00:00:00.000Z");
+  });
+
   it("loads without client dates and renders safe combined-demand table fields", async () => {
     const client = api();
     const view = await mount(client);

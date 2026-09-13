@@ -137,6 +137,16 @@ describe("MatchingBatchingMonitoring", () => {
     expect(view.textContent).toContain("سجلات التشغيل القديمة المدعومة في الإنتاج");
   });
 
+  it("wires each tab to its active tabpanel", async () => {
+    const view = await mount(api());
+    const overviewTab = view.querySelector<HTMLButtonElement>('[role="tab"][id="monitoring-tab-overview"]')!;
+    expect(overviewTab.getAttribute("aria-controls")).toBe("monitoring-tabpanel-overview");
+    expect(view.querySelector('[role="tabpanel"]')?.getAttribute("aria-labelledby")).toBe("monitoring-tab-overview");
+    act(() => view.querySelector<HTMLButtonElement>('[role="tab"][id="monitoring-tab-matching"]')!.click());
+    expect(view.querySelector('[role="tabpanel"]')?.id).toBe("monitoring-tabpanel-matching");
+    expect(view.querySelector('[role="tabpanel"]')?.getAttribute("aria-labelledby")).toBe("monitoring-tab-matching");
+  });
+
   it("connects the Batches tab to the legacy batch directory", async () => {
     const client = api();
     const view = await mount(client);

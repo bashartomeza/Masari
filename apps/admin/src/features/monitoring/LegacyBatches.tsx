@@ -13,7 +13,10 @@ const parcelStatuses: ParcelStatus[] = ["pending", "batched", "assigned", "picke
 
 function errorStatus(error: unknown) { return (error as ApiError | undefined)?.status; }
 function isTerminal(error: unknown) { return errorStatus(error) === 401 || errorStatus(error) === 403; }
-function utcInput(value: string) { return new Date(`${value}:00.000Z`).toISOString(); }
+export function utcInput(value: string) {
+  const parsed = new Date(`${value}:00.000Z`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+}
 
 export function LegacyBatches({ api, token }: { api: ApiClient; token: string }) {
   const { direction, t, status: localizedStatus, dateTime, number } = useLocale();
@@ -175,7 +178,10 @@ export function LegacyBatches({ api, token }: { api: ApiClient; token: string })
   }
   function applyRange() {
     if (!fromDraft || !untilDraft) { setValidation(t("monitoringSelectBothDates")); return; }
-    const range = { from: utcInput(fromDraft), until: utcInput(untilDraft) };
+    const from = utcInput(fromDraft);
+    const until = utcInput(untilDraft);
+    if (!from || !until) { setValidation(t("monitoringRangeValidation")); return; }
+    const range = { from, until };
     setValidation(null);
     setExplicitRange(range);
     load(queryFor(1, false, { range }));

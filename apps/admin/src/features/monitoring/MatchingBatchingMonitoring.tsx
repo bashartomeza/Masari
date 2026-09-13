@@ -129,13 +129,13 @@ export function MatchingBatchingMonitoring({ api, token }: { api: ApiClient; tok
       </header>
       <div className="monitoring-tabs" role="tablist" aria-label={t("monitoringSections")}>
         {tabs.map((tab, index) => (
-          <button key={tab} type="button" role="tab" aria-selected={activeTab === tab} tabIndex={activeTab === tab ? 0 : -1}
+          <button key={tab} type="button" role="tab" id={`monitoring-tab-${tab}`} aria-controls={`monitoring-tabpanel-${tab}`} aria-selected={activeTab === tab} tabIndex={activeTab === tab ? 0 : -1}
             onClick={() => setActiveTab(tab)} onKeyDown={(event) => moveTab(event, index)}>
             {t(tab === "overview" ? "monitoringTabOverview" : tab === "matching" ? "monitoringTabMatching" : "monitoringTabBatches")}
           </button>
         ))}
       </div>
-      <div role="tabpanel">
+      <div role="tabpanel" id={`monitoring-tabpanel-${activeTab}`} aria-labelledby={`monitoring-tab-${activeTab}`}>
         {activeTab === "overview" && <OverviewPanel api={api} token={token} />}
         {activeTab === "matching" && <MatchingResults api={api} token={token} />}
         {activeTab === "batches" && <LegacyBatches api={api} token={token} />}

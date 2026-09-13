@@ -34,13 +34,15 @@ describe("monitoring integration disposable target guard", () => {
 
   it("never echoes URL credentials or malformed input in errors", () => {
     for (const url of ["mysql://secret-user:secret-password@localhost/masari", "secret-password malformed"]) {
+      let thrown: unknown;
       try {
         assertMonitoringIntegrationTarget("test", url, "card7_ci");
-        expect.fail("unsafe URL accepted");
       } catch (error) {
-        expect(String(error)).not.toContain("secret");
-        expect(String(error)).not.toContain(url);
+        thrown = error;
       }
+      expect(thrown).toBeInstanceOf(Error);
+      expect(String(thrown)).not.toContain("secret");
+      expect(String(thrown)).not.toContain(url);
     }
   });
 });
