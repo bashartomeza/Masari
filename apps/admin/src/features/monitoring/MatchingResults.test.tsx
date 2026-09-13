@@ -72,7 +72,7 @@ afterEach(() => {
 describe("MatchingResults", () => {
   it("rejects invalid datetime input without throwing", () => {
     expect(utcInput("not-a-date")).toBeNull();
-    expect(utcInput("2026-09-02T00:00")).toBe("2026-09-02T00:00:00.000Z");
+    expect(utcInput("2026-09-02T00:00")).toBe(new Date("2026-09-02T00:00").toISOString());
   });
 
   it("loads without client dates and renders safe combined-demand table fields", async () => {
@@ -119,7 +119,7 @@ describe("MatchingResults", () => {
     act(() => view.querySelector<HTMLButtonElement>('[data-testid="apply-range"]')!.click());
     await act(async () => undefined);
     expect(client.monitoringMatches).toHaveBeenLastCalledWith("token", expect.objectContaining({
-      page: 1, from: "2026-09-02T00:00:00.000Z", until: "2026-09-03T00:00:00.000Z"
+      page: 1, from: new Date("2026-09-02T00:00").toISOString(), until: new Date("2026-09-03T00:00").toISOString()
     }));
   });
 
@@ -139,7 +139,7 @@ describe("MatchingResults", () => {
     await act(async () => root!.render(<LocaleProvider storage={{ getItem: () => "ar", setItem: () => undefined }}><MatchingResults api={localeRebuiltApi} token="token" /></LocaleProvider>));
     expect(localeRebuiltApi.monitoringMatches).toHaveBeenCalledWith("token", {
       page: 1, limit: 25, status: "accepted", demand_kind: "combined", search: "match_1",
-      from: "2026-09-02T00:00:00.000Z", until: "2026-09-03T00:00:00.000Z"
+      from: new Date("2026-09-02T00:00").toISOString(), until: new Date("2026-09-03T00:00").toISOString()
     });
     expect(view.querySelector<HTMLSelectElement>('[name="status"]')!.value).toBe("accepted");
 

@@ -88,7 +88,7 @@ afterEach(() => {
 describe("LegacyBatches", () => {
   it("rejects invalid datetime input without throwing", () => {
     expect(utcInput("not-a-date")).toBeNull();
-    expect(utcInput("2026-09-02T00:00")).toBe("2026-09-02T00:00:00.000Z");
+    expect(utcInput("2026-09-02T00:00")).toBe(new Date("2026-09-02T00:00").toISOString());
   });
 
   it("renders only safe directory fields and keeps batch and order statuses distinct", async () => {
@@ -148,7 +148,7 @@ describe("LegacyBatches", () => {
     act(() => view.querySelector<HTMLButtonElement>('[data-testid="batches-apply-range"]')!.click());
     await act(async () => undefined);
     expect(client.monitoringBatches).toHaveBeenLastCalledWith("token", expect.objectContaining({
-      page: 1, from: "2026-09-02T00:00:00.000Z", until: "2026-09-03T00:00:00.000Z"
+      page: 1, from: new Date("2026-09-02T00:00").toISOString(), until: new Date("2026-09-03T00:00").toISOString()
     }));
     expect(view.querySelector(".legacy-batches")?.getAttribute("dir")).toBe("rtl");
   });

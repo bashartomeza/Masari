@@ -14,7 +14,7 @@ const parcelStatuses: ParcelStatus[] = ["pending", "batched", "assigned", "picke
 function errorStatus(error: unknown) { return (error as ApiError | undefined)?.status; }
 function isTerminal(error: unknown) { return errorStatus(error) === 401 || errorStatus(error) === 403; }
 export function utcInput(value: string) {
-  const parsed = new Date(`${value}:00.000Z`);
+  const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
 }
 
