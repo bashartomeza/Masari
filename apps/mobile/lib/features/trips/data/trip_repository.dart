@@ -4,9 +4,7 @@ import '../../auth/data/authenticated_api_client.dart';
 import 'trip_models.dart';
 
 final tripRepositoryProvider = Provider<TripRepository>((ref) {
-  return TripRepository(
-    apiClient: ref.watch(authenticatedApiClientProvider),
-  );
+  return TripRepository(apiClient: ref.watch(authenticatedApiClientProvider));
 });
 
 class TripRepository {
@@ -31,11 +29,7 @@ class TripRepository {
   Future<PassengerTrip> tripDetail(String id) async {
     final json = await apiClient.getJson('/trips/$id');
 
-    print('TRIP DETAIL JSON: $json');
-
-    return PassengerTrip.fromJson(
-      json['trip'] as Map<String, dynamic>,
-    );
+    return PassengerTrip.fromJson(json['trip'] as Map<String, dynamic>);
   }
 
   Future<TripLocation?> latestLocation(String id) async {
@@ -46,8 +40,6 @@ class TripRepository {
       return null;
     }
 
-    return TripLocation.fromJson(
-      location as Map<String, dynamic>,
-    );
+    return TripLocation.fromJson(location as Map<String, dynamic>);
   }
 }

@@ -130,35 +130,95 @@ class AppTheme {
 
   static const textTheme = TextTheme(
     // display-l 40/52, SemiBold
-    displayLarge: TextStyle(fontSize: 40, fontWeight: FontWeight.w600, height: 52 / 40),
+    displayLarge: TextStyle(
+      fontSize: 40,
+      fontWeight: FontWeight.w600,
+      height: 52 / 40,
+    ),
     // display-m 34/46, SemiBold
-    displayMedium: TextStyle(fontSize: 34, fontWeight: FontWeight.w600, height: 46 / 34),
+    displayMedium: TextStyle(
+      fontSize: 34,
+      fontWeight: FontWeight.w600,
+      height: 46 / 34,
+    ),
     // display-s 28/40, SemiBold
-    displaySmall: TextStyle(fontSize: 28, fontWeight: FontWeight.w600, height: 40 / 28),
+    displaySmall: TextStyle(
+      fontSize: 28,
+      fontWeight: FontWeight.w600,
+      height: 40 / 28,
+    ),
     // headline-l 24/34, SemiBold
-    headlineLarge: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, height: 34 / 24),
+    headlineLarge: TextStyle(
+      fontSize: 24,
+      fontWeight: FontWeight.w600,
+      height: 34 / 24,
+    ),
     // headline-m 20/30, SemiBold
-    headlineMedium: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, height: 30 / 20),
+    headlineMedium: TextStyle(
+      fontSize: 20,
+      fontWeight: FontWeight.w600,
+      height: 30 / 20,
+    ),
     // headline-s 18/28, Medium
-    headlineSmall: TextStyle(fontSize: 18, fontWeight: FontWeight.w500, height: 28 / 18),
+    headlineSmall: TextStyle(
+      fontSize: 18,
+      fontWeight: FontWeight.w500,
+      height: 28 / 18,
+    ),
     // title-l 17/26, Medium
-    titleLarge: TextStyle(fontSize: 17, fontWeight: FontWeight.w500, height: 26 / 17),
+    titleLarge: TextStyle(
+      fontSize: 17,
+      fontWeight: FontWeight.w500,
+      height: 26 / 17,
+    ),
     // title-m 15/24, Medium
-    titleMedium: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, height: 24 / 15),
+    titleMedium: TextStyle(
+      fontSize: 15,
+      fontWeight: FontWeight.w500,
+      height: 24 / 15,
+    ),
     // title-s 14/22, Medium
-    titleSmall: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, height: 22 / 14),
+    titleSmall: TextStyle(
+      fontSize: 14,
+      fontWeight: FontWeight.w500,
+      height: 22 / 14,
+    ),
     // body-l 16/26, Regular
-    bodyLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w400, height: 26 / 16),
+    bodyLarge: TextStyle(
+      fontSize: 16,
+      fontWeight: FontWeight.w400,
+      height: 26 / 16,
+    ),
     // body-m 14/24, Regular — the most-used slot
-    bodyMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.w400, height: 24 / 14),
+    bodyMedium: TextStyle(
+      fontSize: 14,
+      fontWeight: FontWeight.w400,
+      height: 24 / 14,
+    ),
     // body-s 13/22, Regular
-    bodySmall: TextStyle(fontSize: 13, fontWeight: FontWeight.w400, height: 22 / 13),
+    bodySmall: TextStyle(
+      fontSize: 13,
+      fontWeight: FontWeight.w400,
+      height: 22 / 13,
+    ),
     // label-l 15/22, Bold — button labels
-    labelLarge: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, height: 22 / 15),
+    labelLarge: TextStyle(
+      fontSize: 15,
+      fontWeight: FontWeight.w700,
+      height: 22 / 15,
+    ),
     // label-m 13/20, Medium — chips
-    labelMedium: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, height: 20 / 13),
+    labelMedium: TextStyle(
+      fontSize: 13,
+      fontWeight: FontWeight.w500,
+      height: 20 / 13,
+    ),
     // label-s 11/18, Medium
-    labelSmall: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, height: 18 / 11),
+    labelSmall: TextStyle(
+      fontSize: 11,
+      fontWeight: FontWeight.w500,
+      height: 18 / 11,
+    ),
   );
 
   static ThemeData get light {
@@ -326,7 +386,9 @@ class AppTheme {
         backgroundColor: surfaceContainerHighest,
         elevation: AppTokens.elevationOverlay,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(AppTokens.radiusMedium)),
+          borderRadius: BorderRadius.all(
+            Radius.circular(AppTokens.radiusMedium),
+          ),
         ),
       ),
 
@@ -343,9 +405,7 @@ class AppTheme {
         iconTheme: WidgetStateProperty.resolveWith(
           (states) => IconThemeData(
             size: AppTokens.navIconSize,
-            color: states.contains(WidgetState.selected)
-                ? primary
-                : outline,
+            color: states.contains(WidgetState.selected) ? primary : outline,
           ),
         ),
         labelTextStyle: WidgetStateProperty.resolveWith(

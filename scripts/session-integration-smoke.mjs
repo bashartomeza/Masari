@@ -11,8 +11,8 @@ const apiBaseUrl = `${apiOrigin}/api/v1`;
 const databaseUrl = process.env.DATABASE_URL;
 const databaseName = databaseUrl ? new URL(databaseUrl).pathname.slice(1) : "";
 const resetKey = process.env.DEMO_RESET_KEY;
-const passengerCredentials = ["+970590000001", process.env.DEMO_PASSENGER_PASSWORD];
-const adminCredentials = ["+970590000005", process.env.DEMO_ADMIN_PASSWORD];
+const passengerCredentials = ["demo.passenger@masari.app", process.env.DEMO_PASSENGER_PASSWORD];
+const adminCredentials = ["demo.admin@masari.app", process.env.DEMO_ADMIN_PASSWORD];
 let mysqlDefaults;
 
 function assert(condition, message) {
@@ -93,10 +93,10 @@ async function reset() {
   });
 }
 
-async function login([phone, password], deviceName) {
+async function login([email, password], deviceName) {
   const { data } = await call("/auth/login", {
     method: "POST",
-    body: { phone, password, device_name: deviceName }
+    body: { email, password, device_name: deviceName }
   });
   return data;
 }
@@ -203,7 +203,7 @@ async function run() {
   await expectRejected("/me", target.token, [403]);
   await call("/auth/login", {
     method: "POST",
-    body: { phone: passengerCredentials[0], password: passengerCredentials[1] },
+    body: { email: passengerCredentials[0], password: passengerCredentials[1] },
     expected: [403]
   });
   await call(`/admin/users/${target.user.id}/status`, {
@@ -218,12 +218,13 @@ async function run() {
   await reset();
   const concurrencyAdmin = await login(adminCredentials, "integration-admin-one");
   const secondAdminId = "integration_admin_2";
+  const secondAdminEmail = "integration.admin.2@masari.app";
   const secondAdminPhone = "+970590000006";
   const secondAdminHash = await bcrypt.hash(adminCredentials[1], 4);
   mysql(`INSERT INTO users
-    (id, name, phone, password_hash, role, account_status, security_version, status_updated_at, demo_account, created_at)
-    VALUES ('${secondAdminId}', 'Integration Admin 2', '${secondAdminPhone}', '${secondAdminHash}', 'admin', 'active', 1, CURRENT_TIMESTAMP(3), TRUE, CURRENT_TIMESTAMP(3))`);
-  const secondAdmin = await login([secondAdminPhone, adminCredentials[1]], "integration-admin-two");
+    (id, name, phone, email, password_hash, role, account_status, security_version, status_updated_at, demo_account, created_at)
+    VALUES ('${secondAdminId}', 'Integration Admin 2', '${secondAdminPhone}', '${secondAdminEmail}', '${secondAdminHash}', 'admin', 'active', 1, CURRENT_TIMESTAMP(3), TRUE, CURRENT_TIMESTAMP(3))`);
+  const secondAdmin = await login([secondAdminEmail, adminCredentials[1]], "integration-admin-two");
   const adminStatusRace = await Promise.all([
     call(`/admin/users/${secondAdminId}/status`, {
       token: concurrencyAdmin.token,
@@ -255,7 +256,7 @@ async function run() {
   const loginStatusRace = await Promise.all([
     call("/auth/login", {
       method: "POST",
-      body: { phone: passengerCredentials[0], password: passengerCredentials[1], device_name: "integration-login-race" },
+      body: { email: passengerCredentials[0], password: passengerCredentials[1], device_name: "integration-login-race" },
       expected: [200, 403]
     }),
     call(`/admin/users/${safeDatabaseId(existingPassenger.user.id, "login-race passenger")}/status`, {

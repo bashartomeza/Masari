@@ -23,11 +23,11 @@ function assertResetSafeDatabase() {
 }
 
 const accounts = {
-  passenger: ["+970590000001", process.env.DEMO_PASSENGER_PASSWORD],
-  driver1: ["+970590000002", process.env.DEMO_DRIVER_PASSWORD],
-  driver2: ["+970590000003", process.env.DEMO_DRIVER_PASSWORD],
-  merchant: ["+970590000004", process.env.DEMO_MERCHANT_PASSWORD],
-  admin: ["+970590000005", process.env.DEMO_ADMIN_PASSWORD]
+  passenger: ["demo.passenger@masari.app", process.env.DEMO_PASSENGER_PASSWORD],
+  driver1: ["demo.driver@masari.app", process.env.DEMO_DRIVER_PASSWORD],
+  driver2: ["demo.driver2@masari.app", process.env.DEMO_DRIVER_PASSWORD],
+  merchant: ["demo.merchant@masari.app", process.env.DEMO_MERCHANT_PASSWORD],
+  admin: ["demo.admin@masari.app", process.env.DEMO_ADMIN_PASSWORD]
 };
 
 function argument(name) {
@@ -57,11 +57,11 @@ async function request(path, { token, method = "GET", body, headers = {}, expect
 }
 
 async function login(role) {
-  const [phone, password] = accounts[role];
+  const [email, password] = accounts[role];
   return (
     await request("/auth/login", {
       method: "POST",
-      body: { phone, password }
+      body: { email, password }
     })
   ).token;
 }
@@ -83,7 +83,7 @@ async function primaryStory() {
   await request("/demo/reset", { method: "POST", body: {}, expected: 403 });
   await request("/auth/login", {
     method: "POST",
-    body: { phone: accounts.passenger[0], password: "invalid-demo-password" },
+    body: { email: accounts.passenger[0], password: "invalid-demo-password" },
     expected: 401
   });
 

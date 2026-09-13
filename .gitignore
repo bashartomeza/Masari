@@ -11,5 +11,6 @@ backups/
 *.sql.gz
 *.sha256
 apps/mobile/build/
+apps/mobile/android/build/
 apps/admin/dist/
 .staging-data/

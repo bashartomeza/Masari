@@ -5,8 +5,8 @@ import '../domain/checkpoint_models.dart';
 
 final checkpointsProvider =
     AsyncNotifierProvider<CheckpointsNotifier, CheckpointSnapshot>(
-  CheckpointsNotifier.new,
-);
+      CheckpointsNotifier.new,
+    );
 
 class CheckpointsNotifier extends AsyncNotifier<CheckpointSnapshot> {
   @override

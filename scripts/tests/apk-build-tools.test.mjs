@@ -6,6 +6,8 @@ import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
 
+const scanner = fileURLToPath(new URL("../scan-production-artifacts.mjs", import.meta.url));
+
 test("compiled APK manifests enforce location policy and retain artifact rules", { skip: process.env.MASARI_TEST_ANDROID_TOOLS !== "true" }, () => {
   const sdk = process.env.ANDROID_SDK_ROOT || process.env.ANDROID_HOME;
   assert.ok(sdk, "Android SDK is required for compiled-manifest tests");
@@ -15,7 +17,6 @@ test("compiled APK manifests enforce location policy and retain artifact rules",
   const aapt = process.env.AAPT || latest(join(sdk, "build-tools"), process.platform === "win32" ? "aapt.exe" : "aapt");
   const androidJar = latest(join(sdk, "platforms"), "android.jar");
   assert.ok(aapt && androidJar, "Installed Android build-tools and platform are required");
-  const scanner = fileURLToPath(new URL("../scan-production-artifacts.mjs", import.meta.url));
   const directory = mkdtempSync(join(tmpdir(), "masari apk fixture "));
   try {
     mkdirSync(join(directory, "assets"));
@@ -44,6 +45,20 @@ test("compiled APK manifests enforce location policy and retain artifact rules",
     const broken = join(directory, "broken.apk");
     writeFileSync(broken, "not an APK");
     assert.notEqual(spawnSync(process.execPath, [scanner, "--apk", broken], { env: { ...process.env, AAPT: aapt } }).status, 0);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("artifact scanner checks large binary payloads without unbounded decoding", () => {
+  const directory = mkdtempSync(join(tmpdir(), "masari artifact fixture "));
+  try {
+    const payload = Buffer.alloc(1024 * 1024 + 512, 0x41);
+    payload.write("ROUTE_PROVIDER_SECRET", 1024 * 1024 - 8, "utf8");
+    writeFileSync(join(directory, "native.so"), payload);
+    const scan = spawnSync(process.execPath, [scanner, "--admin-dir", directory], { encoding: "utf8" });
+    assert.equal(scan.status, 1);
+    assert.match(scan.stderr, /route provider server secret/);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

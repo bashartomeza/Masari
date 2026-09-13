@@ -34,22 +34,16 @@ class PassengerTrip {
     final routeLabel = route == null
         ? ''
         : '${route['origin_label'] as String} -> '
-            '${route['destination_label'] as String}';
+              '${route['destination_label'] as String}';
 
     return PassengerTrip(
       id: _string(json, 'id'),
       status: _string(json, 'status'),
-      createdAt: DateTime.parse(
-        _string(json, 'created_at'),
-      ).toLocal(),
+      createdAt: DateTime.parse(_string(json, 'created_at')).toLocal(),
       routeLabel: routeLabel,
       passengerRequestId: json['passenger_request_id'] as String?,
-      originLat: route == null
-          ? null
-          : _nullableDouble(route['origin_lat']),
-      originLng: route == null
-          ? null
-          : _nullableDouble(route['origin_lng']),
+      originLat: route == null ? null : _nullableDouble(route['origin_lat']),
+      originLng: route == null ? null : _nullableDouble(route['origin_lng']),
       destinationLat: route == null
           ? null
           : _nullableDouble(route['destination_lat']),
@@ -81,9 +75,7 @@ class TripLocation {
       lng: _double(json, 'lng'),
       source: _string(json, 'source'),
       sequence: _int(json, 'sequence'),
-      recordedAt: DateTime.parse(
-        _string(json, 'recorded_at'),
-      ).toLocal(),
+      recordedAt: DateTime.parse(_string(json, 'recorded_at')).toLocal(),
     );
   }
 }
