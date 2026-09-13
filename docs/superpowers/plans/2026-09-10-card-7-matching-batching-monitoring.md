@@ -327,4 +327,3 @@ Status: internally consistent and self-reviewed; READY_FOR_IMPLEMENTATION upon a
 
 ## Execution amendment — 2026-09-11
 User authorized implementation, final reviews, branch push and one draft PR; do not merge or begin Card 8. This supersedes planning-only stop statements above. Active batch metric excludes proposed even though it exists in the enum: verify exact four-state sum in tests. CurrentOrderParcelsPage is the response for both service.parcels and client.monitoringParcels; tests/fixtures must include contents_semantics and merchant_order_id. Admin copy says Current eligible order contents and disclaims historical membership. Cursor is unsupported under approved offset pagination and must fail strict unknown-key validation; test malformed cursor inputs. Self-review confirms these amendments supersede the earlier metric and parcel-page types consistently.
-

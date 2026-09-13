@@ -139,4 +139,3 @@ Self-review: every metric has a stored-data definition; all six endpoints use th
 
 ## Execution amendment — 2026-09-11
 Implementation is now authorized. Active batches excludes proposed. Parcel responses use CurrentOrderParcelsPage: Page<ParcelRow> whose data additionally has contents_semantics='current_eligible_order_contents' and merchant_order_id:string. This identifies current eligible order contents, not guaranteed historical batch membership; assert metadata in API/integration tests and matching Admin copy. Offset pagination remains the approved contract; cursor is unsupported and strictly rejected as an unknown query key, including malformed cursors. Stable sorting remains created_at DESC/id DESC or parcel id ASC.
-
