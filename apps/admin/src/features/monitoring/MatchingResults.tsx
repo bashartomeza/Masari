@@ -3,11 +3,15 @@ import type { ApiClient, ApiError } from "../../api";
 import { useLocale } from "../../i18n/LocaleContext";
 import { Button, Card, DataTable, EmptyState, Notice, StatusBadge, type Column } from "../../ui";
 import { RouteDialog } from "../routes/RouteDialog";
-import type { DemandKind, MatchQueryInput, MatchRow, MatchStatus, Page } from "./contracts";
+import type { DemandKind, DriverRouteStatus, MatchQueryInput, MatchRow, MatchStatus, MerchantOrderStatus, Page, ParcelBatchStatus, RequestStatus } from "./contracts";
 import { createObservationGate, type ObservationState } from "./monitoringState";
 
 const statuses: MatchStatus[] = ["proposed", "sent_to_driver", "accepted", "rejected", "expired", "invalidated"];
 const kinds: DemandKind[] = ["passenger_only", "merchant_only", "combined"];
+const routeStatuses: DriverRouteStatus[] = ["inactive", "active", "assigned", "on_trip", "completed"];
+const requestStatuses: RequestStatus[] = ["draft", "pending", "matched", "accepted", "picked_up", "in_transit", "delivered", "cancelled"];
+const orderStatuses: MerchantOrderStatus[] = ["draft", "submitted", "batched", "assigned", "in_transit", "completed"];
+const batchStatuses: ParcelBatchStatus[] = ["created", "proposed", "assigned", "picked_up", "in_transit", "delivered"];
 
 function errorStatus(error: unknown) { return (error as ApiError | undefined)?.status; }
 function isTerminal(error: unknown) { return errorStatus(error) === 401 || errorStatus(error) === 403; }
@@ -28,6 +32,9 @@ export function MatchingResults({ api, token }: { api: ApiClient; token: string 
   const [untilDraft, setUntilDraft] = useState("");
   const [explicitRange, setExplicitRange] = useState<{ from: string; until: string } | null>(null);
   const [validation, setValidation] = useState<string | null>(null);
+  const activeQuery = useRef<MatchQueryInput>({ page: 1, limit: 25 });
+  const activeQueryIdentity = useRef(JSON.stringify(activeQuery.current));
+  const previousToken = useRef<string | null>(null);
 
   function queryFor(page: number, echoRange = false, overrides: Partial<{ status: MatchStatus | ""; kind: DemandKind | ""; search: string; range: typeof explicitRange }> = {}): MatchQueryInput {
     const nextStatus = overrides.status ?? statusFilter;
@@ -43,17 +50,35 @@ export function MatchingResults({ api, token }: { api: ApiClient; token: string 
     return query;
   }
 
-  function load(query: MatchQueryInput) {
+  function messageFor(error: unknown) {
+    if (errorStatus(error) === 400 && error instanceof Error && error.message === "validation_error") return t("monitoringRangeValidation");
+    return error instanceof Error ? error.message : t("monitoringLoadFailed");
+  }
+
+  function clearTerminal(error: unknown) {
+    listGate.current.invalidate();
+    detailGate.current.invalidate();
+    setSelectedId(null);
+    setDetail({ last: null, loading: false, error: null });
+    setList({ last: null, loading: false, error: messageFor(error) });
+  }
+
+  function load(query: MatchQueryInput, retainSameQuery = false) {
     const generation = listGate.current.begin();
-    setList((previous) => ({ ...previous, loading: true, error: null }));
+    const identity = JSON.stringify(query);
+    const retain = retainSameQuery && identity === activeQueryIdentity.current;
+    activeQuery.current = query;
+    activeQueryIdentity.current = identity;
+    setList((previous) => ({ last: retain ? previous.last : null, loading: true, error: null }));
     void api.monitoringMatches(token, query).then((response) => {
       if (listGate.current.isCurrent(generation)) setList({ last: response, loading: false, error: null });
     }).catch((error: unknown) => {
       if (!listGate.current.isCurrent(generation)) return;
+      if (isTerminal(error)) { clearTerminal(error); return; }
       setList((previous) => ({
-        last: isTerminal(error) ? null : previous.last,
+        last: retain ? previous.last : null,
         loading: false,
-        error: error instanceof Error ? error.message : t("monitoringLoadFailed")
+        error: messageFor(error)
       }));
     });
   }
@@ -72,7 +97,8 @@ export function MatchingResults({ api, token }: { api: ApiClient; token: string 
       if (detailGate.current.isCurrent(generation)) setDetail({ last: response, loading: false, error: null });
     }).catch((error: unknown) => {
       if (!detailGate.current.isCurrent(generation)) return;
-      if (errorStatus(error) === 404 || isTerminal(error)) {
+      if (isTerminal(error)) { clearTerminal(error); return; }
+      if (errorStatus(error) === 404) {
         setSelectedId(null);
         setDetail({ last: null, loading: false, error: null });
         return;
@@ -80,7 +106,7 @@ export function MatchingResults({ api, token }: { api: ApiClient; token: string 
       setDetail((previous) => ({
         last: previous.last?.data.id === id ? previous.last : null,
         loading: false,
-        error: error instanceof Error ? error.message : t("monitoringLoadFailed")
+        error: messageFor(error)
       }));
     });
   }
@@ -90,8 +116,17 @@ export function MatchingResults({ api, token }: { api: ApiClient; token: string 
     detailGate.current.invalidate();
     setSelectedId(null);
     setDetail({ last: null, loading: false, error: null });
-    setList({ last: null, loading: true, error: null });
-    load({ page: 1, limit: 25 });
+    if (previousToken.current !== null && previousToken.current === token) {
+      load(activeQuery.current, true);
+    } else {
+      setStatusFilter(""); setKindFilter(""); setSearchDraft(""); setSearch("");
+      setFromDraft(""); setUntilDraft(""); setExplicitRange(null); setValidation(null);
+      activeQuery.current = { page: 1, limit: 25 };
+      activeQueryIdentity.current = JSON.stringify(activeQuery.current);
+      setList({ last: null, loading: true, error: null });
+      load(activeQuery.current);
+    }
+    previousToken.current = token;
     return () => { listGate.current.invalidate(); detailGate.current.invalidate(); };
   }, [api, token]);
 
@@ -121,13 +156,17 @@ export function MatchingResults({ api, token }: { api: ApiClient; token: string 
     load(queryFor(1, false, { range: null }));
   }
   function refresh() {
-    load(queryFor(1, false));
+    load(queryFor(1, false), true);
   }
 
   const data = list.last?.data;
   const currentPage = data?.page ?? 1;
   const recognizedStatus = (value: string) => statuses.includes(value as MatchStatus);
   const statusText = (value: string) => recognizedStatus(value) ? localizedStatus(value) : t("monitoringUnknown");
+  const entityStatus = (value: string, allowed: readonly string[]) => {
+    const recognized = allowed.includes(value);
+    return <StatusBadge status={recognized ? value : undefined}>{recognized ? localizedStatus(value) : t("monitoringUnknown")}</StatusBadge>;
+  };
   const kindText = (value: DemandKind) => t(value === "passenger_only" ? "monitoringKindPassenger" : value === "merchant_only" ? "monitoringKindMerchant" : "monitoringKindCombined");
   const columns: Column<MatchRow>[] = [
     { key: "id", header: t("monitoringMatchId"), cell: (row) => <span className="technical-value">{row.id}</span> },
@@ -143,7 +182,7 @@ export function MatchingResults({ api, token }: { api: ApiClient; token: string 
   return (
     <section className="matching-results" dir={direction}>
       <div className="monitoring-toolbar">
-        <div><h2>{t("monitoringMatchingResults")}</h2>{list.last && <p className="monitoring-observed">{t("monitoringObserved", { time: "" })}<time dateTime={list.last.observed_at}>{dateTime(list.last.observed_at)}</time></p>}</div>
+        <div><h2>{t("monitoringMatchingResults")}</h2>{list.last && <><p className="monitoring-observed">{t("monitoringObserved", { time: "" })}<time dateTime={list.last.observed_at}>{dateTime(list.last.observed_at)}</time></p>{data?.range && <p data-testid="matches-range" className="monitoring-range technical-value">{dateTime(data.range.from)} – {dateTime(data.range.until)}</p>}</>}</div>
         <Button data-testid="matches-refresh" variant="outline" icon="refresh" onClick={refresh}>{list.loading ? t("monitoringRefreshing") : t("monitoringRefresh")}</Button>
       </div>
       <Card>
@@ -163,18 +202,19 @@ export function MatchingResults({ api, token }: { api: ApiClient; token: string 
       {!data && !list.loading && <EmptyState title={t("monitoringMatchesUnavailable")} description={list.error ?? t("monitoringLoadFailed")} />}
       {data && <Card padded={false} className="monitoring-table-card"><DataTable columns={columns} rows={data.items} rowKey={(row) => row.id} empty={<EmptyState compact title={t("monitoringNoMatches")} description={t("monitoringNoMatchesDescription")} />} /></Card>}
       {data && <div className="monitoring-pagination"><span>{t("pageOf", { page: number(currentPage), pages: number(Math.max(1, Math.ceil(data.total / data.limit))) })}</span><div className="button-row"><Button variant="outline" disabled={currentPage <= 1 || list.loading} onClick={() => load(queryFor(currentPage - 1, true))}>{t("previousPage")}</Button><Button data-testid="matches-next" variant="outline" disabled={!data.has_more || currentPage >= 1000 || list.loading} onClick={() => load(queryFor(currentPage + 1, true))}>{t("nextPage")}</Button></div>{currentPage >= 1000 && data.has_more && <p className="monitoring-page-cap">{t("monitoringPageCap")}</p>}</div>}
+      {data && <p className="muted">{t("monitoringOffsetObservationNote")}</p>}
       <RouteDialog open={Boolean(selectedId)} title={t("monitoringMatchDetail")} description={selectedId ?? undefined} dir={direction} onClose={closeDetail}>
         {detail.loading && !selected && <div role="status">{t("monitoringLoading")}</div>}
         {detail.error && <Notice kind="error">{selected ? `${t("monitoringStaleData")}: ${detail.error}` : detail.error}</Notice>}
         {selected && <div className="monitoring-detail">
           <div><span>{t("monitoringMatchId")}</span><strong className="technical-value">{selected.id}</strong></div>
-          <div><span>{t("monitoringCurrentStatus")}</span><StatusBadge status={recognizedStatus(selected.status) ? selected.status : undefined}>{statusText(selected.status)}</StatusBadge></div>
+          <div><span>{t("monitoringCurrentStatus")}</span>{entityStatus(selected.status, statuses)}</div>
           <div><span>{t("monitoringScore")}</span><strong className="technical-value">{selected.score}</strong></div>
           <div><span>{t("monitoringMethod")}</span><strong>{selected.method === "masari_route_score" ? t("monitoringMasariRouteScore") : t("monitoringUnknown")}</strong></div>
-          <div><span>{t("monitoringSelectedRoute")}</span><strong className="technical-value">{selected.driver_route.id}</strong></div>
-          {selected.passenger_request && <section><h3>{t("monitoringPassengerRequest")}</h3><p className="technical-value">{selected.passenger_request.id}</p><p>{t("monitoringCurrentStatus")}: {localizedStatus(selected.passenger_request.status)}</p><p>{t("monitoringRequestedPassengers")}: {number(selected.passenger_request.passenger_count)}</p></section>}
-          {selected.merchant_order && <section><h3>{t("monitoringMerchantOrder")}</h3><p className="technical-value">{selected.merchant_order.id}</p><p>{t("monitoringCurrentStatus")}: {localizedStatus(selected.merchant_order.status)}</p><p>{t("monitoringCurrentOrderParcels")}: {number(selected.merchant_order.parcel_count)}</p></section>}
-          {selected.parcel_batch && <div><span>{t("monitoringParcelBatch")}</span><strong className="technical-value">{selected.parcel_batch.id}</strong></div>}
+          <div><span>{t("monitoringSelectedRoute")}</span><strong className="technical-value">{selected.driver_route.id}</strong>{entityStatus(selected.driver_route.status, routeStatuses)}</div>
+          {selected.passenger_request && <section><h3>{t("monitoringPassengerRequest")}</h3><p className="technical-value">{selected.passenger_request.id}</p><p>{t("monitoringCurrentStatus")}: {entityStatus(selected.passenger_request.status, requestStatuses)}</p><p>{t("monitoringRequestedPassengers")}: {number(selected.passenger_request.passenger_count)}</p></section>}
+          {selected.merchant_order && <section><h3>{t("monitoringMerchantOrder")}</h3><p className="technical-value">{selected.merchant_order.id}</p><p>{t("monitoringCurrentStatus")}: {entityStatus(selected.merchant_order.status, orderStatuses)}</p><p>{t("monitoringCurrentOrderParcels")}: {number(selected.merchant_order.parcel_count)}</p></section>}
+          {selected.parcel_batch && <div><span>{t("monitoringParcelBatch")}</span><strong className="technical-value">{selected.parcel_batch.id}</strong>{entityStatus(selected.parcel_batch.status, batchStatuses)}</div>}
           <p className="monitoring-observed">{t("monitoringObserved", { time: dateTime(detail.last?.observed_at) })}</p>
           <Button data-testid="detail-refresh" variant="outline" icon="refresh" onClick={() => loadDetail(selected.id)}>{t("monitoringRefreshDetail")}</Button>
         </div>}

@@ -8,6 +8,8 @@ import { MatchingResults } from "./MatchingResults";
 
 type Tab = "overview" | "matching" | "batches";
 const tabs: Tab[] = ["overview", "matching", "batches"];
+const matchStatuses = ["proposed", "sent_to_driver", "accepted", "rejected", "expired", "invalidated"] as const;
+const batchStatuses = ["created", "proposed", "assigned", "picked_up", "in_transit", "delivered"] as const;
 
 function terminalStatus(error: unknown) {
   const status = (error as ApiError | undefined)?.status;
@@ -53,8 +55,8 @@ function OverviewPanel({ api, token }: { api: ApiClient; token: string }) {
     );
   }
 
-  const matchStatuses = Object.entries(data.match_results_by_status);
-  const batchStatuses = Object.entries(data.batches_by_status);
+  const matchEntries = Object.entries(data.match_results_by_status);
+  const batchEntries = Object.entries(data.batches_by_status);
   return (
     <div className="monitoring-overview">
       <div className="monitoring-toolbar">
@@ -76,14 +78,14 @@ function OverviewPanel({ api, token }: { api: ApiClient; token: string }) {
         <p className="muted">{t("monitoringMatchCohortDescription")}</p>
         <p className="monitoring-range technical-value">{dateTime(data.range.from)} – {dateTime(data.range.until)}</p>
         <div className="monitoring-status-grid">
-          {matchStatuses.map(([key, value]) => <div key={key}><StatusBadge status={key}>{status(key)}</StatusBadge><strong>{number(value)}</strong></div>)}
+          {matchEntries.map(([key, value]) => { const known = matchStatuses.includes(key as typeof matchStatuses[number]); return <div key={key}><StatusBadge status={known ? key : undefined}>{known ? status(key) : t("monitoringUnknown")}</StatusBadge><strong>{number(value)}</strong></div>; })}
         </div>
       </Card>
       <Card>
         <h2>{t("monitoringBatchCurrentStates")}</h2>
         <p className="muted">{t("monitoringBatchCurrentStatesDescription")}</p>
         <div className="monitoring-status-grid">
-          {batchStatuses.map(([key, value]) => <div key={key}><StatusBadge status={key}>{status(key)}</StatusBadge><strong>{number(value)}</strong></div>)}
+          {batchEntries.map(([key, value]) => { const known = batchStatuses.includes(key as typeof batchStatuses[number]); return <div key={key}><StatusBadge status={known ? key : undefined}>{known ? status(key) : t("monitoringUnknown")}</StatusBadge><strong>{number(value)}</strong></div>; })}
           <div><span>{t("monitoringActiveBatches")}</span><strong>{number(data.active_batches)}</strong></div>
           <div><span>{t("monitoringDeliveredBatches")}</span><strong>{number(data.batches_by_status.delivered)}</strong></div>
         </div>

@@ -118,6 +118,70 @@ describe("MatchingResults", () => {
     }));
   });
 
+  it("reloads the visible query when the API identity changes and resets everything for a new token", async () => {
+    const firstApi = api();
+    const view = await mount(firstApi);
+    change(view.querySelector<HTMLSelectElement>('[name="status"]')!, "accepted");
+    change(view.querySelector<HTMLSelectElement>('[name="demand_kind"]')!, "combined");
+    change(view.querySelector<HTMLInputElement>('[name="search"]')!, "match_1");
+    act(() => view.querySelector<HTMLFormElement>('[data-testid="match-filters"]')!.dispatchEvent(new SubmitEvent("submit", { bubbles: true, cancelable: true })));
+    change(view.querySelector<HTMLInputElement>('[name="from"]')!, "2026-09-02T00:00");
+    change(view.querySelector<HTMLInputElement>('[name="until"]')!, "2026-09-03T00:00");
+    act(() => view.querySelector<HTMLButtonElement>('[data-testid="apply-range"]')!.click());
+    await act(async () => undefined);
+
+    const localeRebuiltApi = api();
+    await act(async () => root!.render(<LocaleProvider storage={{ getItem: () => "ar", setItem: () => undefined }}><MatchingResults api={localeRebuiltApi} token="token" /></LocaleProvider>));
+    expect(localeRebuiltApi.monitoringMatches).toHaveBeenCalledWith("token", {
+      page: 1, limit: 25, status: "accepted", demand_kind: "combined", search: "match_1",
+      from: "2026-09-02T00:00:00.000Z", until: "2026-09-03T00:00:00.000Z"
+    });
+    expect(view.querySelector<HTMLSelectElement>('[name="status"]')!.value).toBe("accepted");
+
+    const nextSessionApi = api();
+    await act(async () => root!.render(<LocaleProvider storage={{ getItem: () => "ar", setItem: () => undefined }}><MatchingResults api={nextSessionApi} token="next-token" /></LocaleProvider>));
+    expect(nextSessionApi.monitoringMatches).toHaveBeenCalledWith("next-token", { page: 1, limit: 25 });
+    expect(view.querySelector<HTMLSelectElement>('[name="status"]')!.value).toBe("");
+    expect(view.querySelector<HTMLInputElement>('[name="search"]')!.value).toBe("");
+    expect(view.querySelector<HTMLInputElement>('[name="from"]')!.value).toBe("");
+  });
+
+  it("clears old page rows for a new query and never derives page three after its page-one failure", async () => {
+    const changed = deferred<Page<MatchRow>>();
+    const client = api({ monitoringMatches: vi.fn()
+      .mockResolvedValueOnce(page([combined], undefined, 1, true))
+      .mockResolvedValueOnce(page([{ ...combined, id: "old_page_2" }], undefined, 2, true))
+      .mockReturnValueOnce(changed.promise) });
+    const view = await mount(client);
+    act(() => view.querySelector<HTMLButtonElement>('[data-testid="matches-next"]')!.click());
+    await act(async () => undefined);
+    expect(view.textContent).toContain("old_page_2");
+    change(view.querySelector<HTMLSelectElement>('[name="status"]')!, "rejected");
+    expect(view.textContent).not.toContain("old_page_2");
+    expect(view.querySelector<HTMLButtonElement>('[data-testid="matches-next"]')).toBeNull();
+    await act(async () => changed.reject(new Error("unavailable")));
+    expect(view.textContent).toContain("Matching results unavailable");
+    expect(client.monitoringMatches).toHaveBeenCalledTimes(3);
+  });
+
+  it.each([
+    { locale: "en" as const, guidance: "Select both dates", maximum: "31 days" },
+    { locale: "ar" as const, guidance: "يجب تحديد التاريخين", maximum: "31 يوماً" }
+  ])("maps backend range validation to actionable $locale guidance without clearing inputs", async ({ locale, guidance, maximum }) => {
+    const validationError = Object.assign(new Error("validation_error"), { status: 400, details: { error: "validation_error" } }) as ApiError;
+    const client = api({ monitoringMatches: vi.fn().mockResolvedValueOnce(page()).mockRejectedValue(validationError) });
+    const view = await mount(client, locale);
+    change(view.querySelector<HTMLInputElement>('[name="from"]')!, "2026-09-04T00:00");
+    change(view.querySelector<HTMLInputElement>('[name="until"]')!, "2026-09-03T00:00");
+    act(() => view.querySelector<HTMLButtonElement>('[data-testid="apply-range"]')!.click());
+    await act(async () => undefined);
+    expect(view.textContent).toContain(guidance);
+    expect(view.textContent).toContain(maximum);
+    expect(view.textContent).not.toContain("validation_error");
+    expect(view.querySelector<HTMLInputElement>('[name="from"]')!.value).toBe("2026-09-04T00:00");
+    expect(view.querySelector<HTMLInputElement>('[name="until"]')!.value).toBe("2026-09-03T00:00");
+  });
+
   it("suppresses stale list responses and retains the successful observation after a failed refresh", async () => {
     const first = deferred<Page<MatchRow>>();
     const second = deferred<Page<MatchRow>>();
@@ -159,6 +223,25 @@ describe("MatchingResults", () => {
     await act(async () => undefined);
     expect(view.textContent).toContain("Matching results unavailable");
     expect(view.textContent).not.toContain("match_1");
+  });
+
+  it("clears both observations on forbidden and blocks a pending sibling response from restoring either", async () => {
+    const pendingList = deferred<Page<MatchRow>>();
+    const forbidden = Object.assign(new Error("forbidden"), { status: 403, details: { error: "forbidden" } }) as ApiError;
+    const client = api({
+      monitoringMatches: vi.fn().mockResolvedValueOnce(page()).mockReturnValueOnce(pendingList.promise),
+      monitoringMatch: vi.fn().mockResolvedValueOnce(detail()).mockRejectedValueOnce(forbidden)
+    });
+    const view = await mount(client);
+    act(() => view.querySelector<HTMLButtonElement>('[data-testid="open-match-match_1"]')!.click());
+    await act(async () => undefined);
+    act(() => view.querySelector<HTMLButtonElement>('[data-testid="matches-refresh"]')!.click());
+    act(() => view.querySelector<HTMLButtonElement>('[data-testid="detail-refresh"]')!.click());
+    await act(async () => undefined);
+    expect(view.querySelector('[role="dialog"]')).toBeNull();
+    expect(view.textContent).toContain("Matching results unavailable");
+    await act(async () => pendingList.resolve(page([{ ...combined, id: "must_not_return" }])));
+    expect(view.textContent).not.toContain("must_not_return");
   });
 
   it("opens fresh detail with both demand summaries and traps then restores keyboard focus", async () => {
@@ -212,5 +295,29 @@ describe("MatchingResults", () => {
     const view = await mount(api({ monitoringMatches: vi.fn().mockResolvedValue(page([future])) }));
     expect(view.textContent).toContain("Unknown");
     expect(view.querySelector(".badge--neutral")).toBeTruthy();
+  });
+
+  it("treats cross-entity status values as Unknown in every nested detail status", async () => {
+    const mismatched = {
+      ...combined,
+      status: "completed" as MatchRow["status"],
+      driver_route: { ...combined.driver_route, status: "delivered" as MatchRow["driver_route"]["status"] },
+      passenger_request: { ...combined.passenger_request!, status: "completed" as NonNullable<MatchRow["passenger_request"]>["status"] },
+      merchant_order: { ...combined.merchant_order!, status: "accepted" as NonNullable<MatchRow["merchant_order"]>["status"] },
+      parcel_batch: { ...combined.parcel_batch!, status: "completed" as NonNullable<MatchRow["parcel_batch"]>["status"] }
+    };
+    const view = await mount(api({ monitoringMatches: vi.fn().mockResolvedValue(page([mismatched])), monitoringMatch: vi.fn().mockResolvedValue(detail(mismatched)) }));
+    act(() => view.querySelector<HTMLButtonElement>('[data-testid="open-match-match_1"]')!.click());
+    await act(async () => undefined);
+    const dialog = view.querySelector<HTMLElement>('[role="dialog"]')!;
+    expect(dialog.querySelectorAll(".badge--neutral").length).toBeGreaterThanOrEqual(5);
+    expect(dialog.textContent?.match(/Unknown/g)?.length).toBeGreaterThanOrEqual(5);
+    expect(dialog.textContent).not.toContain("Completed");
+  });
+
+  it("displays the normalized range and explains offset observations", async () => {
+    const view = await mount(api());
+    expect(view.querySelector('[data-testid="matches-range"]')?.textContent).toContain("Sep 1, 2026");
+    expect(view.textContent).toContain("Pages are separate current observations and may shift when records change.");
   });
 });

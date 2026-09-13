@@ -136,4 +136,15 @@ describe("MatchingBatchingMonitoring", () => {
     expect(view.textContent).toContain("نتائج المطابقة");
     expect(view.textContent).toContain("سجلات التشغيل القديمة المدعومة في الإنتاج");
   });
+
+  it("renders cross-entity aggregate keys as neutral Unknown statuses", async () => {
+    const response = overview();
+    Object.assign(response.data.match_results_by_status, { completed: 4 });
+    Object.assign(response.data.batches_by_status, { completed: 5 });
+    const view = await mount(api({ monitoringOverview: vi.fn().mockResolvedValue(response) }));
+    expect(view.textContent?.match(/Unknown/g)?.length).toBe(2);
+    expect(view.querySelectorAll(".badge--neutral").length).toBeGreaterThanOrEqual(2);
+    expect(view.textContent).not.toContain("Completed4");
+    expect(view.textContent).not.toContain("Completed5");
+  });
 });
