@@ -18,6 +18,16 @@ function environment(overrides: Record<string, string | undefined> = {}) {
 }
 
 describe("fail-closed application configuration", () => {
+  it.each(["staging", "production"])("blocks %s Google signup until approved delivery providers are integrated", (appEnv) => {
+    expect(() => createConfig(environment({ APP_ENV: appEnv, GOOGLE_PASSENGER_SIGNUP_MODE: "open",
+      GOOGLE_MOBILE_SERVER_CLIENT_ID: "mobile-client", AUTH_ACTION_TOKEN_PEPPER: "separate-auth-action-secret-with-over-thirty-two-characters" })))
+      .toThrow(/google_signup_prerequisite_missing/);
+  });
+  it("requires a nonempty allowlist before enabling allowlist signup", () => {
+    expect(() => createConfig(environment({ APP_ENV: "local", GOOGLE_PASSENGER_SIGNUP_MODE: "allowlist",
+      GOOGLE_MOBILE_SERVER_CLIENT_ID: "mobile-client", AUTH_ACTION_TOKEN_PEPPER: "separate-auth-action-secret-with-over-thirty-two-characters" })))
+      .toThrow(/requires nonempty HMAC allowlist/);
+  });
   it("defaults Google signup disabled and separates mobile/admin audiences", () => {
     expect(createConfig(environment()).googleAuth.passengerSignupMode).toBe("disabled");
     expect(() => createConfig(environment({ GOOGLE_MOBILE_SERVER_CLIENT_ID: "same-client", GOOGLE_ADMIN_WEB_CLIENT_ID: "same-client" }))).toThrow(/audiences must be distinct/);

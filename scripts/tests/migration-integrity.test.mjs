@@ -28,7 +28,9 @@ const expected = {
   "20260819150000_driver_verification_approval": "2f381773237f840cf896ee144d28ae0e77a8525b841a7f89bf45eb1bef874010",
   "20260820120000_global_e164_phone_constraints": "7822831a007d451c689fd8a2260567cf8c4728cacea847ae47b43e887ba67539",
   "20260821120000_consent_management_workflow": "675d82606bba96680dcb31d6bcf3bea85d01b50e445cd136f3670f528d483362",
-  "20260910120000_email_google_self_service_auth": "dc8cf559995ff227aad3f604581e6f7253f09bb89f280d9c5da4c13d39241e94"
+  "20260910120000_email_google_self_service_auth": "dc8cf559995ff227aad3f604581e6f7253f09bb89f280d9c5da4c13d39241e94",
+  "20260915130000_external_identity_profile_state": "f6b3712bb229fa5cc5e2e9fb39a9c9ac0de64f23506abdb00bf250faa9ae14a5",
+  "20260915130100_backfill_legacy_google_external_identities": "45e06a478346579c680cbc787599e29d4e3c79b5e8c62d9596f42455820e6193"
 };
 
 function normalizedChecksum(path) {

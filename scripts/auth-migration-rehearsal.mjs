@@ -56,7 +56,8 @@ function databaseName(databaseUrl) {
 }
 
 async function main() {
-  await runAuthMigrationRehearsal({ database: databaseName(process.env.DATABASE_URL) });
+  assertDisposableDatabase(databaseName(process.env.DATABASE_URL));
+  throw new Error("runtime_rehearsal_required: use local-auth-mysql-rehearsal.mjs --confirm-disposable with AUTH_REHEARSAL_MYSQLD");
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

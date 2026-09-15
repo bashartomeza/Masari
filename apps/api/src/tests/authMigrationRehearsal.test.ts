@@ -1,10 +1,19 @@
 import { describe, expect, it } from "vitest";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
 const { runAuthMigrationRehearsal } = await import(
   new URL("../../../../scripts/auth-migration-rehearsal.mjs", import.meta.url).href
 );
 
 describe("auth migration rehearsal", () => {
+  it("does not report an in-memory fixture as a successful runtime rehearsal", () => {
+    const result = spawnSync(process.execPath, [fileURLToPath(new URL("../../../../scripts/auth-migration-rehearsal.mjs", import.meta.url))], {
+      env: { ...process.env, DATABASE_URL: "mysql://local:local@127.0.0.1:13316/masari_auth_rehearsal_fixture" }, encoding: "utf8"
+    });
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain("runtime_rehearsal_required");
+  });
   it("rejects a non-disposable rehearsal database", async () => {
     await expect(runAuthMigrationRehearsal({ database: "masari" }))
       .rejects.toThrow("disposable_database_required");

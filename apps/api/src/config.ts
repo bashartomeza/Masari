@@ -350,6 +350,14 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
   if ([...googleMobileClientIds, ...googleAdminClientIds].some(isUnsafeSecret)) problems.push("Google endpoint client IDs contain a placeholder value");
   if (googleMobileClientIds.some((id) => googleAdminClientIds.includes(id))) problems.push("Google mobile and admin audiences must be distinct");
   if (raw.GOOGLE_PASSENGER_SIGNUP_MODE !== "disabled" && (!googleMobileClientIds.length || !raw.AUTH_ACTION_TOKEN_PEPPER)) problems.push("Google passenger signup requires mobile audiences and AUTH_ACTION_TOKEN_PEPPER");
+  if (raw.GOOGLE_PASSENGER_SIGNUP_MODE === "allowlist" && googlePassengerAllowlist.length === 0) problems.push("Google passenger signup requires nonempty HMAC allowlist");
+  // No approved email/SMS adapter is currently wired into the application.
+  // A configuration assertion cannot substitute for delivery, published legal
+  // releases, and a completed runtime rehearsal. Keep rollout closed until the
+  // approved adapters and their startup checks are implemented together.
+  if (productionLike && raw.GOOGLE_PASSENGER_SIGNUP_MODE !== "disabled") {
+    problems.push("google_signup_prerequisite_missing: approved delivery providers, published legal releases, and runtime rehearsal required");
+  }
   if (googleOAuthClientIds.some((clientId) => isUnsafeSecret(clientId))) {
     problems.push("GOOGLE_OAUTH_CLIENT_IDS contains a placeholder value");
   }
