@@ -2,6 +2,7 @@ import { createHmac } from "node:crypto";
 import type { Request, Response } from "express";
 import { ipKeyGenerator, rateLimit } from "express-rate-limit";
 import type { AppConfig } from "../config.js";
+import type { AuthenticatedRequest } from "./auth.js";
 
 function safeIpKey(req: Request) {
   return ipKeyGenerator(req.ip ?? "unknown", 56);
@@ -47,6 +48,23 @@ export function createLoginRateLimiter(appConfig: AppConfig) {
   return rateLimit({
     ...sharedOptions(appConfig.rateLimits.login.windowMs, appConfig.rateLimits.login.max),
     identifier: "masari-login",
+    skip: (req) => {
+      const path = req.originalUrl.split("?")[0].toLowerCase().replace(/\/+$/, "");
+      // These routes authenticate first and use an account-bound limiter below.
+      return req.method === "OPTIONS" || path === "/api/v1/auth/password/set" || path === "/api/v1/auth/password/set/start";
+    },
     keyGenerator: (req) => loginKey(req, appConfig.authActions?.key.secret ?? appConfig.refreshTokenPepper)
+  });
+}
+
+export function createAuthenticatedAuthRateLimiter(appConfig: AppConfig) {
+  return rateLimit({
+    ...sharedOptions(appConfig.rateLimits.login.windowMs, appConfig.rateLimits.login.max),
+    identifier: "masari-authenticated-credential-action",
+    keyGenerator: (req: AuthenticatedRequest) => {
+      if (!req.user) return safeIpKey(req);
+      return createHmac("sha256", appConfig.authActions?.key.secret ?? appConfig.refreshTokenPepper)
+        .update(`masari:authenticated-auth-rate-limit:${req.user.id}`).digest("hex");
+    }
   });
 }

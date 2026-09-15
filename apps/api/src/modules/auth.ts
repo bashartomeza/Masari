@@ -25,6 +25,7 @@ import { AuditAction, Prisma } from "../generated/prisma/client.js";
 import { GoogleIdTokenError, verifyGoogleIdToken } from "../lib/googleIdToken.js";
 import { EmailAuthService, canonicalEmail, emailStartSchema, emailCompleteSchema, emailProofStartSchema, emailProofConfirmSchema, passwordResetSchema, passwordSetSchema, type EmailDelivery } from "../services/emailAuth.js";
 import type { ConsentReleaseService } from "../services/consentReleases.js";
+import { createAuthenticatedAuthRateLimiter } from "../middleware/rateLimit.js";
 
 const emailField = canonicalEmail;
 const deviceNameField = z.string().trim().min(1).max(120).optional();
@@ -239,6 +240,7 @@ async function markRefreshReuse(
 export function createAuthRouter(appConfig: AppConfig = config, dependencies: { emailDelivery?: EmailDelivery; consentReleaseService?: ConsentReleaseService } = {}) {
 const authRouter = Router();
 const emailAuth = new EmailAuthService(prisma, appConfig, dependencies.emailDelivery, dependencies.consentReleaseService);
+const passwordSetRateLimiter = createAuthenticatedAuthRateLimiter(appConfig);
 
 authRouter.get("/auth/consents", async (req, res, next) => {
   try { res.json(await emailAuth.currentConsents(z.enum(["ar", "en"]).parse(req.query.locale))); } catch (error) { next(error); }
@@ -291,21 +293,24 @@ authRouter.post("/auth/mobile/register/complete", async (req, res, next) => {
   } catch (error) { next(error); }
 });
 authRouter.post("/auth/email/verify/start", async (req, res, next) => {
-  try { res.status(202).json(await emailAuth.proofStart(emailProofStartSchema.parse(req.body), "email_verification")); } catch (error) { next(error); }
+  try { res.status(202).json(await emailAuth.proofStart(emailProofStartSchema.parse(req.body), "email_verification", req.operationalLog)); } catch (error) { next(error); }
 });
 authRouter.post("/auth/email/verify/confirm", async (req, res, next) => {
   try { res.json(await emailAuth.verify(emailProofConfirmSchema.parse(req.body))); } catch (error) { next(error); }
 });
 authRouter.post("/auth/password/reset/start", async (req, res, next) => {
-  try { res.status(202).json(await emailAuth.proofStart(emailProofStartSchema.parse(req.body), "password_reset")); } catch (error) { next(error); }
+  try { res.status(202).json(await emailAuth.proofStart(emailProofStartSchema.parse(req.body), "password_reset", req.operationalLog)); } catch (error) { next(error); }
 });
 authRouter.post("/auth/password/reset/confirm", async (req, res, next) => {
   try { res.json(await emailAuth.reset(passwordResetSchema.parse(req.body))); } catch (error) { next(error); }
 });
-authRouter.post("/auth/password/set/start", requireAuth, async (req: AuthenticatedRequest, res, next) => {
-  try { res.status(202).json(await emailAuth.passwordSetStart(req.user!.id, z.enum(["ar", "en"]).parse(req.body.locale))); } catch (error) { next(error); }
+authRouter.post("/auth/password/set/start", requireAuth, passwordSetRateLimiter, async (req: AuthenticatedRequest, res, next) => {
+  try {
+    const input = z.strictObject({ locale: z.enum(["ar", "en"]) }).parse(req.body);
+    res.status(202).json(await emailAuth.passwordSetStart(req.user!.id, input.locale));
+  } catch (error) { next(error); }
 });
-authRouter.post("/auth/password/set", requireAuth, async (req: AuthenticatedRequest, res, next) => {
+authRouter.post("/auth/password/set", requireAuth, passwordSetRateLimiter, async (req: AuthenticatedRequest, res, next) => {
   try { res.json(await emailAuth.setPassword(req.user!.id, req.user!.securityVersion, passwordSetSchema.parse(req.body))); } catch (error) { next(error); }
 });
 

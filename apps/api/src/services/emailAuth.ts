@@ -1,6 +1,7 @@
 import { createCipheriv, createDecipheriv, createHmac, randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
+import type { Logger } from "pino";
 import type { AppConfig } from "../config.js";
 import type { Prisma, PrismaClient } from "../generated/prisma/client.js";
 import { AuthActionError, consumeAuthAction, issueAuthAction, revokeAuthActions } from "../lib/authActionTokens.js";
@@ -117,14 +118,24 @@ export class EmailAuthService {
     }, { isolationLevel: "Serializable" });
   }
 
-  async proofStart(input: z.infer<typeof emailProofStartSchema>, purpose: "email_verification" | "password_reset") {
+  async proofStart(input: z.infer<typeof emailProofStartSchema>, purpose: "email_verification" | "password_reset", log?: Pick<Logger, "warn" | "error">) {
     const key = this.key(); const sender = this.sender();
     const user = await this.db.user.findUnique({ where: { email: input.email } });
     if (user?.account_status === "active" && (purpose !== "password_reset" || (user.password_hash && user.email_verified_at))) {
       const proof = await issueAuthAction(this.db, { purpose, key, userId: user.id, subject: userSubject(user) });
-      // Delivery failure must not change the public response for an existing address.
-      try { await sender.send({ to: input.email, locale: input.locale, purpose, actionToken: proof.rawToken, expiresAt: proof.expiresAt }); }
-      catch { await revokeAuthActions(this.db, { userId: user.id, purpose, reason: "delivery_failed" }); }
+      // Provider latency is independent of the public response. Only an action
+      // digest is persisted; the short-lived delivery closure holds the proof.
+      // A failed attempt revokes only its own action, preserving concurrent retries.
+      void Promise.resolve().then(() => sender.send({
+        to: input.email, locale: input.locale, purpose, actionToken: proof.rawToken, expiresAt: proof.expiresAt
+      })).catch(async () => {
+        log?.warn({ event: "auth_email_delivery_failed", purpose }, "Authentication email delivery failed");
+        try {
+          await this.db.authActionToken.updateMany({ where: { id: proof.action.id, consumed_at: null }, data: { consumed_at: new Date() } });
+        } catch {
+          log?.error({ event: "auth_email_delivery_cleanup_failed", purpose }, "Authentication email cleanup failed");
+        }
+      });
     }
     return { ok: true };
   }

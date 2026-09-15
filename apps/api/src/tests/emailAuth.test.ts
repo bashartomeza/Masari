@@ -229,4 +229,43 @@ describe("email authentication lifecycle", () => {
     }
     expect(output).not.toContain("sensitive-lifecycle-credential");
   });
+  it.each(["/auth/password/reset/start", "/auth/email/verify/start"])("returns the same response before a delayed delivery settles at %s", async (path) => {
+    users.push(actor({ password_hash: await bcrypt.hash(registration.password, 4) }));
+    let release!: () => void;
+    const delivery = new Promise<void>((resolve) => { release = resolve; });
+    const server = createApp(appConfig, { emailDelivery: { kind: "test", send: () => delivery } });
+    const known = request(server).post(`/api/v1${path}`).send({ email: registration.email, locale: "en" }).then((r) => r);
+    try {
+      const unknown = await request(server).post(`/api/v1${path}`).send({ email: "unknown@example.com", locale: "en" }).expect(202);
+      const result = await Promise.race([known, new Promise<"delivery_blocked">((resolve) => setTimeout(() => resolve("delivery_blocked"), 250))]);
+      expect(result).not.toBe("delivery_blocked");
+      expect(result).toMatchObject({ status: 202, body: unknown.body });
+    } finally { release(); await known; }
+  });
+  it("revokes a proof when detached delivery fails and retains a safe operational event", async () => {
+    users.push(actor({ password_hash: await bcrypt.hash(registration.password, 4) }));
+    let rejectDelivery!: (error: Error) => void;
+    const delivery = new Promise<void>((_resolve, reject) => { rejectDelivery = reject; });
+    let output = "";
+    const stream = new Writable({ write(chunk, _encoding, done) { output += chunk.toString(); done(); } });
+    const logger = createOperationalLogger({ ...appConfig, logLevel: "info" }, stream);
+    const server = createApp(appConfig, { logger, emailDelivery: { kind: "test", send: () => delivery } });
+    const response = request(server).post("/api/v1/auth/password/reset/start").send({ email: registration.email, locale: "en" }).then((r) => r);
+    await vi.waitFor(() => expect(actions).toHaveLength(1));
+    rejectDelivery(new Error("provider-secret-response"));
+    await response;
+    await vi.waitFor(() => expect(actions[0].consumed_at).toBeInstanceOf(Date));
+    expect(output).toContain("auth_email_delivery_failed");
+    expect(output).not.toContain("provider-secret-response");
+  });
+  it("rejects unrelated email on password-set start and throttles varying aliases as one authenticated account", async () => {
+    users.push(actor()); const token = bearer(users[0]);
+    const server = createApp({ ...appConfig, rateLimits: { ...appConfig.rateLimits, login: { windowMs: 60000, max: 2 } } }, {
+      emailDelivery: { kind: "test", send: async () => {} }
+    });
+    await request(server).post("/api/v1/auth/password/set/start").set("Authorization", token).send({ locale: "en", email: "first@example.com" }).expect(400);
+    await request(server).post("/api/v1/auth/password/set/start").set("Authorization", token).send({ locale: "en", email: "second@example.com" }).expect(400);
+    await request(server).post("/api/v1/auth/password/set/start").set("Authorization", token).send({ locale: "en", email: "third@example.com" }).expect(429);
+    expect(messages).toHaveLength(0);
+  });
 });
