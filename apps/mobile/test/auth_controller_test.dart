@@ -20,6 +20,45 @@ import 'package:masari_mobile/features/passenger/application/passenger_history_c
 import 'test_app_config.dart';
 
 void main() {
+  for (final supersede in ['email', 'logout', 'cancel']) {
+    test('late Google response cannot replace $supersede', () async {
+      FlutterSecureStorage.setMockInitialValues(<String, String>{});
+      final delayed = Completer<http.Response>();
+      final container = _container((request) async {
+        if (request.url.path.endsWith('/mobile/google')) return delayed.future;
+        if (request.url.path.endsWith('/mobile/login')) {
+          return http.Response(_loginBody('new-user', 'new-session'), 200);
+        }
+        return http.Response('{"ok":true}', 200);
+      });
+      addTearDown(container.dispose);
+      await container.read(authControllerProvider.future);
+      final controller = container.read(authControllerProvider.notifier);
+      final pending = controller.loginWithGoogle(idToken: 'ephemeral');
+      if (supersede == 'email') {
+        await controller.login(
+          email: 'new@example.com',
+          password: 'long-password',
+        );
+      } else if (supersede == 'logout') {
+        await controller.logout();
+      } else {
+        controller.cancelRegistration();
+      }
+      delayed.complete(
+        http.Response(_loginBody('old-user', 'old-session'), 200),
+      );
+      await pending;
+      expect(
+        (await container.read(tokenStorageProvider).readBundle())?.accessToken,
+        supersede == 'email' ? 'new-session' : isNull,
+      );
+      expect(
+        container.read(authControllerProvider).value?.user?.id,
+        supersede == 'email' ? 'new-user' : isNull,
+      );
+    });
+  }
   test('no token routes to login state', () async {
     FlutterSecureStorage.setMockInitialValues(<String, String>{});
     final container = _container((request) async => http.Response('{}', 500));
@@ -75,7 +114,7 @@ void main() {
     () async {
       FlutterSecureStorage.setMockInitialValues(<String, String>{});
       final container = _container((request) async {
-        if (request.url.path.endsWith('/auth/login')) {
+        if (request.url.path.endsWith('/auth/mobile/login')) {
           return http.Response(
             '{"token":"access-value","access_token":"access-value","access_token_expires_in":900,"refresh_token":"refresh-value","refresh_token_expires_in":3600,"session":{"id":"session_1","client_type":"mobile","device_name":"Masari Android","created_at":"2026-07-17T10:00:00.000Z","last_used_at":"2026-07-17T10:00:00.000Z","expires_at":"2026-07-17T11:00:00.000Z","is_current":true,"revoked":false},"user":{"id":"user_1","name":"Demo Passenger","phone":"+970590000001","role":"passenger","demo_account":true}}',
             200,
@@ -103,34 +142,42 @@ void main() {
     },
   );
 
-  test('register posts to /auth/register and authenticates', () async {
-    FlutterSecureStorage.setMockInitialValues(<String, String>{});
-    String? calledPath;
-    Map<String, dynamic>? sentBody;
-    final container = _container((request) async {
-      calledPath = request.url.path;
-      sentBody = jsonDecode(request.body) as Map<String, dynamic>;
-      return http.Response(_authBody('passenger'), 201);
-    });
-    addTearDown(container.dispose);
-    await container.read(authControllerProvider.future);
-
-    await container
-        .read(authControllerProvider.notifier)
-        .register(
-          name: 'Sara',
-          email: 'sara@example.com',
-          password: 'supersecret1',
+  test(
+    'registration start retains a grant without installing a session',
+    () async {
+      FlutterSecureStorage.setMockInitialValues(<String, String>{});
+      String? calledPath;
+      Map<String, dynamic>? sentBody;
+      final container = _container((request) async {
+        calledPath = request.url.path;
+        sentBody = jsonDecode(request.body) as Map<String, dynamic>;
+        return http.Response(
+          '{"registration_token":"sealed-grant","expires_at":"2099-01-01T00:00:00Z","next_action":"verify_email"}',
+          202,
         );
+      });
+      addTearDown(container.dispose);
+      await container.read(authControllerProvider.future);
 
-    expect(calledPath, endsWith('/auth/register'));
-    expect(sentBody?['email'], 'sara@example.com');
-    expect(sentBody?['name'], 'Sara');
-    expect(
-      container.read(authControllerProvider).value?.status,
-      AuthStatus.authenticated,
-    );
-  });
+      await container
+          .read(authControllerProvider.notifier)
+          .register(
+            name: 'Sara',
+            email: 'sara@example.com',
+            password: 'supersecret1',
+          );
+
+      expect(calledPath, endsWith('/auth/mobile/register/start'));
+      expect(sentBody?['email'], 'sara@example.com');
+      expect(sentBody?['name'], 'Sara');
+      expect(
+        container.read(authControllerProvider).value?.status,
+        isNot(AuthStatus.authenticated),
+      );
+      expect(container.read(authControllerProvider).hasError, isFalse);
+      expect(await container.read(tokenStorageProvider).readBundle(), isNull);
+    },
+  );
 
   test('a rejected register settles out of the authenticating state', () async {
     FlutterSecureStorage.setMockInitialValues(<String, String>{});
@@ -160,29 +207,32 @@ void main() {
     expect(cleared.value?.status, AuthStatus.unauthenticated);
   });
 
-  test('loginWithGoogle posts the id token to /auth/google', () async {
-    FlutterSecureStorage.setMockInitialValues(<String, String>{});
-    String? calledPath;
-    Map<String, dynamic>? sentBody;
-    final container = _container((request) async {
-      calledPath = request.url.path;
-      sentBody = jsonDecode(request.body) as Map<String, dynamic>;
-      return http.Response(_authBody('passenger'), 200);
-    });
-    addTearDown(container.dispose);
-    await container.read(authControllerProvider.future);
+  test(
+    'loginWithGoogle posts the id token to the mobile Google endpoint',
+    () async {
+      FlutterSecureStorage.setMockInitialValues(<String, String>{});
+      String? calledPath;
+      Map<String, dynamic>? sentBody;
+      final container = _container((request) async {
+        calledPath = request.url.path;
+        sentBody = jsonDecode(request.body) as Map<String, dynamic>;
+        return http.Response(_authBody('passenger'), 200);
+      });
+      addTearDown(container.dispose);
+      await container.read(authControllerProvider.future);
 
-    await container
-        .read(authControllerProvider.notifier)
-        .loginWithGoogle(idToken: 'google-id-token');
+      await container
+          .read(authControllerProvider.notifier)
+          .loginWithGoogle(idToken: 'google-id-token');
 
-    expect(calledPath, endsWith('/auth/google'));
-    expect(sentBody?['id_token'], 'google-id-token');
-    expect(
-      container.read(authControllerProvider).value?.status,
-      AuthStatus.authenticated,
-    );
-  });
+      expect(calledPath, endsWith('/auth/mobile/google'));
+      expect(sentBody?['id_token'], 'google-id-token');
+      expect(
+        container.read(authControllerProvider).value?.status,
+        AuthStatus.authenticated,
+      );
+    },
+  );
 
   test('corrupt stored bundle clears safely and routes to login', () async {
     FlutterSecureStorage.setMockInitialValues({
@@ -333,7 +383,7 @@ void main() {
           final actorARequestStarted = Completer<void>();
           var actorARestoreServed = false;
           final container = _container((request) async {
-            if (request.url.path.endsWith('/auth/login')) {
+            if (request.url.path.endsWith('/auth/mobile/login')) {
               return http.Response(
                 _loginBody('driver_b', 'actor-b-token'),
                 200,

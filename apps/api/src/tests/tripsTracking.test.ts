@@ -89,7 +89,7 @@ describe("trip acceptance, status, and tracking", () => {
         ? {
             id: where.id,
             user_id: user.id,
-            user: { ...user, account_status: "active", security_version: 1 },
+            user: { email_verified_at: new Date(), ...user, account_status: "active", security_version: 1 },
             security_version_at_issue: 1,
             expires_at: new Date(Date.now() + 60_000),
             revoked_at: null

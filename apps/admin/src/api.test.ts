@@ -7,6 +7,19 @@ function response(body: unknown, status = 200) {
 
 describe("Admin driver verification API client", () => {
   afterEach(() => vi.unstubAllGlobals());
+  it("sends Google credentials only to the Admin endpoint", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(response({ token: "admin-token" }));
+    vi.stubGlobal("fetch", fetchMock);
+    await createApiClient("http://api.test").googleLogin("credential");
+    expect(fetchMock).toHaveBeenCalledWith("http://api.test/api/v1/auth/admin/google", expect.objectContaining({ body: JSON.stringify({ id_token: "credential" }) }));
+  });
+
+  it("uses the Admin email boundary with no phone payload", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(response({ token: "admin-token" }));
+    vi.stubGlobal("fetch", fetchMock);
+    await createApiClient("http://api.test").login("admin@example.com", "secret");
+    expect(fetchMock).toHaveBeenCalledWith("http://api.test/api/v1/auth/admin/login", expect.objectContaining({ body: JSON.stringify({ email: "admin@example.com", password: "secret" }) }));
+  });
 
   it("loads the pending queue and detail with the Admin bearer token", async () => {
     const fetchMock = vi.fn()
