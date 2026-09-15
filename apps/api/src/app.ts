@@ -51,6 +51,7 @@ import type { PassengerAssistantService } from "./services/passengerAssistant.js
 import { createAdminConsentRouter } from "./modules/adminConsents.js";
 import type { ConsentReleaseService } from "./services/consentReleases.js";
 import { adminTripsRouter } from "./modules/adminTrips.js";
+import { requireCompleteProfile } from "./middleware/profileState.js";
 
 export const HTTP_JSON_LIMIT = "64kb";
 export const CONSENT_RELEASE_JSON_LIMIT = "256kb";
@@ -102,6 +103,11 @@ export function createApp(
     "/api/v1",
     createPublicOnboardingRouter(appConfig, dependencies.otpProvider),
   );
+
+  // This mount is intentionally before every product router below. It makes
+  // complete-profile enforcement the default for future authenticated product
+  // surfaces, while profile-completion-safe paths are explicitly exempted.
+  app.use("/api/v1", requireCompleteProfile);
 
   app.use("/api/v1", authRouter);
   app.use("/api/v1", createCapabilitiesRouter(appConfig));

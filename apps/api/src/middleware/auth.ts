@@ -9,6 +9,7 @@ export type AuthUser = {
   role: "passenger" | "driver" | "merchant" | "admin";
   sessionId: string;
   securityVersion: number;
+  profileState?: "phone_required" | "complete";
 };
 
 export type AuthenticatedRequest = Request & {
@@ -71,7 +72,9 @@ export async function authenticateAuthToken(token: string, options: { allowRevok
   if (!session.revoked_at) {
     await prisma.authSession.update({ where: { id: session.id }, data: { last_used_at: new Date() } });
   }
-  return claims;
+  // profile_state is non-null in the database. The fallback only supports
+  // narrow legacy test doubles that predate this schema field.
+  return { ...claims, profileState: session.user.profile_state ?? "complete" };
 }
 
 function authMiddleware(options: { allowRevoked?: boolean } = {}) {

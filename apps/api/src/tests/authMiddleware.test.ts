@@ -49,7 +49,8 @@ describe("server-managed authentication middleware", () => {
       id: user.id,
       role: user.role,
       sessionId: "session_1",
-      securityVersion: 1
+      securityVersion: 1,
+      profileState: "complete"
     });
     expect(prismaMock.authSession.update).toHaveBeenCalledOnce();
   });
