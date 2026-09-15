@@ -107,6 +107,7 @@ export function App({
   const currentModule = resolveActiveModule(activeModule, flags);
 
   function clearAuthenticatedData() {
+    setBusy(null);
     setAdmin(null);
     setDashboard(null);
     setDrivers([]);

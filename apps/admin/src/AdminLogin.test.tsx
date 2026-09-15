@@ -14,6 +14,18 @@ async function render(locale: "ar" | "en", google = false, sessionStore: TokenSt
   await act(async () => { root.render(<LocaleProvider storage={{ getItem: () => locale, setItem: () => {} }}><App config={{ appEnv: "test", apiBaseUrl: "http://api.test", demoFeaturesEnabled: false, routeManagementEnabled: false }} sessionStore={sessionStore} legacyStore={{ getItem: () => null, setItem: () => {}, removeItem: () => {} }} /></LocaleProvider>); });
 }
 describe("Admin login", () => {
+  it("enables email retry when the new session expires during login capability loading", async () => {
+    let stored: string | null = null;
+    await render("en", false, { getItem: () => stored, setItem: (_key, token) => { stored = token; }, removeItem: () => { stored = null; } });
+    vi.stubGlobal("fetch", vi.fn((url: string) => Promise.resolve(new Response(JSON.stringify(url.endsWith("/auth/admin/login") ? { token: "expired-session", user: { id: "admin", role: "admin", name: "Admin" } } : { error: "access_token_expired" }), { status: url.endsWith("/auth/admin/login") ? 200 : 401 }))));
+    await act(async () => host.querySelector("form")?.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
+    expect(stored).toBeNull();
+    const submit = host.querySelector<HTMLButtonElement>("form > button.btn--primary");
+    expect(submit).not.toBeNull(); expect(submit?.disabled).toBe(false);
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(new Response(JSON.stringify({ token: "retry-session", user: { id: "admin", role: "admin", name: "Admin", phone: "+12025550123" }, counts: {}, drivers: [], routes: [], requests: [], orders: [], trips: [], demo_reset_available: false })))));
+    await act(async () => host.querySelector("form")?.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
+    expect(stored).toBe("retry-session");
+  });
   it.each([200, 401])("does not announce a stale email outcome (%s) during a newer Google attempt", async (status) => {
     let credentialCallback!: (value: { credential: string }) => void;
     vi.stubGlobal("google", { accounts: { id: { initialize: (options: { callback: typeof credentialCallback }) => { credentialCallback = options.callback; }, renderButton: () => {}, cancel: () => {} } } });
