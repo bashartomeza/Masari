@@ -10,6 +10,8 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/language_switch.dart';
 import '../../../core/widgets/masari_card.dart';
 import '../application/auth_controller.dart';
+import 'auth_completion_screen.dart';
+import 'credential_actions.dart';
 import 'widgets/auth_divider.dart';
 import 'widgets/google_auth_button.dart';
 
@@ -113,7 +115,11 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                       onFieldSubmitted: (_) => _register(),
                       decoration: InputDecoration(
                         labelText: l10n.password,
-                        helperText: l10n.passwordTooShort,
+                        helperText: authText(
+                          context,
+                          'Use 12–72 characters (maximum 72 UTF-8 bytes).',
+                          'استخدم 12–72 حرفاً (بحد أقصى 72 بايت UTF-8).',
+                        ),
                         suffixIcon: IconButton(
                           tooltip: _showPassword
                               ? l10n.hidePassword
@@ -127,8 +133,13 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                           ),
                         ),
                       ),
-                      validator: (value) => (value == null || value.length < 8)
-                          ? l10n.passwordTooShort
+                      validator: (value) =>
+                          (value == null || !validNewPassword(value))
+                          ? authText(
+                              context,
+                              'Use 12–72 characters (maximum 72 UTF-8 bytes).',
+                              'استخدم 12–72 حرفاً (بحد أقصى 72 بايت UTF-8).',
+                            )
                           : null,
                     ),
                     if (error != null || _googleFailed) ...[
@@ -136,6 +147,12 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                       Text(
                         _googleFailed
                             ? l10n.googleSignInFailed
+                            : error is ApiException &&
+                                  [
+                                    'explicit_link_required',
+                                    'google_signup_unavailable',
+                                  ].contains(error.message)
+                            ? authFailure(context, error)
                             : _errorMessage(l10n, error!),
                         key: const ValueKey('signUpError'),
                         style: TextStyle(
@@ -186,6 +203,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   }
 
   Future<void> _register() async {
+    if (_submitting || _googleBusy) return;
     setState(() => _googleFailed = false);
     if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _submitting = true);
@@ -195,8 +213,12 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
           name: _nameController.text.trim(),
           email: _emailController.text.trim().toLowerCase(),
           password: _passwordController.text,
+          locale: Localizations.localeOf(context).languageCode,
         );
-    if (mounted) setState(() => _submitting = false);
+    if (mounted) {
+      _passwordController.clear();
+      setState(() => _submitting = false);
+    }
   }
 
   Future<void> _registerWithGoogle(String idToken) async {

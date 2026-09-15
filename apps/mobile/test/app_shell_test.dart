@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -21,6 +22,261 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'test_app_config.dart';
 
 void main() {
+  for (final method in ['email', 'google']) {
+    testWidgets(
+      '$method registration requires displayed consent before session creation',
+      (tester) async {
+        final completions = <Map<String, dynamic>>[];
+        final documents = ['terms', 'privacy', 'adult_self_attestation']
+            .map(
+              (type) => {
+                'id': type,
+                'type': type,
+                'locale': 'en',
+                'version': 'v1',
+                'content': 'Required document: $type',
+                'content_hash': List.filled(64, 'a').join(),
+              },
+            )
+            .toList();
+        await _pumpApp(
+          tester,
+          localeValues: {DomainLabels.localeStorageKey: 'en'},
+          handler: (request) async {
+            if (request.url.path.endsWith('/auth/consents')) {
+              expect(request.url.queryParameters['locale'], 'en');
+              return http.Response(jsonEncode({'documents': documents}), 200);
+            }
+            if (request.url.path.endsWith('/register/start') ||
+                request.url.path.endsWith('/mobile/google')) {
+              return http.Response(
+                jsonEncode({
+                  'registration_token': 'sealed-grant',
+                  'expires_at': '2099-01-01T00:00:00Z',
+                  'next_action': method == 'email'
+                      ? 'verify_email'
+                      : 'consent_required',
+                }),
+                202,
+              );
+            }
+            if (request.url.path.endsWith('/register/complete') ||
+                request.url.path.endsWith('/complete-registration')) {
+              completions.add(jsonDecode(request.body) as Map<String, dynamic>);
+              return http.Response(
+                '{"token":"new-masari-session","user":{"id":"new","name":"Passenger","phone":null,"profile_state":"phone_required","role":"passenger","demo_account":false}}',
+                201,
+              );
+            }
+            return http.Response('{"error":"not_found"}', 404);
+          },
+        );
+        final container = ProviderScope.containerOf(
+          tester.element(find.byType(MasariApp)),
+        );
+        final controller = container.read(authControllerProvider.notifier);
+        if (method == 'email') {
+          await controller.register(
+            name: 'Passenger',
+            email: 'passenger@example.com',
+            password: 'long-valid-password',
+            locale: 'en',
+          );
+        } else {
+          await controller.loginWithGoogle(idToken: 'ephemeral-google-token');
+        }
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(const ValueKey('registrationCompletionScreen')),
+          findsOneWidget,
+        );
+        expect(await container.read(tokenStorageProvider).readBundle(), isNull);
+        expect(
+          tester
+              .widget<FilledButton>(find.byKey(const ValueKey('completeAuth')))
+              .onPressed,
+          isNull,
+        );
+        if (method == 'email') {
+          await tester.enterText(
+            find.byKey(const ValueKey('authProof')),
+            'email-proof-token',
+          );
+          await tester.testTextInput.receiveAction(TextInputAction.done);
+          await tester.pumpAndSettle();
+          expect(completions, isEmpty);
+        } else {
+          await tester.enterText(find.byType(TextField).first, 'Passenger');
+        }
+        for (var i = 0; i < 3; i++) {
+          await tester.ensureVisible(find.byType(CheckboxListTile).at(i));
+          await tester.tap(find.byType(CheckboxListTile).at(i));
+          await tester.pump();
+        }
+        await tester.ensureVisible(find.byKey(const ValueKey('completeAuth')));
+        await tester.tap(find.byKey(const ValueKey('completeAuth')));
+        await tester.pumpAndSettle();
+        expect(completions.single, {
+          'registration_token': 'sealed-grant',
+          'locale': 'en',
+          'adult_self_attestation': true,
+          'device_name': 'Masari App',
+          'consents': documents
+              .map(
+                (d) => {
+                  'id': d['id'],
+                  'type': d['type'],
+                  'content_hash': d['content_hash'],
+                },
+              )
+              .toList(),
+          if (method == 'email')
+            'email_verification_token': 'email-proof-token'
+          else
+            'name': 'Passenger',
+        });
+        expect(
+          find.byKey(const ValueKey('phoneCompletionScreen')),
+          findsOneWidget,
+        );
+        expect(
+          Directionality.of(
+            tester.element(find.byKey(const ValueKey('phoneCompletionScreen'))),
+          ),
+          TextDirection.ltr,
+        );
+        expect(
+          (await container.read(tokenStorageProvider).readBundle())
+              ?.accessToken,
+          'new-masari-session',
+        );
+      },
+    );
+  }
+  testWidgets(
+    'login offers recovery and email verification in both languages',
+    (tester) async {
+      await _pumpApp(
+        tester,
+        localeValues: {DomainLabels.localeStorageKey: 'en'},
+      );
+      expect(find.byKey(const ValueKey('passwordRecovery')), findsOneWidget);
+      expect(find.byKey(const ValueKey('emailVerification')), findsOneWidget);
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('passwordRecovery')),
+      );
+      await tester.tap(find.byKey(const ValueKey('passwordRecovery')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('recoveryEmail')), findsOneWidget);
+      expect(
+        Directionality.of(
+          tester.element(find.byKey(const ValueKey('recoveryEmail'))),
+        ),
+        TextDirection.ltr,
+      );
+    },
+  );
+
+  testWidgets(
+    'incorrect phone proof requires a new code and completion reloads server profile',
+    (tester) async {
+      var complete = false;
+      var starts = 0;
+      final attempts = <Map<String, dynamic>>[];
+      await _pumpApp(
+        tester,
+        localeValues: {DomainLabels.localeStorageKey: 'en'},
+        secureValues: {TokenStorage.tokenKey: 'masari-session'},
+        handler: (request) async {
+          if (request.url.path.endsWith('/me')) {
+            return http.Response(
+              jsonEncode({
+                'user': {
+                  'id': 'u',
+                  'name': 'Passenger',
+                  'phone': complete ? '+14155552671' : null,
+                  'profile_state': complete ? 'complete' : 'phone_required',
+                  'role': 'passenger',
+                  'demo_account': false,
+                },
+              }),
+              200,
+            );
+          }
+          if (request.url.path.endsWith('/profile/phone/start-verification')) {
+            starts++;
+            return http.Response(
+              '{"action_token":"proof-$starts","next_action":"verify_phone"}',
+              202,
+            );
+          }
+          if (request.url.path.endsWith(
+            '/profile/phone/confirm-verification',
+          )) {
+            attempts.add(jsonDecode(request.body) as Map<String, dynamic>);
+            if (attempts.length == 1) {
+              return http.Response('{"error":"auth_action_invalid"}', 400);
+            }
+            complete = true;
+            return http.Response('{"ok":true,"profile_state":"complete"}', 200);
+          }
+          return http.Response('{"error":"not_found"}', 404);
+        },
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey('profilePhone')),
+        '+14155552671',
+      );
+      await tester.tap(find.text('Send code'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const ValueKey('authProof')), '000000');
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('completeAuth')));
+      await tester.pumpAndSettle();
+      expect(find.text('Send code'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('phoneCompletionScreen')),
+        findsOneWidget,
+      );
+      await tester.tap(find.text('Send code'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const ValueKey('authProof')), '123456');
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('completeAuth')));
+      await tester.pumpAndSettle();
+      expect(attempts, [
+        {'phone': '+14155552671', 'action_token': 'proof-1', 'code': '000000'},
+        {'phone': '+14155552671', 'action_token': 'proof-2', 'code': '123456'},
+      ]);
+      expect(find.byKey(const ValueKey('phoneCompletionScreen')), findsNothing);
+    },
+  );
+
+  testWidgets('restricted session blocks product deep links until phone proof', (
+    tester,
+  ) async {
+    await _pumpApp(
+      tester,
+      secureValues: {TokenStorage.tokenKey: 'masari-session'},
+      handler: (request) async {
+        if (request.url.path.endsWith('/me')) {
+          return http.Response(
+            '{"user":{"id":"u","name":"Passenger","phone":null,"profile_state":"phone_required","role":"passenger","demo_account":false}}',
+            200,
+          );
+        }
+        return http.Response('{"error":"not_found"}', 404);
+      },
+    );
+    expect(find.byKey(const ValueKey('phoneCompletionScreen')), findsOneWidget);
+    final context = tester.element(
+      find.byKey(const ValueKey('phoneCompletionScreen')),
+    );
+    expect(Directionality.of(context), TextDirection.rtl);
+    GoRouter.of(context).go('/passenger/request/new');
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('phoneCompletionScreen')), findsOneWidget);
+  });
   test('Android excludes secure authentication storage from backup', () {
     final manifest = File(
       'android/app/src/main/AndroidManifest.xml',
