@@ -36,6 +36,7 @@
     "test:integration:consents": "node --env-file-if-exists=apps/api/.env apps/api/dist/scripts/consentManagementIntegration.js",
     "test:integration:public-onboarding": "node --env-file-if-exists=apps/api/.env apps/api/dist/scripts/publicOnboardingIntegration.js",
     "test:integration:routes": "node --env-file-if-exists=apps/api/.env apps/api/dist/scripts/routeCatalogIntegration.js",
+    "test:integration:monitoring": "node apps/api/dist/scripts/adminMatchingMonitoringIntegration.js",
     "qa:routes": "npm run qa:routes -w @masari/api --",
     "test:integration:multi-route": "npm run test:integration:multi-route -w @masari/api",
     "test:integration:canonical-matching": "npm run test:integration:canonical-matching -w @masari/api",

@@ -71,7 +71,7 @@ describe("admin navigation", () => {
     expect(isModuleAvailable("routes", allOn)).toBe(true);
     expect(isModuleAvailable("routes", allOff)).toBe(false);
     expect(isModuleAvailable("matchingBatching", allOn)).toBe(true);
-    expect(isModuleAvailable("matchingBatching", allOff)).toBe(false);
+    expect(isModuleAvailable("matchingBatching", allOff)).toBe(true);
     expect(isModuleAvailable("incidentsSafety", allOn)).toBe(false);
     expect(isModuleAvailable("reports", allOn)).toBe(false);
   });
@@ -79,6 +79,8 @@ describe("admin navigation", () => {
   it("keeps API-backed people modules available", () => {
     expect(isModuleAvailable("users", allOff)).toBe(true);
     expect(isModuleAvailable("drivers", allOff)).toBe(true);
+    expect(NAV_ITEMS.find((item) => item.id === "matchingBatching")?.backing).toBe("api");
+    expect(isModuleAvailable("matchingBatching", allOff)).toBe(true);
   });
 
   it("provides stable deep links and resolves compatibility aliases", () => {
