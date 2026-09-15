@@ -2,6 +2,7 @@ import express from "express";
 import type { Logger } from "pino";
 import { createAuthRouter } from "./modules/auth.js";
 import type { EmailDelivery } from "./services/emailAuth.js";
+import type { GoogleVerifier } from "./lib/googleIdentity.js";
 import { createDemoRouter } from "./modules/demoReset.js";
 import { passengerRouter } from "./modules/passenger.js";
 import { createDriverRouter } from "./modules/driver.js";
@@ -59,6 +60,7 @@ export const CONSENT_RELEASE_JSON_LIMIT = "256kb";
 export const HTTP_FORM_LIMIT = "16kb";
 
 type AppDependencies = {
+  googleVerifier?: GoogleVerifier;
   emailDelivery?: EmailDelivery;
   logger?: Logger;
   readinessCheck?: ReadinessCheck;

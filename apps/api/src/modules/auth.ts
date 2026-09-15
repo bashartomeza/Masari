@@ -22,7 +22,8 @@ import {
 } from "../middleware/auth.js";
 import { HttpError } from "../middleware/error.js";
 import { AuditAction, Prisma } from "../generated/prisma/client.js";
-import { GoogleIdTokenError, verifyGoogleIdToken } from "../lib/googleIdToken.js";
+import type { GoogleVerifier } from "../lib/googleIdentity.js";
+import { GoogleAuthService, googleCompleteSchema } from "../services/googleAuth.js";
 import { EmailAuthService, canonicalEmail, emailStartSchema, emailCompleteSchema, emailProofStartSchema, emailProofConfirmSchema, passwordResetSchema, passwordSetSchema, type EmailDelivery } from "../services/emailAuth.js";
 import type { ConsentReleaseService } from "../services/consentReleases.js";
 import { createAuthenticatedAuthRateLimiter } from "../middleware/rateLimit.js";
@@ -35,7 +36,7 @@ const loginSchema = z.object({
   password: z.string().min(1).max(200),
   device_name: deviceNameField
 });
-const googleSchema = z.object({
+const googleSchema = z.strictObject({
   id_token: z.string().min(1).max(8192),
   device_name: deviceNameField
 });
@@ -180,12 +181,6 @@ function sessionResponseBody(
   };
 }
 
-function isUniqueConstraintError(error: unknown): boolean {
-  return (
-    error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002"
-  );
-}
-
 function safeSession(
   session: {
     id: string;
@@ -237,10 +232,18 @@ async function markRefreshReuse(
   });
 }
 
-export function createAuthRouter(appConfig: AppConfig = config, dependencies: { emailDelivery?: EmailDelivery; consentReleaseService?: ConsentReleaseService } = {}) {
+export function createAuthRouter(appConfig: AppConfig = config, dependencies: { emailDelivery?: EmailDelivery; consentReleaseService?: ConsentReleaseService; googleVerifier?: GoogleVerifier } = {}) {
 const authRouter = Router();
 const emailAuth = new EmailAuthService(prisma, appConfig, dependencies.emailDelivery, dependencies.consentReleaseService);
+const googleAuth = new GoogleAuthService(prisma, appConfig, dependencies.googleVerifier, dependencies.consentReleaseService);
 const passwordSetRateLimiter = createAuthenticatedAuthRateLimiter(appConfig);
+
+authRouter.get("/auth/capabilities", (_req, res) => {
+  res.json({
+    google_mobile_login_available: appConfig.googleAuth.mobileClientIds.length > 0,
+    google_passenger_signup_mode: appConfig.googleAuth.passengerSignupMode
+  });
+});
 
 authRouter.get("/auth/consents", async (req, res, next) => {
   try { res.json(await emailAuth.currentConsents(z.enum(["ar", "en"]).parse(req.query.locale))); } catch (error) { next(error); }
@@ -315,84 +318,32 @@ authRouter.post("/auth/password/set", requireAuth, passwordSetRateLimiter, async
   try { res.json(await emailAuth.setPassword(req.user!.id, req.user!.securityVersion, passwordSetSchema.parse(req.body))); } catch (error) { next(error); }
 });
 
-authRouter.post("/auth/google", async (req, res, next) => {
+authRouter.post(["/auth/google", "/auth/mobile/google"], async (req, res, next) => {
   try {
     const input = googleSchema.parse(req.body);
-
-    let identity;
-    try {
-      identity = await verifyGoogleIdToken(input.id_token, config.googleOAuthClientIds);
-    } catch (error) {
-      if (error instanceof GoogleIdTokenError) {
-        if (error.message === "google_auth_not_configured") {
-          throw new HttpError(501, "google_auth_not_configured");
-        }
-        throw new HttpError(401, "invalid_google_token");
-      }
-      throw error;
+    const result = await googleAuth.start(input.id_token);
+    if (result.kind === "registration") {
+      const { kind: _kind, ...grant } = result;
+      res.status(202).json(grant);
+      return;
     }
-    if (!identity.emailVerified) throw new HttpError(401, "google_email_unverified");
-
-    const findLinked = () =>
-      prisma.user.findFirst({
-        where: { OR: [{ google_sub: identity.sub }, { email: identity.email }] }
-      });
-
-    let user = await findLinked();
-    let created = false;
-    if (!user) {
-      try {
-        user = await prisma.user.create({
-          data: {
-            name: identity.name ?? identity.email.split("@")[0],
-            email: identity.email,
-            google_sub: identity.sub,
-            role: "passenger",
-            account_status: "active"
-          }
-        });
-        created = true;
-      } catch (error) {
-        if (!isUniqueConstraintError(error)) throw error;
-        user = await findLinked();
-      }
-    }
-    if (!user) throw new HttpError(409, "account_conflict");
-
-    if (user.account_status !== "active") {
-      await auditEvent(prisma, {
-        userId: user.id,
-        action: AuditAction.login_blocked_by_status,
-        entityType: "User",
-        entityId: user.id,
-        metadata: { account_status: user.account_status }
-      });
-      throw new HttpError(403, "account_unavailable");
-    }
-
-    if (!user.google_sub) {
-      user = await prisma.user.update({
-        where: { id: user.id },
-        data: { google_sub: identity.sub }
-      });
-      await auditEvent(prisma, {
-        userId: user.id,
-        action: AuditAction.auth_google_link,
-        entityType: "User",
-        entityId: user.id,
-        metadata: { linked_existing: true }
-      });
-    }
-
-    const established = await establishMobileSession(user, {
-      deviceName: input.device_name,
-      loginAction: AuditAction.auth_google_login,
-      loginMetadata: { role: user.role, created }
+    const established = await establishMobileSession(result.user, {
+      deviceName: input.device_name, loginAction: AuditAction.auth_google_login,
+      loginMetadata: { method: "google", role: result.user.role }
     });
-    res.status(created ? 201 : 200).json(sessionResponseBody(established, user));
-  } catch (error) {
-    next(error);
-  }
+    res.json(sessionResponseBody(established, result.user));
+  } catch (error) { next(error); }
+});
+
+authRouter.post("/auth/mobile/google/complete-registration", async (req, res, next) => {
+  try {
+    const input = googleCompleteSchema.parse(req.body);
+    const result = await googleAuth.complete(input, (tx, user) => establishMobileSession(user, {
+      deviceName: input.device_name, loginAction: AuditAction.auth_register,
+      loginMetadata: { method: "google", role: "passenger" }
+    }, tx), req.requestId);
+    res.status(201).json(sessionResponseBody(result.session, result.user));
+  } catch (error) { next(error); }
 });
 
 authRouter.post("/auth/refresh", async (req, res, next) => {

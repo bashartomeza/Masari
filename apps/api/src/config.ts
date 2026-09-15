@@ -93,6 +93,10 @@ const rawSchema = z.object({
   OTP_PROVIDER: z.enum(["disabled", "fake"]).default("disabled"),
   SUPPORTED_PHONE_REGIONS: z.string().default("PS"),
   GOOGLE_OAUTH_CLIENT_IDS: z.string().optional(),
+  GOOGLE_MOBILE_SERVER_CLIENT_ID: z.string().trim().min(1).refine((v) => !v.includes(",")).optional(),
+  GOOGLE_ADMIN_WEB_CLIENT_ID: z.string().trim().min(1).refine((v) => !v.includes(",")).optional(),
+  GOOGLE_PASSENGER_SIGNUP_MODE: z.enum(["disabled", "allowlist", "open"]).default("disabled"),
+  GOOGLE_PASSENGER_ALLOWLIST_HMACS: z.string().optional(),
   XAI_API_KEY: optionalXaiApiKey,
   XAI_MODEL: z.string().trim().min(1).max(100).default("grok-4.6"),
   XAI_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(60_000).default(15_000),
@@ -339,6 +343,13 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
     .split(",")
     .map((clientId) => clientId.trim())
     .filter(Boolean);
+  const googleMobileClientIds = raw.GOOGLE_MOBILE_SERVER_CLIENT_ID ? [raw.GOOGLE_MOBILE_SERVER_CLIENT_ID] : [];
+  const googleAdminClientIds = raw.GOOGLE_ADMIN_WEB_CLIENT_ID ? [raw.GOOGLE_ADMIN_WEB_CLIENT_ID] : [];
+  const googlePassengerAllowlist = (raw.GOOGLE_PASSENGER_ALLOWLIST_HMACS ?? "").split(",").map((v) => v.trim()).filter(Boolean);
+  if (googlePassengerAllowlist.some((v) => !/^[a-f0-9]{64}$/.test(v))) problems.push("GOOGLE_PASSENGER_ALLOWLIST_HMACS must contain SHA-256 HMAC digests");
+  if ([...googleMobileClientIds, ...googleAdminClientIds].some(isUnsafeSecret)) problems.push("Google endpoint client IDs contain a placeholder value");
+  if (googleMobileClientIds.some((id) => googleAdminClientIds.includes(id))) problems.push("Google mobile and admin audiences must be distinct");
+  if (raw.GOOGLE_PASSENGER_SIGNUP_MODE !== "disabled" && (!googleMobileClientIds.length || !raw.AUTH_ACTION_TOKEN_PEPPER)) problems.push("Google passenger signup requires mobile audiences and AUTH_ACTION_TOKEN_PEPPER");
   if (googleOAuthClientIds.some((clientId) => isUnsafeSecret(clientId))) {
     problems.push("GOOGLE_OAUTH_CLIENT_IDS contains a placeholder value");
   }
@@ -588,6 +599,7 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
       : undefined,
     logLevel: raw.LOG_LEVEL ?? (isTest ? "silent" : "info"),
     googleOAuthClientIds,
+    googleAuth: { mobileClientIds: googleMobileClientIds, adminClientIds: googleAdminClientIds, passengerSignupMode: raw.GOOGLE_PASSENGER_SIGNUP_MODE, passengerAllowlist: googlePassengerAllowlist },
     trustProxy,
     readinessTimeoutMs: raw.READINESS_TIMEOUT_MS,
     rateLimits: {

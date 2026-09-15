@@ -18,6 +18,12 @@ function environment(overrides: Record<string, string | undefined> = {}) {
 }
 
 describe("fail-closed application configuration", () => {
+  it("defaults Google signup disabled and separates mobile/admin audiences", () => {
+    expect(createConfig(environment()).googleAuth.passengerSignupMode).toBe("disabled");
+    expect(() => createConfig(environment({ GOOGLE_MOBILE_SERVER_CLIENT_ID: "same-client", GOOGLE_ADMIN_WEB_CLIENT_ID: "same-client" }))).toThrow(/audiences must be distinct/);
+    expect(() => createConfig(environment({ GOOGLE_PASSENGER_SIGNUP_MODE: "open" }))).toThrow(/requires mobile audiences/);
+    expect(() => createConfig(environment({ GOOGLE_PASSENGER_ALLOWLIST_HMACS: "email@example.com" }))).toThrow(/HMAC digests/);
+  });
   it("keeps xAI optional but validates configured credentials", () => {
     expect(createConfig(environment()).assistant).toEqual({
       provider: "groq",

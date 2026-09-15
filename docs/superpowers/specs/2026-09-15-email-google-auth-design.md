@@ -120,7 +120,7 @@ All routes live under /api/v1. Errors remain { error, request_id }. Final sessio
 | POST /auth/mobile/register/start | {name,email,password,locale} | 202 {registration_token,expires_at,next_action:"verify_email"}; no user |
 | POST /auth/mobile/register/complete | {registration_token,email_verification_token,locale,consents,adult_self_attestation:true,device_name} | 201 restricted passenger session; serializable consent/account/session write |
 | POST /auth/mobile/google | {id_token,device_name} | linked identity gets session; unknown allowed identity gets registration token; email collision returns explicit_link_required and no session |
-| POST /auth/mobile/google/complete-registration | {registration_token,locale,consents,adult_self_attestation:true,device_name} | 201 restricted passenger session after atomic User/ExternalIdentity/consent/session |
+| POST /auth/mobile/google/complete-registration | {registration_token,name,locale,consents,adult_self_attestation:true,device_name} | 201 restricted passenger session after atomic User/ExternalIdentity/consent/session; name is entered/confirmed on the consent screen, not retained from the raw Google profile |
 | POST /auth/admin/login | {email,password,device_name} | active verified-email admin only; no refresh |
 | POST /auth/admin/google | {id_token,device_name} | existing linked active Admin only; no email lookup/create/link/promotion |
 | POST /auth/identities/google/link | current session + fresh reauth + {id_token} | explicit link only; subject unique |
@@ -188,4 +188,3 @@ Use only an isolated disposable MySQL database restored from a sanitized product
 ## Ready state
 
 READY_FOR_IMPLEMENTATION. Production rollout remains blocked until approved email/phone delivery providers and a disposable rehearsal database exist.
-
