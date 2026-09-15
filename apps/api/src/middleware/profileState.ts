@@ -3,18 +3,22 @@ import { authenticateAuthToken, type AuthenticatedRequest } from "./auth.js";
 import { HttpError } from "./error.js";
 
 const completionSafePaths = new Set([
+  "/api/v1/me",
   "/api/v1/capabilities",
-  "/api/v1/onboarding/consents"
+  "/api/v1/onboarding/consents",
+  "/api/v1/profile/phone/start-verification",
+  "/api/v1/profile/phone/confirm-verification"
 ]);
 
 function pathname(req: AuthenticatedRequest) {
-  return new URL(req.originalUrl, "http://masari.local").pathname;
+  const path = new URL(req.originalUrl, "http://masari.local").pathname.toLowerCase();
+  return path === "/" ? path : path.replace(/\/+$/, "");
 }
 
 export function isProfileCompletionSafePath(req: AuthenticatedRequest) {
   const path = pathname(req);
-  return path.startsWith("/api/v1/auth/") ||
-    path.startsWith("/api/v1/phone-verification") ||
+  return path === "/api/v1/auth" ||
+    path.startsWith("/api/v1/auth/") ||
     completionSafePaths.has(path);
 }
 
