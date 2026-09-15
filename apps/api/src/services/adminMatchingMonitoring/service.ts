@@ -27,8 +27,11 @@ import {
 
 const transactionOptions = {
   isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
-  maxWait: 2_000,
-  timeout: 5_000
+  maxWait: 5_000,
+  // Large but bounded legacy datasets can require several seconds for the
+  // eligibility joins and total-count query on the hosted MySQL runner.
+  // Keep the read transaction bounded while avoiding a false 503 at 5s.
+  timeout: 10_000
 } as const;
 const scope = "production_supported_legacy" as const;
 const unavailableCodes = new Set(["P1001", "P1002", "P1017", "P2024", "P2028", "P2034"]);

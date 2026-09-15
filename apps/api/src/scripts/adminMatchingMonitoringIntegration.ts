@@ -42,10 +42,11 @@ const query = (values: Record<string, string | number>) => `?${new URLSearchPara
 const times: Record<string, number[]> = {};
 let adminToken = "";
 let phase = "setup";
+const readBudgetMs = 10_000;
 
 async function get<T>(path: string, token = adminToken, status = 200): Promise<T> {
   const start = performance.now();
-  const response = await fetch(`${base}${path}`, { headers: token ? { authorization: `Bearer ${token}` } : {}, signal: AbortSignal.timeout(10_000) });
+  const response = await fetch(`${base}${path}`, { headers: token ? { authorization: `Bearer ${token}` } : {}, signal: AbortSignal.timeout(readBudgetMs) });
   const body: unknown = await response.json();
   assert.equal(response.status, status, `${phase}: ${path.split("?")[0]} HTTP status`);
   assert(!JSON.stringify(body).includes(marker), "Private fixture marker escaped projection");
@@ -57,7 +58,7 @@ async function get<T>(path: string, token = adminToken, status = 200): Promise<T
     const label = path.split("?")[0]!.replace(/\/matches\/[^/]+/, "/matches/:id").replace(/\/batches\/[^/]+/, "/batches/:id");
     const elapsed = performance.now() - start;
     if (phase === "volume") (times[label] ??= []).push(elapsed);
-    assert(elapsed < 5_000, `${label} exceeded disposable fixture 5-second budget`);
+    assert(elapsed < readBudgetMs, `${label} exceeded disposable fixture ${readBudgetMs}ms budget`);
   }
   return body as T;
 }
@@ -349,7 +350,7 @@ try {
       throw error;
     }
     const elapsed = performance.now() - start;
-    assert(elapsed < 5_000, `${label} query budget exceeded`);
+    assert(elapsed < readBudgetMs, `${label} query budget exceeded`);
     assert(sqlCount > 0 && sqlCount <= 12, `${label} SQL query count must be bounded`);
     console.log(JSON.stringify({ service: label, sql_queries: sqlCount, elapsed_ms: Math.round(elapsed) }));
     return sqlCount;

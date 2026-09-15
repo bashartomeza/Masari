@@ -76,7 +76,7 @@ describe("admin matching monitoring service", () => {
       orderBy: [{ created_at: "desc" }, { id: "desc" }], skip: 0, take: 25
     });
     expect(tx.match.count).toHaveBeenCalledWith({ where: { AND: [eligibleMatch, { created_at: { gte: new Date(range.from), lt: new Date(range.until) } }] } });
-    expect(transaction).toHaveBeenCalledWith(expect.any(Function), { isolationLevel: "RepeatableRead", maxWait: 2_000, timeout: 5_000 });
+    expect(transaction).toHaveBeenCalledWith(expect.any(Function), { isolationLevel: "RepeatableRead", maxWait: 5_000, timeout: 10_000 });
     expect(mutation).not.toHaveBeenCalled();
     expect(tx.trip.findMany).not.toHaveBeenCalled();
     expect(tx.canonicalDemandDispatch.findMany).not.toHaveBeenCalled();
