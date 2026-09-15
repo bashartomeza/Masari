@@ -33,6 +33,7 @@ export async function requireCompleteProfile(req: AuthenticatedRequest, _res: Re
 
     if (req.user) {
       if (req.user.profileState !== "complete") throw new HttpError(403, "profile_incomplete");
+      if (!req.user.emailVerified) throw new HttpError(403, "email_verification_required");
       return next();
     }
 
@@ -43,6 +44,7 @@ export async function requireCompleteProfile(req: AuthenticatedRequest, _res: Re
     const user = await authenticateAuthToken(token);
     req.user = user;
     if (user.profileState !== "complete") throw new HttpError(403, "profile_incomplete");
+    if (!user.emailVerified) throw new HttpError(403, "email_verification_required");
 
     next();
   } catch (error) {

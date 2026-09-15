@@ -1,6 +1,7 @@
 import express from "express";
 import type { Logger } from "pino";
-import { authRouter } from "./modules/auth.js";
+import { createAuthRouter } from "./modules/auth.js";
+import type { EmailDelivery } from "./services/emailAuth.js";
 import { createDemoRouter } from "./modules/demoReset.js";
 import { passengerRouter } from "./modules/passenger.js";
 import { createDriverRouter } from "./modules/driver.js";
@@ -58,6 +59,7 @@ export const CONSENT_RELEASE_JSON_LIMIT = "256kb";
 export const HTTP_FORM_LIMIT = "16kb";
 
 type AppDependencies = {
+  emailDelivery?: EmailDelivery;
   logger?: Logger;
   readinessCheck?: ReadinessCheck;
   otpProvider?: OtpProvider;
@@ -96,7 +98,7 @@ export function createApp(
   );
   app.use("/api/v1", createGlobalRateLimiter(appConfig));
   app.use(
-    ["/api/v1/auth/login", "/api/v1/auth/register", "/api/v1/auth/google"],
+    ["/api/v1/auth/login", "/api/v1/auth/register", "/api/v1/auth/google", "/api/v1/auth/mobile", "/api/v1/auth/admin", "/api/v1/auth/email", "/api/v1/auth/password"],
     createLoginRateLimiter(appConfig),
   );
   app.use(
@@ -109,7 +111,7 @@ export function createApp(
   // surfaces, while profile-completion-safe paths are explicitly exempted.
   app.use("/api/v1", requireCompleteProfile);
 
-  app.use("/api/v1", authRouter);
+  app.use("/api/v1", createAuthRouter(appConfig, dependencies));
   app.use("/api/v1", createCapabilitiesRouter(appConfig));
   app.use(
     "/api/v1",

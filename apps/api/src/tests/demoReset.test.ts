@@ -110,7 +110,7 @@ describe("demo reset", () => {
       expires_at: new Date(Date.now() + 60_000),
       revoked_at: null,
       security_version_at_issue: 1,
-      user: { id: "admin_1", role: "admin", account_status: "active", security_version: 1 }
+      user: { email_verified_at: new Date(), id: "admin_1", role: "admin", account_status: "active", security_version: 1 }
     });
     prismaMock.authSession.update.mockResolvedValue({});
     const token = signAuthToken({ id: "admin_1", role: "admin", sessionId: "session_admin", securityVersion: 1 });

@@ -224,6 +224,7 @@ describe("production HTTP security baseline", () => {
     const { logger, lines } = capturedLogger();
     const appConfig = testConfig();
     const user = {
+  email_verified_at: new Date(),
       id: "driver_actor",
       role: "driver",
       account_status: "active",

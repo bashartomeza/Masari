@@ -37,6 +37,7 @@ function passengerRow(overrides: Record<string, unknown> = {}) {
     name: "Demo Passenger",
     phone: "+970590000001",
     email: "passenger@example.com",
+    email_verified_at: new Date(),
     google_sub: null,
     password_hash: null as string | null,
     role: "passenger",
@@ -253,71 +254,14 @@ describe("auth", () => {
   });
 });
 
-describe("auth register", () => {
-  beforeEach(() => {
+describe("retired immediate registration", () => {
+  it("returns registration_flow_required and never creates a user or session", async () => {
     vi.clearAllMocks();
-    prismaMock.$transaction.mockImplementation((callback: (tx: typeof prismaMock) => unknown) => callback(prismaMock));
-    prismaMock.authSession.create.mockResolvedValue({
-      id: "session_1",
-      client_type: "mobile",
-      device_name: null,
-      created_at: new Date(),
-      last_used_at: new Date(),
-      expires_at: new Date(Date.now() + 86_400_000),
-      revoked_at: null
-    });
-    prismaMock.refreshToken.create.mockResolvedValue({});
-    prismaMock.user.updateMany.mockResolvedValue({ count: 1 });
-    prismaMock.auditEvent.create.mockResolvedValue({ id: "audit_1" });
-  });
-
-  it("creates an active passenger and returns a session", async () => {
-    prismaMock.user.findUnique.mockResolvedValue(null);
-    prismaMock.user.create.mockResolvedValue(
-      passengerRow({ id: "new_1", name: "Sara", email: "sara@example.com", demo_account: false })
-    );
-
-    const response = await request(createApp())
-      .post("/api/v1/auth/register")
-      .send({ name: "Sara", email: "sara@example.com", password: "supersecret1" })
-      .expect(201);
-
-    expect(response.body.user).toEqual(
-      expect.objectContaining({ role: "passenger", email: "sara@example.com", account_status: "active" })
-    );
-    expect(response.body.refresh_token).toEqual(expect.any(String));
-    expect(prismaMock.user.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        name: "Sara",
-        email: "sara@example.com",
-        role: "passenger",
-        account_status: "active",
-        password_hash: expect.any(String)
-      })
-    });
-    const created = prismaMock.user.create.mock.calls[0]?.[0]?.data as { password_hash: string };
-    expect(created.password_hash).not.toBe("supersecret1");
-  });
-
-  it("rejects a duplicate email", async () => {
-    prismaMock.user.findUnique.mockResolvedValue(passengerRow({ email: "taken@example.com" }));
-
-    const response = await request(createApp())
-      .post("/api/v1/auth/register")
-      .send({ name: "Sara", email: "taken@example.com", password: "supersecret1" })
-      .expect(409);
-
-    expect(response.body.error).toBe("email_taken");
+    const response = await request(createApp()).post("/api/v1/auth/register")
+      .send({ name: "Sara", email: "sara@example.com", password: "supersecret1" }).expect(410);
+    expect(response.body.error).toBe("registration_flow_required");
     expect(prismaMock.user.create).not.toHaveBeenCalled();
-  });
-
-  it("rejects a short password", async () => {
-    const response = await request(createApp())
-      .post("/api/v1/auth/register")
-      .send({ name: "Sara", email: "sara@example.com", password: "short" })
-      .expect(400);
-
-    expect(response.body.error).toBeDefined();
+    expect(prismaMock.authSession.create).not.toHaveBeenCalled();
   });
 });
 

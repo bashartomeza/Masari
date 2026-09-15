@@ -15,7 +15,11 @@ const AUTH_CREDENTIAL_FIELD_NAMES = [
   "refreshToken",
   "refresh_token",
   "credential",
-  "credentials"
+  "credentials",
+  "registration_token",
+  "email_verification_token",
+  "reauthentication_token",
+  "current_password"
 ] as const;
 
 // Pino/fast-redact supports `*` for one object segment, not an unbounded

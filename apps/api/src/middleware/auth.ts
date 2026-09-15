@@ -10,6 +10,7 @@ export type AuthUser = {
   sessionId: string;
   securityVersion: number;
   profileState?: "phone_required" | "complete";
+  emailVerified?: boolean;
 };
 
 export type AuthenticatedRequest = Request & {
@@ -74,7 +75,7 @@ export async function authenticateAuthToken(token: string, options: { allowRevok
   }
   // profile_state is non-null in the database. The fallback only supports
   // narrow legacy test doubles that predate this schema field.
-  return { ...claims, profileState: session.user.profile_state ?? "complete" };
+  return { ...claims, profileState: session.user.profile_state ?? "complete", emailVerified: Boolean(session.user.email_verified_at) };
 }
 
 function authMiddleware(options: { allowRevoked?: boolean } = {}) {

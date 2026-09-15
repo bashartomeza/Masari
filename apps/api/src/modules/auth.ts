@@ -1,7 +1,7 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
-import { config } from "../config.js";
+import { config, type AppConfig } from "../config.js";
 import { prisma } from "../lib/prisma.js";
 import { auditEvent } from "../lib/audit.js";
 import {
@@ -23,24 +23,15 @@ import {
 import { HttpError } from "../middleware/error.js";
 import { AuditAction, Prisma } from "../generated/prisma/client.js";
 import { GoogleIdTokenError, verifyGoogleIdToken } from "../lib/googleIdToken.js";
+import { EmailAuthService, canonicalEmail, emailStartSchema, emailCompleteSchema, emailProofStartSchema, emailProofConfirmSchema, passwordResetSchema, passwordSetSchema, type EmailDelivery } from "../services/emailAuth.js";
+import type { ConsentReleaseService } from "../services/consentReleases.js";
 
-const emailField = z
-  .string()
-  .trim()
-  .toLowerCase()
-  .email()
-  .max(191);
+const emailField = canonicalEmail;
 const deviceNameField = z.string().trim().min(1).max(120).optional();
 
 const loginSchema = z.object({
   email: emailField,
   password: z.string().min(1).max(200),
-  device_name: deviceNameField
-});
-const registerSchema = z.object({
-  name: z.string().trim().min(1).max(120),
-  email: emailField,
-  password: z.string().min(8).max(200),
   device_name: deviceNameField
 });
 const googleSchema = z.object({
@@ -57,6 +48,8 @@ function publicUser(user: {
   role: string;
   account_status: string;
   demo_account: boolean;
+  profile_state?: string;
+  email_verified_at?: Date | null;
 }) {
   return {
     id: user.id,
@@ -65,7 +58,9 @@ function publicUser(user: {
     email: user.email,
     role: user.role,
     account_status: user.account_status,
-    demo_account: user.demo_account
+    demo_account: user.demo_account,
+    profile_state: user.profile_state,
+    email_verified: Boolean(user.email_verified_at)
   };
 }
 
@@ -82,13 +77,14 @@ type SessionUser = {
  * signs an access token. Shared by password login, email registration, and
  * Google sign-in so the session invariants live in exactly one place.
  */
-async function establishMobileSession(
+export async function establishMobileSession(
   user: SessionUser,
   options: {
     deviceName?: string;
     loginAction: AuditAction;
     loginMetadata?: Prisma.InputJsonValue;
-  }
+  },
+  transaction?: Prisma.TransactionClient
 ) {
   const now = new Date();
   const refreshMaterial = isRefreshTokenRole(user.role) ? createRefreshToken(user.role) : null;
@@ -97,7 +93,7 @@ async function establishMobileSession(
   const sessionExpiresAt =
     refreshExpiresAt ?? new Date(now.getTime() + config.accessTokenTtlSeconds * 1_000);
 
-  const result = await prisma.$transaction(async (tx) => {
+  const create = async (tx: Prisma.TransactionClient) => {
     const eligible = await tx.user.updateMany({
       where: {
         id: user.id,
@@ -147,10 +143,11 @@ async function establishMobileSession(
     });
     const token = accessToken(user, created.id);
     return { kind: "success", session: created, token } as const;
-  });
+  };
+  const result = transaction ? await create(transaction) : await prisma.$transaction(create);
 
   if (result.kind === "account_unavailable") {
-    await auditEvent(prisma, {
+    await auditEvent(transaction ?? prisma, {
       userId: user.id,
       action: AuditAction.login_blocked_by_status,
       entityType: "User",
@@ -239,9 +236,15 @@ async function markRefreshReuse(
   });
 }
 
-export const authRouter = Router();
+export function createAuthRouter(appConfig: AppConfig = config, dependencies: { emailDelivery?: EmailDelivery; consentReleaseService?: ConsentReleaseService } = {}) {
+const authRouter = Router();
+const emailAuth = new EmailAuthService(prisma, appConfig, dependencies.emailDelivery, dependencies.consentReleaseService);
 
-authRouter.post("/auth/login", async (req, res, next) => {
+authRouter.get("/auth/consents", async (req, res, next) => {
+  try { res.json(await emailAuth.currentConsents(z.enum(["ar", "en"]).parse(req.query.locale))); } catch (error) { next(error); }
+});
+
+authRouter.post(["/auth/login", "/auth/mobile/login"], async (req, res, next) => {
   try {
     const input = loginSchema.parse(req.body);
     const user = await prisma.user.findUnique({ where: { email: input.email } });
@@ -249,6 +252,8 @@ authRouter.post("/auth/login", async (req, res, next) => {
 
     const validPassword = await bcrypt.compare(input.password, user.password_hash);
     if (!validPassword) throw new HttpError(401, "invalid_credentials");
+    if (!user.email_verified_at) throw new HttpError(403, "email_verification_required");
+    if (req.path === "/auth/mobile/login" && user.role === "admin") throw new HttpError(401, "invalid_credentials");
     if (user.account_status !== "active") {
       await auditEvent(prisma, {
         userId: user.id,
@@ -271,39 +276,37 @@ authRouter.post("/auth/login", async (req, res, next) => {
   }
 });
 
-authRouter.post("/auth/register", async (req, res, next) => {
+authRouter.post("/auth/register", (_req, _res, next) => next(new HttpError(410, "registration_flow_required")));
+
+authRouter.post("/auth/mobile/register/start", async (req, res, next) => {
+  try { res.status(202).json(await emailAuth.start(emailStartSchema.parse(req.body))); } catch (error) { next(error); }
+});
+authRouter.post("/auth/mobile/register/complete", async (req, res, next) => {
   try {
-    const input = registerSchema.parse(req.body);
-
-    const existing = await prisma.user.findUnique({ where: { email: input.email } });
-    if (existing) throw new HttpError(409, "email_taken");
-
-    const passwordHash = await bcrypt.hash(input.password, 12);
-    let user;
-    try {
-      user = await prisma.user.create({
-        data: {
-          name: input.name,
-          email: input.email,
-          password_hash: passwordHash,
-          role: "passenger",
-          account_status: "active"
-        }
-      });
-    } catch (error) {
-      if (isUniqueConstraintError(error)) throw new HttpError(409, "email_taken");
-      throw error;
-    }
-
-    const established = await establishMobileSession(user, {
-      deviceName: input.device_name,
-      loginAction: AuditAction.auth_register,
-      loginMetadata: { role: user.role, method: "email" }
-    });
-    res.status(201).json(sessionResponseBody(established, user));
-  } catch (error) {
-    next(error);
-  }
+    const input = emailCompleteSchema.parse(req.body);
+    const result = await emailAuth.complete(input, (tx, user) => establishMobileSession(user, {
+      deviceName: input.device_name, loginAction: AuditAction.auth_register, loginMetadata: { method: "email", role: "passenger" }
+    }, tx), req.requestId);
+    res.status(201).json(sessionResponseBody(result.session, result.user));
+  } catch (error) { next(error); }
+});
+authRouter.post("/auth/email/verify/start", async (req, res, next) => {
+  try { res.status(202).json(await emailAuth.proofStart(emailProofStartSchema.parse(req.body), "email_verification")); } catch (error) { next(error); }
+});
+authRouter.post("/auth/email/verify/confirm", async (req, res, next) => {
+  try { res.json(await emailAuth.verify(emailProofConfirmSchema.parse(req.body))); } catch (error) { next(error); }
+});
+authRouter.post("/auth/password/reset/start", async (req, res, next) => {
+  try { res.status(202).json(await emailAuth.proofStart(emailProofStartSchema.parse(req.body), "password_reset")); } catch (error) { next(error); }
+});
+authRouter.post("/auth/password/reset/confirm", async (req, res, next) => {
+  try { res.json(await emailAuth.reset(passwordResetSchema.parse(req.body))); } catch (error) { next(error); }
+});
+authRouter.post("/auth/password/set/start", requireAuth, async (req: AuthenticatedRequest, res, next) => {
+  try { res.status(202).json(await emailAuth.passwordSetStart(req.user!.id, z.enum(["ar", "en"]).parse(req.body.locale))); } catch (error) { next(error); }
+});
+authRouter.post("/auth/password/set", requireAuth, async (req: AuthenticatedRequest, res, next) => {
+  try { res.json(await emailAuth.setPassword(req.user!.id, req.user!.securityVersion, passwordSetSchema.parse(req.body))); } catch (error) { next(error); }
 });
 
 authRouter.post("/auth/google", async (req, res, next) => {
@@ -610,3 +613,5 @@ authRouter.post("/auth/logout-all", requireAuth, async (req: AuthenticatedReques
     next(error);
   }
 });
+return authRouter;
+}

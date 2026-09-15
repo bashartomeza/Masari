@@ -10,6 +10,7 @@ vi.mock("../lib/prisma.js", () => ({ prisma: prismaMock }));
 const { authenticateAuthToken, signAuthToken } = await import("../middleware/auth.js");
 
 const user = {
+  email_verified_at: new Date(),
   id: "user_1",
   role: "passenger" as const,
   account_status: "active",
@@ -46,6 +47,7 @@ describe("server-managed authentication middleware", () => {
 
   it("accepts an active user with a valid live session", async () => {
     await expect(authenticateAuthToken(token())).resolves.toEqual({
+      emailVerified: true,
       id: user.id,
       role: user.role,
       sessionId: "session_1",
