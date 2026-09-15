@@ -69,6 +69,52 @@ describe("auth", () => {
     prismaMock.auditEvent.create.mockResolvedValue({ id: "audit_1" });
   });
 
+  it.each(["passenger", "driver", "merchant"])("rejects %s at the Admin password boundary before session creation", async (role) => {
+    prismaMock.user.findUnique.mockResolvedValue(passengerRow({ role, password_hash: await bcrypt.hash("secret", 4) }));
+    await request(createApp()).post("/api/v1/auth/admin/login").send({ email: "passenger@example.com", password: "secret" }).expect(401);
+    expect(prismaMock.authSession.create).not.toHaveBeenCalled();
+  });
+
+  it("issues an Admin session only for verified active Admin email credentials", async () => {
+    prismaMock.user.findUnique.mockResolvedValue(passengerRow({ role: "admin", password_hash: await bcrypt.hash("secret", 4) }));
+    const response = await request(createApp()).post("/api/v1/auth/admin/login").send({ email: "passenger@example.com", password: "secret" }).expect(200);
+    expect(response.body.access_token).toEqual(expect.any(String));
+    expect(response.body.refresh_token).toBeUndefined();
+    expect(prismaMock.authSession.create.mock.calls[0][0].data.client_type).toBe("admin");
+    await request(createApp()).post("/api/v1/auth/admin/login").send({ phone: "+970590000001", password: "secret" }).expect(400);
+  });
+
+  it("Admin Google resolves only linked subjects with the Admin audience", async () => {
+    const appConfig = { ...config, googleAuth: { ...config.googleAuth, adminClientIds: ["admin-web"], mobileClientIds: ["mobile"] } };
+    const verifier = vi.fn().mockResolvedValue({ sub: "subject", email: "changed@example.com", emailVerified: true });
+    prismaMock.externalIdentity.findUnique.mockResolvedValue({ user: passengerRow({ role: "admin" }) });
+    const app = createApp(appConfig, { googleVerifier: verifier });
+    const response = await request(app).post("/api/v1/auth/admin/google").send({ id_token: "credential" }).expect(200);
+    expect(response.body.refresh_token).toBeUndefined();
+    expect(verifier).toHaveBeenCalledWith("credential", ["admin-web"]);
+    expect(prismaMock.user.findUnique).not.toHaveBeenCalled();
+    expect(prismaMock.externalIdentity.findUnique).toHaveBeenCalledWith({ where: { provider_provider_subject: { provider: "google", provider_subject: "subject" } }, include: { user: true } });
+    expect(prismaMock.user.create).not.toHaveBeenCalled();
+    expect(prismaMock.externalIdentity.create).not.toHaveBeenCalled();
+  });
+
+  it.each([null, "passenger", "driver", "merchant", "suspended_admin"])("refuses ineligible Admin Google identity %s without writes", async (kind) => {
+    prismaMock.externalIdentity.findUnique.mockResolvedValue(kind ? { user: passengerRow({ role: kind === "suspended_admin" ? "admin" : kind, account_status: kind === "suspended_admin" ? "suspended" : "active" }) } : null);
+    const app = createApp({ ...config, googleAuth: { ...config.googleAuth, adminClientIds: ["admin-web"] } }, { googleVerifier: async () => ({ sub: "subject", email: "admin@example.com", emailVerified: true }) });
+    await request(app).post("/api/v1/auth/admin/google").send({ id_token: "credential" }).expect(401);
+    expect(prismaMock.authSession.create).not.toHaveBeenCalled();
+    expect(prismaMock.user.findUnique).not.toHaveBeenCalled();
+    expect(prismaMock.user.create).not.toHaveBeenCalled();
+  });
+
+  it("reports Admin Google unavailable without an Admin audience and fails closed", async () => {
+    const app = createApp({ ...config, googleAuth: { ...config.googleAuth, adminClientIds: [], mobileClientIds: ["mobile"] } });
+    const capabilities = await request(app).get("/api/v1/auth/capabilities").expect(200);
+    expect(capabilities.body.google_admin_login_available).toBe(false);
+    expect(capabilities.body.google_admin_client_id).toBeNull();
+    await request(app).post("/api/v1/auth/admin/google").send({ id_token: "credential" }).expect(503);
+  });
+
   it("logs in a seeded account by email and returns a token", async () => {
     prismaMock.user.findUnique.mockResolvedValue(
       passengerRow({ password_hash: await bcrypt.hash("test-passenger-password", 4) })

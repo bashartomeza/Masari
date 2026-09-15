@@ -256,6 +256,8 @@ authRouter.post("/profile/phone/confirm-verification", requireAuth, passwordSetR
 authRouter.get("/auth/capabilities", (_req, res) => {
   res.json({
     google_mobile_login_available: appConfig.googleAuth.mobileClientIds.length > 0,
+    google_admin_login_available: appConfig.googleAuth.adminClientIds.length === 1,
+    google_admin_client_id: appConfig.googleAuth.adminClientIds.length === 1 ? appConfig.googleAuth.adminClientIds[0] : null,
     google_passenger_signup_mode: appConfig.googleAuth.passengerSignupMode
   });
 });
@@ -264,16 +266,17 @@ authRouter.get("/auth/consents", async (req, res, next) => {
   try { res.json(await emailAuth.currentConsents(z.enum(["ar", "en"]).parse(req.query.locale))); } catch (error) { next(error); }
 });
 
-authRouter.post(["/auth/login", "/auth/mobile/login"], async (req, res, next) => {
+authRouter.post(["/auth/login", "/auth/mobile/login", "/auth/admin/login"], async (req, res, next) => {
   try {
     const input = loginSchema.parse(req.body);
     const user = await prisma.user.findUnique({ where: { email: input.email } });
     if (!user || !user.password_hash) throw new HttpError(401, "invalid_credentials");
+    const loginPath = req.path.toLowerCase().replace(/\/+$/, "");
+    if (loginPath === "/auth/admin/login" && user.role !== "admin") throw new HttpError(401, "invalid_credentials");
 
     const validPassword = await bcrypt.compare(input.password, user.password_hash);
     if (!validPassword) throw new HttpError(401, "invalid_credentials");
     if (!user.email_verified_at) throw new HttpError(403, "email_verification_required");
-    const loginPath = req.path.toLowerCase().replace(/\/+$/, "");
     if (loginPath === "/auth/mobile/login" && user.role === "admin") throw new HttpError(401, "invalid_credentials");
     if (user.account_status !== "active") {
       await auditEvent(prisma, {
@@ -347,6 +350,15 @@ authRouter.post(["/auth/google", "/auth/mobile/google"], async (req, res, next) 
       loginMetadata: { method: "google", role: result.user.role }
     });
     res.json(sessionResponseBody(established, result.user));
+  } catch (error) { next(error); }
+});
+
+authRouter.post("/auth/admin/google", async (req, res, next) => {
+  try {
+    const input = googleSchema.parse(req.body);
+    const user = await googleAuth.adminLogin(input.id_token);
+    const established = await establishMobileSession(user, { deviceName: input.device_name, loginAction: AuditAction.auth_google_login, loginMetadata: { method: "google", role: "admin" } });
+    res.json(sessionResponseBody(established, user));
   } catch (error) { next(error); }
 });
 

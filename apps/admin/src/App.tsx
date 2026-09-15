@@ -34,6 +34,7 @@ import {
   type AdminRouteId
 } from "./navigation";
 import { AppShell, Button, Icon, Notice, SideNav, TopBar } from "./ui";
+import { GoogleAdminSignIn } from "./GoogleAdminSignIn";
 
 export { ADMIN_TOKEN_KEY, clearAdminSession } from "./session";
 
@@ -44,6 +45,7 @@ type DemoStep = { key: TranslationKey; statusValue?: string };
 
 function getErrorMessage(error: unknown, t: (key: TranslationKey) => string) {
   if (!(error instanceof Error)) return t("unexpectedError");
+  if (["invalid_credentials", "email_verification_required", "account_unavailable"].includes(error.message)) return t("authFailed");
   if (error.message === "Failed to fetch") return t("failedToFetch");
   if (error.message === "forbidden" || error.message === "unauthorized") return t("unauthorized");
   if (error.message === "demo_reset_database_not_allowed" || error.message === "demo_reset_real_data_present") {
@@ -69,7 +71,8 @@ export function App({
     return sessionStore.getItem(ADMIN_TOKEN_KEY) ?? "";
   });
   const [admin, setAdmin] = useState<User | null>(null);
-  const [phone, setPhone] = useState(demoEnabled ? config.demo?.adminPhone ?? "" : "");
+  const [email, setEmail] = useState("");
+  const [googleClientId, setGoogleClientId] = useState<string | null>(null);
   const [password, setPassword] = useState(demoEnabled ? config.demo?.adminPassword ?? "" : "");
   const [resetKey, setResetKey] = useState(demoEnabled ? config.demo?.resetKey ?? "" : "");
   const [busy, setBusy] = useState<string | null>(null);
@@ -136,6 +139,13 @@ export function App({
     () => createApiClient(config.apiBaseUrl, { onSessionEnded: sessionExpiry.handle }),
     [config.apiBaseUrl, sessionExpiry]
   );
+  useEffect(() => {
+    let mounted = true;
+    api.authCapabilities().then((capabilities) => {
+      if (mounted) setGoogleClientId(capabilities.google_admin_login_available && capabilities.google_admin_client_id ? capabilities.google_admin_client_id : null);
+    }).catch(() => { if (mounted) setGoogleClientId(null); });
+    return () => { mounted = false; };
+  }, [api]);
   const demoApi = useMemo(
     () => createDemoApiClient(config.apiBaseUrl, { onSessionEnded: sessionExpiry.handle }),
     [config.apiBaseUrl, sessionExpiry]
@@ -245,7 +255,7 @@ export function App({
 
   async function login(event: FormEvent) {
     event.preventDefault();
-    const result = await runAction("login", () => api.login(phone, password), t("adminLoggedIn"));
+    const result = await runAction("login", () => api.login(email, password), t("adminLoggedIn"));
     if (!result) return;
     sessionExpiry.reset();
     sessionStore.setItem(ADMIN_TOKEN_KEY, result.token);
@@ -266,7 +276,7 @@ export function App({
     if (!demoApi || !demoResetAvailable) return;
     const result = await runAction("reset", () => demoApi.reset(token || undefined, resetKey), t("demoDataReset"));
     if (!result) return;
-    const session = await api.login(phone, password);
+    const session = await api.login(email, password);
     sessionExpiry.reset();
     sessionStore.setItem(ADMIN_TOKEN_KEY, session.token);
     setToken(session.token);
@@ -389,7 +399,7 @@ export function App({
       mark("stepReset");
       await demoApi.reset(token || undefined, resetKey);
       mark("stepLogin");
-      const session = await api.login(phone, password);
+      const session = await api.login(email, password);
       sessionExpiry.reset();
       sessionStore.setItem(ADMIN_TOKEN_KEY, session.token);
       setToken(session.token);
@@ -480,9 +490,15 @@ export function App({
           <h1>{t("loginHeading")}</h1>
           <p className="login-card__description">{t("loginDescription", { apiBaseUrl: config.apiBaseUrl })}</p>
           {demoEnabled && <p className="login-card__hint technical">{t("demoCredentials")}</p>}
-          <label className="field">{t("adminPhone")}<input className="technical" type="tel" dir="ltr" autoComplete="tel" maxLength={32} placeholder="+[country code][number]" value={phone} onChange={(event) => setPhone(event.target.value)} /></label>
-          <label className="field">{t("password")}<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} /></label>
+          <label className="field">{t("adminEmail")}<input className="technical" type="email" dir="ltr" autoComplete="username" required maxLength={191} value={email} onChange={(event) => setEmail(event.target.value)} /></label>
+          <label className="field">{t("password")}<input type="password" autoComplete="current-password" required value={password} onChange={(event) => setPassword(event.target.value)} /></label>
           <button className="btn btn--primary" disabled={busy === "login"}>{busy === "login" ? t("signingIn") : t("signIn")}</button>
+          {googleClientId && <GoogleAdminSignIn clientId={googleClientId} onCredential={async (credential) => {
+            const result = await api.googleLogin(credential);
+            sessionExpiry.reset(); sessionStore.setItem(ADMIN_TOKEN_KEY, result.token); setToken(result.token); setAdmin(result.user);
+            const capabilities = await api.capabilities(result.token).catch(() => ({ demo_reset_available: false }));
+            setDemoResetAvailable(capabilities.demo_reset_available === true); await refreshOverview(result.token);
+          }} />}
           {notice && <Notice kind={notice.type}>{notice.message}</Notice>}
         </form>
       </main>

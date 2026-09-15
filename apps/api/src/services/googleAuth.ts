@@ -58,6 +58,16 @@ export class GoogleAuthService {
     // live in an authenticated encrypted client envelope bound to a one-time action.
     return { kind: "registration", registration_token: seal({ action: action.rawToken, sub: identity.sub, email: identity.email, expires: action.expiresAt.getTime() }, this.key()), expires_at: action.expiresAt.toISOString(), next_action: "consent_required" } as const;
   }
+  async adminLogin(credential: string) {
+    const audiences = this.config.googleAuth.adminClientIds;
+    if (audiences.length !== 1) throw new HttpError(503, "google_auth_unavailable");
+    let identity: VerifiedGoogleIdentity;
+    try { identity = await this.verifier(credential, audiences); if (!identity.emailVerified) throw new Error(); }
+    catch { throw new HttpError(401, "invalid_google_token"); }
+    const linked = await this.db.externalIdentity.findUnique({ where: { provider_provider_subject: { provider: "google", provider_subject: identity.sub } }, include: { user: true } });
+    if (!linked || linked.user.role !== "admin" || linked.user.account_status !== "active") throw new HttpError(401, "invalid_credentials");
+    return linked.user;
+  }
   async complete<T>(input: z.infer<typeof googleCompleteSchema>, createSession: (tx: Prisma.TransactionClient, user: Awaited<ReturnType<PrismaClient["user"]["create"]>>) => Promise<T>, requestId?: string) {
     const grant = open(input.registration_token, this.key()); this.eligible(grant.email);
     try {
