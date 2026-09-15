@@ -8,6 +8,7 @@ export type RouteProviderId = (typeof ROUTE_PROVIDERS)[number];
 const MINIMUM_JWT_SECRET_LENGTH = 32;
 const MINIMUM_REFRESH_PEPPER_LENGTH = 32;
 const MINIMUM_ONBOARDING_PEPPER_LENGTH = 32;
+const MINIMUM_AUTH_ACTION_PEPPER_LENGTH = 32;
 const PRODUCTION_ACCESS_TOKEN_MIN_SECONDS = 300;
 const PRODUCTION_ACCESS_TOKEN_MAX_SECONDS = 1_800;
 const PRODUCTION_REFRESH_TOKEN_MAX_DAYS = 90;
@@ -47,6 +48,8 @@ const rawSchema = z.object({
   ACCESS_TOKEN_TTL_SECONDS: z.coerce.number().int().min(60).max(86_400).optional(),
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().min(1).max(365).optional(),
   REFRESH_TOKEN_PEPPER: z.string().min(MINIMUM_REFRESH_PEPPER_LENGTH).optional(),
+  AUTH_ACTION_TOKEN_PEPPER: z.string().min(MINIMUM_AUTH_ACTION_PEPPER_LENGTH).optional(),
+  AUTH_ACTION_TOKEN_KEY_VERSION: z.coerce.number().int().positive().default(1),
   CORS_ORIGINS: z.string().optional(),
   APP_RELEASE: z.string().min(1).optional(),
   ENABLE_DEMO_FEATURES: z.string().optional(),
@@ -387,6 +390,12 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
   if (productionLike && !raw.REFRESH_TOKEN_PEPPER) {
     problems.push("REFRESH_TOKEN_PEPPER is required in staging and production");
   }
+  if (raw.AUTH_ACTION_TOKEN_PEPPER && isUnsafeSecret(raw.AUTH_ACTION_TOKEN_PEPPER)) {
+    problems.push("AUTH_ACTION_TOKEN_PEPPER uses a known placeholder or default value");
+  }
+  if (raw.AUTH_ACTION_TOKEN_PEPPER && [raw.JWT_SECRET, raw.REFRESH_TOKEN_PEPPER].includes(raw.AUTH_ACTION_TOKEN_PEPPER)) {
+    problems.push("AUTH_ACTION_TOKEN_PEPPER must be distinct from JWT and refresh-token secrets");
+  }
 
   const accessTokenTtlSeconds = raw.ACCESS_TOKEN_TTL_SECONDS ?? (productionLike ? 900 : 28_800);
   const refreshTokenTtlDays = raw.REFRESH_TOKEN_TTL_DAYS ?? 30;
@@ -473,6 +482,14 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
     accessTokenTtlSeconds,
     refreshTokenTtlDays,
     refreshTokenPepper: raw.REFRESH_TOKEN_PEPPER ?? `masari-non-production:${raw.JWT_SECRET}`,
+    authActions: raw.AUTH_ACTION_TOKEN_PEPPER
+      ? {
+          key: {
+            secret: raw.AUTH_ACTION_TOKEN_PEPPER,
+            version: raw.AUTH_ACTION_TOKEN_KEY_VERSION
+          }
+        }
+      : undefined,
     corsOrigins,
     appRelease: raw.APP_RELEASE ?? "unreleased",
     port: raw.PORT,
