@@ -16,7 +16,6 @@ import '../../../core/widgets/language_switch.dart';
 import '../../../core/widgets/masari_card.dart';
 import '../../../core/widgets/masari_map.dart';
 import '../../../core/widgets/masari_section.dart';
-import '../../../core/widgets/route_chip.dart';
 import '../../../core/widgets/state_views.dart';
 import '../../../core/widgets/timeline_tracker.dart';
 import '../../checkpoints/application/checkpoint_controller.dart';
@@ -76,11 +75,10 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
 
-    final tripState = ref.watch(
-      driverTripControllerProvider(widget.tripId),
-    );
+    final tripState = ref.watch(driverTripControllerProvider(widget.tripId));
 
     return Scaffold(
+      key: const ValueKey('driverTrip'),
       backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: widget.showAppBar
           ? AppBar(
@@ -88,9 +86,7 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
               scrolledUnderElevation: 0,
               title: Text(
                 l10n.driverTrip,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w800,
-                ),
+                style: const TextStyle(fontWeight: FontWeight.w800),
               ),
               actions: const [
                 LanguageSwitch(),
@@ -103,9 +99,7 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
         bottom: false,
         child: RefreshIndicator(
           onRefresh: () => ref
-              .read(
-                driverTripControllerProvider(widget.tripId).notifier,
-              )
+              .read(driverTripControllerProvider(widget.tripId).notifier)
               .refresh(),
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -135,10 +129,7 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
                       )
                       .refresh(),
                 ),
-                data: (state) => _tripContent(
-                  l10n,
-                  state,
-                ),
+                data: (state) => _tripContent(l10n, state),
               ),
             ],
           ),
@@ -147,10 +138,7 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
     );
   }
 
-  Widget _tripContent(
-    AppLocalizations l10n,
-    DriverTripState state,
-  ) {
+  Widget _tripContent(AppLocalizations l10n, DriverTripState state) {
     final trip = state.trip;
     final location = state.location;
 
@@ -160,8 +148,7 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
 
     final checkpoints = ref.watch(checkpointsProvider);
 
-    final checkpointSnapshot =
-        checkpoints.value ?? CheckpointSnapshot.empty;
+    final checkpointSnapshot = checkpoints.value ?? CheckpointSnapshot.empty;
 
     final progress = location == null
         ? 0.0
@@ -176,7 +163,6 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
         // ============================================================
         // COMPACT TRIP HEADER
         // ============================================================
-
         _TripHeroCard(
           l10n: l10n,
           trip: trip,
@@ -185,10 +171,7 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
 
         if (_error != null) ...[
           const SizedBox(height: AppTokens.spaceSmall),
-          OfflineBanner(
-            message: _error!,
-            tone: BannerTone.error,
-          ),
+          OfflineBanner(message: _error!, tone: BannerTone.error),
         ],
 
         const SizedBox(height: AppTokens.spaceMedium),
@@ -196,7 +179,6 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
         // ============================================================
         // MAP
         // ============================================================
-
         _DriverMapSection(
           l10n: l10n,
           trip: trip,
@@ -211,25 +193,16 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
         // ============================================================
         // TRIP INFORMATION
         // ============================================================
-
-        _TripInformationCard(
-          l10n: l10n,
-          trip: trip,
-          location: location,
-        ),
+        _TripInformationCard(l10n: l10n, trip: trip, location: location),
 
         const SizedBox(height: AppTokens.spaceLarge),
 
         // ============================================================
         // CHECKPOINTS
         // ============================================================
-
         MasariSection(
           title: l10n.checkpoints,
-          child: _DriverCheckpointsPanel(
-            l10n: l10n,
-            state: checkpoints,
-          ),
+          child: _DriverCheckpointsPanel(l10n: l10n, state: checkpoints),
         ),
 
         const SizedBox(height: AppTokens.spaceLarge),
@@ -237,7 +210,6 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
         // ============================================================
         // STATUS TIMELINE
         // ============================================================
-
         MasariSection(
           title: l10n.statusTimeline,
           child: MasariCard(
@@ -246,13 +218,9 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
               children: [
                 TimelineTracker(
                   steps: [
-                    for (final (index, status)
-                        in driverTripTimeline.indexed)
+                    for (final (index, status) in driverTripTimeline.indexed)
                       TimelineStep(
-                        title: driverStatusLabel(
-                          l10n,
-                          status,
-                        ),
+                        title: driverStatusLabel(l10n, status),
                         state: switch (currentIndex.compareTo(index)) {
                           > 0 => TimelineStepState.completed,
                           0 => TimelineStepState.current,
@@ -266,20 +234,10 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
                   SizedBox(
                     height: 54,
                     child: FilledButton.icon(
-                      key: ValueKey(
-                        'tripAction-$nextStatus',
-                      ),
-                      onPressed:
-                          state.actionInProgress ? null : _advance,
-                      icon: const Icon(
-                        Icons.arrow_forward_rounded,
-                      ),
-                      label: Text(
-                        nextTripActionLabel(
-                          l10n,
-                          nextStatus,
-                        ),
-                      ),
+                      key: ValueKey('tripAction-$nextStatus'),
+                      onPressed: state.actionInProgress ? null : _advance,
+                      icon: const Icon(Icons.arrow_forward_rounded),
+                      label: Text(nextTripActionLabel(l10n, nextStatus)),
                     ),
                   ),
                 ],
@@ -293,7 +251,6 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
         // ============================================================
         // LOCATION / DEMO
         // ============================================================
-
         MasariSection(
           title: demoFeaturesEnabled
               ? l10n.trackingSimulation
@@ -312,32 +269,24 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
   }
 
   Future<void> _advance() => _action(
-        () => ref
-            .read(
-              driverTripControllerProvider(widget.tripId).notifier,
-            )
-            .advanceStatus(),
-      );
+    () => ref
+        .read(driverTripControllerProvider(widget.tripId).notifier)
+        .advanceStatus(),
+  );
 
   Future<void> _simulate() => _action(
-        () => ref
-            .read(
-              driverTripControllerProvider(widget.tripId).notifier,
-            )
-            .simulateStep(),
-      );
+    () => ref
+        .read(driverTripControllerProvider(widget.tripId).notifier)
+        .simulateStep(),
+  );
 
   Future<void> _reset() => _action(
-        () => ref
-            .read(
-              driverTripControllerProvider(widget.tripId).notifier,
-            )
-            .resetSimulation(),
-      );
+    () => ref
+        .read(driverTripControllerProvider(widget.tripId).notifier)
+        .resetSimulation(),
+  );
 
-  Future<void> _action(
-    Future<void> Function() action,
-  ) async {
+  Future<void> _action(Future<void> Function() action) async {
     setState(() => _error = null);
 
     try {
@@ -345,16 +294,11 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
     } catch (error) {
       if (mounted) {
         setState(
-          () => _error = driverErrorLabel(
-            AppLocalizations.of(context),
-            error,
-          ),
+          () => _error = driverErrorLabel(AppLocalizations.of(context), error),
         );
 
         await ref
-            .read(
-              driverTripControllerProvider(widget.tripId).notifier,
-            )
+            .read(driverTripControllerProvider(widget.tripId).notifier)
             .refresh();
       }
     }
@@ -380,10 +324,7 @@ class _TripHeroCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    final status = driverStatusLabel(
-      l10n,
-      trip.status,
-    );
+    final status = driverStatusLabel(l10n, trip.status);
 
     final tone = statusToneFor(trip.status);
 
@@ -392,9 +333,7 @@ class _TripHeroCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: theme.colorScheme.outlineVariant,
-        ),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -436,10 +375,7 @@ class _TripHeroCard extends StatelessWidget {
                   ],
                 ),
               ),
-              _StatusBadge(
-                label: status,
-                tone: tone,
-              ),
+              _StatusBadge(label: status, tone: tone),
             ],
           ),
 
@@ -447,13 +383,11 @@ class _TripHeroCard extends StatelessWidget {
 
           // Route
           Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 11,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
             decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest
-                  .withValues(alpha: 0.65),
+              color: theme.colorScheme.surfaceContainerHighest.withValues(
+                alpha: 0.65,
+              ),
               borderRadius: BorderRadius.circular(15),
             ),
             child: Row(
@@ -466,10 +400,7 @@ class _TripHeroCard extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    localizedOrigin(
-                      context,
-                      trip.route.originLabel,
-                    ),
+                    localizedOrigin(context, trip.route.originLabel),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodyMedium?.copyWith(
@@ -478,9 +409,7 @@ class _TripHeroCard extends StatelessWidget {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 7,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 7),
                   child: Icon(
                     Icons.arrow_forward_rounded,
                     size: 17,
@@ -528,7 +457,7 @@ class _TripHeroCard extends StatelessWidget {
                   label: trip.passengerRequest == null
                       ? '0 ${l10n.passengerCount}'
                       : '${trip.passengerRequest!.passengerCount} '
-                          '${l10n.passengerCount}',
+                            '${l10n.passengerCount}',
                   active: trip.passengerRequest != null,
                 ),
               ),
@@ -539,7 +468,7 @@ class _TripHeroCard extends StatelessWidget {
                   label: trip.merchantOrder == null
                       ? '0 ${l10n.parcelCount}'
                       : '${trip.merchantOrder!.parcelCount} '
-                          '${l10n.parcelCount}',
+                            '${l10n.parcelCount}',
                   active: trip.merchantOrder != null,
                 ),
               ),
@@ -567,19 +496,12 @@ class _HeroStatusItem extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Container(
-      constraints: const BoxConstraints(
-        minHeight: 42,
-      ),
-      padding: const EdgeInsets.symmetric(
-        horizontal: 8,
-        vertical: 8,
-      ),
+      constraints: const BoxConstraints(minHeight: 42),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
         color: active
-            ? theme.colorScheme.primaryContainer
-                .withValues(alpha: 0.45)
-            : theme.colorScheme.surfaceContainerHighest
-                .withValues(alpha: 0.5),
+            ? theme.colorScheme.primaryContainer.withValues(alpha: 0.45)
+            : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(13),
       ),
       child: Row(
@@ -609,10 +531,7 @@ class _HeroStatusItem extends StatelessWidget {
 }
 
 class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({
-    required this.label,
-    required this.tone,
-  });
+  const _StatusBadge({required this.label, required this.tone});
 
   final String label;
   final StatusTone tone;
@@ -629,10 +548,7 @@ class _StatusBadge extends StatelessWidget {
     };
 
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 7,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(30),
@@ -643,10 +559,7 @@ class _StatusBadge extends StatelessWidget {
           Container(
             width: 7,
             height: 7,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
           const SizedBox(width: 6),
           Text(
@@ -757,15 +670,9 @@ class _DriverMapSectionState extends State<_DriverMapSection> {
         ? route.destinationLng
         : lockedDriverDestinationLng;
 
-    final start = LatLng(
-      originLat,
-      originLng,
-    );
+    final start = LatLng(originLat, originLng);
 
-    final end = LatLng(
-      destinationLat,
-      destinationLng,
-    );
+    final end = LatLng(destinationLat, destinationLng);
 
     try {
       final result = await const OsrmRouteService().getRoute(
@@ -808,20 +715,11 @@ class _DriverMapSectionState extends State<_DriverMapSection> {
         ? route.destinationLng
         : lockedDriverDestinationLng;
 
-    final start = LatLng(
-      location.lat,
-      location.lng,
-    );
+    final start = LatLng(location.lat, location.lng);
 
-    final end = LatLng(
-      destinationLat,
-      destinationLng,
-    );
+    final end = LatLng(destinationLat, destinationLng);
 
-    return _requestRemainingRoute(
-      start: start,
-      end: end,
-    );
+    return _requestRemainingRoute(start: start, end: end);
   }
 
   Future<OsrmRouteResult> _requestRemainingRoute({
@@ -868,15 +766,9 @@ class _DriverMapSectionState extends State<_DriverMapSection> {
         ? route.destinationLng
         : lockedDriverDestinationLng;
 
-    final origin = GeoPoint(
-      originLat,
-      originLng,
-    );
+    final origin = GeoPoint(originLat, originLng);
 
-    final destination = GeoPoint(
-      destinationLat,
-      destinationLng,
-    );
+    final destination = GeoPoint(destinationLat, destinationLng);
 
     final markers = <MasariMapMarker>[
       // ORIGIN
@@ -900,19 +792,14 @@ class _DriverMapSectionState extends State<_DriverMapSection> {
         position: destination,
         icon: Icons.flag_rounded,
         color: SemanticColors.completedRoute,
-        label: widget.l10n.mapDestinationLabel(
-          widget.l10n.bethlehem,
-        ),
+        label: widget.l10n.mapDestinationLabel(widget.l10n.bethlehem),
         size: 42,
       ),
 
       // DRIVER LOCATION
       if (widget.location != null)
         MasariMapMarker(
-          position: GeoPoint(
-            widget.location!.lat,
-            widget.location!.lng,
-          ),
+          position: GeoPoint(widget.location!.lat, widget.location!.lng),
           icon: Icons.local_shipping_rounded,
           color: SemanticColors.passenger,
           label: widget.l10n.mapYourLocation,
@@ -934,10 +821,7 @@ class _DriverMapSectionState extends State<_DriverMapSection> {
               checkpoint,
               Localizations.localeOf(context).languageCode == 'ar',
             ),
-            _checkpointStatus(
-              widget.l10n,
-              checkpoint.status,
-            ),
+            _checkpointStatus(widget.l10n, checkpoint.status),
           ),
           size: 38,
         ),
@@ -949,28 +833,19 @@ class _DriverMapSectionState extends State<_DriverMapSection> {
         // ============================================================
         // MAP
         // ============================================================
-
         ClipRRect(
           borderRadius: BorderRadius.circular(24),
           child: FutureBuilder<OsrmRouteResult>(
             future: _routeFuture,
             builder: (context, snapshot) {
               final routedPoints = snapshot.data?.points
-                  .map(
-                    (point) => GeoPoint(
-                      point.latitude,
-                      point.longitude,
-                    ),
-                  )
+                  .map((point) => GeoPoint(point.latitude, point.longitude))
                   .toList(growable: false);
 
               final pathPoints =
                   routedPoints != null && routedPoints.length >= 2
-                      ? routedPoints
-                      : <GeoPoint>[
-                          origin,
-                          destination,
-                        ];
+                  ? routedPoints
+                  : <GeoPoint>[origin, destination];
 
               return MasariMap(
                 height: 405,
@@ -990,11 +865,11 @@ class _DriverMapSectionState extends State<_DriverMapSection> {
                         message: widget.l10n.checkpointsUnavailable,
                       )
                     : widget.checkpointsError
-                        ? _MapNotice(
-                            icon: Icons.warning_amber_rounded,
-                            message: widget.l10n.checkpointsUnavailable,
-                          )
-                        : null,
+                    ? _MapNotice(
+                        icon: Icons.warning_amber_rounded,
+                        message: widget.l10n.checkpointsUnavailable,
+                      )
+                    : null,
                 overlay: _MapLegend(
                   l10n: widget.l10n,
                   hasDriverLocation: widget.location != null,
@@ -1009,7 +884,6 @@ class _DriverMapSectionState extends State<_DriverMapSection> {
         // ============================================================
         // REMAINING ETA
         // ============================================================
-
         if (_remainingRouteFuture != null)
           FutureBuilder<OsrmRouteResult>(
             future: _remainingRouteFuture,
@@ -1022,9 +896,7 @@ class _DriverMapSectionState extends State<_DriverMapSection> {
                 return const SizedBox.shrink();
               }
 
-              return _RemainingRouteCard(
-                result: result,
-              );
+              return _RemainingRouteCard(result: result);
             },
           ),
 
@@ -1035,22 +907,15 @@ class _DriverMapSectionState extends State<_DriverMapSection> {
             Icon(
               Icons.touch_app_outlined,
               size: 17,
-              color: Theme.of(context)
-                  .colorScheme
-                  .onSurfaceVariant,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
             const SizedBox(width: 5),
             Expanded(
               child: Text(
                 'اضغط على أي علامة لمعرفة تفاصيلها',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .onSurfaceVariant,
-                    ),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
             ),
           ],
@@ -1065,19 +930,14 @@ class _DriverMapSectionState extends State<_DriverMapSection> {
 // ============================================================================
 
 class _RemainingRouteCard extends StatelessWidget {
-  const _RemainingRouteCard({
-    required this.result,
-  });
+  const _RemainingRouteCard({required this.result});
 
   final OsrmRouteResult result;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 14,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: const Color(0xFF102A43),
         borderRadius: BorderRadius.circular(18),
@@ -1088,8 +948,7 @@ class _RemainingRouteCard extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: const Color(0xFFF97316)
-                  .withValues(alpha: 0.14),
+              color: const Color(0xFFF97316).withValues(alpha: 0.14),
               shape: BoxShape.circle,
             ),
             child: const Icon(
@@ -1123,11 +982,7 @@ class _RemainingRouteCard extends StatelessWidget {
               ],
             ),
           ),
-          Container(
-            width: 1,
-            height: 32,
-            color: Colors.white24,
-          ),
+          Container(width: 1, height: 32, color: Colors.white24),
           const SizedBox(width: 14),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
@@ -1162,10 +1017,7 @@ class _RemainingRouteCard extends StatelessWidget {
 // ============================================================================
 
 class _MapLegend extends StatelessWidget {
-  const _MapLegend({
-    required this.l10n,
-    required this.hasDriverLocation,
-  });
+  const _MapLegend({required this.l10n, required this.hasDriverLocation});
 
   final AppLocalizations l10n;
   final bool hasDriverLocation;
@@ -1175,15 +1027,10 @@ class _MapLegend extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Material(
-      color: theme.colorScheme.surface.withValues(
-        alpha: 0.94,
-      ),
+      color: theme.colorScheme.surface.withValues(alpha: 0.94),
       borderRadius: BorderRadius.circular(15),
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 11,
-          vertical: 8,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
         child: Wrap(
           spacing: 12,
           runSpacing: 6,
@@ -1232,20 +1079,13 @@ class _LegendItem extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(
-          icon,
-          size: 15,
-          color: color,
-        ),
+        Icon(icon, size: 15, color: color),
         const SizedBox(width: 4),
         Text(
           label,
-          style: Theme.of(context)
-              .textTheme
-              .labelSmall
-              ?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w700),
         ),
       ],
     );
@@ -1253,10 +1093,7 @@ class _LegendItem extends StatelessWidget {
 }
 
 class _MapNotice extends StatelessWidget {
-  const _MapNotice({
-    required this.icon,
-    required this.message,
-  });
+  const _MapNotice({required this.icon, required this.message});
 
   final IconData icon;
   final String message;
@@ -1266,23 +1103,14 @@ class _MapNotice extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Material(
-      color: theme.colorScheme.surface.withValues(
-        alpha: 0.94,
-      ),
+      color: theme.colorScheme.surface.withValues(alpha: 0.94),
       borderRadius: BorderRadius.circular(14),
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 8,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              size: 17,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+            Icon(icon, size: 17, color: theme.colorScheme.onSurfaceVariant),
             const SizedBox(width: 6),
             Flexible(
               child: Text(
@@ -1318,20 +1146,16 @@ class _TripInformationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    final passengerCount =
-        trip.passengerRequest?.passengerCount ?? 0;
+    final passengerCount = trip.passengerRequest?.passengerCount ?? 0;
 
-    final parcelCount =
-        trip.merchantOrder?.parcelCount ?? 0;
+    final parcelCount = trip.merchantOrder?.parcelCount ?? 0;
 
     return Container(
       padding: const EdgeInsets.all(17),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: theme.colorScheme.outlineVariant,
-        ),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1393,8 +1217,9 @@ class _TripInformationCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(13),
             decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest
-                  .withValues(alpha: 0.52),
+              color: theme.colorScheme.surfaceContainerHighest.withValues(
+                alpha: 0.52,
+              ),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Column(
@@ -1403,15 +1228,10 @@ class _TripInformationCard extends StatelessWidget {
                   icon: Icons.trip_origin_rounded,
                   color: SemanticColors.upcomingRoute,
                   title: 'نقطة الانطلاق',
-                  value: localizedOrigin(
-                    context,
-                    trip.route.originLabel,
-                  ),
+                  value: localizedOrigin(context, trip.route.originLabel),
                 ),
                 Padding(
-                  padding: const EdgeInsetsDirectional.only(
-                    start: 10,
-                  ),
+                  padding: const EdgeInsetsDirectional.only(start: 10),
                   child: Align(
                     alignment: AlignmentDirectional.centerStart,
                     child: Container(
@@ -1475,22 +1295,14 @@ class _TripMetric extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 13,
-        vertical: 14,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 14),
       decoration: BoxDecoration(
-        color: theme.colorScheme.primaryContainer
-            .withValues(alpha: 0.42),
+        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.42),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
         children: [
-          Icon(
-            icon,
-            size: 23,
-            color: theme.colorScheme.primary,
-          ),
+          Icon(icon, size: 23, color: theme.colorScheme.primary),
           const SizedBox(width: 9),
           Expanded(
             child: Column(
@@ -1548,11 +1360,7 @@ class _TripRouteRow extends StatelessWidget {
             color: color.withValues(alpha: 0.13),
             shape: BoxShape.circle,
           ),
-          child: Icon(
-            icon,
-            size: 14,
-            color: color,
-          ),
+          child: Icon(icon, size: 14, color: color),
         ),
         const SizedBox(width: 9),
         Expanded(
@@ -1588,18 +1396,14 @@ class _TripRouteRow extends StatelessWidget {
 // ============================================================================
 
 class _DriverCheckpointsPanel extends StatelessWidget {
-  const _DriverCheckpointsPanel({
-    required this.l10n,
-    required this.state,
-  });
+  const _DriverCheckpointsPanel({required this.l10n, required this.state});
 
   final AppLocalizations l10n;
   final AsyncValue<CheckpointSnapshot> state;
 
   @override
   Widget build(BuildContext context) {
-    final arabic =
-        Localizations.localeOf(context).languageCode == 'ar';
+    final arabic = Localizations.localeOf(context).languageCode == 'ar';
 
     return state.when(
       loading: () => const LoadingSkeleton.card(),
@@ -1620,31 +1424,20 @@ class _DriverCheckpointsPanel extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _CheckpointSummary(
-              l10n: l10n,
-              checkpoints: snapshot.checkpoints,
-            ),
-            const SizedBox(
-              height: AppTokens.spaceMedium,
-            ),
+            _CheckpointSummary(l10n: l10n, checkpoints: snapshot.checkpoints),
+            const SizedBox(height: AppTokens.spaceMedium),
             for (final checkpoint in snapshot.checkpoints) ...[
               _CheckpointCard(
                 l10n: l10n,
                 checkpoint: checkpoint,
                 arabic: arabic,
               ),
-              const SizedBox(
-                height: AppTokens.spaceSmall,
-              ),
+              const SizedBox(height: AppTokens.spaceSmall),
             ],
             if (snapshot.stale)
               Padding(
-                padding: const EdgeInsets.only(
-                  top: AppTokens.spaceSmall,
-                ),
-                child: OfflineBanner(
-                  message: l10n.checkpointsStale,
-                ),
+                padding: const EdgeInsets.only(top: AppTokens.spaceSmall),
+                child: OfflineBanner(message: l10n.checkpointsStale),
               ),
           ],
         );
@@ -1654,10 +1447,7 @@ class _DriverCheckpointsPanel extends StatelessWidget {
 }
 
 class _CheckpointSummary extends StatelessWidget {
-  const _CheckpointSummary({
-    required this.l10n,
-    required this.checkpoints,
-  });
+  const _CheckpointSummary({required this.l10n, required this.checkpoints});
 
   final AppLocalizations l10n;
   final List<Checkpoint> checkpoints;
@@ -1665,26 +1455,15 @@ class _CheckpointSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final open = checkpoints
-        .where(
-          (checkpoint) =>
-              checkpoint.status == CheckpointStatus.open,
-        )
+        .where((checkpoint) => checkpoint.status == CheckpointStatus.open)
         .length;
 
     final congested = checkpoints
-        .where(
-          (checkpoint) =>
-              checkpoint.status ==
-              CheckpointStatus.congested,
-        )
+        .where((checkpoint) => checkpoint.status == CheckpointStatus.congested)
         .length;
 
     final closed = checkpoints
-        .where(
-          (checkpoint) =>
-              checkpoint.status ==
-              CheckpointStatus.closed,
-        )
+        .where((checkpoint) => checkpoint.status == CheckpointStatus.closed)
         .length;
 
     return Row(
@@ -1744,17 +1523,11 @@ class _CheckpointCount extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(
-          AppTokens.radiusDefault,
-        ),
+        borderRadius: BorderRadius.circular(AppTokens.radiusDefault),
       ),
       child: Column(
         children: [
-          Icon(
-            icon,
-            color: color,
-            size: 22,
-          ),
+          Icon(icon, color: color, size: 22),
           const SizedBox(height: 3),
           Text(
             '$value',
@@ -1793,31 +1566,18 @@ class _CheckpointCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    final color = _checkpointColor(
-      checkpoint.status,
-    );
+    final color = _checkpointColor(checkpoint.status);
 
-    final name = _checkpointName(
-      l10n,
-      checkpoint,
-      arabic,
-    );
+    final name = _checkpointName(l10n, checkpoint, arabic);
 
-    final status = _checkpointStatus(
-      l10n,
-      checkpoint.status,
-    );
+    final status = _checkpointStatus(l10n, checkpoint.status);
 
     return Container(
-      padding: const EdgeInsets.all(
-        AppTokens.spaceMedium,
-      ),
+      padding: const EdgeInsets.all(AppTokens.spaceMedium),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(17),
-        border: Border.all(
-          color: theme.colorScheme.outlineVariant,
-        ),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
       ),
       child: Row(
         children: [
@@ -1834,9 +1594,7 @@ class _CheckpointCard extends StatelessWidget {
               size: 23,
             ),
           ),
-          const SizedBox(
-            width: AppTokens.spaceMedium,
-          ),
+          const SizedBox(width: AppTokens.spaceMedium),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1849,9 +1607,7 @@ class _CheckpointCard extends StatelessWidget {
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                const SizedBox(
-                  height: AppTokens.spaceExtraSmall,
-                ),
+                const SizedBox(height: AppTokens.spaceExtraSmall),
                 Text(
                   status,
                   style: theme.textTheme.bodySmall?.copyWith(
@@ -1935,9 +1691,7 @@ class _LocationDetailsCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(
-              height: AppTokens.spaceSmall,
-            ),
+            const SizedBox(height: AppTokens.spaceSmall),
             ClipRRect(
               borderRadius: BorderRadius.circular(20),
               child: LinearProgressIndicator(
@@ -1946,21 +1700,15 @@ class _LocationDetailsCard extends StatelessWidget {
                 minHeight: 8,
               ),
             ),
-            const SizedBox(
-              height: AppTokens.spaceLarge,
-            ),
+            const SizedBox(height: AppTokens.spaceLarge),
           ],
 
           if (location == null)
             Container(
-              padding: const EdgeInsets.all(
-                AppTokens.spaceMedium,
-              ),
+              padding: const EdgeInsets.all(AppTokens.spaceMedium),
               decoration: BoxDecoration(
                 color: theme.colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(
-                  AppTokens.radiusDefault,
-                ),
+                borderRadius: BorderRadius.circular(AppTokens.radiusDefault),
               ),
               child: Row(
                 children: [
@@ -1969,9 +1717,7 @@ class _LocationDetailsCard extends StatelessWidget {
                     color: theme.colorScheme.onSurfaceVariant,
                     size: 26,
                   ),
-                  const SizedBox(
-                    width: AppTokens.spaceSmall,
-                  ),
+                  const SizedBox(width: AppTokens.spaceSmall),
                   Expanded(
                     child: Text(
                       l10n.noLocationYet,
@@ -1990,9 +1736,7 @@ class _LocationDetailsCard extends StatelessWidget {
                 fontWeight: FontWeight.w800,
               ),
             ),
-            const SizedBox(
-              height: AppTokens.spaceSmall,
-            ),
+            const SizedBox(height: AppTokens.spaceSmall),
             DetailRow(
               label: l10n.latitude,
               value: '${location.lat}',
@@ -2010,59 +1754,35 @@ class _LocationDetailsCard extends StatelessWidget {
             ),
             DetailRow(
               label: l10n.source,
-              value: localizedLocationSource(
-                l10n,
-                location.source,
-              ),
+              value: localizedLocationSource(l10n, location.source),
               icon: Icons.sensors_rounded,
             ),
             DetailRow(
               label: l10n.recordedTime,
-              value: _formatTime(
-                context,
-                location.recordedAt,
-              ),
+              value: _formatTime(context, location.recordedAt),
               icon: Icons.access_time_rounded,
             ),
           ],
 
           if (demoFeaturesEnabled) ...[
-            const SizedBox(
-              height: AppTokens.spaceLarge,
-            ),
+            const SizedBox(height: AppTokens.spaceLarge),
             SizedBox(
               height: 52,
               child: FilledButton.icon(
-                key: const ValueKey(
-                  'simulateStepButton',
-                ),
-                onPressed:
-                    state.actionInProgress ? null : onSimulate,
-                icon: const Icon(
-                  Icons.play_arrow_rounded,
-                ),
-                label: Text(
-                  l10n.simulateNextPoint,
-                ),
+                key: const ValueKey('simulateStepButton'),
+                onPressed: state.actionInProgress ? null : onSimulate,
+                icon: const Icon(Icons.play_arrow_rounded),
+                label: Text(l10n.simulateNextPoint),
               ),
             ),
-            const SizedBox(
-              height: AppTokens.spaceSmall,
-            ),
+            const SizedBox(height: AppTokens.spaceSmall),
             SizedBox(
               height: 48,
               child: OutlinedButton.icon(
-                key: const ValueKey(
-                  'resetSimulationButton',
-                ),
-                onPressed:
-                    state.actionInProgress ? null : onReset,
-                icon: const Icon(
-                  Icons.restart_alt_rounded,
-                ),
-                label: Text(
-                  l10n.resetSimulation,
-                ),
+                key: const ValueKey('resetSimulationButton'),
+                onPressed: state.actionInProgress ? null : onReset,
+                icon: const Icon(Icons.restart_alt_rounded),
+                label: Text(l10n.resetSimulation),
               ),
             ),
           ],
@@ -2071,17 +1791,12 @@ class _LocationDetailsCard extends StatelessWidget {
     );
   }
 
-  String _formatTime(
-    BuildContext context,
-    DateTime value,
-  ) {
+  String _formatTime(BuildContext context, DateTime value) {
     final material = MaterialLocalizations.of(context);
     final local = value.toLocal();
 
     return '${material.formatCompactDate(local)} '
-        '${material.formatTimeOfDay(
-      TimeOfDay.fromDateTime(local),
-    )}';
+        '${material.formatTimeOfDay(TimeOfDay.fromDateTime(local))}';
   }
 }
 
@@ -2094,9 +1809,7 @@ String _checkpointName(
   Checkpoint checkpoint,
   bool arabic,
 ) {
-  final preferred = arabic
-      ? checkpoint.nameAr
-      : checkpoint.nameEn;
+  final preferred = arabic ? checkpoint.nameAr : checkpoint.nameEn;
 
   return preferred ??
       checkpoint.nameEn ??
@@ -2104,37 +1817,24 @@ String _checkpointName(
       l10n.checkpointUnnamed;
 }
 
-String _checkpointStatus(
-  AppLocalizations l10n,
-  CheckpointStatus status,
-) =>
+String _checkpointStatus(AppLocalizations l10n, CheckpointStatus status) =>
     switch (status) {
       CheckpointStatus.open => l10n.checkpointOpen,
-      CheckpointStatus.congested =>
-        l10n.checkpointCongested,
+      CheckpointStatus.congested => l10n.checkpointCongested,
       CheckpointStatus.closed => l10n.checkpointClosed,
-      CheckpointStatus.unknown =>
-        l10n.checkpointUnknown,
+      CheckpointStatus.unknown => l10n.checkpointUnknown,
     };
 
-IconData _checkpointIcon(
-  CheckpointStatus status,
-) =>
-    switch (status) {
-      CheckpointStatus.open => Icons.check_rounded,
-      CheckpointStatus.congested =>
-        Icons.hourglass_bottom_rounded,
-      CheckpointStatus.closed => Icons.block_rounded,
-      CheckpointStatus.unknown => Icons.question_mark_rounded,
-    };
+IconData _checkpointIcon(CheckpointStatus status) => switch (status) {
+  CheckpointStatus.open => Icons.check_rounded,
+  CheckpointStatus.congested => Icons.hourglass_bottom_rounded,
+  CheckpointStatus.closed => Icons.block_rounded,
+  CheckpointStatus.unknown => Icons.question_mark_rounded,
+};
 
-Color _checkpointColor(
-  CheckpointStatus status,
-) =>
-    switch (status) {
-      CheckpointStatus.open => SemanticColors.success,
-      CheckpointStatus.congested => SemanticColors.warning,
-      CheckpointStatus.closed => SemanticColors.error,
-      CheckpointStatus.unknown =>
-        SemanticColors.pendingContainer,
-    };
+Color _checkpointColor(CheckpointStatus status) => switch (status) {
+  CheckpointStatus.open => SemanticColors.success,
+  CheckpointStatus.congested => SemanticColors.warning,
+  CheckpointStatus.closed => SemanticColors.error,
+  CheckpointStatus.unknown => SemanticColors.pendingContainer,
+};

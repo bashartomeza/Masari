@@ -3,7 +3,6 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../features/canonical_routes/domain/canonical_route_models.dart';
-import '../theme/app_theme.dart';
 import '../theme/app_tokens.dart';
 
 /// A pin the map can draw.
@@ -129,17 +128,12 @@ class _MasariMapState extends State<MasariMap> {
   /// Route geometry comes directly from [widget.paths].
   /// No external routing service is used here.
   List<LatLng> get _allPoints => [
-        for (final path in widget.paths)
-          ...path.points.map(_toLatLng),
-        for (final marker in widget.markers)
-          _toLatLng(marker.position),
-      ];
+    for (final path in widget.paths) ...path.points.map(_toLatLng),
+    for (final marker in widget.markers) _toLatLng(marker.position),
+  ];
 
   static LatLng _toLatLng(GeoPoint point) {
-    return LatLng(
-      point.latitude,
-      point.longitude,
-    );
+    return LatLng(point.latitude, point.longitude);
   }
 
   /// Checks whether route/marker content changed.
@@ -175,10 +169,8 @@ class _MasariMapState extends State<MasariMap> {
       final oldMarker = oldWidget.markers[i];
       final newMarker = widget.markers[i];
 
-      if (oldMarker.position.latitude !=
-              newMarker.position.latitude ||
-          oldMarker.position.longitude !=
-              newMarker.position.longitude) {
+      if (oldMarker.position.latitude != newMarker.position.latitude ||
+          oldMarker.position.longitude != newMarker.position.longitude) {
         return false;
       }
     }
@@ -191,23 +183,15 @@ class _MasariMapState extends State<MasariMap> {
 
     if (points.length < 2) {
       if (points.length == 1) {
-        _controller.move(
-          points.first,
-          14,
-        );
+        _controller.move(points.first, 14);
       } else {
-        _controller.move(
-          _defaultCenter,
-          _defaultZoom,
-        );
+        _controller.move(_defaultCenter, _defaultZoom);
       }
 
       return;
     }
 
-    _controller.fitCamera(
-      _cameraFit(points),
-    );
+    _controller.fitCamera(_cameraFit(points));
   }
 
   CameraFit _cameraFit(List<LatLng> points) {
@@ -227,26 +211,16 @@ class _MasariMapState extends State<MasariMap> {
     final points = _allPoints;
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(
-        AppTokens.radiusLarge,
-      ),
+      borderRadius: BorderRadius.circular(AppTokens.radiusLarge),
       child: SizedBox(
         height: widget.height,
         width: double.infinity,
-        child: _map(
-          context,
-          points,
-        ),
+        child: _map(context, points),
       ),
     );
   }
 
-  Widget _map(
-    BuildContext context,
-    List<LatLng> points,
-  ) {
-    final theme = Theme.of(context);
-
+  Widget _map(BuildContext context, List<LatLng> points) {
     final single = points.length == 1;
     final hasPoints = points.isNotEmpty;
 
@@ -255,27 +229,20 @@ class _MasariMapState extends State<MasariMap> {
         // ====================================================================
         // MAP
         // ====================================================================
-
         Directionality(
           textDirection: TextDirection.ltr,
           child: FlutterMap(
             mapController: _controller,
             options: MapOptions(
-              initialCenter: single
-                  ? points.first
-                  : _defaultCenter,
-              initialZoom: single
-                  ? 14
-                  : _defaultZoom,
+              initialCenter: single ? points.first : _defaultCenter,
+              initialZoom: single ? 14 : _defaultZoom,
               interactionOptions: InteractionOptions(
                 flags: widget.interactive
-                    ? InteractiveFlag.all &
-                        ~InteractiveFlag.rotate
+                    ? InteractiveFlag.all & ~InteractiveFlag.rotate
                     : InteractiveFlag.none,
               ),
               onMapReady: () {
-                WidgetsBinding.instance
-                    .addPostFrameCallback((_) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
                   if (!mounted) return;
 
                   _fitToContent();
@@ -293,58 +260,31 @@ class _MasariMapState extends State<MasariMap> {
               // ==============================================================
               // MAP TILES
               // ==============================================================
-
               TileLayer(
-                urlTemplate:
-                    'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName:
-                    'ps.masari.mobile',
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'ps.masari.mobile',
                 maxNativeZoom: 19,
               ),
 
               // ==============================================================
               // ROUTES
               // ==============================================================
-
-              if (widget.paths.any(
-                (path) => path.points.length >= 2,
-              ))
+              if (widget.paths.any((path) => path.points.length >= 2))
                 PolylineLayer(
                   polylines: [
-                    for (var i = 0;
-                        i < widget.paths.length;
-                        i++)
-                      if (widget.paths[i]
-                              .points
-                              .length >=
-                          2)
+                    for (var i = 0; i < widget.paths.length; i++)
+                      if (widget.paths[i].points.length >= 2)
                         Polyline(
-                          points: widget.paths[i]
-                              .points
+                          points: widget.paths[i].points
                               .map(_toLatLng)
                               .toList(),
-                          color:
-                              widget.paths[i].color,
-                          strokeWidth:
-                              widget.paths[i].width,
-                          borderColor:
-                              Colors.white.withValues(
-                            alpha: 0.85,
-                          ),
-                          borderStrokeWidth:
-                              widget.paths[i].dashed
-                                  ? 0
-                                  : 2.0,
-                          pattern:
-                              widget.paths[i].dashed
-                                  ? StrokePattern.dashed(
-                                      segments: const [
-                                        10,
-                                        7,
-                                      ],
-                                    )
-                                  : const StrokePattern
-                                      .solid(),
+                          color: widget.paths[i].color,
+                          strokeWidth: widget.paths[i].width,
+                          borderColor: Colors.white.withValues(alpha: 0.85),
+                          borderStrokeWidth: widget.paths[i].dashed ? 0 : 2.0,
+                          pattern: widget.paths[i].dashed
+                              ? StrokePattern.dashed(segments: const [10, 7])
+                              : const StrokePattern.solid(),
                         ),
                   ],
                 ),
@@ -352,12 +292,8 @@ class _MasariMapState extends State<MasariMap> {
               // ==============================================================
               // MARKERS
               // ==============================================================
-
               MarkerLayer(
-                markers: [
-                  for (final marker in widget.markers)
-                    _pin(marker),
-                ],
+                markers: [for (final marker in widget.markers) _pin(marker)],
               ),
             ],
           ),
@@ -366,34 +302,22 @@ class _MasariMapState extends State<MasariMap> {
         // ====================================================================
         // TOP STATUS AREA
         // ====================================================================
-
         Positioned(
           top: 12,
           left: 12,
           right: 12,
           child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.stretch,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (widget.banner != null)
-                _FloatingBanner(
-                  child: widget.banner!,
-                ),
+              if (widget.banner != null) _FloatingBanner(child: widget.banner!),
 
-              if (!hasPoints &&
-                  widget.banner == null)
-                _EmptyMapMessage(
-                  label: widget.emptyLabel,
-                ),
+              if (!hasPoints && widget.banner == null)
+                _EmptyMapMessage(label: widget.emptyLabel),
 
               if (_selectedLabel != null)
                 Padding(
-                  padding: const EdgeInsets.only(
-                    top: 8,
-                  ),
-                  child: _Callout(
-                    label: _selectedLabel!,
-                  ),
+                  padding: const EdgeInsets.only(top: 8),
+                  child: _Callout(label: _selectedLabel!),
                 ),
             ],
           ),
@@ -402,32 +326,20 @@ class _MasariMapState extends State<MasariMap> {
         // ====================================================================
         // MAP CONTROLS
         // ====================================================================
-
         Positioned(
-          top: widget.banner != null ||
-                  !hasPoints
-              ? 72
-              : 14,
+          top: widget.banner != null || !hasPoints ? 72 : 14,
           right: 12,
           child: _MapControls(
             enabled: widget.interactive,
             onZoomIn: () {
-              final currentZoom =
-                  _controller.camera.zoom;
+              final currentZoom = _controller.camera.zoom;
 
-              _controller.move(
-                _controller.camera.center,
-                currentZoom + 1,
-              );
+              _controller.move(_controller.camera.center, currentZoom + 1);
             },
             onZoomOut: () {
-              final currentZoom =
-                  _controller.camera.zoom;
+              final currentZoom = _controller.camera.zoom;
 
-              _controller.move(
-                _controller.camera.center,
-                currentZoom - 1,
-              );
+              _controller.move(_controller.camera.center, currentZoom - 1);
             },
             onReset: _fitToContent,
           ),
@@ -436,7 +348,6 @@ class _MasariMapState extends State<MasariMap> {
         // ====================================================================
         // OPTIONAL OVERLAY
         // ====================================================================
-
         if (widget.overlay != null)
           PositionedDirectional(
             start: 12,
@@ -448,13 +359,10 @@ class _MasariMapState extends State<MasariMap> {
         // ====================================================================
         // ATTRIBUTION
         // ====================================================================
-
         PositionedDirectional(
           start: 6,
           bottom: 5,
-          child: _Attribution(
-            label: widget.attributionLabel,
-          ),
+          child: _Attribution(label: widget.attributionLabel),
         ),
       ],
     );
@@ -479,9 +387,7 @@ class _MasariMapState extends State<MasariMap> {
               _selectedLabel = marker.label;
             });
           },
-          child: _ModernPin(
-            marker: marker,
-          ),
+          child: _ModernPin(marker: marker),
         ),
       ),
     );
@@ -493,29 +399,19 @@ class _MasariMapState extends State<MasariMap> {
 // ============================================================================
 
 class _ModernPin extends StatelessWidget {
-  const _ModernPin({
-    required this.marker,
-  });
+  const _ModernPin({required this.marker});
 
   final MasariMapMarker marker;
 
   @override
   Widget build(BuildContext context) {
-    final isLocation =
-        marker.icon ==
-            Icons.my_location_rounded;
+    final isLocation = marker.icon == Icons.my_location_rounded;
 
-    final isDriver =
-        marker.icon ==
-            Icons.local_shipping_rounded;
+    final isDriver = marker.icon == Icons.local_shipping_rounded;
 
-    final isDestination =
-        marker.icon ==
-            Icons.flag_rounded;
+    final isDestination = marker.icon == Icons.flag_rounded;
 
-    final pinSize = isLocation
-        ? marker.size + 6
-        : marker.size;
+    final pinSize = isLocation ? marker.size + 6 : marker.size;
 
     return Stack(
       alignment: Alignment.center,
@@ -526,9 +422,7 @@ class _ModernPin extends StatelessWidget {
             height: pinSize + 14,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: marker.color.withValues(
-                alpha: 0.18,
-              ),
+              color: marker.color.withValues(alpha: 0.18),
             ),
           ),
         Container(
@@ -539,16 +433,11 @@ class _ModernPin extends StatelessWidget {
             shape: BoxShape.circle,
             border: Border.all(
               color: Colors.white,
-              width:
-                  isDriver || isDestination
-                      ? 3
-                      : 2.5,
+              width: isDriver || isDestination ? 3 : 2.5,
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(
-                  alpha: 0.22,
-                ),
+                color: Colors.black.withValues(alpha: 0.22),
                 blurRadius: 7,
                 offset: const Offset(0, 3),
               ),
@@ -594,29 +483,19 @@ class _MapControls extends StatelessWidget {
           _MapControlButton(
             icon: Icons.add_rounded,
             tooltip: 'تكبير الخريطة',
-            onPressed:
-                enabled ? onZoomIn : null,
+            onPressed: enabled ? onZoomIn : null,
           ),
-          const Divider(
-            height: 1,
-            thickness: 1,
-          ),
+          const Divider(height: 1, thickness: 1),
           _MapControlButton(
             icon: Icons.remove_rounded,
             tooltip: 'تصغير الخريطة',
-            onPressed:
-                enabled ? onZoomOut : null,
+            onPressed: enabled ? onZoomOut : null,
           ),
-          const Divider(
-            height: 1,
-            thickness: 1,
-          ),
+          const Divider(height: 1, thickness: 1),
           _MapControlButton(
-            icon:
-                Icons.center_focus_strong_rounded,
+            icon: Icons.center_focus_strong_rounded,
             tooltip: 'إظهار المسار',
-            onPressed:
-                enabled ? onReset : null,
+            onPressed: enabled ? onReset : null,
           ),
         ],
       ),
@@ -644,10 +523,7 @@ class _MapControlButton extends StatelessWidget {
         height: 44,
         child: IconButton(
           onPressed: onPressed,
-          icon: Icon(
-            icon,
-            size: 21,
-          ),
+          icon: Icon(icon, size: 21),
           splashRadius: 20,
           padding: EdgeInsets.zero,
         ),
@@ -661,9 +537,7 @@ class _MapControlButton extends StatelessWidget {
 // ============================================================================
 
 class _EmptyMapMessage extends StatelessWidget {
-  const _EmptyMapMessage({
-    required this.label,
-  });
+  const _EmptyMapMessage({required this.label});
 
   final String label;
 
@@ -674,24 +548,14 @@ class _EmptyMapMessage extends StatelessWidget {
     return Align(
       alignment: AlignmentDirectional.topStart,
       child: Container(
-        constraints: const BoxConstraints(
-          maxWidth: 270,
-        ),
-        padding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 10,
-        ),
+        constraints: const BoxConstraints(maxWidth: 270),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(
-            alpha: 0.94,
-          ),
-          borderRadius:
-              BorderRadius.circular(14),
+          color: Colors.white.withValues(alpha: 0.94),
+          borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(
-                alpha: 0.12,
-              ),
+              color: Colors.black.withValues(alpha: 0.12),
               blurRadius: 10,
               offset: const Offset(0, 3),
             ),
@@ -703,22 +567,17 @@ class _EmptyMapMessage extends StatelessWidget {
             Icon(
               Icons.map_outlined,
               size: 19,
-              color:
-                  theme.colorScheme.primary,
+              color: theme.colorScheme.primary,
             ),
             const SizedBox(width: 8),
             Flexible(
               child: Text(
                 label,
                 maxLines: 2,
-                overflow:
-                    TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(
-                  fontWeight:
-                      FontWeight.w600,
-                  color:
-                      theme.colorScheme.onSurface,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: theme.colorScheme.onSurface,
                 ),
               ),
             ),
@@ -734,9 +593,7 @@ class _EmptyMapMessage extends StatelessWidget {
 // ============================================================================
 
 class _FloatingBanner extends StatelessWidget {
-  const _FloatingBanner({
-    required this.child,
-  });
+  const _FloatingBanner({required this.child});
 
   final Widget child;
 
@@ -745,13 +602,8 @@ class _FloatingBanner extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       elevation: 3,
-      borderRadius:
-          BorderRadius.circular(14),
-      child: ClipRRect(
-        borderRadius:
-            BorderRadius.circular(14),
-        child: child,
-      ),
+      borderRadius: BorderRadius.circular(14),
+      child: ClipRRect(borderRadius: BorderRadius.circular(14), child: child),
     );
   }
 }
@@ -761,9 +613,7 @@ class _FloatingBanner extends StatelessWidget {
 // ============================================================================
 
 class _Callout extends StatelessWidget {
-  const _Callout({
-    required this.label,
-  });
+  const _Callout({required this.label});
 
   final String label;
 
@@ -772,37 +622,27 @@ class _Callout extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Material(
-      color:
-          theme.colorScheme.inverseSurface,
+      color: theme.colorScheme.inverseSurface,
       elevation: 5,
-      borderRadius:
-          BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(14),
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 10,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         child: Row(
           children: [
             Icon(
               Icons.info_outline_rounded,
               size: 18,
-              color: theme.colorScheme
-                  .onInverseSurface,
+              color: theme.colorScheme.onInverseSurface,
             ),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
                 label,
                 maxLines: 2,
-                overflow:
-                    TextOverflow.ellipsis,
-                style: theme.textTheme.labelLarge
-                    ?.copyWith(
-                  color: theme.colorScheme
-                      .onInverseSurface,
-                  fontWeight:
-                      FontWeight.w600,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: theme.colorScheme.onInverseSurface,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
@@ -818,9 +658,7 @@ class _Callout extends StatelessWidget {
 // ============================================================================
 
 class _Attribution extends StatelessWidget {
-  const _Attribution({
-    required this.label,
-  });
+  const _Attribution({required this.label});
 
   final String label;
 
@@ -829,24 +667,15 @@ class _Attribution extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Container(
-      padding:
-          const EdgeInsets.symmetric(
-        horizontal: 6,
-        vertical: 3,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(
-          alpha: 0.86,
-        ),
-        borderRadius:
-            BorderRadius.circular(6),
+        color: Colors.white.withValues(alpha: 0.86),
+        borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
         label,
-        style: theme.textTheme.labelSmall
-            ?.copyWith(
-          color: theme.colorScheme
-              .onSurfaceVariant,
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
           fontSize: 9,
           fontWeight: FontWeight.w500,
         ),

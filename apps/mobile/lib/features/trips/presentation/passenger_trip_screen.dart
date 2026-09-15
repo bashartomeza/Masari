@@ -7,7 +7,6 @@ import 'package:masari_mobile/l10n/app_localizations.dart';
 
 import '../../../core/maps/osrm_route_service.dart';
 import '../../../core/presentation/localized_labels.dart';
-import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/semantic_colors.dart';
 import '../../../core/widgets/language_switch.dart';
 import '../../../core/widgets/masari_map.dart';
@@ -16,10 +15,7 @@ import '../../security/presentation/session_status_banner.dart';
 import '../application/passenger_trip_controller.dart';
 
 class PassengerTripScreen extends ConsumerStatefulWidget {
-  const PassengerTripScreen({
-    required this.tripId,
-    super.key,
-  });
+  const PassengerTripScreen({required this.tripId, super.key});
 
   final String tripId;
 
@@ -95,9 +91,7 @@ class _PassengerTripScreenState extends ConsumerState<PassengerTripScreen>
     );
   }
 
-  Future<OsrmRouteResult> _getRouteFuture(
-    PassengerTripState data,
-  ) {
+  Future<OsrmRouteResult> _getRouteFuture(PassengerTripState data) {
     final trip = data.trip;
 
     if (!trip.hasRouteCoordinates) {
@@ -148,9 +142,7 @@ class _PassengerTripScreenState extends ConsumerState<PassengerTripScreen>
     return _routeFuture!;
   }
 
-  List<GeoPoint> _fallbackRoutePoints(
-    PassengerTripState data,
-  ) {
+  List<GeoPoint> _fallbackRoutePoints(PassengerTripState data) {
     final trip = data.trip;
 
     if (!trip.hasRouteCoordinates) {
@@ -163,34 +155,23 @@ class _PassengerTripScreenState extends ConsumerState<PassengerTripScreen>
     final startLng = data.location?.lng ?? trip.originLng!;
 
     return [
-      GeoPoint(
-        startLat,
-        startLng,
-      ),
-      GeoPoint(
-        trip.destinationLat!,
-        trip.destinationLng!,
-      ),
+      GeoPoint(startLat, startLng),
+      GeoPoint(trip.destinationLat!, trip.destinationLng!),
     ];
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final state = ref.watch(
-      passengerTripControllerProvider(widget.tripId),
-    );
+    final state = ref.watch(passengerTripControllerProvider(widget.tripId));
 
     return Scaffold(
       backgroundColor: _pageBackground,
       appBar: _buildAppBar(context, l10n),
       body: SafeArea(
         child: state.when(
-          loading: () => const Center(
-            child: CircularProgressIndicator(
-              color: _orange,
-            ),
-          ),
+          loading: () =>
+              const Center(child: CircularProgressIndicator(color: _orange)),
           error: (_, _) => _buildErrorState(context, l10n),
           data: (data) => _buildTripContent(context, l10n, data),
         ),
@@ -210,10 +191,7 @@ class _PassengerTripScreenState extends ConsumerState<PassengerTripScreen>
       toolbarHeight: 76,
       leading: IconButton(
         tooltip: 'Back',
-        icon: const Icon(
-          Icons.arrow_back_rounded,
-          size: 26,
-        ),
+        icon: const Icon(Icons.arrow_back_rounded, size: 26),
         onPressed: () => context.go('/passenger'),
       ),
       title: Column(
@@ -247,10 +225,7 @@ class _PassengerTripScreenState extends ConsumerState<PassengerTripScreen>
     );
   }
 
-  Widget _buildErrorState(
-    BuildContext context,
-    AppLocalizations l10n,
-  ) {
+  Widget _buildErrorState(BuildContext context, AppLocalizations l10n) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -258,11 +233,7 @@ class _PassengerTripScreenState extends ConsumerState<PassengerTripScreen>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                Icons.cloud_off_rounded,
-                size: 48,
-                color: _mutedText,
-              ),
+              const Icon(Icons.cloud_off_rounded, size: 48, color: _mutedText),
               const SizedBox(height: 16),
               Text(
                 l10n.retry,
@@ -278,9 +249,7 @@ class _PassengerTripScreenState extends ConsumerState<PassengerTripScreen>
                 icon: Icons.refresh_rounded,
                 onPressed: () => ref
                     .read(
-                      passengerTripControllerProvider(
-                        widget.tripId,
-                      ).notifier,
+                      passengerTripControllerProvider(widget.tripId).notifier,
                     )
                     .refresh(),
               ),
@@ -299,12 +268,7 @@ class _PassengerTripScreenState extends ConsumerState<PassengerTripScreen>
     final trip = data.trip;
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(
-        16,
-        18,
-        16,
-        28,
-      ),
+      padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
       children: [
         const SessionStatusBanner(),
         const SizedBox(height: 18),
@@ -329,11 +293,7 @@ class _PassengerTripScreenState extends ConsumerState<PassengerTripScreen>
           label: l10n.refresh,
           icon: Icons.refresh_rounded,
           onPressed: () => ref
-              .read(
-                passengerTripControllerProvider(
-                  widget.tripId,
-                ).notifier,
-              )
+              .read(passengerTripControllerProvider(widget.tripId).notifier)
               .refresh(),
         ),
 
@@ -406,10 +366,7 @@ class _PassengerTripScreenState extends ConsumerState<PassengerTripScreen>
           // ------------------------------------------------------------
           Row(
             children: [
-              _RoutePoint(
-                icon: Icons.trip_origin_rounded,
-                label: 'Hebron',
-              ),
+              _RoutePoint(icon: Icons.trip_origin_rounded, label: 'Hebron'),
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -432,10 +389,7 @@ class _PassengerTripScreenState extends ConsumerState<PassengerTripScreen>
                   ),
                 ),
               ),
-              _RoutePoint(
-                icon: Icons.flag_rounded,
-                label: 'Bethlehem',
-              ),
+              _RoutePoint(icon: Icons.flag_rounded, label: 'Bethlehem'),
             ],
           ),
         ],
@@ -486,10 +440,7 @@ class _PassengerTripScreenState extends ConsumerState<PassengerTripScreen>
                       const SizedBox(height: 2),
                       Text(
                         l10n.selectedRoute,
-                        style: const TextStyle(
-                          color: _mutedText,
-                          fontSize: 12,
-                        ),
+                        style: const TextStyle(color: _mutedText, fontSize: 12),
                       ),
                     ],
                   ),
@@ -502,28 +453,19 @@ class _PassengerTripScreenState extends ConsumerState<PassengerTripScreen>
             borderRadius: BorderRadius.circular(18),
             child: FutureBuilder<OsrmRouteResult>(
               future: _getRouteFuture(data),
-              builder: (
-                context,
-                snapshot,
-              ) {
+              builder: (context, snapshot) {
                 final routeResult = snapshot.data;
 
                 final routedPoints = routeResult?.points
-                    .map(
-                      (point) => GeoPoint(
-                        point.latitude,
-                        point.longitude,
-                      ),
-                    )
+                    .map((point) => GeoPoint(point.latitude, point.longitude))
                     .toList(growable: false);
 
                 final fallbackPoints = _fallbackRoutePoints(data);
 
                 final pathPoints =
-                    routedPoints != null &&
-                            routedPoints.length >= 2
-                        ? routedPoints
-                        : fallbackPoints;
+                    routedPoints != null && routedPoints.length >= 2
+                    ? routedPoints
+                    : fallbackPoints;
 
                 final trip = data.trip;
 
@@ -531,20 +473,14 @@ class _PassengerTripScreenState extends ConsumerState<PassengerTripScreen>
                 // ORIGINAL TRIP START
                 // --------------------------------------------------------
                 final origin = trip.hasRouteCoordinates
-                    ? GeoPoint(
-                        trip.originLat!,
-                        trip.originLng!,
-                      )
+                    ? GeoPoint(trip.originLat!, trip.originLng!)
                     : null;
 
                 // --------------------------------------------------------
                 // TRIP DESTINATION
                 // --------------------------------------------------------
                 final destination = trip.hasRouteCoordinates
-                    ? GeoPoint(
-                        trip.destinationLat!,
-                        trip.destinationLng!,
-                      )
+                    ? GeoPoint(trip.destinationLat!, trip.destinationLng!)
                     : null;
 
                 return Column(
@@ -555,9 +491,7 @@ class _PassengerTripScreenState extends ConsumerState<PassengerTripScreen>
                       attributionLabel: l10n.mapAttribution,
                       height: 390,
                       banner: data.locationIsStale
-                          ? OfflineBanner(
-                              message: l10n.locationIsStale,
-                            )
+                          ? OfflineBanner(message: l10n.locationIsStale)
                           : null,
                       paths: [
                         if (pathPoints.length >= 2)
@@ -576,9 +510,7 @@ class _PassengerTripScreenState extends ConsumerState<PassengerTripScreen>
                             position: origin,
                             icon: Icons.trip_origin_rounded,
                             color: SemanticColors.upcomingRoute,
-                            label: l10n.mapOriginLabel(
-                              'Hebron',
-                            ),
+                            label: l10n.mapOriginLabel('Hebron'),
                             size: 42,
                           ),
 
@@ -590,9 +522,7 @@ class _PassengerTripScreenState extends ConsumerState<PassengerTripScreen>
                             position: destination,
                             icon: Icons.flag_rounded,
                             color: SemanticColors.completedRoute,
-                            label: l10n.mapDestinationLabel(
-                              'Bethlehem',
-                            ),
+                            label: l10n.mapDestinationLabel('Bethlehem'),
                             size: 42,
                           ),
 
@@ -672,21 +602,19 @@ class _PassengerTripScreenState extends ConsumerState<PassengerTripScreen>
                           Icon(
                             Icons.touch_app_outlined,
                             size: 18,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurfaceVariant,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
                           ),
                           const SizedBox(width: 6),
                           Expanded(
                             child: Text(
                               'المسار يتحدث حسب موقع السائق الحالي',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
+                              style: Theme.of(context).textTheme.bodySmall
                                   ?.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurfaceVariant,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
                                   ),
                             ),
                           ),
@@ -776,10 +704,7 @@ class _PassengerTripScreenState extends ConsumerState<PassengerTripScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        localizedLocationSource(
-                          l10n,
-                          location.source,
-                        ),
+                        localizedLocationSource(l10n, location.source),
                         style: const TextStyle(
                           color: _navy,
                           fontSize: 15,
@@ -789,27 +714,18 @@ class _PassengerTripScreenState extends ConsumerState<PassengerTripScreen>
                       const SizedBox(height: 4),
                       Text(
                         '${l10n.recordedTime}: ${location.recordedAt}',
-                        style: const TextStyle(
-                          color: _mutedText,
-                          fontSize: 12,
-                        ),
+                        style: const TextStyle(color: _mutedText, fontSize: 12),
                       ),
                     ],
                   ),
                 ),
-                _LocationStatus(
-                  isStale: data.locationIsStale,
-                  l10n: l10n,
-                ),
+                _LocationStatus(isStale: data.locationIsStale, l10n: l10n),
               ],
             ),
 
           if (location != null) ...[
             const SizedBox(height: 16),
-            const Divider(
-              height: 1,
-              color: _border,
-            ),
+            const Divider(height: 1, color: _border),
             const SizedBox(height: 14),
             Row(
               children: [
@@ -825,10 +741,7 @@ class _PassengerTripScreenState extends ConsumerState<PassengerTripScreen>
                   child: _InfoItem(
                     icon: Icons.source_rounded,
                     label: l10n.source,
-                    value: localizedLocationSource(
-                      l10n,
-                      location.source,
-                    ),
+                    value: localizedLocationSource(l10n, location.source),
                   ),
                 ),
               ],
@@ -839,22 +752,18 @@ class _PassengerTripScreenState extends ConsumerState<PassengerTripScreen>
     );
   }
 
-  String _statusLabel(
-    AppLocalizations l10n,
-    String status,
-  ) =>
-      switch (status) {
-        'pending' => l10n.statusPending,
-        'matched' => l10n.statusMatched,
-        'accepted' => l10n.statusAccepted,
-        'picked_up' => l10n.statusPickedUp,
-        'in_transit' => l10n.statusInTransit,
-        'delivered' => l10n.statusDelivered,
-        'cancelled' => l10n.statusCancelled,
-        'completed' => l10n.statusCompleted,
-        'pickup_started' => l10n.statusPickupStarted,
-        _ => status,
-      };
+  String _statusLabel(AppLocalizations l10n, String status) => switch (status) {
+    'pending' => l10n.statusPending,
+    'matched' => l10n.statusMatched,
+    'accepted' => l10n.statusAccepted,
+    'picked_up' => l10n.statusPickedUp,
+    'in_transit' => l10n.statusInTransit,
+    'delivered' => l10n.statusDelivered,
+    'cancelled' => l10n.statusCancelled,
+    'completed' => l10n.statusCompleted,
+    'pickup_started' => l10n.statusPickupStarted,
+    _ => status,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -878,9 +787,7 @@ class _ModernCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: const Color(0xFFE2E8F0),
-        ),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.035),
@@ -912,11 +819,7 @@ class _OrangeButton extends StatelessWidget {
       height: 56,
       child: ElevatedButton.icon(
         onPressed: onPressed,
-        icon: Icon(
-          icon,
-          color: Colors.white,
-          size: 22,
-        ),
+        icon: Icon(icon, color: Colors.white, size: 22),
         label: Text(
           label,
           style: const TextStyle(
@@ -939,31 +842,24 @@ class _OrangeButton extends StatelessWidget {
 }
 
 class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({
-    required this.label,
-    required this.status,
-  });
+  const _StatusBadge({required this.label, required this.status});
 
   final String label;
   final String status;
 
   @override
   Widget build(BuildContext context) {
-    final isCompleted =
-        status == 'completed' || status == 'delivered';
+    final isCompleted = status == 'completed' || status == 'delivered';
     final isCancelled = status == 'cancelled';
 
     final color = isCancelled
         ? const Color(0xFFDC2626)
         : isCompleted
-            ? const Color(0xFF16A34A)
-            : const Color(0xFFF97316);
+        ? const Color(0xFF16A34A)
+        : const Color(0xFFF97316);
 
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: 8,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(30),
@@ -974,10 +870,7 @@ class _StatusBadge extends StatelessWidget {
           Container(
             width: 7,
             height: 7,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
           const SizedBox(width: 7),
           Text(
@@ -995,10 +888,7 @@ class _StatusBadge extends StatelessWidget {
 }
 
 class _RoutePoint extends StatelessWidget {
-  const _RoutePoint({
-    required this.icon,
-    required this.label,
-  });
+  const _RoutePoint({required this.icon, required this.label});
 
   final IconData icon;
   final String label;
@@ -1008,11 +898,7 @@ class _RoutePoint extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(
-          icon,
-          color: const Color(0xFFF97316),
-          size: 27,
-        ),
+        Icon(icon, color: const Color(0xFFF97316), size: 27),
         const SizedBox(height: 5),
         Text(
           label,
@@ -1043,11 +929,7 @@ class _InfoItem extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(
-          icon,
-          size: 18,
-          color: const Color(0xFFF97316),
-        ),
+        Icon(icon, size: 18, color: const Color(0xFFF97316)),
         const SizedBox(width: 8),
         Expanded(
           child: Column(
@@ -1055,10 +937,7 @@ class _InfoItem extends StatelessWidget {
             children: [
               Text(
                 label,
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 11,
-                ),
+                style: const TextStyle(color: Colors.white70, fontSize: 11),
               ),
               const SizedBox(height: 3),
               Text(
@@ -1080,19 +959,14 @@ class _InfoItem extends StatelessWidget {
 }
 
 class _LocationStatus extends StatelessWidget {
-  const _LocationStatus({
-    required this.isStale,
-    required this.l10n,
-  });
+  const _LocationStatus({required this.isStale, required this.l10n});
 
   final bool isStale;
   final AppLocalizations l10n;
 
   @override
   Widget build(BuildContext context) {
-    final color = isStale
-        ? const Color(0xFFF97316)
-        : const Color(0xFF16A34A);
+    final color = isStale ? const Color(0xFFF97316) : const Color(0xFF16A34A);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
@@ -1100,16 +974,11 @@ class _LocationStatus extends StatelessWidget {
         Container(
           width: 9,
           height: 9,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-          ),
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
         const SizedBox(height: 5),
         Text(
-          isStale
-              ? l10n.locationIsStale
-              : l10n.latestLocation,
+          isStale ? l10n.locationIsStale : l10n.latestLocation,
           style: TextStyle(
             color: color,
             fontSize: 10,

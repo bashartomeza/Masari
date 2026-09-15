@@ -78,14 +78,11 @@ class PassengerMapView {
         .map((stop) => stop.position!)
         .toList(growable: false);
 
-    return within.length >= 2
-        ? List.unmodifiable(within)
-        : const [];
+    return within.length >= 2 ? List.unmodifiable(within) : const [];
   }
 
   /// Whether the route has enough points to be drawn on the map.
-  bool get hasDrawableRoute =>
-      (route?.path.length ?? 0) >= 2;
+  bool get hasDrawableRoute => (route?.path.length ?? 0) >= 2;
 }
 
 /// Passenger map provider.
@@ -101,8 +98,7 @@ class PassengerMapView {
 ///
 /// Route, assignment, and driver location are optional layers.
 /// If their APIs fail, the map itself must still open.
-final passengerMapViewProvider =
-    FutureProvider<PassengerMapView>((ref) async {
+final passengerMapViewProvider = FutureProvider<PassengerMapView>((ref) async {
   CanonicalRoute? route;
   CanonicalStop? pickup;
   CanonicalStop? dropoff;
@@ -123,13 +119,11 @@ final passengerMapViewProvider =
   // ------------------------------------------------------------
 
   try {
-    final routes =
-        await ref.watch(canonicalRouteCatalogProvider.future);
+    final routes = await ref.watch(canonicalRouteCatalogProvider.future);
 
-    final assignments =
-        await ref.watch(
-          passengerCanonicalAssignmentsProvider.future,
-        );
+    final assignments = await ref.watch(
+      passengerCanonicalAssignmentsProvider.future,
+    );
 
     // Assignments that still represent a trip the passenger
     // can travel on.
@@ -140,42 +134,28 @@ final passengerMapViewProvider =
     };
 
     final active = assignments
-        .where(
-          (item) => travelling.contains(item.status),
-        )
+        .where((item) => travelling.contains(item.status))
         .toList(growable: false);
 
     // Use the newest active assignment.
-    assignment = active.isEmpty
-        ? null
-        : active.last;
+    assignment = active.isEmpty ? null : active.last;
 
     // Resolve the route belonging to the assignment.
-    if (assignment != null) {
+    final currentAssignment = assignment;
+    if (currentAssignment != null) {
       route = routes
-          .where(
-            (value) =>
-                value.versionId ==
-                assignment!.routeVersionId,
-          )
+          .where((value) => value.versionId == currentAssignment.routeVersionId)
           .firstOrNull;
 
       // Resolve pickup and dropoff stops.
-      if (route != null) {
-        pickup = route!.stops
-            .where(
-              (stop) =>
-                  stop.id ==
-                  assignment!.pickupStopId,
-            )
+      final currentRoute = route;
+      if (currentRoute != null) {
+        pickup = currentRoute.stops
+            .where((stop) => stop.id == currentAssignment.pickupStopId)
             .firstOrNull;
 
-        dropoff = route!.stops
-            .where(
-              (stop) =>
-                  stop.id ==
-                  assignment!.dropoffStopId,
-            )
+        dropoff = currentRoute.stops
+            .where((stop) => stop.id == currentAssignment.dropoffStopId)
             .firstOrNull;
       }
     }

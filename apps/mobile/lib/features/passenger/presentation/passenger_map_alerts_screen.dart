@@ -46,9 +46,7 @@ class PassengerMapAlertsScreen extends ConsumerWidget {
     final view = ref.watch(passengerMapViewProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.navMapAlerts),
-      ),
+      appBar: AppBar(title: Text(l10n.navMapAlerts)),
       body: view.when(
         loading: () => const Padding(
           padding: EdgeInsets.all(AppTokens.spaceMedium),
@@ -58,9 +56,7 @@ class PassengerMapAlertsScreen extends ConsumerWidget {
           title: l10n.mapLoadFailed,
           message: l10n.mapLoadFailedBody,
           retryLabel: l10n.retry,
-          onRetry: () => ref.invalidate(
-            passengerMapViewProvider,
-          ),
+          onRetry: () => ref.invalidate(passengerMapViewProvider),
         ),
 
         // IMPORTANT:
@@ -79,9 +75,7 @@ class PassengerMapAlertsScreen extends ConsumerWidget {
 /// every time Riverpod rebuilds this widget because of location polling,
 /// checkpoint updates, or trip updates.
 class _MapBody extends ConsumerStatefulWidget {
-  const _MapBody({
-    required this.view,
-  });
+  const _MapBody({required this.view});
 
   final PassengerMapView view;
 
@@ -131,10 +125,7 @@ class _MapBodyState extends ConsumerState<_MapBody> {
 
     final point = route.path.first;
 
-    return LatLng(
-      point.latitude,
-      point.longitude,
-    );
+    return LatLng(point.latitude, point.longitude);
   }
 
   /// Returns the final point of the passenger route.
@@ -145,10 +136,7 @@ class _MapBodyState extends ConsumerState<_MapBody> {
 
     final point = route.path.last;
 
-    return LatLng(
-      point.latitude,
-      point.longitude,
-    );
+    return LatLng(point.latitude, point.longitude);
   }
 
   /// Requests a real road-following route from OSRM.
@@ -183,28 +171,18 @@ class _MapBodyState extends ConsumerState<_MapBody> {
       return;
     }
 
-    _routeFuture = const OsrmRouteService().getRoute(
-      start: start,
-      end: end,
-    );
+    _routeFuture = const OsrmRouteService().getRoute(start: start, end: end);
   }
 
   /// Converts the original route into the fallback format expected
   /// by the map widget.
-  List<GeoPoint> _fallbackRoutePoints(
-    CanonicalRoute? route,
-  ) {
+  List<GeoPoint> _fallbackRoutePoints(CanonicalRoute? route) {
     if (route == null || route.path.length < 2) {
       return const [];
     }
 
     return route.path
-        .map(
-          (point) => GeoPoint(
-            point.latitude,
-            point.longitude,
-          ),
-        )
+        .map((point) => GeoPoint(point.latitude, point.longitude))
         .toList(growable: false);
   }
 
@@ -227,8 +205,7 @@ class _MapBodyState extends ConsumerState<_MapBody> {
     // We do not depend on view.checkpointsAvailable.
     final checkpoints = ref.watch(checkpointsProvider);
 
-    final snapshot =
-        checkpoints.value ?? CheckpointSnapshot.empty;
+    final snapshot = checkpoints.value ?? CheckpointSnapshot.empty;
 
     // ----------------------------------------------------------------------
     // Route
@@ -244,9 +221,7 @@ class _MapBodyState extends ConsumerState<_MapBody> {
 
     final tripState = tripId == null
         ? null
-        : ref.watch(
-            passengerTripControllerProvider(tripId),
-          );
+        : ref.watch(passengerTripControllerProvider(tripId));
 
     final driverLocation = tripState?.value?.location;
 
@@ -255,20 +230,16 @@ class _MapBodyState extends ConsumerState<_MapBody> {
     // ----------------------------------------------------------------------
 
     final driverToPickupDistanceKm =
-        driverLocation == null ||
-                widget.view.pickup?.position == null
-            ? null
-            : const Distance().as(
-                LengthUnit.Kilometer,
-                LatLng(
-                  driverLocation.lat,
-                  driverLocation.lng,
-                ),
-                LatLng(
-                  widget.view.pickup!.position!.latitude,
-                  widget.view.pickup!.position!.longitude,
-                ),
-              );
+        driverLocation == null || widget.view.pickup?.position == null
+        ? null
+        : const Distance().as(
+            LengthUnit.Kilometer,
+            LatLng(driverLocation.lat, driverLocation.lng),
+            LatLng(
+              widget.view.pickup!.position!.latitude,
+              widget.view.pickup!.position!.longitude,
+            ),
+          );
 
     // ----------------------------------------------------------------------
     // Estimated ETA
@@ -278,20 +249,15 @@ class _MapBodyState extends ConsumerState<_MapBody> {
     // Therefore ETA is an estimate based on an average assumed speed.
     const estimatedSpeedKmh = 30.0;
 
-    final estimatedEtaMinutes =
-        driverToPickupDistanceKm == null
-            ? null
-            : (driverToPickupDistanceKm /
-                      estimatedSpeedKmh *
-                      60)
-                .ceil();
+    final estimatedEtaMinutes = driverToPickupDistanceKm == null
+        ? null
+        : (driverToPickupDistanceKm / estimatedSpeedKmh * 60).ceil();
 
     // ----------------------------------------------------------------------
     // Localization
     // ----------------------------------------------------------------------
 
-    final localeName =
-        Localizations.localeOf(context).languageCode == 'ar';
+    final localeName = Localizations.localeOf(context).languageCode == 'ar';
 
     String stopName(CanonicalStop stop) {
       return localeName ? stop.nameAr : stop.nameEn;
@@ -301,38 +267,29 @@ class _MapBodyState extends ConsumerState<_MapBody> {
     // Original route fallback
     // ----------------------------------------------------------------------
 
-    final fallbackRoutePoints =
-        _fallbackRoutePoints(route);
+    final fallbackRoutePoints = _fallbackRoutePoints(route);
 
     return RefreshIndicator(
       onRefresh: () async {
         ref.invalidate(passengerMapViewProvider);
 
         // Always refresh checkpoints.
-        await ref
-            .read(checkpointsProvider.notifier)
-            .refresh();
+        await ref.read(checkpointsProvider.notifier).refresh();
 
         // Also refresh the current passenger trip/location.
         if (tripId != null) {
           await ref
-              .read(
-                passengerTripControllerProvider(tripId)
-                    .notifier,
-              )
+              .read(passengerTripControllerProvider(tripId).notifier)
               .refresh();
         }
       },
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(
-          AppTokens.spaceMedium,
-        ),
+        padding: const EdgeInsets.all(AppTokens.spaceMedium),
         children: [
           // ==================================================================
           // MAP
           // ==================================================================
-
           FutureBuilder<OsrmRouteResult>(
             future: _routeFuture,
             builder: (context, routeSnapshot) {
@@ -347,12 +304,7 @@ class _MapBodyState extends ConsumerState<_MapBody> {
               // ------------------------------------------------------------
 
               final routedPoints = routeSnapshot.data?.points
-                  .map(
-                    (point) => GeoPoint(
-                      point.latitude,
-                      point.longitude,
-                    ),
-                  )
+                  .map((point) => GeoPoint(point.latitude, point.longitude))
                   .toList(growable: false);
 
               // ------------------------------------------------------------
@@ -363,10 +315,9 @@ class _MapBodyState extends ConsumerState<_MapBody> {
               // ------------------------------------------------------------
 
               final pathPoints =
-                  routedPoints != null &&
-                          routedPoints.length >= 2
-                      ? routedPoints
-                      : fallbackRoutePoints;
+                  routedPoints != null && routedPoints.length >= 2
+                  ? routedPoints
+                  : fallbackRoutePoints;
 
               return MasariMap(
                 height: 460,
@@ -380,9 +331,7 @@ class _MapBodyState extends ConsumerState<_MapBody> {
                 attributionLabel: l10n.mapAttribution,
 
                 banner: snapshot.stale
-                    ? OfflineBanner(
-                        message: l10n.checkpointsStale,
-                      )
+                    ? OfflineBanner(message: l10n.checkpointsStale)
                     : null,
 
                 paths: [
@@ -393,12 +342,10 @@ class _MapBodyState extends ConsumerState<_MapBody> {
                   // It falls back to the original route automatically
                   // if OSRM is unavailable.
                   // ----------------------------------------------------------
-
                   if (pathPoints.length >= 2)
                     MasariMapPath(
                       points: pathPoints,
-                      color:
-                          SemanticColors.upcomingRoute,
+                      color: SemanticColors.upcomingRoute,
                       width: 4,
                       dashed: true,
                     ),
@@ -409,12 +356,10 @@ class _MapBodyState extends ConsumerState<_MapBody> {
                   // Kept unchanged because this is an application-specific
                   // leg and may represent a different logical segment.
                   // ----------------------------------------------------------
-
                   if (widget.view.leg.length >= 2)
                     MasariMapPath(
                       points: widget.view.leg,
-                      color:
-                          SemanticColors.activeRoute,
+                      color: SemanticColors.activeRoute,
                       width: 6,
                     ),
                 ],
@@ -423,7 +368,6 @@ class _MapBodyState extends ConsumerState<_MapBody> {
                   // ----------------------------------------------------------
                   // Passenger's current location
                   // ----------------------------------------------------------
-
                   if (position.value != null)
                     MasariMapMarker(
                       position: position.value!,
@@ -436,15 +380,13 @@ class _MapBodyState extends ConsumerState<_MapBody> {
                   // ----------------------------------------------------------
                   // Driver's current location
                   // ----------------------------------------------------------
-
                   if (driverLocation != null)
                     MasariMapMarker(
                       position: GeoPoint(
                         driverLocation.lat,
                         driverLocation.lng,
                       ),
-                      icon:
-                          Icons.local_shipping_rounded,
+                      icon: Icons.local_shipping_rounded,
                       color: SemanticColors.passenger,
                       label: 'موقع السائق',
                       size: 46,
@@ -453,16 +395,10 @@ class _MapBodyState extends ConsumerState<_MapBody> {
                   // ----------------------------------------------------------
                   // Route stops
                   // ----------------------------------------------------------
-
                   if (route != null)
                     for (final stop in route.stops)
                       if (stop.position != null)
-                        _stopMarker(
-                          l10n,
-                          stop,
-                          stopName(stop),
-                          route,
-                        ),
+                        _stopMarker(l10n, stop, stopName(stop), route),
 
                   // ----------------------------------------------------------
                   // Checkpoints
@@ -470,33 +406,17 @@ class _MapBodyState extends ConsumerState<_MapBody> {
 
                   // IMPORTANT:
                   // Checkpoints are always drawn on the map.
-                  for (final checkpoint
-                      in snapshot.checkpoints)
+                  for (final checkpoint in snapshot.checkpoints)
                     MasariMapMarker(
-                      position:
-                          checkpoint.position,
-                      icon: _checkpointIcon(
-                        checkpoint.status,
-                      ),
-                      color: _checkpointColor(
-                        checkpoint.status,
-                      ),
-                      foreground:
-                          checkpoint.status ==
-                                  CheckpointStatus
-                                      .unknown
-                              ? AppTheme.onSurface
-                              : Colors.white,
+                      position: checkpoint.position,
+                      icon: _checkpointIcon(checkpoint.status),
+                      color: _checkpointColor(checkpoint.status),
+                      foreground: checkpoint.status == CheckpointStatus.unknown
+                          ? AppTheme.onSurface
+                          : Colors.white,
                       label: l10n.checkpointLabel(
-                        _checkpointName(
-                          l10n,
-                          checkpoint,
-                          localeName,
-                        ),
-                        _checkpointStatus(
-                          l10n,
-                          checkpoint.status,
-                        ),
+                        _checkpointName(l10n, checkpoint, localeName),
+                        _checkpointStatus(l10n, checkpoint.status),
                       ),
                       size: 30,
                     ),
@@ -508,41 +428,26 @@ class _MapBodyState extends ConsumerState<_MapBody> {
           // ==================================================================
           // DRIVER ARRIVAL CARD
           // ==================================================================
-
-          if (driverLocation != null &&
-              driverToPickupDistanceKm != null) ...[
-            const SizedBox(
-              height: AppTokens.spaceSmall,
-            ),
+          if (driverLocation != null && driverToPickupDistanceKm != null) ...[
+            const SizedBox(height: AppTokens.spaceSmall),
             _DriverArrivalCard(
               distanceKm: driverToPickupDistanceKm,
               etaMinutes: estimatedEtaMinutes,
             ),
           ],
 
-          const SizedBox(
-            height: AppTokens.spaceMedium,
-          ),
+          const SizedBox(height: AppTokens.spaceMedium),
 
           // ==================================================================
           // DRIVER LOCATION STATUS
           // ==================================================================
-
-          if (tripId != null &&
-              tripState != null &&
-              tripState.hasError)
+          if (tripId != null && tripState != null && tripState.hasError)
             _Notice(
-              icon:
-                  Icons.location_disabled_outlined,
-              message:
-                  'تعذر تحديث موقع السائق حاليًا.',
+              icon: Icons.location_disabled_outlined,
+              message: 'تعذر تحديث موقع السائق حاليًا.',
               actionLabel: l10n.retry,
               onAction: () => ref
-                  .read(
-                    passengerTripControllerProvider(
-                      tripId,
-                    ).notifier,
-                  )
+                  .read(passengerTripControllerProvider(tripId).notifier)
                   .refresh(),
             ),
 
@@ -550,50 +455,34 @@ class _MapBodyState extends ConsumerState<_MapBody> {
               tripState?.value?.location == null &&
               !tripState!.isLoading)
             _Notice(
-              icon:
-                  Icons.location_searching_rounded,
-              message:
-                  'بانتظار آخر موقع مسجل للسائق.',
+              icon: Icons.location_searching_rounded,
+              message: 'بانتظار آخر موقع مسجل للسائق.',
             ),
 
           // Location warning.
           // Does NOT hide the map.
           if (position.hasError)
             _Notice(
-              icon:
-                  Icons.location_disabled_outlined,
-              message: _locationMessage(
-                l10n,
-                position.error,
-              ),
+              icon: Icons.location_disabled_outlined,
+              message: _locationMessage(l10n, position.error),
               actionLabel: l10n.locationEnable,
-              onAction: () => ref
-                  .read(
-                    currentPositionProvider.notifier,
-                  )
-                  .refresh(),
+              onAction: () =>
+                  ref.read(currentPositionProvider.notifier).refresh(),
             ),
 
           // Route warning.
           // Does NOT hide the map.
-          if (route != null &&
-              !widget.view.hasDrawableRoute)
+          if (route != null && !widget.view.hasDrawableRoute)
             _Notice(
-              icon:
-                  Icons.wrong_location_outlined,
-              message:
-                  l10n.mapRouteMissingCoordinates,
+              icon: Icons.wrong_location_outlined,
+              message: l10n.mapRouteMissingCoordinates,
             ),
 
           // ==================================================================
           // ROUTE SUMMARY
           // ==================================================================
-
-          if (widget.view.pickup != null ||
-              widget.view.dropoff != null) ...[
-            const SizedBox(
-              height: AppTokens.spaceSmall,
-            ),
+          if (widget.view.pickup != null || widget.view.dropoff != null) ...[
+            const SizedBox(height: AppTokens.spaceSmall),
             _PassengerRouteSummary(
               l10n: l10n,
               view: widget.view,
@@ -601,9 +490,7 @@ class _MapBodyState extends ConsumerState<_MapBody> {
             ),
           ],
 
-          const SizedBox(
-            height: AppTokens.spaceMedium,
-          ),
+          const SizedBox(height: AppTokens.spaceMedium),
 
           // ==================================================================
           // CHECKPOINTS
@@ -630,30 +517,26 @@ class _MapBodyState extends ConsumerState<_MapBody> {
     String name,
     CanonicalRoute route,
   ) {
-    final isOrigin =
-        stop.id == route.originStop?.id;
+    final isOrigin = stop.id == route.originStop?.id;
 
-    final isDestination =
-        stop.id == route.destinationStop?.id;
+    final isDestination = stop.id == route.destinationStop?.id;
 
     return MasariMapMarker(
       position: stop.position!,
       icon: isOrigin
           ? Icons.trip_origin_rounded
           : isDestination
-              ? Icons.flag_rounded
-              : Icons.circle,
+          ? Icons.flag_rounded
+          : Icons.circle,
       color: isDestination
           ? SemanticColors.completedRoute
           : SemanticColors.parcel,
       label: isOrigin
           ? l10n.mapOriginLabel(name)
           : isDestination
-              ? l10n.mapDestinationLabel(name)
-              : l10n.mapStopLabel(name),
-      size: isOrigin || isDestination
-          ? 34
-          : 22,
+          ? l10n.mapDestinationLabel(name)
+          : l10n.mapStopLabel(name),
+      size: isOrigin || isDestination ? 34 : 22,
     );
   }
 }
@@ -679,14 +562,11 @@ class _DriverArrivalCard extends StatelessWidget {
         ? '${(distanceKm * 1000).round()} م'
         : '${distanceKm.toStringAsFixed(1)} كم';
 
-    final etaLabel = etaMinutes == null
-        ? '—'
-        : '$etaMinutes د';
+    final etaLabel = etaMinutes == null ? '—' : '$etaMinutes د';
 
     return MasariCard(
       child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.stretch,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
@@ -694,43 +574,31 @@ class _DriverArrivalCard extends StatelessWidget {
                 width: 50,
                 height: 50,
                 decoration: BoxDecoration(
-                  color:
-                      theme.colorScheme.primaryContainer,
-                  borderRadius:
-                      BorderRadius.circular(16),
+                  color: theme.colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 child: Icon(
                   Icons.local_shipping_rounded,
-                  color: theme.colorScheme
-                      .onPrimaryContainer,
+                  color: theme.colorScheme.onPrimaryContainer,
                   size: 28,
                 ),
               ),
-              const SizedBox(
-                width: AppTokens.spaceMedium,
-              ),
+              const SizedBox(width: AppTokens.spaceMedium),
               Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'السائق في الطريق إليك',
-                      style: theme.textTheme.titleMedium
-                          ?.copyWith(
+                      style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                    const SizedBox(
-                      height:
-                          AppTokens.spaceExtraSmall,
-                    ),
+                    const SizedBox(height: AppTokens.spaceExtraSmall),
                     Text(
                       'المسافة والوقت المتبقي للوصول إلى نقطة الالتقاء',
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(
-                        color: theme.colorScheme
-                            .onSurfaceVariant,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -738,9 +606,7 @@ class _DriverArrivalCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(
-            height: AppTokens.spaceMedium,
-          ),
+          const SizedBox(height: AppTokens.spaceMedium),
           Row(
             children: [
               Expanded(
@@ -750,9 +616,7 @@ class _DriverArrivalCard extends StatelessWidget {
                   label: 'المسافة المتبقية',
                 ),
               ),
-              const SizedBox(
-                width: AppTokens.spaceSmall,
-              ),
+              const SizedBox(width: AppTokens.spaceSmall),
               Expanded(
                 child: _DriverArrivalMetric(
                   icon: Icons.access_time_rounded,
@@ -762,15 +626,12 @@ class _DriverArrivalCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(
-            height: AppTokens.spaceSmall,
-          ),
+          const SizedBox(height: AppTokens.spaceSmall),
           Text(
             'الوقت تقديري وقد يتغير حسب حركة الطريق.',
             textAlign: TextAlign.center,
             style: theme.textTheme.labelSmall?.copyWith(
-              color:
-                  theme.colorScheme.onSurfaceVariant,
+              color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
         ],
@@ -800,39 +661,25 @@ class _DriverArrivalMetric extends StatelessWidget {
         vertical: AppTokens.spaceMedium,
       ),
       decoration: BoxDecoration(
-        color: theme.colorScheme
-            .surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(
-          AppTokens.radiusDefault,
-        ),
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(AppTokens.radiusDefault),
       ),
       child: Column(
         children: [
-          Icon(
-            icon,
-            color: theme.colorScheme.primary,
-            size: 25,
-          ),
-          const SizedBox(
-            height: AppTokens.spaceExtraSmall,
-          ),
+          Icon(icon, color: theme.colorScheme.primary, size: 25),
+          const SizedBox(height: AppTokens.spaceExtraSmall),
           Text(
             value,
-            style: theme.textTheme.titleLarge
-                ?.copyWith(
+            style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(
-            height: 2,
-          ),
+          const SizedBox(height: 2),
           Text(
             label,
             textAlign: TextAlign.center,
-            style: theme.textTheme.labelSmall
-                ?.copyWith(
-              color: theme.colorScheme
-                  .onSurfaceVariant,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -846,8 +693,7 @@ class _DriverArrivalMetric extends StatelessWidget {
 // PASSENGER ROUTE SUMMARY
 // ============================================================================
 
-class _PassengerRouteSummary
-    extends StatelessWidget {
+class _PassengerRouteSummary extends StatelessWidget {
   const _PassengerRouteSummary({
     required this.l10n,
     required this.view,
@@ -863,53 +709,40 @@ class _PassengerRouteSummary
     final theme = Theme.of(context);
 
     String stopName(CanonicalStop stop) {
-      return arabic
-          ? stop.nameAr
-          : stop.nameEn;
+      return arabic ? stop.nameAr : stop.nameEn;
     }
 
     return MasariCard(
       child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.stretch,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
             'مسار رحلتك',
-            style: theme.textTheme.titleLarge
-                ?.copyWith(
+            style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(
-            height: AppTokens.spaceMedium,
-          ),
+          const SizedBox(height: AppTokens.spaceMedium),
           if (view.pickup != null)
             _PassengerRoutePoint(
               icon: Icons.location_on_rounded,
-              color:
-                  SemanticColors.upcomingRoute,
+              color: SemanticColors.upcomingRoute,
               title: 'نقطة الالتقاء',
               value: stopName(view.pickup!),
             ),
-          if (view.pickup != null &&
-              view.dropoff != null)
+          if (view.pickup != null && view.dropoff != null)
             Padding(
-              padding:
-                  const EdgeInsetsDirectional.only(
-                start: 12,
-              ),
+              padding: const EdgeInsetsDirectional.only(start: 12),
               child: Container(
                 width: 2,
                 height: 25,
-                color: theme.colorScheme
-                    .outlineVariant,
+                color: theme.colorScheme.outlineVariant,
               ),
             ),
           if (view.dropoff != null)
             _PassengerRoutePoint(
               icon: Icons.flag_rounded,
-              color:
-                  SemanticColors.completedRoute,
+              color: SemanticColors.completedRoute,
               title: 'الوجهة',
               value: stopName(view.dropoff!),
             ),
@@ -919,8 +752,7 @@ class _PassengerRouteSummary
   }
 }
 
-class _PassengerRoutePoint
-    extends StatelessWidget {
+class _PassengerRoutePoint extends StatelessWidget {
   const _PassengerRoutePoint({
     required this.icon,
     required this.color,
@@ -943,33 +775,22 @@ class _PassengerRoutePoint
           width: 30,
           height: 30,
           decoration: BoxDecoration(
-            color: color.withValues(
-              alpha: 0.14,
-            ),
+            color: color.withValues(alpha: 0.14),
             shape: BoxShape.circle,
           ),
-          child: Icon(
-            icon,
-            size: 18,
-            color: color,
-          ),
+          child: Icon(icon, size: 18, color: color),
         ),
-        const SizedBox(
-          width: AppTokens.spaceSmall,
-        ),
+        const SizedBox(width: AppTokens.spaceSmall),
         Text(
           '$title: ',
-          style: theme.textTheme.bodyMedium
-              ?.copyWith(
-            color: theme.colorScheme
-                .onSurfaceVariant,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
           ),
         ),
         Expanded(
           child: Text(
             value,
-            style: theme.textTheme.bodyLarge
-                ?.copyWith(
+            style: theme.textTheme.bodyLarge?.copyWith(
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -983,8 +804,7 @@ class _PassengerRoutePoint
 // CHECKPOINTS
 // ============================================================================
 
-class _CheckpointsPanel
-    extends ConsumerWidget {
+class _CheckpointsPanel extends ConsumerWidget {
   const _CheckpointsPanel({
     required this.available,
     required this.state,
@@ -996,10 +816,7 @@ class _CheckpointsPanel
   final bool arabic;
 
   @override
-  Widget build(
-    BuildContext context,
-    WidgetRef ref,
-  ) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
 
     // Kept for compatibility with the
@@ -1014,62 +831,37 @@ class _CheckpointsPanel
     }
 
     return state.when(
-      loading: () =>
-          const LoadingSkeleton.card(),
+      loading: () => const LoadingSkeleton.card(),
 
       // Checkpoint failure is shown explicitly.
       // The map itself remains usable.
       error: (_, _) => ErrorStateView(
         title: l10n.checkpointsUnavailable,
-        message:
-            l10n.checkpointsUnavailableBody,
+        message: l10n.checkpointsUnavailableBody,
         retryLabel: l10n.retry,
-        onRetry: () => ref
-            .read(
-              checkpointsProvider.notifier,
-            )
-            .refresh(),
+        onRetry: () => ref.read(checkpointsProvider.notifier).refresh(),
       ),
 
       data: (snapshot) {
         if (snapshot.checkpoints.isEmpty) {
           return MasariInfoCard(
             title: l10n.checkpointsEmpty,
-            subtitle:
-                l10n.checkpointCount(0),
-            icon:
-                Icons.check_circle_outline,
+            subtitle: l10n.checkpointCount(0),
+            icon: Icons.check_circle_outline,
           );
         }
 
         return Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.stretch,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            for (final checkpoint
-                in snapshot.checkpoints)
+            for (final checkpoint in snapshot.checkpoints)
               Padding(
-                padding:
-                    const EdgeInsets.only(
-                  bottom:
-                      AppTokens.spaceSmall,
-                ),
+                padding: const EdgeInsets.only(bottom: AppTokens.spaceSmall),
                 child: _CheckpointRow(
-                  name: _checkpointName(
-                    l10n,
-                    checkpoint,
-                    arabic,
-                  ),
-                  status: _checkpointStatus(
-                    l10n,
-                    checkpoint.status,
-                  ),
-                  color: _checkpointColor(
-                    checkpoint.status,
-                  ),
-                  icon: _checkpointIcon(
-                    checkpoint.status,
-                  ),
+                  name: _checkpointName(l10n, checkpoint, arabic),
+                  status: _checkpointStatus(l10n, checkpoint.status),
+                  color: _checkpointColor(checkpoint.status),
+                  icon: _checkpointIcon(checkpoint.status),
                 ),
               ),
           ],
@@ -1079,8 +871,7 @@ class _CheckpointsPanel
   }
 }
 
-class _CheckpointRow
-    extends StatelessWidget {
+class _CheckpointRow extends StatelessWidget {
   const _CheckpointRow({
     required this.name,
     required this.status,
@@ -1098,50 +889,26 @@ class _CheckpointRow
     final theme = Theme.of(context);
 
     return Container(
-      padding: const EdgeInsets.all(
-        AppTokens.gutterMobile,
-      ),
+      padding: const EdgeInsets.all(AppTokens.gutterMobile),
       decoration: BoxDecoration(
-        color:
-            AppTheme.surfaceContainerLowest,
-        border: Border.all(
-          color: AppTheme.outlineVariant,
-        ),
-        borderRadius: BorderRadius.circular(
-          AppTokens.radiusMedium,
-        ),
+        color: AppTheme.surfaceContainerLowest,
+        border: Border.all(color: AppTheme.outlineVariant),
+        borderRadius: BorderRadius.circular(AppTokens.radiusMedium),
       ),
       child: Row(
         children: [
           Container(
             width: 32,
             height: 32,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              icon,
-              size: 18,
-              color: Colors.white,
-            ),
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            child: Icon(icon, size: 18, color: Colors.white),
           ),
-          const SizedBox(
-            width: AppTokens.gutterMobile,
-          ),
-          Expanded(
-            child: Text(
-              name,
-              style:
-                  theme.textTheme.titleSmall,
-            ),
-          ),
+          const SizedBox(width: AppTokens.gutterMobile),
+          Expanded(child: Text(name, style: theme.textTheme.titleSmall)),
           Text(
             status,
-            style: theme.textTheme.labelMedium
-                ?.copyWith(
-              color:
-                  AppTheme.onSurfaceVariant,
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: AppTheme.onSurfaceVariant,
             ),
           ),
         ],
@@ -1172,48 +939,27 @@ class _Notice extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Container(
-      margin: const EdgeInsets.only(
-        bottom: AppTokens.spaceMedium,
-      ),
-      padding: const EdgeInsets.all(
-        AppTokens.gutterMobile,
-      ),
+      margin: const EdgeInsets.only(bottom: AppTokens.spaceMedium),
+      padding: const EdgeInsets.all(AppTokens.gutterMobile),
       decoration: BoxDecoration(
-        color:
-            SemanticColors.warningContainer,
-        borderRadius: BorderRadius.circular(
-          AppTokens.radiusMedium,
-        ),
+        color: SemanticColors.warningContainer,
+        borderRadius: BorderRadius.circular(AppTokens.radiusMedium),
       ),
       child: Row(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            icon,
-            size: 20,
-            color: SemanticColors
-                .onWarningContainer,
-          ),
-          const SizedBox(
-            width: AppTokens.spaceSmall,
-          ),
+          Icon(icon, size: 20, color: SemanticColors.onWarningContainer),
+          const SizedBox(width: AppTokens.spaceSmall),
           Expanded(
             child: Text(
               message,
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(
-                color: SemanticColors
-                    .onWarningContainer,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: SemanticColors.onWarningContainer,
               ),
             ),
           ),
-          if (actionLabel != null &&
-              onAction != null)
-            TextButton(
-              onPressed: onAction,
-              child: Text(actionLabel!),
-            ),
+          if (actionLabel != null && onAction != null)
+            TextButton(onPressed: onAction, child: Text(actionLabel!)),
         ],
       ),
     );
@@ -1229,9 +975,7 @@ String _checkpointName(
   Checkpoint checkpoint,
   bool arabic,
 ) {
-  final preferred = arabic
-      ? checkpoint.nameAr
-      : checkpoint.nameEn;
+  final preferred = arabic ? checkpoint.nameAr : checkpoint.nameEn;
 
   return preferred ??
       checkpoint.nameEn ??
@@ -1239,76 +983,48 @@ String _checkpointName(
       l10n.checkpointUnnamed;
 }
 
-String _checkpointStatus(
-  AppLocalizations l10n,
-  CheckpointStatus status,
-) =>
+String _checkpointStatus(AppLocalizations l10n, CheckpointStatus status) =>
     switch (status) {
-      CheckpointStatus.open =>
-        l10n.checkpointOpen,
-      CheckpointStatus.congested =>
-        l10n.checkpointCongested,
-      CheckpointStatus.closed =>
-        l10n.checkpointClosed,
-      CheckpointStatus.unknown =>
-        l10n.checkpointUnknown,
+      CheckpointStatus.open => l10n.checkpointOpen,
+      CheckpointStatus.congested => l10n.checkpointCongested,
+      CheckpointStatus.closed => l10n.checkpointClosed,
+      CheckpointStatus.unknown => l10n.checkpointUnknown,
     };
 
-IconData _checkpointIcon(
-  CheckpointStatus status,
-) =>
-    switch (status) {
-      CheckpointStatus.open =>
-        Icons.check,
-      CheckpointStatus.congested =>
-        Icons.hourglass_bottom,
-      CheckpointStatus.closed =>
-        Icons.block,
-      CheckpointStatus.unknown =>
-        Icons.question_mark,
-    };
+IconData _checkpointIcon(CheckpointStatus status) => switch (status) {
+  CheckpointStatus.open => Icons.check,
+  CheckpointStatus.congested => Icons.hourglass_bottom,
+  CheckpointStatus.closed => Icons.block,
+  CheckpointStatus.unknown => Icons.question_mark,
+};
 
-Color _checkpointColor(
-  CheckpointStatus status,
-) =>
-    switch (status) {
-      CheckpointStatus.open =>
-        SemanticColors.success,
-      CheckpointStatus.congested =>
-        SemanticColors.warning,
-      CheckpointStatus.closed =>
-        SemanticColors.error,
+Color _checkpointColor(CheckpointStatus status) => switch (status) {
+  CheckpointStatus.open => SemanticColors.success,
+  CheckpointStatus.congested => SemanticColors.warning,
+  CheckpointStatus.closed => SemanticColors.error,
 
-      // Grey, never green:
-      // an unconfirmed checkpoint must not
-      // read as passable.
-      CheckpointStatus.unknown =>
-        SemanticColors.pendingContainer,
-    };
+  // Grey, never green:
+  // an unconfirmed checkpoint must not
+  // read as passable.
+  CheckpointStatus.unknown => SemanticColors.pendingContainer,
+};
 
 // ============================================================================
 // LOCATION HELPERS
 // ============================================================================
 
-String _locationMessage(
-  AppLocalizations l10n,
-  Object? error,
-) {
+String _locationMessage(AppLocalizations l10n, Object? error) {
   if (error is! LocationException) {
     return l10n.locationUnavailable;
   }
 
   return switch (error.failure) {
-    LocationFailure.serviceDisabled =>
-      l10n.locationServiceDisabled,
+    LocationFailure.serviceDisabled => l10n.locationServiceDisabled,
 
-    LocationFailure.permissionDenied =>
-      l10n.locationPermissionDenied,
+    LocationFailure.permissionDenied => l10n.locationPermissionDenied,
 
-    LocationFailure.permanentlyDenied =>
-      l10n.locationPermanentlyDenied,
+    LocationFailure.permanentlyDenied => l10n.locationPermanentlyDenied,
 
-    LocationFailure.unavailable =>
-      l10n.locationUnavailable,
+    LocationFailure.unavailable => l10n.locationUnavailable,
   };
 }
