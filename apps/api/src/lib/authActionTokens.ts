@@ -3,6 +3,7 @@ import type { Prisma, PrismaClient } from "../generated/prisma/client.js";
 import type { AuthActionPurpose } from "../generated/prisma/enums.js";
 import { keyedDigest, type VersionedKey } from "./keyedDigest.js";
 
+type ActionTransaction = Pick<Prisma.TransactionClient, "authActionToken">;
 type ActionDatabase = PrismaClient | Prisma.TransactionClient;
 
 const AUTH_ACTION_TTL_SECONDS: Record<AuthActionPurpose, number> = {
@@ -18,13 +19,26 @@ const SECRET_FIELD_NAMES = new Set([
   "password",
   "password_hash",
   "credential",
+  "credentials",
   "id_token",
   "access_token",
   "refresh_token",
   "authorization",
   "cookie",
-  "token"
-]);
+  "token",
+  "raw_token",
+  "google_token",
+  "identity_token"
+].map(normalizedFieldName));
+
+const PAYLOAD_FIELDS: Record<AuthActionPurpose, ReadonlySet<string>> = {
+  email_verification: new Set(["email_digest"]),
+  password_reset: new Set(["email_digest"]),
+  password_set: new Set(),
+  email_change: new Set(["email_digest", "new_email_digest"]),
+  google_registration: new Set(["provider_subject_digest", "email_digest"]),
+  phone_verification: new Set(["phone_digest", "challenge_id"])
+};
 
 export class AuthActionError extends Error {
   constructor(message = "auth_action_invalid") {
@@ -41,15 +55,31 @@ function actionSubjectDigest(subject: string, key: VersionedKey) {
   return keyedDigest("masari:auth-action-subject", subject, key);
 }
 
-function isSafePayload(value: unknown): value is Prisma.InputJsonValue | undefined {
-  if (value === undefined || value === null || typeof value === "string" || typeof value === "number" || typeof value === "boolean") return true;
-  if (Array.isArray(value)) return value.every(isSafePayload);
-  if (typeof value !== "object") return false;
-  return Object.entries(value as Record<string, unknown>).every(([name, child]) => !SECRET_FIELD_NAMES.has(name.toLowerCase()) && isSafePayload(child));
+function normalizedFieldName(name: string) {
+  return name.replace(/[^a-z0-9]/gi, "").toLowerCase();
 }
 
-function assertSafePayload(payload: unknown) {
-  if (!isSafePayload(payload) || (payload !== undefined && JSON.stringify(payload).length > 4_096)) {
+function isDigest(value: unknown) {
+  return typeof value === "string" && /^[a-f0-9]{64}$/i.test(value);
+}
+
+function isChallengeId(value: unknown) {
+  return typeof value === "string" && /^[A-Za-z0-9_-]{1,191}$/.test(value);
+}
+
+function isSafePayload(purpose: AuthActionPurpose, payload: unknown): payload is Prisma.InputJsonObject | undefined {
+  if (payload === undefined) return true;
+  if (!payload || Array.isArray(payload) || typeof payload !== "object") return false;
+  return Object.entries(payload as Record<string, unknown>).every(([name, value]) => {
+    const normalized = normalizedFieldName(name);
+    if (SECRET_FIELD_NAMES.has(normalized)) return false;
+    if (!PAYLOAD_FIELDS[purpose].has(name)) return false;
+    return name.endsWith("_digest") ? isDigest(value) : name === "challenge_id" ? isChallengeId(value) : false;
+  });
+}
+
+function assertSafePayload(purpose: AuthActionPurpose, payload: unknown) {
+  if (!isSafePayload(purpose, payload) || (payload !== undefined && JSON.stringify(payload).length > 4_096)) {
     throw new AuthActionError("auth_action_payload_invalid");
   }
 }
@@ -73,7 +103,7 @@ export async function issueAuthAction(
     now?: Date;
   }
 ) {
-  assertSafePayload(input.payload);
+  assertSafePayload(input.purpose, input.payload);
   const rawToken = generateAuthActionToken();
   const now = input.now ?? new Date();
   const expiresAt = new Date(now.getTime() + AUTH_ACTION_TTL_SECONDS[input.purpose] * 1_000);
@@ -100,7 +130,7 @@ export async function consumeAuthAction(
   if (!assertRawToken(rawToken)) throw new AuthActionError();
   const now = input.now ?? new Date();
   const tokenDigest = actionTokenDigest(rawToken, input.key);
-  return db.$transaction(async (tx) => {
+  const consume = async (tx: ActionTransaction) => {
     const action = await tx.authActionToken.findUnique({ where: { token_digest: tokenDigest } });
     if (
       !action ||
@@ -122,7 +152,9 @@ export async function consumeAuthAction(
     });
     if (consumed.count !== 1) throw new AuthActionError();
     return action;
-  });
+  };
+  if ("$transaction" in db && typeof db.$transaction === "function") return db.$transaction(consume);
+  return consume(db);
 }
 
 export async function revokeAuthActions(

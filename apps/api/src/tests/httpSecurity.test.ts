@@ -192,11 +192,15 @@ describe("production HTTP security baseline", () => {
       id_token: markers[0],
       credential: markers[1],
       raw_action_token: markers[2],
+      rawToken: "returned-raw-action-token-marker",
+      auth_action: { rawToken: "nested-raw-action-token-marker", idToken: markers[0] },
       profile: { email: markers[3], phone: "+970590001234" }
     }, "auth action redaction verification");
     await settleLogs();
     const output = lines.join("");
     for (const marker of markers) expect(output).not.toContain(marker);
+    expect(output).not.toContain("returned-raw-action-token-marker");
+    expect(output).not.toContain("nested-raw-action-token-marker");
     expect(output).not.toContain("+970590001234");
   });
 

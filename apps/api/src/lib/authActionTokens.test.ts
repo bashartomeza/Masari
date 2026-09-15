@@ -26,14 +26,17 @@ function action(overrides: Record<string, unknown> = {}) {
 }
 
 function database(stored = action()) {
+  const authActionToken = {
+    create: vi.fn().mockResolvedValue(stored),
+    findUnique: vi.fn().mockResolvedValue(stored),
+    updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+    findMany: vi.fn().mockResolvedValue([{ id: stored.id }])
+  };
+  const transaction = { authActionToken };
+  type Transaction = typeof transaction;
   const db = {
-    authActionToken: {
-      create: vi.fn().mockResolvedValue(stored),
-      findUnique: vi.fn().mockResolvedValue(stored),
-      updateMany: vi.fn().mockResolvedValue({ count: 1 }),
-      findMany: vi.fn().mockResolvedValue([{ id: stored.id }])
-    },
-    $transaction: vi.fn(async (work: (transaction: typeof db) => unknown) => work(db))
+    authActionToken,
+    $transaction: vi.fn(async (work: (transaction: Transaction) => unknown) => work(transaction))
   };
   return db;
 }
@@ -44,7 +47,7 @@ describe("one-time auth actions", () => {
     const issued = await issueAuthAction(db as never, {
       purpose: "google_registration",
       subject: "google-subject-123",
-      payload: { registration: "google" },
+      payload: { provider_subject_digest: "c".repeat(64), email_digest: "d".repeat(64) },
       key,
       now
     });
@@ -79,6 +82,25 @@ describe("one-time auth actions", () => {
       .rejects.toThrow("auth_action_invalid");
   });
 
+  it("consumes within a caller-owned transaction without opening a nested transaction", async () => {
+    const root = database();
+    const transaction = {
+      authActionToken: root.authActionToken
+    };
+    const issued = await issueAuthAction(root as never, { purpose: "google_registration", key, now });
+
+    await expect(consumeAuthAction(transaction as never, issued.rawToken, "google_registration", { key, now }))
+      .resolves.toMatchObject({ id: "action_1" });
+    expect(root.$transaction).not.toHaveBeenCalled();
+    expect(root.authActionToken.updateMany).toHaveBeenCalledTimes(1);
+
+    await expect(root.$transaction(async (tx: typeof transaction) => {
+      await consumeAuthAction(tx as never, issued.rawToken, "google_registration", { key, now });
+      throw new Error("outer_transaction_rollback");
+    })).rejects.toThrow("outer_transaction_rollback");
+    expect(root.$transaction).toHaveBeenCalledTimes(1);
+  });
+
   it("rejects expired or revoked actions and atomically permits only one concurrent consumer", async () => {
     const db = database(action({ expires_at: new Date(now.getTime() - 1) }));
     await expect(consumeAuthAction(db as never, "x".repeat(43), "google_registration", { key, now }))
@@ -105,6 +127,27 @@ describe("one-time auth actions", () => {
     expect(db.authActionToken.updateMany).toHaveBeenCalledWith(expect.objectContaining({
       where: expect.objectContaining({ user_id: "user_1", purpose: "password_reset", consumed_at: null })
     }));
+  });
+
+  it("rejects secret aliases and only accepts the purpose-specific opaque payload shape", async () => {
+    const db = database();
+    for (const secretField of ["idToken", "rawToken", "refreshToken", "credentials", "access-token"]) {
+      await expect(issueAuthAction(db as never, {
+        purpose: "google_registration",
+        key,
+        payload: { [secretField]: "secret-marker" }
+      })).rejects.toThrow("auth_action_payload_invalid");
+    }
+    await expect(issueAuthAction(db as never, {
+      purpose: "google_registration",
+      key,
+      payload: { email: "profile@example.com" }
+    })).rejects.toThrow("auth_action_payload_invalid");
+    await expect(issueAuthAction(db as never, {
+      purpose: "google_registration",
+      key,
+      payload: { provider_subject_digest: "c".repeat(64), email_digest: "d".repeat(64) }
+    })).resolves.toEqual(expect.objectContaining({ rawToken: expect.any(String) }));
   });
 
   it("requires a distinct, strong production action-token pepper while allowing an injected test key", () => {
