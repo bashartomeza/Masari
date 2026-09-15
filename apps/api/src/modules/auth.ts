@@ -255,7 +255,8 @@ authRouter.post(["/auth/login", "/auth/mobile/login"], async (req, res, next) =>
     const validPassword = await bcrypt.compare(input.password, user.password_hash);
     if (!validPassword) throw new HttpError(401, "invalid_credentials");
     if (!user.email_verified_at) throw new HttpError(403, "email_verification_required");
-    if (req.path === "/auth/mobile/login" && user.role === "admin") throw new HttpError(401, "invalid_credentials");
+    const loginPath = req.path.toLowerCase().replace(/\/+$/, "");
+    if (loginPath === "/auth/mobile/login" && user.role === "admin") throw new HttpError(401, "invalid_credentials");
     if (user.account_status !== "active") {
       await auditEvent(prisma, {
         userId: user.id,

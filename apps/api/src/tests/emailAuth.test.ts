@@ -141,6 +141,13 @@ describe("email authentication lifecycle", () => {
     }
     expect(db.authSession.create).not.toHaveBeenCalled();
   });
+  it.each(["/auth/mobile/login", "/auth/mobile/login/", "/AUTH/MOBILE/LOGIN"])("rejects Admin credentials on the mobile login variant %s", async (path) => {
+    users.push(actor({ role: "admin", password_hash: await bcrypt.hash(registration.password, 4) }));
+    const response = await request(app()).post(`/api/v1${path}`).send({ email: registration.email, password: registration.password }).expect(401);
+    expect(response.body.error).toBe("invalid_credentials");
+    expect(db.authSession.create).not.toHaveBeenCalled();
+    expect(db.refreshToken.create).not.toHaveBeenCalled();
+  });
   it("reset start is generic and confirmation revokes sessions plus increments security version once", async () => {
     users.push(actor({ password_hash: await bcrypt.hash(registration.password, 4) }));
     const unknown = await request(app()).post("/api/v1/auth/password/reset/start").send({ email: "unknown@example.com", locale: "en" }).expect(202);
