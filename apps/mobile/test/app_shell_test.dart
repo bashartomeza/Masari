@@ -277,6 +277,76 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('phoneCompletionScreen')), findsOneWidget);
   });
+
+  testWidgets(
+    'confirmed phone retries only profile reload after network failure',
+    (tester) async {
+      var profileLoads = 0;
+      var confirmations = 0;
+      await _pumpApp(
+        tester,
+        localeValues: {DomainLabels.localeStorageKey: 'en'},
+        secureValues: {TokenStorage.tokenKey: 'masari-session'},
+        handler: (request) async {
+          if (request.url.path.endsWith('/me')) {
+            profileLoads++;
+            if (profileLoads == 2) throw const SocketException('offline');
+            return http.Response(
+              jsonEncode({
+                'user': {
+                  'id': 'u',
+                  'name': 'Passenger',
+                  'phone': profileLoads > 2 ? '+14155552671' : null,
+                  'profile_state': profileLoads > 2
+                      ? 'complete'
+                      : 'phone_required',
+                  'role': 'passenger',
+                  'demo_account': false,
+                },
+              }),
+              200,
+            );
+          }
+          if (request.url.path.endsWith('/profile/phone/start-verification')) {
+            return http.Response(
+              '{"action_token":"one-use-proof","next_action":"verify_phone"}',
+              202,
+            );
+          }
+          if (request.url.path.endsWith(
+            '/profile/phone/confirm-verification',
+          )) {
+            confirmations++;
+            return confirmations == 1
+                ? http.Response('{"ok":true,"profile_state":"complete"}', 200)
+                : http.Response('{"error":"auth_action_invalid"}', 400);
+          }
+          return http.Response('{"error":"not_found"}', 404);
+        },
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey('profilePhone')),
+        '+14155552671',
+      );
+      await tester.tap(find.text('Send code'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const ValueKey('authProof')), '123456');
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('completeAuth')));
+      await tester.pumpAndSettle();
+      expect(confirmations, 1);
+      expect(profileLoads, 2);
+      expect(
+        find.byKey(const ValueKey('phoneCompletionScreen')),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(const ValueKey('completeAuth')));
+      await tester.pumpAndSettle();
+      expect(confirmations, 1);
+      expect(profileLoads, 3);
+      expect(find.byKey(const ValueKey('phoneCompletionScreen')), findsNothing);
+    },
+  );
   test('Android excludes secure authentication storage from backup', () {
     final manifest = File(
       'android/app/src/main/AndroidManifest.xml',

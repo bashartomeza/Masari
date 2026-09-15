@@ -86,6 +86,7 @@ class _AuthCompletionScreenState extends ConsumerState<AuthCompletionScreen> {
   String? _locale;
   String? _phoneToken;
   String? _verifiedPhone;
+  bool _phoneConfirmed = false;
   final Set<String> _accepted = {};
   bool _busy = false;
   Object? _error;
@@ -156,6 +157,7 @@ class _AuthCompletionScreenState extends ConsumerState<AuthCompletionScreen> {
   }
 
   Future<void> _sendPhone() => _run(() async {
+    if (_phoneConfirmed) return;
     final value = _phone.text.trim();
     if (!RegExp(r'^\+[1-9]\d{6,14}$').hasMatch(value)) {
       throw const ApiException(ApiErrorType.validation, 'invalid_phone');
@@ -173,14 +175,23 @@ class _AuthCompletionScreenState extends ConsumerState<AuthCompletionScreen> {
   });
   Future<void> _confirm() => _run(() async {
     if (widget.phone
-        ? _phoneToken == null || !RegExp(r'^\d{6}$').hasMatch(_code.text.trim())
+        ? !_phoneConfirmed &&
+              (_phoneToken == null ||
+                  !RegExp(r'^\d{6}$').hasMatch(_code.text.trim()))
         : _documents == null || _accepted.length != 3) {
       return;
     }
     if (widget.phone) {
-      await ref
-          .read(authRepositoryProvider)
-          .confirmPhone(_verifiedPhone!, _phoneToken!, _code.text.trim());
+      if (!_phoneConfirmed) {
+        await ref
+            .read(authRepositoryProvider)
+            .confirmPhone(_verifiedPhone!, _phoneToken!, _code.text.trim());
+        // The server consumed the challenge. A failed profile reload must
+        // retry only the read, never submit the same proof a second time.
+        _phoneConfirmed = true;
+        _phoneToken = null;
+        _code.clear();
+      }
       await ref.read(authControllerProvider.notifier).reloadProfile();
     } else {
       await ref
@@ -231,7 +242,7 @@ class _AuthCompletionScreenState extends ConsumerState<AuthCompletionScreen> {
               TextField(
                 key: const ValueKey('profilePhone'),
                 controller: _phone,
-                enabled: !_busy && _phoneToken == null,
+                enabled: !_busy && !_phoneConfirmed && _phoneToken == null,
                 textDirection: TextDirection.ltr,
                 keyboardType: TextInputType.phone,
                 autofillHints: const [AutofillHints.telephoneNumber],
@@ -244,7 +255,7 @@ class _AuthCompletionScreenState extends ConsumerState<AuthCompletionScreen> {
                 ),
               ),
               FilledButton(
-                onPressed: _busy ? null : _sendPhone,
+                onPressed: _busy || _phoneConfirmed ? null : _sendPhone,
                 child: Text(
                   authText(
                     context,
@@ -381,8 +392,11 @@ class _AuthCompletionScreenState extends ConsumerState<AuthCompletionScreen> {
               onPressed:
                   _busy ||
                       (widget.phone
-                          ? _phoneToken == null ||
-                                !RegExp(r'^\d{6}$').hasMatch(_code.text.trim())
+                          ? !_phoneConfirmed &&
+                                (_phoneToken == null ||
+                                    !RegExp(
+                                      r'^\d{6}$',
+                                    ).hasMatch(_code.text.trim()))
                           : _documents == null ||
                                 _accepted.length != 3 ||
                                 (email
