@@ -24,11 +24,11 @@ export const DEMO_STOP_KEYS = {
 } as const;
 
 export const DEMO_ACCOUNTS = {
-  passenger: { name: "Demo Passenger", phone: "+970590000001" },
-  driver1: { name: "Demo Driver Hebron Route", phone: "+970590000002" },
-  driver2: { name: "Demo Driver Alternate", phone: "+970590000003" },
-  merchant: { name: "Demo Merchant", phone: "+970590000004" },
-  admin: { name: "Demo Admin", phone: "+970590000005" }
+  passenger: { name: "Demo Passenger", phone: "+970590000001", email: "demo.passenger@masari.app" },
+  driver1: { name: "Demo Driver Hebron Route", phone: "+970590000002", email: "demo.driver@masari.app" },
+  driver2: { name: "Demo Driver Alternate", phone: "+970590000003", email: "demo.driver2@masari.app" },
+  merchant: { name: "Demo Merchant", phone: "+970590000004", email: "demo.merchant@masari.app" },
+  admin: { name: "Demo Admin", phone: "+970590000005", email: "demo.admin@masari.app" }
 } as const;
 
 export const CANONICAL_MODE = "canonical_route_v1";
@@ -86,12 +86,13 @@ async function hashPassword(password: string) {
 
 async function createDemoUser(
   tx: Prisma.TransactionClient,
-  input: { name: string; phone: string; password: string; role: UserRole }
+  input: { name: string; phone: string; email: string; password: string; role: UserRole }
 ) {
   return tx.user.create({
     data: {
       name: input.name,
       phone: input.phone,
+      email: input.email,
       password_hash: await hashPassword(input.password),
       role: input.role,
       account_status: "active",

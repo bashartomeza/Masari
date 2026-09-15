@@ -80,7 +80,7 @@ jobs:
       - name: Confirm migration deploy is idempotent
         run: npm run db:migrate
       - run: npm run db:migrate:status
-      - name: Verify disposable migration upgrade from 20 to 21
+      - name: Verify disposable migration upgrade from the prior history to current
         env:
           MYSQL_PWD: ci-only-root-password
           DATABASE_URL: mysql://masari_ci:ci-only-password@127.0.0.1:3306/masari_upgrade_ci
@@ -92,14 +92,16 @@ jobs:
           cp apps/api/prisma/schema.prisma .staging-data/migration-upgrade/prisma/
           cp apps/api/prisma/migrations/migration_lock.toml .staging-data/migration-upgrade/prisma/migrations/
           mapfile -t migrations < <(find apps/api/prisma/migrations -mindepth 1 -maxdepth 1 -type d | sort)
-          test "${#migrations[@]}" -eq 21
-          for migration in "${migrations[@]:0:20}"; do cp -R "$migration" .staging-data/migration-upgrade/prisma/migrations/; done
+          migration_count="${#migrations[@]}"
+          test "$migration_count" -ge 1
+          prior_count=$((migration_count - 1))
+          for migration in "${migrations[@]:0:$prior_count}"; do cp -R "$migration" .staging-data/migration-upgrade/prisma/migrations/; done
           node node_modules/prisma/build/index.js migrate deploy --config .staging-data/migration-upgrade/prisma.config.ts
-          test "$(mysql --protocol=tcp --host=127.0.0.1 --port=3306 --user=root --batch --skip-column-names masari_upgrade_ci --execute='SELECT COUNT(*) FROM _prisma_migrations WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL')" -eq 20
-          cp -R "${migrations[20]}" .staging-data/migration-upgrade/prisma/migrations/
+          test "$(mysql --protocol=tcp --host=127.0.0.1 --port=3306 --user=root --batch --skip-column-names masari_upgrade_ci --execute='SELECT COUNT(*) FROM _prisma_migrations WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL')" -eq "$prior_count"
+          cp -R "${migrations[$prior_count]}" .staging-data/migration-upgrade/prisma/migrations/
           node node_modules/prisma/build/index.js migrate deploy --config .staging-data/migration-upgrade/prisma.config.ts
           node node_modules/prisma/build/index.js migrate deploy --config .staging-data/migration-upgrade/prisma.config.ts
-          test "$(mysql --protocol=tcp --host=127.0.0.1 --port=3306 --user=root --batch --skip-column-names masari_upgrade_ci --execute='SELECT COUNT(*) FROM _prisma_migrations WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL')" -eq 21
+          test "$(mysql --protocol=tcp --host=127.0.0.1 --port=3306 --user=root --batch --skip-column-names masari_upgrade_ci --execute='SELECT COUNT(*) FROM _prisma_migrations WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL')" -eq "$migration_count"
       - run: npm run typecheck
       - run: npm run test
       - run: npm run build

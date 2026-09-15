@@ -15,8 +15,7 @@ class OsrmRouteResult {
   final double distanceMeters;
 
   /// Estimated travel time in minutes.
-  int get durationMinutes =>
-      (durationSeconds / 60).ceil();
+  int get durationMinutes => (durationSeconds / 60).ceil();
 
   /// Estimated travel time in hours and minutes.
   String get formattedDuration {
@@ -37,8 +36,7 @@ class OsrmRouteResult {
   }
 
   /// Distance in kilometers.
-  double get distanceKilometers =>
-      distanceMeters / 1000;
+  double get distanceKilometers => distanceMeters / 1000;
 }
 
 class OsrmRouteService {
@@ -58,13 +56,10 @@ class OsrmRouteService {
     final response = await http.get(url);
 
     if (response.statusCode != 200) {
-      throw Exception(
-        'OSRM request failed: ${response.statusCode}',
-      );
+      throw Exception('OSRM request failed: ${response.statusCode}');
     }
 
-    final data = jsonDecode(response.body)
-        as Map<String, dynamic>;
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
 
     if (data['code'] != 'Ok') {
       throw Exception('OSRM returned an invalid route');
@@ -82,26 +77,24 @@ class OsrmRouteService {
 
     final route = routes.first as Map<String, dynamic>;
 
-    final durationSeconds =
-        (route['duration'] as num?)?.toDouble() ?? 0;
+    final durationSeconds = (route['duration'] as num?)?.toDouble() ?? 0;
 
-    final distanceMeters =
-        (route['distance'] as num?)?.toDouble() ?? 0;
+    final distanceMeters = (route['distance'] as num?)?.toDouble() ?? 0;
 
-    final geometry =
-        route['geometry'] as Map<String, dynamic>;
+    final geometry = route['geometry'] as Map<String, dynamic>;
 
-    final coordinates =
-        geometry['coordinates'] as List<dynamic>;
+    final coordinates = geometry['coordinates'] as List<dynamic>;
 
-    final points = coordinates.map((coordinate) {
-      final point = coordinate as List<dynamic>;
+    final points = coordinates
+        .map((coordinate) {
+          final point = coordinate as List<dynamic>;
 
-      return LatLng(
-        (point[1] as num).toDouble(),
-        (point[0] as num).toDouble(),
-      );
-    }).toList(growable: false);
+          return LatLng(
+            (point[1] as num).toDouble(),
+            (point[0] as num).toDouble(),
+          );
+        })
+        .toList(growable: false);
 
     return OsrmRouteResult(
       points: points,

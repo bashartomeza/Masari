@@ -125,7 +125,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('رحلة السائق'), findsOneWidget);
+    expect(find.byKey(const ValueKey('driverTrip')), findsOneWidget);
   });
 
   testWidgets('trip shows only valid next action and updates simulation', (
@@ -146,8 +146,10 @@ void main() {
     expect(find.textContaining('31.5326'), findsWidgets);
     expect(find.byKey(const ValueKey('routeProgress')), findsOneWidget);
 
-    await tester.ensureVisible(
+    await tester.dragUntilVisible(
       find.byKey(const ValueKey('simulateStepButton')),
+      find.byType(ListView).last,
+      const Offset(0, -500),
     );
     await tester.tap(find.byKey(const ValueKey('simulateStepButton')));
     await tester.pumpAndSettle();
@@ -221,7 +223,7 @@ Future<void> _pumpApp(
   bool authenticated = true,
   AppConfig config = demoTestAppConfig,
 }) async {
-  tester.view.physicalSize = const Size(900, 2000);
+  tester.view.physicalSize = const Size(900, 2200);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);

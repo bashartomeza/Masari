@@ -119,7 +119,6 @@ class PassengerHomeScreen extends ConsumerWidget {
       },
     );
   }
-
 }
 
 class _AssistantEntryCard extends StatelessWidget {
