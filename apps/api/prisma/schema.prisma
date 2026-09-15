@@ -348,13 +348,34 @@ enum IdempotencyState {
   failed
 }
 
+enum ProfileState {
+  phone_required
+  complete
+}
+
+enum ExternalIdentityProvider {
+  google
+}
+
+enum AuthActionPurpose {
+  email_verification
+  password_reset
+  password_set
+  email_change
+  google_registration
+  phone_verification
+}
+
 model User {
   id                String        @id @default(cuid())
   name              String
-  phone             String?       @unique
-  email             String?       @unique
+  phone             String?       @unique @db.VarChar(32)
+  phone_verified_at DateTime?
+  email             String?       @unique @db.VarChar(191)
+  email_verified_at DateTime?
   google_sub        String?       @unique
   password_hash     String?
+  profile_state     ProfileState  @default(phone_required)
   role              UserRole
   account_status    AccountStatus @default(active)
   security_version  Int           @default(1)
@@ -377,6 +398,8 @@ model User {
   onboarding_attempts              OnboardingAttempt[]    @relation("CompletedOnboardingUser")
   onboarding_sessions              OnboardingSession[]
   consents                         UserConsent[]
+  external_identities              ExternalIdentity[]
+  auth_action_tokens               AuthActionToken[]
   service_routes_created           ServiceRoute[]         @relation("ServiceRouteCreator")
   service_routes_retired           ServiceRoute[]         @relation("ServiceRouteRetirer")
   service_route_versions_created   ServiceRouteVersion[]  @relation("ServiceRouteVersionCreator")
@@ -387,6 +410,43 @@ model User {
   stops_retired                    Stop[]                 @relation("StopRetirer")
 
   @@map("users")
+}
+
+model ExternalIdentity {
+  id                      String                   @id @default(cuid())
+  user_id                 String
+  provider                ExternalIdentityProvider
+  provider_subject        String                   @db.VarChar(191)
+  provider_email_snapshot String?                  @db.VarChar(191)
+  created_at              DateTime                 @default(now())
+  updated_at              DateTime                 @updatedAt
+  last_authenticated_at   DateTime?
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([provider, provider_subject])
+  @@unique([user_id, provider])
+  @@index([user_id])
+  @@map("external_identities")
+}
+
+model AuthActionToken {
+  id                String            @id @default(cuid())
+  purpose           AuthActionPurpose
+  user_id           String?
+  subject_digest    String?           @db.Char(64)
+  token_digest      String            @unique @db.Char(64)
+  token_key_version Int
+  payload           Json?
+  expires_at        DateTime
+  consumed_at       DateTime?
+  created_at        DateTime          @default(now())
+
+  user User? @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([purpose, expires_at, consumed_at])
+  @@index([user_id, purpose, expires_at])
+  @@map("auth_action_tokens")
 }
 
 model Invitation {

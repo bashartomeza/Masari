@@ -8,8 +8,38 @@ export function assertDisposableDatabase(name) {
   }
 }
 
-export async function runAuthMigrationRehearsal({ database }) {
+function backfillGoogleExternalIdentities(legacyUsers, existingExternalIdentities) {
+  const subjects = new Set();
+  const existingSubjects = new Set(
+    existingExternalIdentities
+      .filter((identity) => identity.provider === "google")
+      .map((identity) => identity.provider_subject)
+  );
+
+  for (const user of legacyUsers) {
+    if (!user.google_sub) continue;
+    if (subjects.has(user.google_sub)) {
+      throw new Error("external_identity_duplicate_google_subject");
+    }
+    subjects.add(user.google_sub);
+    if (existingSubjects.has(user.google_sub)) {
+      throw new Error("external_identity_google_subject_conflict");
+    }
+  }
+
+  return legacyUsers.flatMap((user) =>
+    user.google_sub
+      ? [{ user_id: user.id, provider: "google", provider_subject: user.google_sub }]
+      : []
+  );
+}
+
+export async function runAuthMigrationRehearsal({ database, legacyUsers = [], existingExternalIdentities = [] }) {
   assertDisposableDatabase(database);
+  return {
+    externalIdentities: backfillGoogleExternalIdentities(legacyUsers, existingExternalIdentities),
+    legacyGoogleSubColumnPresent: true
+  };
 }
 
 function databaseName(databaseUrl) {
