@@ -14,6 +14,19 @@ async function render(locale: "ar" | "en", google = false, sessionStore: TokenSt
   await act(async () => { root.render(<LocaleProvider storage={{ getItem: () => locale, setItem: () => {} }}><App config={{ appEnv: "test", apiBaseUrl: "http://api.test", demoFeaturesEnabled: false, routeManagementEnabled: false }} sessionStore={sessionStore} legacyStore={{ getItem: () => null, setItem: () => {}, removeItem: () => {} }} /></LocaleProvider>); });
 }
 describe("Admin login", () => {
+  it.each([200, 401])("does not announce a stale email outcome (%s) during a newer Google attempt", async (status) => {
+    let credentialCallback!: (value: { credential: string }) => void;
+    vi.stubGlobal("google", { accounts: { id: { initialize: (options: { callback: typeof credentialCallback }) => { credentialCallback = options.callback; }, renderButton: () => {}, cancel: () => {} } } });
+    await render("en", true);
+    let resolveEmail!: (response: Response) => void;
+    const pendingEmail = new Promise<Response>((resolve) => { resolveEmail = resolve; });
+    vi.stubGlobal("fetch", vi.fn((url: string) => url.endsWith("/auth/admin/login") ? pendingEmail : new Promise<Response>(() => {})));
+    act(() => host.querySelector("form")?.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
+    act(() => credentialCallback({ credential: "google-proof" }));
+    await act(async () => resolveEmail(new Response(JSON.stringify(status === 200 ? { token: "old-email", user: { id: "admin", role: "admin" } } : { error: "invalid_credentials" }), { status })));
+    expect(host.textContent).not.toContain("Admin logged in.");
+    expect(host.textContent).not.toContain("Check your credentials");
+  });
   it("keeps logout effective when an older Google exchange finishes after email login", async () => {
     let credentialCallback!: (value: { credential: string }) => void;
     vi.stubGlobal("google", { accounts: { id: { initialize: (options: { callback: typeof credentialCallback }) => { credentialCallback = options.callback; }, renderButton: () => {}, cancel: () => {} } } });
@@ -47,6 +60,12 @@ describe("Admin login", () => {
     else await act(async () => host.querySelector("form")?.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
     await act(async () => resolveGoogle(new Response(JSON.stringify({ token: "stale-google-session", user: { id: "old", role: "admin", name: "Old Admin" } }))));
     expect(saved).toEqual([]);
+    if (superseding === "newer email attempt") {
+      expect(host.querySelector('section[aria-label="Google"]')?.getAttribute("aria-busy")).toBe("false");
+      const retry = [...host.querySelectorAll("button")].find((b) => b.textContent === "Retry");
+      expect(retry).toBeDefined(); act(() => retry?.click());
+      expect(host.querySelector('[data-google-sign-in]')?.hasAttribute("hidden")).toBe(false);
+    }
   });
   it.each(["ar", "en"] as const)("offers accessible email login in %s with direction preserved", async (locale) => {
     await render(locale);

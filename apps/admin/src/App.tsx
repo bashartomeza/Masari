@@ -259,21 +259,30 @@ export function App({
   async function login(event: FormEvent) {
     event.preventDefault();
     const attempt = ++authAttempt.current;
-    const result = await runAction("login", () => api.login(email, password), t("adminLoggedIn"));
-    if (!result) return;
-    await acceptLogin(attempt, result);
+    setBusy("login"); setNotice(null);
+    try {
+      const result = await api.login(email, password);
+      if (attempt !== authAttempt.current) return;
+      setNotice({ type: "success", message: t("adminLoggedIn") });
+      await acceptLogin(attempt, result);
+    } catch (error) {
+      if (attempt === authAttempt.current) setNotice({ type: "error", message: getErrorMessage(error, t) });
+    } finally {
+      if (attempt === authAttempt.current) setBusy(null);
+    }
   }
 
   async function acceptLogin(attempt: number, result: Awaited<ReturnType<typeof api.login>>) {
-    if (attempt !== authAttempt.current) return;
+    if (attempt !== authAttempt.current) return false;
     sessionExpiry.reset();
     sessionStore.setItem(ADMIN_TOKEN_KEY, result.token);
     setToken(result.token);
     setAdmin(result.user);
     const capabilities = await api.capabilities(result.token).catch(() => ({ demo_reset_available: false }));
-    if (attempt !== authAttempt.current) return;
+    if (attempt !== authAttempt.current) return false;
     setDemoResetAvailable(capabilities.demo_reset_available === true);
     await refreshOverview(result.token);
+    return true;
   }
 
   async function loadMe(currentToken = token) {
@@ -509,8 +518,14 @@ export function App({
           <button className="btn btn--primary" disabled={busy === "login"}>{busy === "login" ? t("signingIn") : t("signIn")}</button>
           {googleClientId && <GoogleAdminSignIn clientId={googleClientId} onCredential={async (credential) => {
             const attempt = ++authAttempt.current;
-            const result = await api.googleLogin(credential);
-            await acceptLogin(attempt, result);
+            setBusy(null); setNotice(null);
+            try {
+              const result = await api.googleLogin(credential);
+              return await acceptLogin(attempt, result);
+            } catch (error) {
+              if (attempt !== authAttempt.current) return false;
+              throw error;
+            }
           }} />}
           {notice && <Notice kind={notice.type}>{notice.message}</Notice>}
         </form>

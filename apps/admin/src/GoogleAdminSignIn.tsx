@@ -9,7 +9,7 @@ type GoogleIdentitySdk = {
 function sdk() { return (window as Window & { google?: { accounts?: { id?: GoogleIdentitySdk } } }).google?.accounts?.id; }
 
 /** The official GIS button owns the provider popup; credentials live only in its callback. */
-export function GoogleAdminSignIn({ clientId, onCredential }: { clientId: string; onCredential: (credential: string) => Promise<void> }) {
+export function GoogleAdminSignIn({ clientId, onCredential }: { clientId: string; onCredential: (credential: string) => Promise<boolean> }) {
   const { locale, t } = useLocale();
   const [state, setState] = useState<"loading" | "ready" | "submitting" | "cancelled" | "unavailable" | "failed">("loading");
   const [attempt, setAttempt] = useState(0);
@@ -31,7 +31,9 @@ export function GoogleAdminSignIn({ clientId, onCredential }: { clientId: string
           if (!response.credential) { setState("failed"); return; }
           // Stop duplicate callbacks while the single server exchange is in flight.
           cancelled.current = true; setState("submitting");
-          accept.current(response.credential).catch(() => { if (active) setState("failed"); });
+          accept.current(response.credential)
+            .then((accepted) => { if (active && !accepted) setState("cancelled"); })
+            .catch(() => { if (active) setState("failed"); });
         } });
         container.current.replaceChildren();
         provider.renderButton(container.current, { type: "standard", theme: "outline", size: "large", text: "signin_with", locale });
