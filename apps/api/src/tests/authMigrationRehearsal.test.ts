@@ -49,4 +49,16 @@ describe("auth migration rehearsal", () => {
       })
     ).rejects.toThrow("external_identity_google_subject_conflict");
   });
+
+  it("aborts the fixture rehearsal when a user already has another Google subject", async () => {
+    await expect(
+      runAuthMigrationRehearsal({
+        database: "masari_auth_rehearsal_task_2",
+        legacyUsers: [{ id: "legacy-user", google_sub: "legacy-sub" }],
+        existingExternalIdentities: [
+          { user_id: "legacy-user", provider: "google", provider_subject: "different-sub" }
+        ]
+      })
+    ).rejects.toThrow("external_identity_google_user_conflict");
+  });
 });

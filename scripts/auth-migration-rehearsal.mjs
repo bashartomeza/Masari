@@ -15,6 +15,11 @@ function backfillGoogleExternalIdentities(legacyUsers, existingExternalIdentitie
       .filter((identity) => identity.provider === "google")
       .map((identity) => identity.provider_subject)
   );
+  const existingUsers = new Set(
+    existingExternalIdentities
+      .filter((identity) => identity.provider === "google")
+      .map((identity) => identity.user_id)
+  );
 
   for (const user of legacyUsers) {
     if (!user.google_sub) continue;
@@ -24,6 +29,9 @@ function backfillGoogleExternalIdentities(legacyUsers, existingExternalIdentitie
     subjects.add(user.google_sub);
     if (existingSubjects.has(user.google_sub)) {
       throw new Error("external_identity_google_subject_conflict");
+    }
+    if (existingUsers.has(user.id)) {
+      throw new Error("external_identity_google_user_conflict");
     }
   }
 
