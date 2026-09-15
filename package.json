@@ -30,6 +30,7 @@
     "security:audit": "node scripts/audit-policy.mjs",
     "security:artifacts": "node scripts/scan-production-artifacts.mjs",
     "test:integration:mysql": "node scripts/ci-mysql-integration.mjs",
+    "test:integration:auth-migration": "node scripts/auth-migration-rehearsal.mjs",
     "test:integration:sessions": "node scripts/session-integration-smoke.mjs",
     "test:integration:sessions:local": "node scripts/local-trusted-session-integration.mjs --confirm-disposable --cleanup",
     "test:integration:onboarding": "node apps/api/dist/scripts/onboardingIntegration.js",
