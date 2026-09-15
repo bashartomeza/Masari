@@ -38,7 +38,14 @@ const git = (args) => {
   const result = spawnSync("git", args, { cwd: root, windowsHide: true, encoding: "utf8" });
   assert.equal(result.status, 0, "rehearsal_git_read_failed"); return result.stdout.trimEnd();
 };
-const envFor = (database) => ({ ...process.env, APP_ENV: "local", ENABLE_DEMO_FEATURES: "false", DATABASE_URL: `mysql://root:${password}@127.0.0.1:${port}/${database}`, JWT_SECRET: randomBytes(32).toString("hex"), REFRESH_TOKEN_PEPPER: randomBytes(32).toString("hex"), AUTH_ACTION_TOKEN_PEPPER: randomBytes(32).toString("hex"), GOOGLE_PASSENGER_SIGNUP_MODE: "open", GOOGLE_MOBILE_SERVER_CLIENT_ID: "rehearsal-mobile-client", LOG_LEVEL: "silent" });
+const envFor = (database) => {
+  const databaseUrl = new URL("mysql://127.0.0.1");
+  databaseUrl.username = "root";
+  databaseUrl.password = password;
+  databaseUrl.port = String(port);
+  databaseUrl.pathname = database;
+  return { ...process.env, APP_ENV: "local", ENABLE_DEMO_FEATURES: "false", DATABASE_URL: databaseUrl.toString(), JWT_SECRET: randomBytes(32).toString("hex"), REFRESH_TOKEN_PEPPER: randomBytes(32).toString("hex"), AUTH_ACTION_TOKEN_PEPPER: randomBytes(32).toString("hex"), GOOGLE_PASSENGER_SIGNUP_MODE: "open", GOOGLE_MOBILE_SERVER_CLIENT_ID: "rehearsal-mobile-client", LOG_LEVEL: "silent" };
+};
 async function command(args, env, label) {
   const result = spawnSync(process.execPath, args, { cwd: root, env, windowsHide: true, encoding: "utf8", timeout: 180000, maxBuffer: 4 * 1024 * 1024 });
   // Child diagnostics may contain URLs or provider proofs: record only labels,
