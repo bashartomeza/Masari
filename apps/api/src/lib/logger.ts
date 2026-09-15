@@ -1,7 +1,31 @@
 import pino, { type DestinationStream, type Logger } from "pino";
 import type { AppConfig } from "../config.js";
 
-const REDACTED_PATHS = [
+const AUTH_CREDENTIAL_FIELD_NAMES = [
+  "authorization",
+  "cookie",
+  "token",
+  "raw_action_token",
+  "action_token",
+  "rawToken",
+  "idToken",
+  "id_token",
+  "accessToken",
+  "access_token",
+  "refreshToken",
+  "refresh_token",
+  "credential",
+  "credentials"
+] as const;
+
+// Pino/fast-redact supports `*` for one object segment, not an unbounded
+// recursive wildcard. Masari supports structured operational log contexts to
+// five object levels, so generate every safe path through that depth.
+const AUTH_CREDENTIAL_REDACTION_PATHS = AUTH_CREDENTIAL_FIELD_NAMES.flatMap((field) =>
+  Array.from({ length: 6 }, (_, depth) => `${Array(depth).fill("*").join(".")}${depth ? "." : ""}${field}`)
+);
+
+const REDACTED_PATHS = [...new Set([
   "authorization",
   "cookie",
   "token",
@@ -56,8 +80,9 @@ const REDACTED_PATHS = [
   "req.headers.authorization",
   "req.headers.cookie",
   "req.body",
-  "res.body"
-];
+  "res.body",
+  ...AUTH_CREDENTIAL_REDACTION_PATHS
+])];
 
 export function createOperationalLogger(appConfig: AppConfig, destination?: DestinationStream): Logger {
   const options = {

@@ -187,14 +187,30 @@ describe("production HTTP security baseline", () => {
 
   it("redacts auth-action credentials, tokens, and profile contact fields", async () => {
     const { logger, lines } = capturedLogger();
-    const markers = ["id-token-marker", "credential-marker", "action-token-marker", "profile-email-marker"];
+    const markers = [
+      "id-token-marker",
+      "credential-marker",
+      "credentials-marker",
+      "nested-id-token-marker",
+      "nested-credential-marker",
+      "deep-raw-token-marker",
+      "action-token-marker",
+      "profile-email-marker"
+    ];
     logger.info({
       id_token: markers[0],
       credential: markers[1],
-      raw_action_token: markers[2],
+      credentials: markers[2],
+      raw_action_token: markers[6],
       rawToken: "returned-raw-action-token-marker",
-      auth_action: { rawToken: "nested-raw-action-token-marker", idToken: markers[0] },
-      profile: { email: markers[3], phone: "+970590001234" }
+      auth_action: {
+        rawToken: "nested-raw-action-token-marker",
+        idToken: markers[0],
+        id_token: markers[3],
+        credential: markers[4]
+      },
+      action: { result: { proof: { rawToken: markers[5] } } },
+      profile: { email: markers[7], phone: "+970590001234" }
     }, "auth action redaction verification");
     await settleLogs();
     const output = lines.join("");
