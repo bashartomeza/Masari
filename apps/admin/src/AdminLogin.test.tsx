@@ -4,15 +4,50 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
 import { LocaleProvider } from "./i18n/LocaleContext";
+import type { TokenStorage } from "./session";
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 let root: Root; let host: HTMLDivElement;
 afterEach(() => { if (root) act(() => root.unmount()); host?.remove(); vi.unstubAllGlobals(); });
-async function render(locale: "ar" | "en", google = false) {
+async function render(locale: "ar" | "en", google = false, sessionStore: TokenStorage = { getItem: () => null, setItem: () => {}, removeItem: () => {} }) {
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ google_admin_login_available: google, google_admin_client_id: google ? "admin-web" : null }))));
   host = document.createElement("div"); document.body.append(host); root = createRoot(host);
-  await act(async () => { root.render(<LocaleProvider storage={{ getItem: () => locale, setItem: () => {} }}><App config={{ appEnv: "test", apiBaseUrl: "http://api.test", demoFeaturesEnabled: false, routeManagementEnabled: false }} sessionStore={{ getItem: () => null, setItem: () => {}, removeItem: () => {} }} legacyStore={{ getItem: () => null, setItem: () => {}, removeItem: () => {} }} /></LocaleProvider>); });
+  await act(async () => { root.render(<LocaleProvider storage={{ getItem: () => locale, setItem: () => {} }}><App config={{ appEnv: "test", apiBaseUrl: "http://api.test", demoFeaturesEnabled: false, routeManagementEnabled: false }} sessionStore={sessionStore} legacyStore={{ getItem: () => null, setItem: () => {}, removeItem: () => {} }} /></LocaleProvider>); });
 }
 describe("Admin login", () => {
+  it("keeps logout effective when an older Google exchange finishes after email login", async () => {
+    let credentialCallback!: (value: { credential: string }) => void;
+    vi.stubGlobal("google", { accounts: { id: { initialize: (options: { callback: typeof credentialCallback }) => { credentialCallback = options.callback; }, renderButton: () => {}, cancel: () => {} } } });
+    let stored: string | null = null;
+    await render("en", true, { getItem: () => stored, setItem: (_key, token) => { stored = token; }, removeItem: () => { stored = null; } });
+    let resolveGoogle!: (response: Response) => void;
+    const pending = new Promise<Response>((resolve) => { resolveGoogle = resolve; });
+    vi.stubGlobal("fetch", vi.fn((url: string) => {
+      if (url.endsWith("/auth/admin/google")) return pending;
+      return Promise.resolve(new Response(JSON.stringify({ token: "email-session", user: { id: "admin", role: "admin", name: "Email Admin", phone: "+12025550123" }, counts: {}, drivers: [], routes: [], requests: [], orders: [], trips: [], demo_reset_available: false })));
+    }));
+    act(() => credentialCallback({ credential: "google-proof" }));
+    await act(async () => host.querySelector("form")?.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
+    expect(stored).toBe("email-session");
+    const logout = host.querySelector<HTMLButtonElement>(".btn--signout"); expect(logout).not.toBeNull();
+    await act(async () => logout?.click());
+    expect(stored).toBeNull();
+    await act(async () => resolveGoogle(new Response(JSON.stringify({ token: "stale-google-session", user: { id: "old", role: "admin", name: "Old Admin" } }))));
+    expect(stored).toBeNull(); expect(host.querySelector('input[type="email"]')).not.toBeNull();
+  });
+  it.each(["newer email attempt", "unmount"])("discards a deferred Google success after %s", async (superseding) => {
+    let credentialCallback!: (value: { credential: string }) => void;
+    vi.stubGlobal("google", { accounts: { id: { initialize: (options: { callback: typeof credentialCallback }) => { credentialCallback = options.callback; }, renderButton: () => {}, cancel: () => {} } } });
+    const saved: string[] = [];
+    await render("en", true, { getItem: () => null, setItem: (_key, token) => saved.push(token), removeItem: () => {} });
+    let resolveGoogle!: (response: Response) => void;
+    const pending = new Promise<Response>((resolve) => { resolveGoogle = resolve; });
+    vi.stubGlobal("fetch", vi.fn((url: string) => url.endsWith("/auth/admin/google") ? pending : Promise.resolve(new Response(JSON.stringify({ error: "invalid_credentials" }), { status: 401 }))));
+    act(() => credentialCallback({ credential: "google-proof" }));
+    if (superseding === "unmount") act(() => root.unmount());
+    else await act(async () => host.querySelector("form")?.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
+    await act(async () => resolveGoogle(new Response(JSON.stringify({ token: "stale-google-session", user: { id: "old", role: "admin", name: "Old Admin" } }))));
+    expect(saved).toEqual([]);
+  });
   it.each(["ar", "en"] as const)("offers accessible email login in %s with direction preserved", async (locale) => {
     await render(locale);
     expect(host.querySelector('main')?.getAttribute("dir")).toBe(locale === "ar" ? "rtl" : "ltr");
