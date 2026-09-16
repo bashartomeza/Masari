@@ -86,11 +86,14 @@ async function call(path, { token, method = "GET", body, headers = {}, expected 
 }
 
 async function reset() {
-  return call("/demo/reset", {
+  await call("/demo/reset", {
     method: "POST",
     body: {},
     headers: { "x-demo-reset-key": resetKey }
   });
+  const verified = mysql(`SELECT email_verified_at IS NOT NULL AND phone_verified_at IS NOT NULL AND profile_state='complete'
+    FROM users WHERE email='demo.passenger@masari.app'`);
+  assert(verified === "1", "Demo reset did not create a verified complete passenger");
 }
 
 async function login([email, password], deviceName) {
@@ -222,8 +225,8 @@ async function run() {
   const secondAdminPhone = "+970590000006";
   const secondAdminHash = await bcrypt.hash(adminCredentials[1], 4);
   mysql(`INSERT INTO users
-    (id, name, phone, email, password_hash, role, account_status, security_version, status_updated_at, demo_account, created_at)
-    VALUES ('${secondAdminId}', 'Integration Admin 2', '${secondAdminPhone}', '${secondAdminEmail}', '${secondAdminHash}', 'admin', 'active', 1, CURRENT_TIMESTAMP(3), TRUE, CURRENT_TIMESTAMP(3))`);
+    (id, name, phone, phone_verified_at, email, email_verified_at, password_hash, profile_state, role, account_status, security_version, status_updated_at, demo_account, created_at)
+    VALUES ('${secondAdminId}', 'Integration Admin 2', '${secondAdminPhone}', CURRENT_TIMESTAMP(3), '${secondAdminEmail}', CURRENT_TIMESTAMP(3), '${secondAdminHash}', 'complete', 'admin', 'active', 1, CURRENT_TIMESTAMP(3), TRUE, CURRENT_TIMESTAMP(3))`);
   const secondAdmin = await login([secondAdminEmail, adminCredentials[1]], "integration-admin-two");
   const adminStatusRace = await Promise.all([
     call(`/admin/users/${secondAdminId}/status`, {

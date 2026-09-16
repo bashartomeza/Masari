@@ -1,57 +1,28 @@
-# Email / password + Google sign-in
+# Mobile email and Google authentication
 
-The app authenticates against the API with an **email address** (not a phone
-number). Three entry points exist:
+Email/password login uses `POST /auth/mobile/login`. Phone is contact/profile data. New accounts always use the passenger role; invited driver and merchant onboarding remains separate.
 
-| Screen        | Flow                                             | API call            |
-| ------------- | ----------------------------------------------- | ------------------- |
-| `/login`      | email + password                                | `POST /auth/login`  |
-| `/signup`     | name + email + password → active passenger      | `POST /auth/register` |
-| Both screens  | "Continue with Google"                           | `POST /auth/google` |
+## Registration
 
-## Build-time configuration (`--dart-define`)
+- Email: `/auth/mobile/register/start` returns a short-lived registration envelope and emails a verification token. The app stores the envelope only in memory. It displays the current three legal documents from `/auth/consents?locale=ar|en`. The user supplies the email token and explicitly accepts every document before `/auth/mobile/register/complete`.
+- Google: the official `google_sign_in` tooling supplies a transient ID token to `/auth/mobile/google`. An existing linked identity receives a Masari session. An unknown identity receives a registration envelope, then requires name and legal acceptance at `/auth/mobile/google/complete-registration`. Email collisions direct the user to their existing account and explicit linking.
+- Cancel/restart discards the envelope. No Google profile, Google credential, password, or pre-consent registration grant is written to application storage. Only the existing secure Masari token bundle persists.
+- If a legal release changes while accepting it, the app reloads documents and clears acceptance.
 
-| Define                     | Used on        | Meaning                                                            |
-| -------------------------- | -------------- | ---------------------------------------------------------------- |
-| `GOOGLE_WEB_CLIENT_ID`     | web (`clientId`) | Web OAuth 2.0 client ID.                                        |
-| `GOOGLE_IOS_CLIENT_ID`     | iOS (`clientId`) | iOS OAuth client ID (only if an iOS target is added).          |
-| `GOOGLE_SERVER_CLIENT_ID`  | all (`serverClientId`) | The client ID the **backend** expects as the ID-token audience. Normally the *Web* client ID. |
+## Profile completion and recovery
 
-If none are set, the Google button is simply hidden — email/password still work.
+The API is the authorization authority. A session whose `profile_state` is not `complete`, or whose phone is absent, routes to `/profile/phone`; product deep links stay blocked. The screen sends E.164 contact data to `/profile/phone/start-verification`, then confirms a six-digit code at `/profile/phone/confirm-verification`. A rejected proof requires a fresh challenge. After success the app reloads `/me` before opening product routes.
 
-The `config/*.json` files carry these keys; run with, e.g.:
+Login offers password reset and email verification. The account security screen offers password set/change and explicit Google linking, requiring current password or emailed reauthentication proof. Proofs can be pasted from delivery messages. Password changes revoke sessions and return to login.
 
-```bash
-flutter run -d chrome --dart-define-from-file=config/demo.web.json
-```
+All new screens inherit Arabic/English locale and RTL/LTR layout, expose labeled controls and errors through live regions, disable duplicate submission, and move focus to proof input after delivery.
 
-## Google Cloud Console setup (done once, outside this repo)
+## Google configuration
 
-1. Create a project at <https://console.cloud.google.com/> and configure the
-   **OAuth consent screen** (External, add the app name and support email).
-2. **APIs & Services → Credentials → Create credentials → OAuth client ID:**
-   - **Web application** — add your dev origin (`http://localhost:<port>`) and
-     any deployed origins to *Authorized JavaScript origins*. Copy the client
-     ID into `GOOGLE_WEB_CLIENT_ID` and `GOOGLE_SERVER_CLIENT_ID`.
-   - **Android** — package name `ps.masari.mobile` (see
-     `android/app/build.gradle`), plus the SHA-1 of every signing keystore
-     (`./gradlew signingReport`). No client ID needs to go in the app; the
-     `serverClientId` above is enough for Credential Manager.
-   - **iOS** (only if an iOS target is added) — bundle ID, then set
-     `GOOGLE_IOS_CLIENT_ID` and add the reversed client ID as a URL scheme in
-     `Info.plist`.
-3. On the **API** side set `GOOGLE_OAUTH_CLIENT_IDS` (comma-separated) to every
-   client ID that can appear as an ID-token `aud` — in practice the Web client
-   ID, plus the iOS client ID if used. Without it `POST /auth/google` returns
-   `501 google_auth_not_configured`.
+The existing build defines are `GOOGLE_WEB_CLIENT_ID`, `GOOGLE_SERVER_CLIENT_ID`, and optional `GOOGLE_IOS_CLIENT_ID`. Configure the mobile audience separately from Admin. Server `GOOGLE_MOBILE_SERVER_CLIENT_ID` must match the token audience. The Google button is hidden unless both platform configuration and `/auth/capabilities.google_mobile_login_available` allow it; capability errors fail closed.
 
-## Notes
+Server rollout `GOOGLE_PASSENGER_SIGNUP_MODE=disabled|allowlist|open` controls first registrations. An enabled login button does not imply signup permission. The server makes the eligibility decision without exposing allowlist members.
 
-- Web interactive sign-in uses the official Google Identity Services button
-  (`google_sign_in_web`); the ID token arrives on
-  `GoogleSignIn.instance.authenticationEvents`. Android/iOS call
-  `GoogleSignIn.authenticate()` directly.
-- Self-signup (email or Google) always creates an **active passenger**.
-  Driver/merchant accounts still go through the invite + review onboarding flow.
-- Demo shortcuts on the login screen now fill an email (`DEMO_*_EMAIL`). The
-  backend demo seed must create those users with matching email addresses.
+## Verification
+
+Run `flutter test` and `flutter analyze`. Tests cover endpoint contracts, no session before consent, email/Google consent completion, restricted deep links, incorrect-phone-code retry and fresh server profile reload, recovery entry points, and Arabic/English directionality. Google credential issuance and real email/SMS delivery still require the disposable QA environment and configured provider/client credentials.

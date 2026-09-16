@@ -39,6 +39,7 @@ function productionConfig() {
     APP_RELEASE: "http-security-test",
     CORS_ORIGINS: "https://admin.masari.example",
     REFRESH_TOKEN_PEPPER: "http-security-refresh-pepper-with-thirty-two-characters",
+    AUTH_ACTION_TOKEN_PEPPER: "http-security-action-pepper-with-thirty-two-characters",
     TRUST_PROXY: "none"
   });
 }
@@ -184,10 +185,46 @@ describe("production HTTP security baseline", () => {
     for (const marker of markers) expect(output).not.toContain(marker);
   });
 
+  it("redacts auth-action credentials, tokens, and profile contact fields", async () => {
+    const { logger, lines } = capturedLogger();
+    const markers = [
+      "id-token-marker",
+      "credential-marker",
+      "credentials-marker",
+      "nested-id-token-marker",
+      "nested-credential-marker",
+      "deep-raw-token-marker",
+      "action-token-marker",
+      "profile-email-marker"
+    ];
+    logger.info({
+      id_token: markers[0],
+      credential: markers[1],
+      credentials: markers[2],
+      raw_action_token: markers[6],
+      rawToken: "returned-raw-action-token-marker",
+      auth_action: {
+        rawToken: "nested-raw-action-token-marker",
+        idToken: markers[0],
+        id_token: markers[3],
+        credential: markers[4]
+      },
+      action: { result: { proof: { rawToken: markers[5] } } },
+      profile: { email: markers[7], phone: "+970590001234" }
+    }, "auth action redaction verification");
+    await settleLogs();
+    const output = lines.join("");
+    for (const marker of markers) expect(output).not.toContain(marker);
+    expect(output).not.toContain("returned-raw-action-token-marker");
+    expect(output).not.toContain("nested-raw-action-token-marker");
+    expect(output).not.toContain("+970590001234");
+  });
+
   it("adds authenticated actor identity without logging authorization material", async () => {
     const { logger, lines } = capturedLogger();
     const appConfig = testConfig();
     const user = {
+  email_verified_at: new Date(),
       id: "driver_actor",
       role: "driver",
       account_status: "active",
