@@ -57,7 +57,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: "alt_route",
     labelKey: "navMatchingBatching",
     group: "operations",
-    backing: "demo"
+    backing: "api"
   },
   {
     id: "incidentsSafety",

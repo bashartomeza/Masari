@@ -54,6 +54,8 @@ import type { PassengerAssistantService } from "./services/passengerAssistant.js
 import { createAdminConsentRouter } from "./modules/adminConsents.js";
 import type { ConsentReleaseService } from "./services/consentReleases.js";
 import { adminTripsRouter } from "./modules/adminTrips.js";
+import { createAdminMatchingMonitoringRouter } from "./modules/adminMatchingMonitoring.js";
+import type { MonitoringService } from "./services/adminMatchingMonitoring/contracts.js";
 import { requireCompleteProfile } from "./middleware/profileState.js";
 
 export const HTTP_JSON_LIMIT = "64kb";
@@ -77,6 +79,7 @@ type AppDependencies = {
   routePreviewService?: RoutePreviewService;
   passengerAssistantService?: PassengerAssistantService;
   consentReleaseService?: ConsentReleaseService;
+  adminMatchingMonitoringService?: MonitoringService;
 };
 
 export function createApp(
@@ -185,6 +188,10 @@ export function createApp(
   app.use("/api/v1", createRoutePreviewRouter(appConfig, routePreviewService));
   app.use("/api/v1", createAdminConsentRouter(dependencies.consentReleaseService));
   app.use("/api/v1", adminTripsRouter);
+  app.use(
+    "/api/v1",
+    createAdminMatchingMonitoringRouter(dependencies.adminMatchingMonitoringService),
+  );
   app.use("/api/v1", adminRouter);
 
   app.use(notFoundHandler);

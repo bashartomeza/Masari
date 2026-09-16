@@ -15,10 +15,8 @@ import {
   summarizeOverviewResults
 } from "./features/overview/overviewState";
 import { RequestsBoard } from "./features/requests/RequestsBoard";
-import { MatchingWorkspace } from "./features/matching/MatchingWorkspace";
-import { BatchingWorkspace } from "./features/batching/BatchingWorkspace";
 import { TripsManagement } from "./features/trips/TripsManagement";
-import { ComparisonPanel } from "./features/comparison/ComparisonPanel";
+import { MatchingBatchingMonitoring } from "./features/monitoring/MatchingBatchingMonitoring";
 import { SettingsPanel } from "./features/settings/SettingsPanel";
 import { DriverDirectory } from "./features/verification/DriverDirectory";
 import { UsersDirectory } from "./features/users/UsersDirectory";
@@ -27,7 +25,6 @@ import { ModuleUnavailable } from "./features/placeholder/ModuleUnavailable";
 import { ProfilePanel } from "./features/profile/ProfilePanel";
 import {
   hashForModule,
-  isModuleAvailable,
   moduleFromHash,
   resolveActiveModule,
   visibleNavItems,
@@ -164,16 +161,6 @@ export function App({
     ) ?? routes[0];
   const canAct = Boolean(token) && !busy;
   const nextTripStatus = activeTrip ? tripFlow[tripFlow.indexOf(activeTrip.status) + 1] : undefined;
-
-  const scoringLabels: Record<string, TranslationKey> = {
-    corridorOverlap: "corridorOverlap",
-    pickupDistanceScore: "pickupDistanceScore",
-    timingFit: "timingFit",
-    trustScore: "trustScore",
-    capacityFit: "capacityFit",
-    finalScore: "finalScore",
-    estimatedDeviationKm: "estimatedDeviationKm"
-  };
 
   async function runAction<T>(label: string, action: () => Promise<T>, success?: string) {
     setBusy(label);
@@ -574,30 +561,7 @@ export function App({
         return <RequestsBoard requests={requests} orders={orders} search={search} />;
 
       case "matchingBatching":
-        return isModuleAvailable("matchingBatching", flags) ? (
-          <>
-            <MatchingWorkspace
-              request={selectedRequest}
-              order={selectedOrder}
-              matchResult={matchResult}
-              canAct={canAct}
-              busy={busy === "match"}
-              onRunMatch={() => void runMatch()}
-              onAccept={() => void acceptMatch()}
-              onReject={() => void rejectMatch()}
-              scoreLabel={(key) => t(scoringLabels[key] ?? "score")}
-            />
-            <BatchingWorkspace
-              order={selectedOrder}
-              batchResult={batchResult}
-              canAct={canAct}
-              onCreateBatch={() => void runBatch()}
-            />
-            <ComparisonPanel comparison={comparison} canAct={canAct} onRunComparison={() => void runComparison()} />
-          </>
-        ) : (
-          <ModuleUnavailable icon="alt_route" reason="demo-only" />
-        );
+        return <MatchingBatchingMonitoring api={api} token={token} />;
 
       case "trips":
         return <TripsManagement api={api} token={token} search={search} canAct={canAct} />;

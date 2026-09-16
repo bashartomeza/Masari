@@ -1,3 +1,16 @@
+import type {
+  BatchQueryInput,
+  BatchRow,
+  CurrentOrderParcelsPage,
+  MatchQueryInput,
+  MatchRow,
+  Observed,
+  Overview,
+  Page,
+  PageQuery,
+  Range
+} from "./features/monitoring/contracts";
+
 export type ApiError = Error & { status?: number; details?: unknown };
 export type ApiClientOptions = { onSessionEnded?: (error: ApiError, requestToken: string) => void };
 export type RouteLifecycleExpectation = {
@@ -34,6 +47,15 @@ export function createApiClient(apiBaseUrl: string, clientOptions: ApiClientOpti
     return data as T;
   }
 
+  function withQuery(path: string, values: Record<string, string | number | undefined>) {
+    const query = new URLSearchParams();
+    for (const [key, value] of Object.entries(values)) {
+      if (value !== undefined) query.set(key, String(value));
+    }
+    const encoded = query.toString();
+    return encoded ? `${path}?${encoded}` : path;
+  }
+
 return {
   login: (email: string, password: string) => apiRequest<LoginResponse>("/auth/admin/login", { method: "POST", body: { email, password } }),
   googleLogin: (id_token: string) => apiRequest<LoginResponse>("/auth/admin/google", { method: "POST", body: { id_token } }),
@@ -41,6 +63,21 @@ return {
   me: (token: string) => apiRequest<MeResponse>("/me", { token }),
   capabilities: (token: string) => apiRequest<CapabilitiesResponse>("/capabilities", { token }),
   dashboard: (token: string) => apiRequest<DashboardResponse>("/admin/dashboard", { token }),
+  monitoringOverview: (token: string, query?: Range) =>
+    apiRequest<Observed<Overview>>(withQuery("/admin/matching-batching/overview", query ?? {}), { token }),
+  monitoringMatches: (token: string, query: MatchQueryInput) =>
+    apiRequest<Page<MatchRow>>(withQuery("/admin/matching-batching/matches", query), { token }),
+  monitoringMatch: (token: string, id: string) =>
+    apiRequest<Observed<MatchRow>>(`/admin/matching-batching/matches/${encodeURIComponent(id)}`, { token }),
+  monitoringBatches: (token: string, query: BatchQueryInput) =>
+    apiRequest<Page<BatchRow>>(withQuery("/admin/matching-batching/batches", query), { token }),
+  monitoringBatch: (token: string, id: string) =>
+    apiRequest<Observed<BatchRow>>(`/admin/matching-batching/batches/${encodeURIComponent(id)}`, { token }),
+  monitoringParcels: (token: string, id: string, query: PageQuery) =>
+    apiRequest<CurrentOrderParcelsPage>(
+      withQuery(`/admin/matching-batching/batches/${encodeURIComponent(id)}/parcels`, query),
+      { token }
+    ),
   users: (
     token: string,
     role: UserRoleFilter = "all",
