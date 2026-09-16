@@ -30,12 +30,20 @@ const emailField = z
   .toLowerCase()
   .email()
   .max(191);
+const phoneField = z
+  .string()
+  .trim()
+  .regex(/^\+[1-9]\d{6,31}$/)
+  .max(32);
 const deviceNameField = z.string().trim().min(1).max(120).optional();
 
 const loginSchema = z.object({
-  email: emailField,
+  email: emailField.optional(),
+  phone: phoneField.optional(),
   password: z.string().min(1).max(200),
   device_name: deviceNameField
+}).refine((input) => Boolean(input.email) !== Boolean(input.phone), {
+  message: "Provide exactly one of email or phone"
 });
 const registerSchema = z.object({
   name: z.string().trim().min(1).max(120),
@@ -244,7 +252,9 @@ export const authRouter = Router();
 authRouter.post("/auth/login", async (req, res, next) => {
   try {
     const input = loginSchema.parse(req.body);
-    const user = await prisma.user.findUnique({ where: { email: input.email } });
+    const user = input.email
+      ? await prisma.user.findUnique({ where: { email: input.email } })
+      : await prisma.user.findUnique({ where: { phone: input.phone! } });
     if (!user || !user.password_hash) throw new HttpError(401, "invalid_credentials");
 
     const validPassword = await bcrypt.compare(input.password, user.password_hash);

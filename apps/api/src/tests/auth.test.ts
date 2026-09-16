@@ -120,6 +120,22 @@ describe("auth", () => {
     });
   });
 
+  it("logs in a seeded account by phone", async () => {
+    prismaMock.user.findUnique.mockResolvedValue(
+      passengerRow({ password_hash: await bcrypt.hash("test-passenger-password", 4) })
+    );
+
+    const response = await request(createApp())
+      .post("/api/v1/auth/login")
+      .send({ phone: "  +970590000001 ", password: "test-passenger-password" })
+      .expect(200);
+
+    expect(response.body.user.phone).toBe("+970590000001");
+    expect(prismaMock.user.findUnique).toHaveBeenCalledWith({
+      where: { phone: "+970590000001" }
+    });
+  });
+
   it("creates the access credential before the login transaction callback resolves", async () => {
     prismaMock.user.findUnique.mockResolvedValue(
       passengerRow({ password_hash: await bcrypt.hash("test-passenger-password", 4) })
