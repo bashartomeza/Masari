@@ -7,6 +7,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:masari_mobile/l10n/app_localizations.dart';
 
 import '../../data/google_sign_in_service.dart';
+import '../../data/auth_repository.dart';
 import 'google_render_button_stub.dart'
     if (dart.library.js_interop) 'google_render_button_web.dart';
 
@@ -24,7 +25,7 @@ class GoogleAuthButton extends ConsumerStatefulWidget {
     this.enabled = true,
   });
 
-  final ValueChanged<String> onIdToken;
+  final Future<void> Function(String) onIdToken;
   final ValueChanged<Object> onError;
   final bool enabled;
 
@@ -59,11 +60,17 @@ class _GoogleAuthButtonState extends ConsumerState<GoogleAuthButton> {
     super.dispose();
   }
 
-  void _handleEvent(GoogleSignInAuthenticationEvent event) {
-    if (!mounted || !widget.enabled) return;
+  Future<void> _handleEvent(GoogleSignInAuthenticationEvent event) async {
+    if (!mounted || !widget.enabled || _busy) return;
     if (event is GoogleSignInAuthenticationEventSignIn) {
       final idToken = event.user.authentication.idToken;
-      if (idToken != null) widget.onIdToken(idToken);
+      if (idToken == null) return;
+      setState(() => _busy = true);
+      try {
+        await widget.onIdToken(idToken);
+      } finally {
+        if (mounted) setState(() => _busy = false);
+      }
     }
   }
 
@@ -72,7 +79,7 @@ class _GoogleAuthButtonState extends ConsumerState<GoogleAuthButton> {
     setState(() => _busy = true);
     try {
       final idToken = await _service.authenticate();
-      if (idToken != null) widget.onIdToken(idToken);
+      if (idToken != null && mounted) await widget.onIdToken(idToken);
     } catch (error) {
       widget.onError(error);
     } finally {
@@ -83,7 +90,11 @@ class _GoogleAuthButtonState extends ConsumerState<GoogleAuthButton> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    if (!_service.isConfigured) return const SizedBox.shrink();
+    final capabilities = ref.watch(authCapabilitiesProvider);
+    if (!_service.isConfigured ||
+        capabilities.value?['google_mobile_login_available'] != true) {
+      return const SizedBox.shrink();
+    }
 
     if (kIsWeb) {
       // The GIS button paints its own label; disable pointer events while the
@@ -91,7 +102,7 @@ class _GoogleAuthButtonState extends ConsumerState<GoogleAuthButton> {
       return Align(
         alignment: AlignmentDirectional.centerStart,
         child: IgnorePointer(
-          ignoring: !widget.enabled,
+          ignoring: !widget.enabled || _busy,
           child: Opacity(
             opacity: widget.enabled ? 1 : 0.5,
             child: googleRenderButton(),

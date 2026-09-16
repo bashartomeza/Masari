@@ -28,6 +28,7 @@ const { signAuthToken } = await import("../middleware/auth.js");
 
 const now = new Date("2026-08-23T12:00:00.000Z");
 const admin = {
+  email_verified_at: new Date(),
   id: "admin_1",
   name: "QA Admin",
   phone: "+15550000001",

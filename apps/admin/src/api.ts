@@ -57,7 +57,9 @@ export function createApiClient(apiBaseUrl: string, clientOptions: ApiClientOpti
   }
 
 return {
-  login: (phone: string, password: string) => apiRequest<LoginResponse>("/auth/login", { method: "POST", body: { phone, password } }),
+  login: (email: string, password: string) => apiRequest<LoginResponse>("/auth/admin/login", { method: "POST", body: { email, password } }),
+  googleLogin: (id_token: string) => apiRequest<LoginResponse>("/auth/admin/google", { method: "POST", body: { id_token } }),
+  authCapabilities: () => apiRequest<{ google_admin_login_available: boolean; google_admin_client_id: string | null }>("/auth/capabilities"),
   me: (token: string) => apiRequest<MeResponse>("/me", { token }),
   capabilities: (token: string) => apiRequest<CapabilitiesResponse>("/capabilities", { token }),
   dashboard: (token: string) => apiRequest<DashboardResponse>("/admin/dashboard", { token }),

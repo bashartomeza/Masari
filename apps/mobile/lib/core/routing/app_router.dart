@@ -6,6 +6,7 @@ import 'package:masari_mobile/l10n/app_localizations.dart';
 import '../../features/auth/application/auth_controller.dart';
 import '../../features/auth/domain/auth_models.dart';
 import '../../features/auth/presentation/login_screen.dart';
+import '../../features/auth/presentation/auth_completion_screen.dart';
 import '../../features/auth/presentation/signup_screen.dart';
 import '../../features/auth/presentation/splash_screen.dart';
 import '../../features/auth/presentation/unsupported_role_screen.dart';
@@ -108,6 +109,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const SplashScreen(),
       ),
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
+      GoRoute(
+        path: '/auth/complete-registration',
+        builder: (context, state) => const AuthCompletionScreen(phone: false),
+      ),
+      GoRoute(
+        path: '/profile/phone',
+        builder: (context, state) => const AuthCompletionScreen(phone: true),
+      ),
       GoRoute(
         path: '/signup',
         builder: (context, state) => const SignUpScreen(),
@@ -506,6 +515,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         return (path == '/login' || path == '/signup') ? null : '/login';
       }
 
+      if (auth.status == AuthStatus.registrationRequired) {
+        return path == '/auth/complete-registration'
+            ? null
+            : '/auth/complete-registration';
+      }
+
       if (auth.status != AuthStatus.authenticated || auth.user == null) {
         if (path == '/login' ||
             path == '/signup' ||
@@ -516,6 +531,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       }
 
       final role = auth.user!.role;
+      if (auth.user!.requiresPhone &&
+          role != UserRole.admin &&
+          role != UserRole.unsupported) {
+        return path == '/profile/phone' ? null : '/profile/phone';
+      }
       final target = routeForRole(role);
 
       // Send the shared security link to the signed-in role's account tab, so

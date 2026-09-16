@@ -92,8 +92,11 @@ async function createDemoUser(
     data: {
       name: input.name,
       phone: input.phone,
+      phone_verified_at: new Date(),
       email: input.email,
+      email_verified_at: new Date(),
       password_hash: await hashPassword(input.password),
+      profile_state: "complete",
       role: input.role,
       account_status: "active",
       security_version: 1,

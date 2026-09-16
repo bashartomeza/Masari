@@ -15,6 +15,8 @@ import '../../onboarding/application/onboarding_controller.dart';
 import '../../onboarding/domain/onboarding_models.dart';
 import '../application/auth_controller.dart';
 import '../domain/auth_models.dart';
+import 'auth_completion_screen.dart';
+import 'credential_actions.dart';
 import 'demo_accounts.dart';
 import 'widgets/auth_divider.dart';
 import 'widgets/google_auth_button.dart';
@@ -169,6 +171,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       Text(
                         _googleErrorKey != null
                             ? _googleMessage(l10n, _googleErrorKey!)
+                            : error is ApiException &&
+                                  [
+                                    'explicit_link_required',
+                                    'email_verification_required',
+                                    'google_signup_unavailable',
+                                  ].contains(error.message)
+                            ? authFailure(context, error)
                             : _errorMessage(l10n, error!),
                         key: const ValueKey('loginError'),
                         style: TextStyle(
@@ -210,6 +219,32 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       key: const ValueKey('goToSignUpButton'),
                       onPressed: loading ? null : _openSignUp,
                       child: Text(l10n.newToMasari),
+                    ),
+                    TextButton(
+                      key: const ValueKey('passwordRecovery'),
+                      onPressed: loading
+                          ? null
+                          : () => openCredentialAction(context, 'reset'),
+                      child: Text(
+                        authText(
+                          context,
+                          'Forgot password?',
+                          'نسيت كلمة المرور؟',
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      key: const ValueKey('emailVerification'),
+                      onPressed: loading
+                          ? null
+                          : () => openCredentialAction(context, 'verify'),
+                      child: Text(
+                        authText(
+                          context,
+                          'Verify email',
+                          'التحقق من البريد الإلكتروني',
+                        ),
+                      ),
                     ),
                     if (onboardingEnabled) ...[
                       const Divider(height: AppTokens.spaceLarge),
@@ -294,6 +329,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _login() async {
+    if (_submitting) return;
     setState(() => _googleErrorKey = null);
     if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _submitting = true);

@@ -27,6 +27,7 @@ enum AuthStatus {
   retryableFailure,
   restoreFailed,
   sessionEnded,
+  registrationRequired,
 }
 
 class AuthState {
@@ -35,6 +36,7 @@ class AuthState {
     this.user,
     this.error,
     this.sessionEndReason,
+    this.registrationGrant,
   });
 
   const AuthState.restoring() : this(status: AuthStatus.restoring);
@@ -62,6 +64,7 @@ class AuthState {
   final AuthUser? user;
   final ApiException? error;
   final SessionEndReason? sessionEndReason;
+  final Map<String, dynamic>? registrationGrant;
 
   bool get isAuthenticated =>
       user != null &&
@@ -81,13 +84,21 @@ class AuthController extends AsyncNotifier<AuthState> {
       ref.read(sessionRepositoryProvider);
 
   AuthUser? _currentUser;
+  Map<String, dynamic>? _registrationGrant;
+  int _authAttempt = 0;
+  bool _disposed = false;
+  bool _isCurrent(int attempt) => !_disposed && attempt == _authAttempt;
 
   @override
   Future<AuthState> build() async {
     ref.read(authenticatedActorBindingProvider).clear();
     _coordinator = ref.read(authSessionCoordinatorProvider);
     _coordinator.setListener(_handleSessionTransition);
-    ref.onDispose(() => _coordinator.setListener(null));
+    ref.onDispose(() {
+      _disposed = true;
+      _authAttempt++;
+      _coordinator.setListener(null);
+    });
     final bundle = await _coordinator.restoreBundle();
     if (bundle == null) return const AuthState.unauthenticated();
     return _restoreLoadedSession();
@@ -104,6 +115,7 @@ class AuthController extends AsyncNotifier<AuthState> {
   }
 
   Future<void> login({required String email, required String password}) {
+    _registrationGrant = null;
     return _completeAuthentication(
       () => _repository.login(email: email, password: password),
     );
@@ -113,34 +125,135 @@ class AuthController extends AsyncNotifier<AuthState> {
     required String name,
     required String email,
     required String password,
+    String locale = 'ar',
   }) {
-    return _completeAuthentication(
-      () => _repository.register(name: name, email: email, password: password),
+    return _startRegistration(
+      () => _repository.register(
+        name: name,
+        email: email,
+        password: password,
+        locale: locale,
+      ),
     );
   }
 
   Future<void> loginWithGoogle({required String idToken}) {
-    return _completeAuthentication(
+    return _startRegistration(
       () => _repository.loginWithGoogle(idToken: idToken),
     );
   }
 
-  Future<void> _completeAuthentication(
-    Future<LoginResult> Function() run,
+  Future<void> _startRegistration(
+    Future<Map<String, dynamic>> Function() request,
   ) async {
+    final attempt = ++_authAttempt;
+    _registrationGrant = null;
     state = const AsyncData(AuthState.authenticating());
     try {
+      final response = await request();
+      if (!_isCurrent(attempt)) return;
+      if (response['registration_token'] is String &&
+          [
+            'verify_email',
+            'consent_required',
+          ].contains(response['next_action']) &&
+          DateTime.tryParse(
+                response['expires_at'] as String? ?? '',
+              )?.isAfter(DateTime.now()) ==
+              true) {
+        _registrationGrant = response;
+        state = AsyncData(
+          AuthState(
+            status: AuthStatus.registrationRequired,
+            registrationGrant: response,
+          ),
+        );
+      } else {
+        await _completeAuthentication(
+          () async => LoginResult.fromJson(response),
+          attempt: attempt,
+        );
+      }
+    } catch (error, stack) {
+      if (!_isCurrent(attempt)) return;
+      state = const AsyncData(AuthState.unauthenticated());
+      state = AsyncError(
+        error is ApiException
+            ? error
+            : const ApiException(ApiErrorType.validation, 'invalid_response'),
+        stack,
+      );
+    }
+  }
+
+  Future<void> completeRegistration({
+    required String locale,
+    required List<Map<String, dynamic>> documents,
+    required String emailToken,
+    required String name,
+  }) async {
+    final grant = _registrationGrant;
+    if (grant == null) return;
+    await _completeAuthentication(
+      () => _repository.completeRegistration(
+        grant: grant,
+        locale: locale,
+        documents: documents,
+        emailToken: emailToken,
+        name: name,
+      ),
+    );
+  }
+
+  void cancelRegistration() {
+    _authAttempt++;
+    _registrationGrant = null;
+    state = const AsyncData(AuthState.unauthenticated());
+  }
+
+  Future<void> reloadProfile() async {
+    final attempt = _authAttempt;
+    final user = await _repository.me();
+    if (!_isCurrent(attempt)) return;
+    _bindAuthenticatedActor(user);
+    state = AsyncData(AuthState.authenticated(user));
+  }
+
+  Future<void> _completeAuthentication(
+    Future<LoginResult> Function() run, {
+    int? attempt,
+  }) async {
+    final generation = attempt ?? ++_authAttempt;
+    if (_registrationGrant == null) {
+      state = const AsyncData(AuthState.authenticating());
+    }
+    try {
       final result = await run();
+      if (!_isCurrent(generation)) return;
       await _coordinator.installBundle(result.bundle);
+      if (!_isCurrent(generation)) return;
       await _clearOnboardingState();
+      if (!_isCurrent(generation)) return;
       _bindAuthenticatedActor(result.user);
+      _registrationGrant = null;
       state = AsyncData(AuthState.authenticated(result.user));
     } on ApiException catch (error, stackTrace) {
+      if (!_isCurrent(generation)) return;
       // Riverpod keeps the prior value alongside an error, so settle back to
       // unauthenticated first: leaving `authenticating` as the retained value
       // would strand every screen watching this provider on a spinner.
-      state = const AsyncData(AuthState.unauthenticated());
-      state = AsyncError(error, stackTrace);
+      if (_registrationGrant != null) {
+        state = AsyncData(
+          AuthState(
+            status: AuthStatus.registrationRequired,
+            registrationGrant: _registrationGrant,
+            error: error,
+          ),
+        );
+      } else {
+        state = const AsyncData(AuthState.unauthenticated());
+        state = AsyncError(error, stackTrace);
+      }
     }
   }
 
@@ -158,6 +271,8 @@ class AuthController extends AsyncNotifier<AuthState> {
   }
 
   Future<void> logout() async {
+    _authAttempt++;
+    _registrationGrant = null;
     try {
       await _sessionRepository.logout();
     } catch (_) {
@@ -168,11 +283,14 @@ class AuthController extends AsyncNotifier<AuthState> {
   }
 
   Future<void> logoutAll() async {
+    _authAttempt++;
+    _registrationGrant = null;
     await _sessionRepository.logoutAll();
     await _clearLocalSession();
   }
 
   Future<void> completeCurrentSessionRevocation() async {
+    _authAttempt++;
     await _coordinator.clearCredentials();
     _clearAuthenticatedActor();
     _invalidateAuthenticatedWork();
@@ -225,6 +343,7 @@ class AuthController extends AsyncNotifier<AuthState> {
         }
         break;
       case SessionTransitionType.terminated:
+        _authAttempt++;
         _clearAuthenticatedActor();
         _invalidateAuthenticatedWork();
         state = AsyncData(

@@ -1,6 +1,9 @@
 import express from "express";
 import type { Logger } from "pino";
-import { authRouter } from "./modules/auth.js";
+import { createAuthRouter } from "./modules/auth.js";
+import type { EmailDelivery } from "./services/emailAuth.js";
+import type { PhoneVerificationProvider } from "./services/identityProfile.js";
+import type { GoogleVerifier } from "./lib/googleIdentity.js";
 import { createDemoRouter } from "./modules/demoReset.js";
 import { passengerRouter } from "./modules/passenger.js";
 import { createDriverRouter } from "./modules/driver.js";
@@ -53,12 +56,16 @@ import type { ConsentReleaseService } from "./services/consentReleases.js";
 import { adminTripsRouter } from "./modules/adminTrips.js";
 import { createAdminMatchingMonitoringRouter } from "./modules/adminMatchingMonitoring.js";
 import type { MonitoringService } from "./services/adminMatchingMonitoring/contracts.js";
+import { requireCompleteProfile } from "./middleware/profileState.js";
 
 export const HTTP_JSON_LIMIT = "64kb";
 export const CONSENT_RELEASE_JSON_LIMIT = "256kb";
 export const HTTP_FORM_LIMIT = "16kb";
 
 type AppDependencies = {
+  phoneVerificationProvider?: PhoneVerificationProvider;
+  googleVerifier?: GoogleVerifier;
+  emailDelivery?: EmailDelivery;
   logger?: Logger;
   readinessCheck?: ReadinessCheck;
   otpProvider?: OtpProvider;
@@ -98,7 +105,7 @@ export function createApp(
   );
   app.use("/api/v1", createGlobalRateLimiter(appConfig));
   app.use(
-    ["/api/v1/auth/login", "/api/v1/auth/register", "/api/v1/auth/google"],
+    ["/api/v1/auth/login", "/api/v1/auth/register", "/api/v1/auth/google", "/api/v1/auth/mobile", "/api/v1/auth/admin", "/api/v1/auth/email", "/api/v1/auth/password"],
     createLoginRateLimiter(appConfig),
   );
   app.use(
@@ -106,7 +113,12 @@ export function createApp(
     createPublicOnboardingRouter(appConfig, dependencies.otpProvider),
   );
 
-  app.use("/api/v1", authRouter);
+  // This mount is intentionally before every product router below. It makes
+  // complete-profile enforcement the default for future authenticated product
+  // surfaces, while profile-completion-safe paths are explicitly exempted.
+  app.use("/api/v1", requireCompleteProfile);
+
+  app.use("/api/v1", createAuthRouter(appConfig, dependencies));
   app.use("/api/v1", createCapabilitiesRouter(appConfig));
   app.use(
     "/api/v1",
