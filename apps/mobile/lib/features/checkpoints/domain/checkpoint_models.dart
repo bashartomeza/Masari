@@ -1,94 +1,145 @@
 import '../../canonical_routes/domain/canonical_route_models.dart';
 
-/// How passable a barrier is right now, as reported upstream.
+/// Checkpoint data returned by AweenRayeh.
 ///
-/// [unknown] is a real answer, not a placeholder: the feed often carries a
-/// barrier whose state nobody has confirmed, and showing that honestly matters
-/// more than picking a colour that implies it is open.
-enum CheckpointStatus { open, congested, closed, unknown }
-
+/// AweenRayeh can provide the current traffic/status condition
+/// separately for entering and leaving the checkpoint.
+///
+/// Examples of status values may include:
+/// - "سالك"
+/// - "أزمة"
+/// - "أزمة متوسطة"
+///
+/// The status timestamps indicate when each status was last updated.
+/// They do NOT mean that the checkpoint is open or closed.
 class Checkpoint {
   const Checkpoint({
     required this.id,
     required this.position,
-    required this.status,
-    this.nameAr,
-    this.nameEn,
-    this.updatedAt,
+    required this.nameAr,
+    required this.city,
+    this.enteringStatus,
+    this.leavingStatus,
+    this.enteringStatusLastUpdated,
+    this.leavingStatusLastUpdated,
   });
 
   final String id;
-  final GeoPoint position;
-  final CheckpointStatus status;
-  final String? nameAr;
-  final String? nameEn;
-  final DateTime? updatedAt;
 
-  factory Checkpoint.fromJson(Map<String, dynamic> json) {
-    final latitude = json['latitude'];
-    final longitude = json['longitude'];
-    if (latitude is! num || longitude is! num) {
-      throw const FormatException('Invalid checkpoint position');
-    }
+  /// Coordinates are kept locally because AweenRayeh does not
+  /// provide checkpoint coordinates in this endpoint.
+  final GeoPoint position;
+
+  final String nameAr;
+  final String city;
+
+  /// Current status for entering the checkpoint.
+  ///
+  /// Examples:
+  /// "سالك", "أزمة", "أزمة متوسطة"
+  final String? enteringStatus;
+
+  /// Current status for leaving the checkpoint.
+  ///
+  /// Examples:
+  /// "سالك", "أزمة", "أزمة متوسطة"
+  final String? leavingStatus;
+
+  /// Last time the entering status was updated.
+  final DateTime? enteringStatusLastUpdated;
+
+  /// Last time the leaving status was updated.
+  final DateTime? leavingStatusLastUpdated;
+
+  factory Checkpoint.fromJson(
+    Map<String, dynamic> json, {
+    GeoPoint? position,
+  }) {
     final id = json['id'];
+
     if (id is! String || id.isEmpty) {
       throw const FormatException('Invalid checkpoint id');
     }
-    final updatedAt = json['updated_at'];
+
+    final checkpoint = json['checkpoint'];
+    final city = json['city'];
+
     return Checkpoint(
       id: id,
-      position: GeoPoint(latitude.toDouble(), longitude.toDouble()),
-      status:
-          CheckpointStatus.values
-              .where((value) => value.name == json['status'])
-              .firstOrNull ??
-          CheckpointStatus.unknown,
-      nameAr: json['name_ar'] is String ? json['name_ar'] as String : null,
-      nameEn: json['name_en'] is String ? json['name_en'] as String : null,
-      updatedAt: updatedAt is String
-          ? DateTime.tryParse(updatedAt)?.toUtc()
+      position: position ?? const GeoPoint(0, 0),
+      nameAr: checkpoint is String ? checkpoint : '',
+      city: city is String ? city : '',
+
+      // Current traffic/status condition.
+      enteringStatus: json['entering_status'] is String
+          ? json['entering_status'] as String
           : null,
+
+      leavingStatus: json['leaving_status'] is String
+          ? json['leaving_status'] as String
+          : null,
+
+      // Last update timestamps.
+      enteringStatusLastUpdated: _parseDateTime(
+        json['entering_status_last_updated'],
+      ),
+
+      leavingStatusLastUpdated: _parseDateTime(
+        json['leaving_status_last_updated'],
+      ),
     );
+  }
+
+  static DateTime? _parseDateTime(dynamic value) {
+    if (value is! String) {
+      return null;
+    }
+
+    return DateTime.tryParse(value);
   }
 }
 
-/// A read of the barrier feed, carrying whether it came from a live fetch.
-///
-/// [stale] is surfaced on screen — a rider deciding a route deserves to know
-/// the barrier states are the last ones we could confirm, not current ones.
+/// Snapshot returned by the checkpoint feed.
 class CheckpointSnapshot {
   const CheckpointSnapshot({
     required this.checkpoints,
-    required this.stale,
     this.fetchedAt,
   });
 
   final List<Checkpoint> checkpoints;
-  final bool stale;
+
   final DateTime? fetchedAt;
 
   static const empty = CheckpointSnapshot(
     checkpoints: <Checkpoint>[],
-    stale: false,
   );
 
   factory CheckpointSnapshot.fromJson(Map<String, dynamic> json) {
     final raw = json['checkpoints'];
-    if (raw is! List) throw const FormatException('Invalid checkpoints');
-    final fetchedAt = json['fetched_at'];
+
+    if (raw is! List) {
+      throw const FormatException('Invalid checkpoints');
+    }
+
     return CheckpointSnapshot(
       checkpoints: List.unmodifiable(
         raw.map((value) {
           if (value is! Map<String, dynamic>) {
             throw const FormatException('Invalid checkpoint');
           }
+
           return Checkpoint.fromJson(value);
         }),
       ),
-      stale: json['stale'] == true,
-      fetchedAt: fetchedAt is String
-          ? DateTime.tryParse(fetchedAt)?.toUtc()
-          : null,
+      fetchedAt: _parseDateTime(json['generatedAt']),
     );
+  }
+
+  static DateTime? _parseDateTime(dynamic value) {
+    if (value is! String) {
+      return null;
+    }
+
+    return DateTime.tryParse(value);
   }
 }

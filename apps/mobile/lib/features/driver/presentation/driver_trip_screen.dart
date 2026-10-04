@@ -1,29 +1,54 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:masari_mobile/core/widgets/status_chip.dart';
+import 'package:masari_mobile/core/widgets/masari_section.dart';
+import 'package:masari_mobile/core/widgets/state_views.dart';
 import 'package:masari_mobile/features/canonical_routes/domain/canonical_route_models.dart';
+import 'package:masari_mobile/features/driver/presentation/driver_trip_screen.dart' as StatusTone;
+import 'package:masari_mobile/features/driver/presentation/driver_ui.dart';
 import 'package:masari_mobile/features/trips/data/trip_models.dart';
 import 'package:masari_mobile/l10n/app_localizations.dart';
 
-import '../../../core/config/app_config.dart';
 import '../../../core/maps/osrm_route_service.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../core/theme/app_tokens.dart';
-import '../../../core/theme/semantic_colors.dart';
 import '../../../core/presentation/localized_labels.dart';
+import '../../../core/theme/semantic_colors.dart';
 import '../../../core/widgets/language_switch.dart';
-import '../../../core/widgets/masari_card.dart';
 import '../../../core/widgets/masari_map.dart';
-import '../../../core/widgets/masari_section.dart';
-import '../../../core/widgets/state_views.dart';
-import '../../../core/widgets/timeline_tracker.dart';
 import '../../checkpoints/application/checkpoint_controller.dart';
 import '../../checkpoints/domain/checkpoint_models.dart';
 import '../../security/presentation/session_status_banner.dart';
 import '../application/driver_controller.dart';
 import '../data/driver_models.dart';
-import 'driver_ui.dart';
+
+// ============================================================
+// MASARI DRIVER MAP COLORS
+// ============================================================
+
+const Color navy = Color(0xFF102A43);
+const Color orange = Color(0xFFF97316);
+const Color orangeDark = Color(0xFFE85D04);
+const Color orangeSoft = Color(0xFFFFF3EA);
+
+const Color success = Color(0xFF16A34A);
+const Color successSoft = Color(0xFFEAF8F1);
+
+const Color warning = Color(0xFFF59E0B);
+const Color error = Color(0xFFDC2626);
+
+const Color white = Color(0xFFFFFFFF);
+const Color background = Color(0xFFF8FAFC);
+
+const Color textDark = Color(0xFF111418);
+const Color textSecondary = Color(0xFF68707B);
+const Color textMuted = Color(0xFF9AA1AA);
+
+const Color border = Color(0xFFE8EAED);
+const Color driverBlue = Color(0xFF2563EB);
+
+// ============================================================
+// DRIVER TRIP SCREEN
+// ============================================================
 
 class DriverTripScreen extends ConsumerStatefulWidget {
   const DriverTripScreen({
@@ -36,12 +61,17 @@ class DriverTripScreen extends ConsumerStatefulWidget {
   final bool showAppBar;
 
   @override
-  ConsumerState<DriverTripScreen> createState() => _DriverTripScreenState();
+  ConsumerState<DriverTripScreen> createState() =>
+      _DriverTripScreenState();
 }
 
 class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
     with WidgetsBindingObserver {
   String? _error;
+
+  // ============================================================
+  // LIFECYCLE
+  // ============================================================
 
   @override
   void initState() {
@@ -71,222 +101,1314 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
     }
   }
 
+  // ============================================================
+  // BUILD
+  // ============================================================
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
 
-    final tripState = ref.watch(driverTripControllerProvider(widget.tripId));
+    final tripState = ref.watch(
+      driverTripControllerProvider(widget.tripId),
+    );
 
     return Scaffold(
       key: const ValueKey('driverTrip'),
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      appBar: widget.showAppBar
-          ? AppBar(
-              elevation: 0,
-              scrolledUnderElevation: 0,
-              title: Text(
-                l10n.driverTrip,
-                style: const TextStyle(fontWeight: FontWeight.w800),
-              ),
-              actions: const [
-                LanguageSwitch(),
-                SizedBox(width: AppTokens.spaceSmall),
-              ],
-            )
-          : null,
-      body: SafeArea(
-        top: false,
-        bottom: false,
-        child: RefreshIndicator(
-          onRefresh: () => ref
-              .read(driverTripControllerProvider(widget.tripId).notifier)
-              .refresh(),
-          child: ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(
-              AppTokens.marginMobile,
-              AppTokens.spaceSmall,
-              AppTokens.marginMobile,
-              AppTokens.spaceExtraLarge,
-            ),
-            children: [
-              const SessionStatusBanner(),
-              const SizedBox(height: AppTokens.spaceSmall),
-              tripState.when(
-                loading: () => const Column(
-                  children: [
-                    LoadingSkeleton.card(),
-                    SizedBox(height: AppTokens.spaceMedium),
-                    LoadingSkeleton.card(),
-                  ],
-                ),
-                error: (error, _) => ErrorStateView(
-                  title: driverErrorLabel(l10n, error),
-                  retryLabel: l10n.retry,
-                  onRetry: () => ref
-                      .read(
-                        driverTripControllerProvider(widget.tripId).notifier,
-                      )
-                      .refresh(),
-                ),
-                data: (state) => _tripContent(l10n, state),
-              ),
-            ],
+      backgroundColor: background,
+      body: tripState.when(
+        loading: () => const Center(
+          child: CircularProgressIndicator(
+            color: orange,
+            strokeWidth: 2.5,
           ),
+        ),
+        error: (error, _) => _buildErrorState(
+          context,
+          l10n,
+        ),
+        data: (state) => _buildImmersiveContent(
+          context,
+          l10n,
+          state,
         ),
       ),
     );
   }
 
-  Widget _tripContent(AppLocalizations l10n, DriverTripState state) {
-    final trip = state.trip;
-    final location = state.location;
+  // ============================================================
+  // MAIN IMMERSIVE CONTENT
+  // ============================================================
 
-    final demoFeaturesEnabled = ref
-        .watch(appConfigProvider)
-        .demoFeaturesEnabled;
+  Widget _buildImmersiveContent(
+    BuildContext context,
+    AppLocalizations l10n,
+    DriverTripState state,
+  ) {
+    final isArabic =
+        Localizations.localeOf(context).languageCode == 'ar';
 
     final checkpoints = ref.watch(checkpointsProvider);
 
-    final checkpointSnapshot = checkpoints.value ?? CheckpointSnapshot.empty;
+    final checkpointSnapshot =
+        checkpoints.value ?? CheckpointSnapshot.empty;
 
-    final progress = location == null
-        ? 0.0
-        : ((location.sequence + 1) / 7).clamp(0.0, 1.0);
-
-    final currentIndex = driverTripTimeline.indexOf(trip.status);
-    final nextStatus = trip.nextStatus;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Stack(
+      fit: StackFit.expand,
       children: [
-        // ============================================================
-        // COMPACT TRIP HEADER
-        // ============================================================
-        _TripHeroCard(
-          l10n: l10n,
-          trip: trip,
-          locationAvailable: location != null,
-        ),
+        // ========================================================
+        // FULL SCREEN MAP
+        // ========================================================
 
-        if (_error != null) ...[
-          const SizedBox(height: AppTokens.spaceSmall),
-          OfflineBanner(message: _error!, tone: BannerTone.error),
-        ],
-
-        const SizedBox(height: AppTokens.spaceMedium),
-
-        // ============================================================
-        // MAP
-        // ============================================================
-        _DriverMapSection(
-          l10n: l10n,
-          trip: trip,
-          location: location,
-          snapshot: checkpointSnapshot,
-          checkpointsLoading: checkpoints.isLoading,
-          checkpointsError: checkpoints.hasError,
-        ),
-
-        const SizedBox(height: AppTokens.spaceLarge),
-
-        // ============================================================
-        // TRIP INFORMATION
-        // ============================================================
-        _TripInformationCard(l10n: l10n, trip: trip, location: location),
-
-        const SizedBox(height: AppTokens.spaceLarge),
-
-        // ============================================================
-        // CHECKPOINTS
-        // ============================================================
-        MasariSection(
-          title: l10n.checkpoints,
-          child: _DriverCheckpointsPanel(l10n: l10n, state: checkpoints),
-        ),
-
-        const SizedBox(height: AppTokens.spaceLarge),
-
-        // ============================================================
-        // STATUS TIMELINE
-        // ============================================================
-        MasariSection(
-          title: l10n.statusTimeline,
-          child: MasariCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                TimelineTracker(
-                  steps: [
-                    for (final (index, status) in driverTripTimeline.indexed)
-                      TimelineStep(
-                        title: driverStatusLabel(l10n, status),
-                        state: switch (currentIndex.compareTo(index)) {
-                          > 0 => TimelineStepState.completed,
-                          0 => TimelineStepState.current,
-                          _ => TimelineStepState.upcoming,
-                        },
-                      ),
-                  ],
-                ),
-                if (nextStatus != null) ...[
-                  const SizedBox(height: AppTokens.spaceLarge),
-                  SizedBox(
-                    height: 54,
-                    child: FilledButton.icon(
-                      key: ValueKey('tripAction-$nextStatus'),
-                      onPressed: state.actionInProgress ? null : _advance,
-                      icon: const Icon(Icons.arrow_forward_rounded),
-                      label: Text(nextTripActionLabel(l10n, nextStatus)),
-                    ),
-                  ),
-                ],
-              ],
-            ),
+        Positioned.fill(
+          child: _DriverMapSection(
+            l10n: l10n,
+            trip: state.trip,
+            location: state.location,
+            snapshot: checkpointSnapshot,
+            checkpointsLoading: checkpoints.isLoading,
+            checkpointsError: checkpoints.hasError,
           ),
         ),
 
-        const SizedBox(height: AppTokens.spaceLarge),
+        // ========================================================
+        // TOP CONTROLS
+        // ========================================================
 
-        // ============================================================
-        // LOCATION / DEMO
-        // ============================================================
-        MasariSection(
-          title: demoFeaturesEnabled
-              ? l10n.trackingSimulation
-              : l10n.latestLocation,
-          child: _LocationDetailsCard(
-            l10n: l10n,
-            state: state,
-            progress: progress,
-            demoFeaturesEnabled: demoFeaturesEnabled,
-            onSimulate: _simulate,
-            onReset: _reset,
+        Positioned(
+          top: MediaQuery.of(context).padding.top + 10,
+          left: 14,
+          right: 14,
+          child: Row(
+            textDirection:
+                isArabic ? TextDirection.rtl : TextDirection.ltr,
+            children: [
+              _buildFloatingButton(
+                icon: Icons.arrow_back_rounded,
+                onPressed: () {
+                  if (context.canPop()) {
+                    context.pop();
+                  } else {
+                    context.go('/driver');
+                  }
+                },
+              ),
+
+              const Spacer(),
+
+              _buildLanguageButton(),
+
+              const SizedBox(width: 8),
+
+              _buildFloatingButton(
+                icon: Icons.my_location_rounded,
+                onPressed: () {
+                  setState(() {});
+                },
+              ),
+
+              const SizedBox(width: 8),
+
+              _buildFloatingButton(
+                icon: Icons.refresh_rounded,
+                onPressed: () {
+                  ref
+                      .read(
+                        driverTripControllerProvider(
+                          widget.tripId,
+                        ).notifier,
+                      )
+                      .refresh();
+
+                  ref
+                      .read(checkpointsProvider.notifier)
+                      .refresh();
+                },
+              ),
+            ],
+          ),
+        ),
+
+        // ========================================================
+        // LIVE BADGE
+        // ========================================================
+
+        Positioned(
+          top: MediaQuery.of(context).padding.top + 68,
+          left: 14,
+          right: 14,
+          child: Row(
+            children: [
+              _buildLiveBadge(
+                context,
+                state,
+              ),
+              const Spacer(),
+            ],
+          ),
+        ),
+
+        // ========================================================
+        // ERROR
+        // ========================================================
+
+        if (_error != null)
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 122,
+            left: 14,
+            right: 14,
+            child: OfflineBanner(
+              message: _error!,
+              tone: BannerTone.error,
+            ),
+          ),
+
+        // ========================================================
+        // BOTTOM INFO PANEL
+        // ========================================================
+
+        Positioned.fill(
+          child: _buildBottomSheet(
+            context,
+            l10n,
+            state,
+            checkpointSnapshot,
+            checkpoints.isLoading,
+            checkpoints.hasError,
+            isArabic,
           ),
         ),
       ],
     );
   }
 
+  // ============================================================
+  // FLOATING BUTTON
+  // ============================================================
+
+  Widget _buildFloatingButton({
+    required IconData icon,
+    required VoidCallback onPressed,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(15),
+        child: Container(
+          width: 46,
+          height: 46,
+          decoration: BoxDecoration(
+            color: white.withOpacity(0.96),
+            borderRadius: BorderRadius.circular(15),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.12),
+                blurRadius: 18,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Icon(
+            icon,
+            color: textDark,
+            size: 21,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // LANGUAGE BUTTON
+  // ============================================================
+
+  Widget _buildLanguageButton() {
+    return Container(
+      height: 46,
+      padding: const EdgeInsets.symmetric(
+        horizontal: 10,
+      ),
+      decoration: BoxDecoration(
+        color: white.withOpacity(0.96),
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.12),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: const Center(
+        child: LanguageSwitch(),
+      ),
+    );
+  }
+
+  // ============================================================
+  // LIVE BADGE
+  // ============================================================
+
+  Widget _buildLiveBadge(
+    BuildContext context,
+    DriverTripState state,
+  ) {
+    final status = state.trip.status.toLowerCase();
+
+    final isActive =
+        status == 'active' ||
+        status == 'ongoing' ||
+        status == 'in_transit' ||
+        status == 'picked_up';
+
+    final isArabic =
+        Localizations.localeOf(context).languageCode == 'ar';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 12,
+        vertical: 8,
+      ),
+      decoration: BoxDecoration(
+        color: white.withOpacity(0.95),
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.10),
+            blurRadius: 16,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        textDirection:
+            isArabic ? TextDirection.rtl : TextDirection.ltr,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: isActive ? success : orange,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 7),
+          Text(
+            isActive
+                ? (isArabic
+                    ? 'الرحلة جارية'
+                    : 'TRIP IN PROGRESS')
+                : driverStatusLabel(
+                    AppLocalizations.of(context),
+                    state.trip.status,
+                  ),
+            style: TextStyle(
+              color: isActive ? success : orangeDark,
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.3,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // BOTTOM SHEET
+  // ============================================================
+
+  Widget _buildBottomSheet(
+    BuildContext context,
+    AppLocalizations l10n,
+    DriverTripState state,
+    CheckpointSnapshot checkpointSnapshot,
+    bool checkpointsLoading,
+    bool checkpointsError,
+    bool isArabic,
+  ) {
+    final trip = state.trip;
+    final location = state.location;
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.29,
+      minChildSize: 0.14,
+      maxChildSize: 0.68,
+      snap: true,
+      snapSizes: const [0.29, 0.50, 0.68],
+      expand: false,
+      builder: (context, scrollController) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: white,
+            borderRadius: BorderRadius.vertical(
+              top: Radius.circular(28),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black12,
+                blurRadius: 24,
+                offset: Offset(0, -8),
+              ),
+            ],
+          ),
+          child: SafeArea(
+            top: false,
+            child: ListView(
+              controller: scrollController,
+              physics: const ClampingScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(
+                16,
+                9,
+                16,
+                18,
+              ),
+              children: [
+                // ==================================================
+                // DRAG HANDLE
+                // ==================================================
+
+                const _BottomSheetHandle(),
+
+                const SizedBox(height: 12),
+
+                // ==================================================
+                // ROUTE HEADER
+                // ==================================================
+
+                Row(
+                  textDirection:
+                      isArabic ? TextDirection.rtl : TextDirection.ltr,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: isArabic
+                            ? CrossAxisAlignment.end
+                            : CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${localizedOrigin(
+                              context,
+                              trip.route.originLabel.isNotEmpty
+                                  ? trip.route.originLabel
+                                  : lockedDriverOriginLabel,
+                            )}  →  ${l10n.bethlehem}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: isArabic
+                                ? TextAlign.right
+                                : TextAlign.left,
+                            style: const TextStyle(
+                              color: textDark,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -0.4,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            textDirection: isArabic
+                                ? TextDirection.rtl
+                                : TextDirection.ltr,
+                            children: [
+                              Icon(
+                                Icons.circle,
+                                size: 7,
+                                color: location != null
+                                    ? success
+                                    : orange,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                location != null
+                                    ? (isArabic
+                                        ? 'تتبع مباشر'
+                                        : 'Live tracking')
+                                    : (isArabic
+                                        ? 'بانتظار الموقع'
+                                        : 'Waiting for location'),
+                                style: TextStyle(
+                                  color: location != null
+                                      ? success
+                                      : orange,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    _buildStatusPill(context, trip.status),
+                  ],
+                ),
+
+                const SizedBox(height: 12),
+
+                // ==================================================
+                // QUICK INFO
+                // ==================================================
+
+                Row(
+                  children: [
+                    Expanded(
+                      child: _QuickInfoItem(
+                        icon: Icons.people_alt_rounded,
+                        value:
+                            '${trip.passengerRequest?.passengerCount ?? 0}',
+                        label: l10n.passengerCount,
+                      ),
+                    ),
+
+                    // Parcel card is intentionally hidden when the
+                    // trip has no parcels.
+                    if ((trip.merchantOrder?.parcelCount ?? 0) > 0) ...[
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _QuickInfoItem(
+                          icon: Icons.inventory_2_rounded,
+                          value:
+                              '${trip.merchantOrder?.parcelCount ?? 0}',
+                          label: l10n.parcelCount,
+                        ),
+                      ),
+                    ],
+
+                    const SizedBox(width: 8),
+
+                    Expanded(
+                      child: _QuickInfoItem(
+                        icon: Icons.traffic_rounded,
+                        value:
+                            '${checkpointSnapshot.checkpoints.length}',
+                        label: 'الحواجز',
+                        onTap: () {
+                          _showCheckpointCities(
+                            context,
+                            l10n,
+                            checkpointSnapshot,
+                            checkpointsLoading,
+                            checkpointsError,
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 10),
+
+                _buildEtaCard(
+                  context,
+                  state,
+                ),
+
+                const SizedBox(height: 9),
+
+                _buildCurrentLocationCard(
+                  context,
+                  l10n,
+                  location,
+                ),
+
+                const SizedBox(height: 9),
+
+                _buildTripActions(
+                  context,
+                  l10n,
+                  state,
+                  
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // ============================================================
+  // STATUS PILL
+  // ============================================================
+
+  Widget _buildStatusPill(
+    BuildContext context,
+    String status,
+  ) {
+    final tone = statusToneFor(status);
+
+    final color = switch (tone) {
+      StatusTone.success => SemanticColors.success,
+      StatusTone.warning => SemanticColors.warning,
+      StatusTone.error => SemanticColors.error,
+      _ => Theme.of(context).colorScheme.primary,
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 10,
+        vertical: 6,
+      ),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.09),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        driverStatusLabel(
+          AppLocalizations.of(context),
+          status,
+        ),
+        style: TextStyle(
+          color: color,
+          fontSize: 9,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 0.3,
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // QUICK INFO ITEM
+  // ============================================================
+Widget _QuickInfoItem({
+  required IconData icon,
+  required String value,
+  required String label,
+  VoidCallback? onTap,
+}) {
+  final content = Container(
+    height: 66,
+    padding: const EdgeInsets.symmetric(
+      horizontal: 10,
+      vertical: 9,
+    ),
+    decoration: BoxDecoration(
+      color: onTap != null
+          ? orangeSoft.withOpacity(0.45)
+          : background,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(
+        color: onTap != null
+            ? orange.withOpacity(0.15)
+            : border,
+      ),
+    ),
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(
+          icon,
+          size: 20,
+          color: orange,
+        ),
+        const SizedBox(height: 3),
+        Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: textDark,
+            fontSize: 17,
+            height: 1,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: textSecondary,
+            fontSize: 9,
+            height: 1,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ],
+    ),
+  );
+
+  // إذا ما في onTap، رجّعي الـcontent مباشرة
+  if (onTap == null) {
+    return content;
+  }
+
+  // إذا في onTap، خلي الكرت قابل للضغط
+  return Material(
+    color: Colors.transparent,
+    borderRadius: BorderRadius.circular(16),
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: content,
+    ),
+  );
+}
+  // ============================================================
+  // CHECKPOINT CITIES
+  // ============================================================
+
+  Future<void> _showCheckpointCities(
+    BuildContext context,
+    AppLocalizations l10n,
+    CheckpointSnapshot snapshot,
+    bool loading,
+    bool hasError,
+  ) async {
+    if (loading) {
+      await showModalBottomSheet<void>(
+        context: context,
+        backgroundColor: white,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(28),
+          ),
+        ),
+        builder: (_) => const SafeArea(
+          child: Padding(
+            padding: EdgeInsets.all(30),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(
+                  color: orange,
+                  strokeWidth: 2.5,
+                ),
+                SizedBox(height: 14),
+                Text(
+                  'جاري تحديث الحواجز...',
+                  style: TextStyle(
+                    color: textDark,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      return;
+    }
+
+    if (hasError || snapshot.checkpoints.isEmpty) {
+      await showModalBottomSheet<void>(
+        context: context,
+        backgroundColor: white,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(28),
+          ),
+        ),
+        builder: (_) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              22,
+              14,
+              22,
+              24,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const _BottomSheetHandle(),
+
+                const SizedBox(height: 20),
+
+                Icon(
+                  hasError
+                      ? Icons.cloud_off_rounded
+                      : Icons.location_off_rounded,
+                  size: 42,
+                  color: textMuted,
+                ),
+
+                const SizedBox(height: 12),
+
+                Text(
+                  hasError
+                      ? l10n.checkpointsUnavailable
+                      : l10n.checkpointsEmpty,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: textDark,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+
+                const SizedBox(height: 6),
+
+                Text(
+                  hasError
+                      ? l10n.checkpointsUnavailableBody
+                      : 'لا توجد بيانات حواجز متاحة حالياً.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      return;
+    }
+
+    final grouped = <String, List<Checkpoint>>{};
+
+    for (final checkpoint in snapshot.checkpoints) {
+      final city = checkpoint.city.trim().isEmpty
+          ? 'مدينة غير محددة'
+          : checkpoint.city.trim();
+
+      grouped.putIfAbsent(
+        city,
+        () => <Checkpoint>[],
+      );
+
+      grouped[city]!.add(checkpoint);
+    }
+
+    final cities = grouped.keys.toList()..sort();
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(30),
+        ),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: SizedBox(
+            height: MediaQuery.of(context).size.height * 0.72,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                20,
+                12,
+                20,
+                20,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const _BottomSheetHandle(),
+
+                  const SizedBox(height: 18),
+
+                  Row(
+                    children: [
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: orangeSoft,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: const Icon(
+                          Icons.traffic_rounded,
+                          color: orange,
+                          size: 23,
+                        ),
+                      ),
+
+                      const SizedBox(width: 11),
+
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'الحواجز',
+                              style: TextStyle(
+                                color: textDark,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'اختر المدينة لعرض حواجزها',
+                              style: TextStyle(
+                                color: textSecondary,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 7,
+                        ),
+                        decoration: BoxDecoration(
+                          color: background,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '${snapshot.checkpoints.length}',
+                          style: const TextStyle(
+                            color: textDark,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 18),
+
+                  Expanded(
+                    child: ListView.separated(
+                      physics: const BouncingScrollPhysics(),
+                      itemCount: cities.length,
+                      separatorBuilder: (_, __) =>
+                          const SizedBox(height: 8),
+                      itemBuilder: (_, index) {
+                        final city = cities[index];
+                        final cityCheckpoints = grouped[city]!;
+
+                        final hasTrafficIssue =
+                            cityCheckpoints.any(
+                          (checkpoint) =>
+                              _isCongested(
+                                checkpoint.enteringStatus,
+                              ) ||
+                              _isCongested(
+                                checkpoint.leavingStatus,
+                              ),
+                        );
+
+                        return _CityCheckpointTile(
+                          city: city,
+                          count: cityCheckpoints.length,
+                          hasTrafficIssue: hasTrafficIssue,
+                          onTap: () {
+                            Navigator.of(sheetContext).pop();
+
+                            Future.microtask(() {
+                              if (!context.mounted) return;
+
+                              _showCityCheckpoints(
+                                context,
+                                city,
+                                cityCheckpoints,
+                              );
+                            });
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // ============================================================
+  // CITY CHECKPOINTS
+  // ============================================================
+
+  Future<void> _showCityCheckpoints(
+    BuildContext context,
+    String city,
+    List<Checkpoint> checkpoints,
+  ) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(30),
+        ),
+      ),
+      builder: (_) {
+        return SafeArea(
+          child: SizedBox(
+            height: MediaQuery.of(context).size.height * 0.75,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                20,
+                12,
+                20,
+                20,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const _BottomSheetHandle(),
+
+                  const SizedBox(height: 18),
+
+                  Row(
+                    children: [
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: orangeSoft,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: const Icon(
+                          Icons.location_city_rounded,
+                          color: orange,
+                          size: 23,
+                        ),
+                      ),
+
+                      const SizedBox(width: 11),
+
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment:
+                              CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              city,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: textDark,
+                                fontSize: 19,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '${checkpoints.length} حواجز',
+                              style: const TextStyle(
+                                color: textSecondary,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 18),
+
+                  Expanded(
+                    child: ListView.separated(
+                      physics: const BouncingScrollPhysics(),
+                      itemCount: checkpoints.length,
+                      separatorBuilder: (_, __) =>
+                          const SizedBox(height: 10),
+                      itemBuilder: (_, index) {
+                        return _CheckpointCard(
+                          checkpoint: checkpoints[index],
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // ============================================================
+  // CURRENT LOCATION
+  // ============================================================
+
+  Widget _buildCurrentLocationCard(
+    BuildContext context,
+    AppLocalizations l10n,
+    TripLocation? location,
+  ) {
+    final isArabic =
+        Localizations.localeOf(context).languageCode == 'ar';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        horizontal: 12,
+        vertical: 9,
+      ),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(
+          color: border,
+        ),
+      ),
+      child: Row(
+        textDirection:
+            isArabic ? TextDirection.rtl : TextDirection.ltr,
+        children: [
+          Container(
+            width: 35,
+            height: 35,
+            decoration: BoxDecoration(
+              color: location == null
+                  ? white
+                  : successSoft,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              location == null
+                  ? Icons.location_searching_rounded
+                  : Icons.location_on_rounded,
+              color: location == null
+                  ? textMuted
+                  : success,
+              size: 18,
+            ),
+          ),
+
+          const SizedBox(width: 9),
+
+          Expanded(
+            child: Column(
+              crossAxisAlignment: isArabic
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isArabic
+                      ? 'موقع المركبة'
+                      : 'Vehicle location',
+                  style: const TextStyle(
+                    color: textSecondary,
+                    fontSize: 8,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  location == null
+                      ? l10n.noLocationYet
+                      : localizedLocationSource(
+                          l10n,
+                          location.source,
+                        ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: textDark,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          if (location != null)
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 7,
+                vertical: 4,
+              ),
+              decoration: BoxDecoration(
+                color: successSoft,
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: const Text(
+                'LIVE',
+                style: TextStyle(
+                  color: success,
+                  fontSize: 7,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // ETA
+  // ============================================================
+
+  Widget _buildEtaCard(
+    BuildContext context,
+    DriverTripState state,
+  ) {
+    return _DriverEtaCard(
+      trip: state.trip,
+      location: state.location,
+    );
+  }
+
+  // ============================================================
+  // TRIP ACTIONS
+  // ============================================================
+
+  Widget _buildTripActions(
+    BuildContext context,
+    AppLocalizations l10n,
+    DriverTripState state,
+  ) {
+    final nextStatus = state.trip.nextStatus;
+
+    // ----------------------------------------------------------
+    // SIMULATION HAS BEEN REMOVED.
+    // The driver can only use the real trip action.
+    // ----------------------------------------------------------
+
+    if (nextStatus == null) {
+      return _buildRefreshButton(
+        context,
+        l10n,
+      );
+    }
+
+    return Column(
+      children: [
+        SizedBox(
+          width: double.infinity,
+          height: 45,
+          child: ElevatedButton(
+            onPressed:
+                state.actionInProgress ? null : _advance,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: textDark,
+              foregroundColor: white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            child: state.actionInProgress
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      color: white,
+                      strokeWidth: 2,
+                    ),
+                  )
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        nextTripActionLabel(
+                          l10n,
+                          nextStatus,
+                        ),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(width: 7),
+                      const Icon(
+                        Icons.arrow_forward_rounded,
+                        size: 17,
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+
+        const SizedBox(height: 7),
+
+        _buildRefreshButton(
+          context,
+          l10n,
+        ),
+      ],
+    );
+  }
+
+  // ============================================================
+  // REFRESH
+  // ============================================================
+
+  Widget _buildRefreshButton(
+    BuildContext context,
+    AppLocalizations l10n,
+  ) {
+    return SizedBox(
+      width: double.infinity,
+      height: 40,
+      child: OutlinedButton.icon(
+        onPressed: () {
+          ref
+              .read(
+                driverTripControllerProvider(
+                  widget.tripId,
+                ).notifier,
+              )
+              .refresh();
+
+          ref
+              .read(checkpointsProvider.notifier)
+              .refresh();
+        },
+        icon: const Icon(
+          Icons.refresh_rounded,
+          size: 16,
+        ),
+        label: Text(
+          l10n.refresh,
+          style: const TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        style: OutlinedButton.styleFrom(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(13),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // ACTION
+  // ============================================================
+
   Future<void> _advance() => _action(
-    () => ref
-        .read(driverTripControllerProvider(widget.tripId).notifier)
-        .advanceStatus(),
-  );
+        () => ref
+            .read(
+              driverTripControllerProvider(
+                widget.tripId,
+              ).notifier,
+            )
+            .advanceStatus(),
+      );
 
-  Future<void> _simulate() => _action(
-    () => ref
-        .read(driverTripControllerProvider(widget.tripId).notifier)
-        .simulateStep(),
-  );
+  Future<void> _action(
+    Future<void> Function() action,
+  ) async {
+    if (!mounted) return;
 
-  Future<void> _reset() => _action(
-    () => ref
-        .read(driverTripControllerProvider(widget.tripId).notifier)
-        .resetSimulation(),
-  );
-
-  Future<void> _action(Future<void> Function() action) async {
     setState(() => _error = null);
 
     try {
@@ -294,282 +1416,102 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
     } catch (error) {
       if (mounted) {
         setState(
-          () => _error = driverErrorLabel(AppLocalizations.of(context), error),
+          () => _error = driverErrorLabel(
+            AppLocalizations.of(context),
+            error,
+          ),
         );
 
         await ref
-            .read(driverTripControllerProvider(widget.tripId).notifier)
+            .read(
+              driverTripControllerProvider(
+                widget.tripId,
+              ).notifier,
+            )
             .refresh();
       }
     }
   }
-}
 
-// ============================================================================
-// COMPACT HERO
-// ============================================================================
+  // ============================================================
+  // ERROR
+  // ============================================================
 
-class _TripHeroCard extends StatelessWidget {
-  const _TripHeroCard({
-    required this.l10n,
-    required this.trip,
-    required this.locationAvailable,
-  });
-
-  final AppLocalizations l10n;
-  final DriverTrip trip;
-  final bool locationAvailable;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    final status = driverStatusLabel(l10n, trip.status);
-
-    final tone = statusToneFor(trip.status);
-
+  Widget _buildErrorState(
+    BuildContext context,
+    AppLocalizations l10n,
+  ) {
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
+      color: background,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(16),
+                width: 76,
+                height: 76,
+                decoration: const BoxDecoration(
+                  color: orangeSoft,
+                  shape: BoxShape.circle,
                 ),
-                child: Icon(
-                  Icons.local_shipping_rounded,
-                  size: 27,
-                  color: theme.colorScheme.onPrimaryContainer,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      l10n.driverTrip,
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'رحلة السائق',
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ],
+                child: const Icon(
+                  Icons.cloud_off_rounded,
+                  color: orange,
+                  size: 34,
                 ),
               ),
-              _StatusBadge(label: status, tone: tone),
-            ],
-          ),
 
-          const SizedBox(height: 16),
+              const SizedBox(height: 20),
 
-          // Route
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest.withValues(
-                alpha: 0.65,
-              ),
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.trip_origin_rounded,
-                  size: 18,
-                  color: SemanticColors.upcomingRoute,
+              Text(
+                driverErrorLabel(
+                  l10n,
+                  'driver_trip_error',
                 ),
-                const SizedBox(width: 8),
-                Expanded(
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: textDark,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              SizedBox(
+                width: 180,
+                height: 46,
+                child: ElevatedButton(
+                  onPressed: () {
+                    ref
+                        .read(
+                          driverTripControllerProvider(
+                            widget.tripId,
+                          ).notifier,
+                        )
+                        .refresh();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: textDark,
+                    foregroundColor: white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
                   child: Text(
-                    localizedOrigin(context, trip.route.originLabel),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodyMedium?.copyWith(
+                    l10n.retry,
+                    style: const TextStyle(
                       fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 7),
-                  child: Icon(
-                    Icons.arrow_forward_rounded,
-                    size: 17,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                Expanded(
-                  child: Text(
-                    l10n.bethlehem,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.end,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Icon(
-                  Icons.flag_rounded,
-                  size: 18,
-                  color: SemanticColors.completedRoute,
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 12),
-
-          Row(
-            children: [
-              Expanded(
-                child: _HeroStatusItem(
-                  icon: Icons.my_location_rounded,
-                  label: locationAvailable
-                      ? l10n.latestLocation
-                      : l10n.noLocationYet,
-                  active: locationAvailable,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _HeroStatusItem(
-                  icon: Icons.people_alt_outlined,
-                  label: trip.passengerRequest == null
-                      ? '0 ${l10n.passengerCount}'
-                      : '${trip.passengerRequest!.passengerCount} '
-                            '${l10n.passengerCount}',
-                  active: trip.passengerRequest != null,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _HeroStatusItem(
-                  icon: Icons.inventory_2_outlined,
-                  label: trip.merchantOrder == null
-                      ? '0 ${l10n.parcelCount}'
-                      : '${trip.merchantOrder!.parcelCount} '
-                            '${l10n.parcelCount}',
-                  active: trip.merchantOrder != null,
-                ),
               ),
             ],
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _HeroStatusItem extends StatelessWidget {
-  const _HeroStatusItem({
-    required this.icon,
-    required this.label,
-    required this.active,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool active;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      constraints: const BoxConstraints(minHeight: 42),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      decoration: BoxDecoration(
-        color: active
-            ? theme.colorScheme.primaryContainer.withValues(alpha: 0.45)
-            : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(13),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            icon,
-            size: 17,
-            color: active
-                ? theme.colorScheme.primary
-                : theme.colorScheme.onSurfaceVariant,
-          ),
-          const SizedBox(width: 5),
-          Expanded(
-            child: Text(
-              label,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.labelSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({required this.label, required this.tone});
-
-  final String label;
-  final StatusTone tone;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    final color = switch (tone) {
-      StatusTone.success => SemanticColors.success,
-      StatusTone.warning => SemanticColors.warning,
-      StatusTone.error => SemanticColors.error,
-      _ => theme.colorScheme.primary,
-    };
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(30),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 7,
-            height: 7,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -597,29 +1539,28 @@ class _DriverMapSection extends StatefulWidget {
   final bool checkpointsError;
 
   @override
-  State<_DriverMapSection> createState() => _DriverMapSectionState();
+  State<_DriverMapSection> createState() =>
+      _DriverMapSectionState();
 }
 
-class _DriverMapSectionState extends State<_DriverMapSection> {
+class _DriverMapSectionState
+    extends State<_DriverMapSection> {
   late Future<OsrmRouteResult> _routeFuture;
 
-  /// Remaining route:
-  /// current driver location -> final destination.
   Future<OsrmRouteResult>? _remainingRouteFuture;
 
   @override
   void initState() {
     super.initState();
 
-    // Full route used for the map path.
     _routeFuture = _loadRoute();
-
-    // Remaining route used only for ETA + remaining distance.
     _remainingRouteFuture = _loadRemainingRoute();
   }
 
   @override
-  void didUpdateWidget(covariant _DriverMapSection oldWidget) {
+  void didUpdateWidget(
+    covariant _DriverMapSection oldWidget,
+  ) {
     super.didUpdateWidget(oldWidget);
 
     final oldRoute = oldWidget.trip.route;
@@ -643,7 +1584,8 @@ class _DriverMapSectionState extends State<_DriverMapSection> {
     }
 
     if (routeChanged || locationChanged) {
-      _remainingRouteFuture = _loadRemainingRoute();
+      _remainingRouteFuture =
+          _loadRemainingRoute();
     }
   }
 
@@ -670,12 +1612,19 @@ class _DriverMapSectionState extends State<_DriverMapSection> {
         ? route.destinationLng
         : lockedDriverDestinationLng;
 
-    final start = LatLng(originLat, originLng);
+    final start = LatLng(
+      originLat,
+      originLng,
+    );
 
-    final end = LatLng(destinationLat, destinationLng);
+    final end = LatLng(
+      destinationLat,
+      destinationLng,
+    );
 
     try {
-      final result = await const OsrmRouteService().getRoute(
+      final result =
+          await const OsrmRouteService().getRoute(
         start: start,
         end: end,
       );
@@ -683,12 +1632,13 @@ class _DriverMapSectionState extends State<_DriverMapSection> {
       if (result.points.length >= 2) {
         return result;
       }
-    } catch (_) {
-      // Keep the map working with the direct line below.
-    }
+    } catch (_) {}
 
     return OsrmRouteResult(
-      points: [start, end],
+      points: [
+        start,
+        end,
+      ],
       durationSeconds: 0,
       distanceMeters: 0,
     );
@@ -715,11 +1665,16 @@ class _DriverMapSectionState extends State<_DriverMapSection> {
         ? route.destinationLng
         : lockedDriverDestinationLng;
 
-    final start = LatLng(location.lat, location.lng);
-
-    final end = LatLng(destinationLat, destinationLng);
-
-    return _requestRemainingRoute(start: start, end: end);
+    return _requestRemainingRoute(
+      start: LatLng(
+        location.lat,
+        location.lng,
+      ),
+      end: LatLng(
+        destinationLat,
+        destinationLng,
+      ),
+    );
   }
 
   Future<OsrmRouteResult> _requestRemainingRoute({
@@ -727,7 +1682,8 @@ class _DriverMapSectionState extends State<_DriverMapSection> {
     required LatLng end,
   }) async {
     try {
-      final result = await const OsrmRouteService().getRoute(
+      final result =
+          await const OsrmRouteService().getRoute(
         start: start,
         end: end,
       );
@@ -735,9 +1691,7 @@ class _DriverMapSectionState extends State<_DriverMapSection> {
       if (result.points.length >= 2) {
         return result;
       }
-    } catch (_) {
-      // Do not break the map if remaining route fails.
-    }
+    } catch (_) {}
 
     return const OsrmRouteResult(
       points: [],
@@ -745,6 +1699,10 @@ class _DriverMapSectionState extends State<_DriverMapSection> {
       distanceMeters: 0,
     );
   }
+
+  // --------------------------------------------------------------------------
+  // BUILD
+  // --------------------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
@@ -766,12 +1724,21 @@ class _DriverMapSectionState extends State<_DriverMapSection> {
         ? route.destinationLng
         : lockedDriverDestinationLng;
 
-    final origin = GeoPoint(originLat, originLng);
+    final origin = GeoPoint(
+      originLat,
+      originLng,
+    );
 
-    final destination = GeoPoint(destinationLat, destinationLng);
+    final destination = GeoPoint(
+      destinationLat,
+      destinationLng,
+    );
 
     final markers = <MasariMapMarker>[
+      // ----------------------------------------------------------
       // ORIGIN
+      // ----------------------------------------------------------
+
       MasariMapMarker(
         position: origin,
         icon: Icons.trip_origin_rounded,
@@ -787,140 +1754,363 @@ class _DriverMapSectionState extends State<_DriverMapSection> {
         size: 42,
       ),
 
+      // ----------------------------------------------------------
       // DESTINATION
+      // ----------------------------------------------------------
+
       MasariMapMarker(
         position: destination,
         icon: Icons.flag_rounded,
         color: SemanticColors.completedRoute,
-        label: widget.l10n.mapDestinationLabel(widget.l10n.bethlehem),
+        label: widget.l10n.mapDestinationLabel(
+          widget.l10n.bethlehem,
+        ),
         size: 42,
       ),
 
-      // DRIVER LOCATION
+      // ----------------------------------------------------------
+      // DRIVER / VEHICLE
+      // ----------------------------------------------------------
+
       if (widget.location != null)
         MasariMapMarker(
-          position: GeoPoint(widget.location!.lat, widget.location!.lng),
+          position: GeoPoint(
+            widget.location!.lat,
+            widget.location!.lng,
+          ),
           icon: Icons.local_shipping_rounded,
-          color: SemanticColors.passenger,
+          color: orange,
           label: widget.l10n.mapYourLocation,
           size: 50,
         ),
-
-      // CHECKPOINTS
-      for (final checkpoint in widget.snapshot.checkpoints)
-        MasariMapMarker(
-          position: checkpoint.position,
-          icon: _checkpointIcon(checkpoint.status),
-          color: _checkpointColor(checkpoint.status),
-          foreground: checkpoint.status == CheckpointStatus.unknown
-              ? AppTheme.onSurface
-              : Colors.white,
-          label: widget.l10n.checkpointLabel(
-            _checkpointName(
-              widget.l10n,
-              checkpoint,
-              Localizations.localeOf(context).languageCode == 'ar',
-            ),
-            _checkpointStatus(widget.l10n, checkpoint.status),
-          ),
-          size: 38,
-        ),
     ];
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // ============================================================
-        // MAP
-        // ============================================================
-        ClipRRect(
-          borderRadius: BorderRadius.circular(24),
-          child: FutureBuilder<OsrmRouteResult>(
-            future: _routeFuture,
-            builder: (context, snapshot) {
-              final routedPoints = snapshot.data?.points
-                  .map((point) => GeoPoint(point.latitude, point.longitude))
-                  .toList(growable: false);
+    return FutureBuilder<OsrmRouteResult>(
+      future: _routeFuture,
+      builder: (context, snapshot) {
+        final routedPoints = snapshot.data?.points
+            .map(
+              (point) => GeoPoint(
+                point.latitude,
+                point.longitude,
+              ),
+            )
+            .toList(growable: false);
 
-              final pathPoints =
-                  routedPoints != null && routedPoints.length >= 2
-                  ? routedPoints
-                  : <GeoPoint>[origin, destination];
+        final pathPoints =
+            routedPoints != null &&
+                    routedPoints.length >= 2
+                ? routedPoints
+                : <GeoPoint>[
+                    origin,
+                    destination,
+                  ];
 
-              return MasariMap(
-                height: 405,
-                emptyLabel: widget.l10n.mapRouteMissingCoordinates,
-                attributionLabel: widget.l10n.mapAttribution,
-                paths: [
-                  MasariMapPath(
-                    points: pathPoints,
-                    color: SemanticColors.upcomingRoute,
-                    width: 8,
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            return SizedBox(
+              width: constraints.maxWidth,
+              height: constraints.maxHeight,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // ------------------------------------------------
+                  // MAP
+                  // ------------------------------------------------
+
+                  Positioned.fill(
+                    child: MasariMap(
+                      height: constraints.maxHeight,
+                      emptyLabel:
+                          widget.l10n.mapRouteMissingCoordinates,
+                      attributionLabel:
+                          widget.l10n.mapAttribution,
+                      paths: [
+                        if (pathPoints.length >= 2)
+                          MasariMapPath(
+                            points: pathPoints,
+                            color: orange,
+                            width: 7,
+                          ),
+                      ],
+                      markers: markers,
+                      // Checkpoints are intentionally shown only in the bottom panel.
+                      banner: null,
+                    ),
                   ),
+
+                  // ------------------------------------------------
+                  // MAP LEGEND
+                  // ------------------------------------------------
+
+                  Positioned(
+                    left: 14,
+                    bottom: 255,
+                    child: _MapLegend(
+                      l10n: widget.l10n,
+                      hasDriverLocation:
+                          widget.location != null,
+                    ),
+                  ),
+
+                  // ------------------------------------------------
+                  // REMAINING ROUTE
+                  // ------------------------------------------------
+
+                  if (_remainingRouteFuture != null)
+                    Positioned(
+                      left: 14,
+                      right: 14,
+                      bottom: 192,
+                      child:
+                          FutureBuilder<OsrmRouteResult>(
+                        future: _remainingRouteFuture,
+                        builder: (
+                          context,
+                          routeSnapshot,
+                        ) {
+                          final result =
+                              routeSnapshot.data;
+
+                          if (result == null ||
+                              result.durationSeconds <= 0 ||
+                              result.distanceMeters <= 0) {
+                            return const SizedBox.shrink();
+                          }
+
+                          return _RemainingRouteCard(
+                            result: result,
+                          );
+                        },
+                      ),
+                    ),
                 ],
-                markers: markers,
-                banner: widget.checkpointsLoading
-                    ? _MapNotice(
-                        icon: Icons.sync_rounded,
-                        message: widget.l10n.checkpointsUnavailable,
-                      )
-                    : widget.checkpointsError
-                    ? _MapNotice(
-                        icon: Icons.warning_amber_rounded,
-                        message: widget.l10n.checkpointsUnavailable,
-                      )
-                    : null,
-                overlay: _MapLegend(
-                  l10n: widget.l10n,
-                  hasDriverLocation: widget.location != null,
-                ),
-              );
-            },
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+// ============================================================================
+// DRIVER ETA
+// ============================================================================
+
+class _DriverEtaCard extends StatefulWidget {
+  const _DriverEtaCard({
+    required this.trip,
+    required this.location,
+  });
+
+  final DriverTrip trip;
+  final TripLocation? location;
+
+  @override
+  State<_DriverEtaCard> createState() =>
+      _DriverEtaCardState();
+}
+
+class _DriverEtaCardState
+    extends State<_DriverEtaCard> {
+  Future<OsrmRouteResult>? _future;
+  String? _key;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _ensureRoute();
+  }
+
+  @override
+  void didUpdateWidget(
+    covariant _DriverEtaCard oldWidget,
+  ) {
+    super.didUpdateWidget(oldWidget);
+    _ensureRoute();
+  }
+
+  void _ensureRoute() {
+    final route = widget.trip.route;
+
+    final destinationLat = route.destinationLat != 0
+        ? route.destinationLat
+        : lockedDriverDestinationLat;
+
+    final destinationLng = route.destinationLng != 0
+        ? route.destinationLng
+        : lockedDriverDestinationLng;
+
+    final startLat = widget.location?.lat ??
+        (route.originLat != 0
+            ? route.originLat
+            : lockedDriverOriginLat);
+
+    final startLng = widget.location?.lng ??
+        (route.originLng != 0
+            ? route.originLng
+            : lockedDriverOriginLng);
+
+    final key =
+        '$startLat,$startLng|$destinationLat,$destinationLng';
+
+    if (_future != null && _key == key) {
+      return;
+    }
+
+    _key = key;
+
+    _future = _request(
+      start: LatLng(
+        startLat,
+        startLng,
+      ),
+      end: LatLng(
+        destinationLat,
+        destinationLng,
+      ),
+    );
+  }
+
+  Future<OsrmRouteResult> _request({
+    required LatLng start,
+    required LatLng end,
+  }) async {
+    try {
+      final result =
+          await const OsrmRouteService().getRoute(
+        start: start,
+        end: end,
+      );
+
+      if (result.points.length >= 2) {
+        return result;
+      }
+    } catch (_) {}
+
+    return const OsrmRouteResult(
+      points: [],
+      durationSeconds: 0,
+      distanceMeters: 0,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<OsrmRouteResult>(
+      future: _future,
+      builder: (context, snapshot) {
+        final result = snapshot.data;
+
+        if (result == null ||
+            result.durationSeconds <= 0 ||
+            result.distanceMeters <= 0) {
+          return const SizedBox.shrink();
+        }
+
+        final isArabic =
+            Localizations.localeOf(context).languageCode ==
+                'ar';
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(
+            horizontal: 11,
+            vertical: 9,
           ),
-        ),
-
-        const SizedBox(height: 10),
-
-        // ============================================================
-        // REMAINING ETA
-        // ============================================================
-        if (_remainingRouteFuture != null)
-          FutureBuilder<OsrmRouteResult>(
-            future: _remainingRouteFuture,
-            builder: (context, routeSnapshot) {
-              final result = routeSnapshot.data;
-
-              if (result == null ||
-                  result.durationSeconds <= 0 ||
-                  result.distanceMeters <= 0) {
-                return const SizedBox.shrink();
-              }
-
-              return _RemainingRouteCard(result: result);
-            },
-          ),
-
-        const SizedBox(height: 8),
-
-        Row(
-          children: [
-            Icon(
-              Icons.touch_app_outlined,
-              size: 17,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+          decoration: BoxDecoration(
+            color: orangeSoft,
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(
+              color: orange.withOpacity(0.12),
             ),
-            const SizedBox(width: 5),
-            Expanded(
-              child: Text(
-                'اضغط على أي علامة لمعرفة تفاصيلها',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+          child: Row(
+            textDirection:
+                isArabic ? TextDirection.rtl : TextDirection.ltr,
+            children: [
+              Container(
+                width: 35,
+                height: 35,
+                decoration: const BoxDecoration(
+                  color: white,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.access_time_rounded,
+                  color: orange,
+                  size: 18,
                 ),
               ),
-            ),
-          ],
-        ),
-      ],
+
+              const SizedBox(width: 9),
+
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: isArabic
+                      ? CrossAxisAlignment.end
+                      : CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      isArabic
+                          ? 'الوقت المتبقي'
+                          : 'Remaining time',
+                      style: const TextStyle(
+                        color: textSecondary,
+                        fontSize: 8,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      result.formattedDuration,
+                      style: const TextStyle(
+                        color: textDark,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              Container(
+                width: 1,
+                height: 28,
+                color: orange.withOpacity(0.16),
+              ),
+
+              const SizedBox(width: 10),
+
+              Column(
+                crossAxisAlignment: isArabic
+                    ? CrossAxisAlignment.start
+                    : CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    isArabic ? 'المسافة' : 'Distance',
+                    style: const TextStyle(
+                      color: textSecondary,
+                      fontSize: 8,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${result.distanceKilometers.toStringAsFixed(1)} km',
+                    style: const TextStyle(
+                      color: textDark,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -930,43 +2120,58 @@ class _DriverMapSectionState extends State<_DriverMapSection> {
 // ============================================================================
 
 class _RemainingRouteCard extends StatelessWidget {
-  const _RemainingRouteCard({required this.result});
+  const _RemainingRouteCard({
+    required this.result,
+  });
 
   final OsrmRouteResult result;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 12,
+        vertical: 9,
+      ),
       decoration: BoxDecoration(
-        color: const Color(0xFF102A43),
-        borderRadius: BorderRadius.circular(18),
+        color: navy,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.15),
+            blurRadius: 15,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Row(
         children: [
           Container(
-            width: 40,
-            height: 40,
+            width: 35,
+            height: 35,
             decoration: BoxDecoration(
-              color: const Color(0xFFF97316).withValues(alpha: 0.14),
+              color: orange.withOpacity(0.14),
               shape: BoxShape.circle,
             ),
             child: const Icon(
               Icons.access_time_rounded,
-              color: Color(0xFFF97316),
-              size: 21,
+              color: orange,
+              size: 18,
             ),
           ),
-          const SizedBox(width: 11),
+
+          const SizedBox(width: 9),
+
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
               children: [
                 const Text(
                   'الوقت المتبقي',
                   style: TextStyle(
                     color: Colors.white70,
-                    fontSize: 12,
+                    fontSize: 8,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -974,24 +2179,32 @@ class _RemainingRouteCard extends StatelessWidget {
                 Text(
                   result.formattedDuration,
                   style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 17,
+                    color: white,
+                    fontSize: 14,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
               ],
             ),
           ),
-          Container(width: 1, height: 32, color: Colors.white24),
-          const SizedBox(width: 14),
+
+          Container(
+            width: 1,
+            height: 28,
+            color: Colors.white24,
+          ),
+
+          const SizedBox(width: 10),
+
           Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+            crossAxisAlignment:
+                CrossAxisAlignment.end,
             children: [
               const Text(
                 'المسافة',
                 style: TextStyle(
                   color: Colors.white70,
-                  fontSize: 12,
+                  fontSize: 8,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -999,8 +2212,8 @@ class _RemainingRouteCard extends StatelessWidget {
               Text(
                 '${result.distanceKilometers.toStringAsFixed(1)} km',
                 style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 15,
+                  color: white,
+                  fontSize: 12,
                   fontWeight: FontWeight.w800,
                 ),
               ),
@@ -1017,44 +2230,45 @@ class _RemainingRouteCard extends StatelessWidget {
 // ============================================================================
 
 class _MapLegend extends StatelessWidget {
-  const _MapLegend({required this.l10n, required this.hasDriverLocation});
+  const _MapLegend({
+    required this.l10n,
+    required this.hasDriverLocation,
+  });
 
   final AppLocalizations l10n;
   final bool hasDriverLocation;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Material(
-      color: theme.colorScheme.surface.withValues(alpha: 0.94),
+      color: white.withOpacity(0.94),
       borderRadius: BorderRadius.circular(15),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 10,
+          vertical: 7,
+        ),
         child: Wrap(
-          spacing: 12,
-          runSpacing: 6,
+          spacing: 10,
+          runSpacing: 5,
           children: [
             if (hasDriverLocation)
               _LegendItem(
                 icon: Icons.local_shipping_rounded,
-                color: SemanticColors.passenger,
+                color: orange,
                 label: l10n.mapYourLocation,
               ),
+
             _LegendItem(
               icon: Icons.trip_origin_rounded,
               color: SemanticColors.upcomingRoute,
               label: 'البداية',
             ),
+
             _LegendItem(
               icon: Icons.flag_rounded,
               color: SemanticColors.completedRoute,
               label: 'الوصول',
-            ),
-            _LegendItem(
-              icon: Icons.block_rounded,
-              color: SemanticColors.error,
-              label: l10n.checkpointClosed,
             ),
           ],
         ),
@@ -1062,6 +2276,10 @@ class _MapLegend extends StatelessWidget {
     );
   }
 }
+
+// ============================================================================
+// LEGEND ITEM
+// ============================================================================
 
 class _LegendItem extends StatelessWidget {
   const _LegendItem({
@@ -1079,43 +2297,64 @@ class _LegendItem extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 15, color: color),
+        Icon(
+          icon,
+          size: 14,
+          color: color,
+        ),
         const SizedBox(width: 4),
         Text(
           label,
-          style: Theme.of(
-            context,
-          ).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w700),
+          style: Theme.of(context)
+              .textTheme
+              .labelSmall
+              ?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
         ),
       ],
     );
   }
 }
 
+// ============================================================================
+// MAP NOTICE
+// ============================================================================
+
 class _MapNotice extends StatelessWidget {
-  const _MapNotice({required this.icon, required this.message});
+  const _MapNotice({
+    required this.icon,
+    required this.message,
+  });
 
   final IconData icon;
   final String message;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Material(
-      color: theme.colorScheme.surface.withValues(alpha: 0.94),
+      color: white.withOpacity(0.94),
       borderRadius: BorderRadius.circular(14),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 8,
+        ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 17, color: theme.colorScheme.onSurfaceVariant),
+            Icon(
+              icon,
+              size: 17,
+              color: textSecondary,
+            ),
             const SizedBox(width: 6),
             Flexible(
               child: Text(
                 message,
-                style: theme.textTheme.labelMedium?.copyWith(
+                style: const TextStyle(
+                  color: textDark,
+                  fontSize: 10,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -1128,84 +2367,205 @@ class _MapNotice extends StatelessWidget {
 }
 
 // ============================================================================
-// TRIP INFORMATION
+// CHECKPOINT CITY TILE
 // ============================================================================
 
-class _TripInformationCard extends StatelessWidget {
-  const _TripInformationCard({
-    required this.l10n,
-    required this.trip,
-    required this.location,
+class _CityCheckpointTile extends StatelessWidget {
+  const _CityCheckpointTile({
+    required this.city,
+    required this.count,
+    required this.hasTrafficIssue,
+    required this.onTap,
   });
 
-  final AppLocalizations l10n;
-  final DriverTrip trip;
-  final TripLocation? location;
+  final String city;
+  final int count;
+  final bool hasTrafficIssue;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    final passengerCount = trip.passengerRequest?.passengerCount ?? 0;
-
-    final parcelCount = trip.merchantOrder?.parcelCount ?? 0;
-
-    return Container(
-      padding: const EdgeInsets.all(17),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Header
-          Row(
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(17),
+        child: Container(
+          padding: const EdgeInsets.all(13),
+          decoration: BoxDecoration(
+            color: background,
+            borderRadius: BorderRadius.circular(17),
+            border: Border.all(
+              color: border,
+            ),
+          ),
+          child: Row(
             children: [
               Container(
-                width: 38,
-                height: 38,
+                width: 42,
+                height: 42,
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(12),
+                  color: hasTrafficIssue
+                      ? orangeSoft
+                      : successSoft,
+                  borderRadius: BorderRadius.circular(13),
                 ),
                 child: Icon(
-                  Icons.route_rounded,
-                  size: 20,
-                  color: theme.colorScheme.onPrimaryContainer,
+                  Icons.location_city_rounded,
+                  color: hasTrafficIssue
+                      ? orange
+                      : success,
+                  size: 21,
                 ),
               ),
-              const SizedBox(width: 10),
+
+              const SizedBox(width: 11),
+
               Expanded(
-                child: Text(
-                  'معلومات الرحلة',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w900,
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      city,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: textDark,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '$count حواجز',
+                      style: const TextStyle(
+                        color: textSecondary,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              if (hasTrafficIssue)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: orangeSoft,
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  child: const Text(
+                    'ازدحام',
+                    style: TextStyle(
+                      color: orangeDark,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                 ),
+
+              const SizedBox(width: 5),
+
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: textSecondary,
+                size: 21,
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
 
-          const SizedBox(height: 16),
+// ============================================================================
+// CHECKPOINT CARD
+// ============================================================================
 
-          // Main metrics
+class _CheckpointCard extends StatelessWidget {
+  const _CheckpointCard({
+    required this.checkpoint,
+  });
+
+  final Checkpoint checkpoint;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: border,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.stretch,
+        children: [
+          // --------------------------------------------------------
+          // HEADER
+          // --------------------------------------------------------
+
           Row(
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: _TripMetric(
-                  icon: Icons.people_alt_rounded,
-                  value: '$passengerCount',
-                  label: l10n.passengerCount,
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: orangeSoft,
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: const Icon(
+                  Icons.location_on_rounded,
+                  color: orange,
+                  size: 22,
                 ),
               ),
+
               const SizedBox(width: 10),
+
               Expanded(
-                child: _TripMetric(
-                  icon: Icons.inventory_2_rounded,
-                  value: '$parcelCount',
-                  label: l10n.parcelCount,
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      checkpoint.nameAr.isNotEmpty
+                          ? checkpoint.nameAr
+                          : 'حاجز',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: textDark,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+
+                    if (checkpoint.city.isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        checkpoint.city,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: textSecondary,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ],
@@ -1213,628 +2573,284 @@ class _TripInformationCard extends StatelessWidget {
 
           const SizedBox(height: 12),
 
-          // Route details
-          Container(
-            padding: const EdgeInsets.all(13),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest.withValues(
-                alpha: 0.52,
-              ),
-              borderRadius: BorderRadius.circular(16),
+          // --------------------------------------------------------
+          // ENTERING
+          // --------------------------------------------------------
+
+          _CheckpointDirectionCard(
+            icon: Icons.login_rounded,
+            title: 'الدخول',
+            status: _checkpointStatusLabel(
+              checkpoint.enteringStatus,
             ),
-            child: Column(
-              children: [
-                _TripRouteRow(
-                  icon: Icons.trip_origin_rounded,
-                  color: SemanticColors.upcomingRoute,
-                  title: 'نقطة الانطلاق',
-                  value: localizedOrigin(context, trip.route.originLabel),
-                ),
-                Padding(
-                  padding: const EdgeInsetsDirectional.only(start: 10),
-                  child: Align(
-                    alignment: AlignmentDirectional.centerStart,
-                    child: Container(
-                      width: 2,
-                      height: 18,
-                      color: theme.colorScheme.outlineVariant,
-                    ),
-                  ),
-                ),
-                _TripRouteRow(
-                  icon: Icons.flag_rounded,
-                  color: SemanticColors.completedRoute,
-                  title: 'الوجهة',
-                  value: l10n.bethlehem,
-                ),
-              ],
-            ),
+            updatedAt:
+                checkpoint.enteringStatusLastUpdated,
           ),
 
-          if (location != null) ...[
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Icon(
-                  Icons.my_location_rounded,
-                  size: 17,
-                  color: theme.colorScheme.primary,
-                ),
-                const SizedBox(width: 7),
-                Expanded(
-                  child: Text(
-                    'آخر موقع مسجل للسائق متوفر',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
+          const SizedBox(height: 8),
+
+          // --------------------------------------------------------
+          // LEAVING
+          // --------------------------------------------------------
+
+          _CheckpointDirectionCard(
+            icon: Icons.logout_rounded,
+            title: 'الخروج',
+            status: _checkpointStatusLabel(
+              checkpoint.leavingStatus,
             ),
-          ],
+            updatedAt:
+                checkpoint.leavingStatusLastUpdated,
+          ),
         ],
       ),
     );
   }
 }
 
-class _TripMetric extends StatelessWidget {
-  const _TripMetric({
+// ============================================================================
+// CHECKPOINT DIRECTION
+// ============================================================================
+
+class _CheckpointDirectionCard
+    extends StatelessWidget {
+  const _CheckpointDirectionCard({
     required this.icon,
-    required this.value,
-    required this.label,
+    required this.title,
+    required this.status,
+    required this.updatedAt,
   });
 
   final IconData icon;
-  final String value;
-  final String label;
+  final String title;
+  final String status;
+  final DateTime? updatedAt;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final style = _checkpointStatusStyle(
+      context,
+      status,
+    );
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 14),
+      padding: const EdgeInsets.all(11),
       decoration: BoxDecoration(
-        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.42),
-        borderRadius: BorderRadius.circular(16),
+        color: style.color.withOpacity(0.045),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: style.color.withOpacity(0.14),
+        ),
       ),
       child: Row(
         children: [
-          Icon(icon, size: 23, color: theme.colorScheme.primary),
-          const SizedBox(width: 9),
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: style.color.withOpacity(0.11),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              icon,
+              size: 17,
+              color: style.color,
+            ),
+          ),
+
+          const SizedBox(width: 8),
+
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
               children: [
                 Text(
-                  value,
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 1),
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
+                  title,
+                  style: const TextStyle(
+                    color: textSecondary,
+                    fontSize: 9,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
-class _TripRouteRow extends StatelessWidget {
-  const _TripRouteRow({
-    required this.icon,
-    required this.color,
-    required this.title,
-    required this.value,
-  });
+                const SizedBox(height: 2),
 
-  final IconData icon;
-  final Color color;
-  final String title;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 22,
-          height: 22,
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.13),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(icon, size: 14, color: color),
-        ),
-        const SizedBox(width: 9),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                value,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ============================================================================
-// CHECKPOINTS
-// ============================================================================
-
-class _DriverCheckpointsPanel extends StatelessWidget {
-  const _DriverCheckpointsPanel({required this.l10n, required this.state});
-
-  final AppLocalizations l10n;
-  final AsyncValue<CheckpointSnapshot> state;
-
-  @override
-  Widget build(BuildContext context) {
-    final arabic = Localizations.localeOf(context).languageCode == 'ar';
-
-    return state.when(
-      loading: () => const LoadingSkeleton.card(),
-      error: (_, _) => MasariInfoCard(
-        title: l10n.checkpointsUnavailable,
-        subtitle: l10n.checkpointsUnavailableBody,
-        icon: Icons.warning_amber_rounded,
-      ),
-      data: (snapshot) {
-        if (snapshot.checkpoints.isEmpty) {
-          return MasariInfoCard(
-            title: l10n.checkpointsEmpty,
-            subtitle: l10n.checkpointCount(0),
-            icon: Icons.check_circle_outline_rounded,
-          );
-        }
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _CheckpointSummary(l10n: l10n, checkpoints: snapshot.checkpoints),
-            const SizedBox(height: AppTokens.spaceMedium),
-            for (final checkpoint in snapshot.checkpoints) ...[
-              _CheckpointCard(
-                l10n: l10n,
-                checkpoint: checkpoint,
-                arabic: arabic,
-              ),
-              const SizedBox(height: AppTokens.spaceSmall),
-            ],
-            if (snapshot.stale)
-              Padding(
-                padding: const EdgeInsets.only(top: AppTokens.spaceSmall),
-                child: OfflineBanner(message: l10n.checkpointsStale),
-              ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _CheckpointSummary extends StatelessWidget {
-  const _CheckpointSummary({required this.l10n, required this.checkpoints});
-
-  final AppLocalizations l10n;
-  final List<Checkpoint> checkpoints;
-
-  @override
-  Widget build(BuildContext context) {
-    final open = checkpoints
-        .where((checkpoint) => checkpoint.status == CheckpointStatus.open)
-        .length;
-
-    final congested = checkpoints
-        .where((checkpoint) => checkpoint.status == CheckpointStatus.congested)
-        .length;
-
-    final closed = checkpoints
-        .where((checkpoint) => checkpoint.status == CheckpointStatus.closed)
-        .length;
-
-    return Row(
-      children: [
-        Expanded(
-          child: _CheckpointCount(
-            icon: Icons.check_circle_rounded,
-            color: SemanticColors.success,
-            value: open,
-            label: l10n.checkpointOpen,
-          ),
-        ),
-        const SizedBox(width: AppTokens.spaceSmall),
-        Expanded(
-          child: _CheckpointCount(
-            icon: Icons.hourglass_bottom_rounded,
-            color: SemanticColors.warning,
-            value: congested,
-            label: l10n.checkpointCongested,
-          ),
-        ),
-        const SizedBox(width: AppTokens.spaceSmall),
-        Expanded(
-          child: _CheckpointCount(
-            icon: Icons.block_rounded,
-            color: SemanticColors.error,
-            value: closed,
-            label: l10n.checkpointClosed,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _CheckpointCount extends StatelessWidget {
-  const _CheckpointCount({
-    required this.icon,
-    required this.color,
-    required this.value,
-    required this.label,
-  });
-
-  final IconData icon;
-  final Color color;
-  final int value;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        vertical: AppTokens.spaceSmall,
-        horizontal: 6,
-      ),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(AppTokens.radiusDefault),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 22),
-          const SizedBox(height: 3),
-          Text(
-            '$value',
-            style: theme.textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w900,
-              color: color,
-            ),
-          ),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.labelSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CheckpointCard extends StatelessWidget {
-  const _CheckpointCard({
-    required this.l10n,
-    required this.checkpoint,
-    required this.arabic,
-  });
-
-  final AppLocalizations l10n;
-  final Checkpoint checkpoint;
-  final bool arabic;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    final color = _checkpointColor(checkpoint.status);
-
-    final name = _checkpointName(l10n, checkpoint, arabic);
-
-    final status = _checkpointStatus(l10n, checkpoint.status);
-
-    return Container(
-      padding: const EdgeInsets.all(AppTokens.spaceMedium),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(17),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              _checkpointIcon(checkpoint.status),
-              color: color,
-              size: 23,
-            ),
-          ),
-          const SizedBox(width: AppTokens.spaceMedium),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: AppTokens.spaceExtraSmall),
                 Text(
                   status,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: color,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Icon(
-            Icons.chevron_right_rounded,
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ============================================================================
-// LOCATION DETAILS
-// ============================================================================
-
-class _LocationDetailsCard extends StatelessWidget {
-  const _LocationDetailsCard({
-    required this.l10n,
-    required this.state,
-    required this.progress,
-    required this.demoFeaturesEnabled,
-    required this.onSimulate,
-    required this.onReset,
-  });
-
-  final AppLocalizations l10n;
-  final DriverTripState state;
-  final double progress;
-  final bool demoFeaturesEnabled;
-  final VoidCallback onSimulate;
-  final VoidCallback onReset;
-
-  @override
-  Widget build(BuildContext context) {
-    final location = state.location;
-    final theme = Theme.of(context);
-
-    return MasariCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (demoFeaturesEnabled) ...[
-            Row(
-              children: [
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    Icons.route_rounded,
-                    color: theme.colorScheme.onPrimaryContainer,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    l10n.routeProgress,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-                Text(
-                  '${(progress * 100).round()}%',
-                  style: theme.textTheme.titleMedium?.copyWith(
+                  style: TextStyle(
+                    color: style.color,
+                    fontSize: 12,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
+
+                const SizedBox(height: 3),
+
+                Text(
+                  updatedAt == null
+                      ? 'آخر تحديث غير متوفر'
+                      : 'آخر تحديث: ${_formatCheckpointTime(
+                          context,
+                          updatedAt!,
+                        )}',
+                  style: const TextStyle(
+                    color: textSecondary,
+                    fontSize: 8,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ],
             ),
-            const SizedBox(height: AppTokens.spaceSmall),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: LinearProgressIndicator(
-                key: const ValueKey('routeProgress'),
-                value: progress,
-                minHeight: 8,
-              ),
-            ),
-            const SizedBox(height: AppTokens.spaceLarge),
-          ],
+          ),
 
-          if (location == null)
-            Container(
-              padding: const EdgeInsets.all(AppTokens.spaceMedium),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(AppTokens.radiusDefault),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.location_searching_rounded,
-                    color: theme.colorScheme.onSurfaceVariant,
-                    size: 26,
-                  ),
-                  const SizedBox(width: AppTokens.spaceSmall),
-                  Expanded(
-                    child: Text(
-                      l10n.noLocationYet,
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            )
-          else ...[
-            Text(
-              'آخر موقع مسجل',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: AppTokens.spaceSmall),
-            DetailRow(
-              label: l10n.latitude,
-              value: '${location.lat}',
-              icon: Icons.vertical_align_center_rounded,
-            ),
-            DetailRow(
-              label: l10n.longitude,
-              value: '${location.lng}',
-              icon: Icons.horizontal_distribute_rounded,
-            ),
-            DetailRow(
-              label: l10n.sequence,
-              value: '${location.sequence}',
-              icon: Icons.format_list_numbered_rounded,
-            ),
-            DetailRow(
-              label: l10n.source,
-              value: localizedLocationSource(l10n, location.source),
-              icon: Icons.sensors_rounded,
-            ),
-            DetailRow(
-              label: l10n.recordedTime,
-              value: _formatTime(context, location.recordedAt),
-              icon: Icons.access_time_rounded,
-            ),
-          ],
-
-          if (demoFeaturesEnabled) ...[
-            const SizedBox(height: AppTokens.spaceLarge),
-            SizedBox(
-              height: 52,
-              child: FilledButton.icon(
-                key: const ValueKey('simulateStepButton'),
-                onPressed: state.actionInProgress ? null : onSimulate,
-                icon: const Icon(Icons.play_arrow_rounded),
-                label: Text(l10n.simulateNextPoint),
-              ),
-            ),
-            const SizedBox(height: AppTokens.spaceSmall),
-            SizedBox(
-              height: 48,
-              child: OutlinedButton.icon(
-                key: const ValueKey('resetSimulationButton'),
-                onPressed: state.actionInProgress ? null : onReset,
-                icon: const Icon(Icons.restart_alt_rounded),
-                label: Text(l10n.resetSimulation),
-              ),
-            ),
-          ],
+          _CheckpointStatusIcon(
+            style: style,
+          ),
         ],
       ),
     );
   }
+}
 
-  String _formatTime(BuildContext context, DateTime value) {
-    final material = MaterialLocalizations.of(context);
-    final local = value.toLocal();
+// ============================================================================
+// CHECKPOINT STATUS ICON
+// ============================================================================
 
-    return '${material.formatCompactDate(local)} '
-        '${material.formatTimeOfDay(TimeOfDay.fromDateTime(local))}';
+class _CheckpointStatusIcon
+    extends StatelessWidget {
+  const _CheckpointStatusIcon({
+    required this.style,
+  });
+
+  final _CheckpointStatusStyle style;
+
+  @override
+  Widget build(BuildContext context) {
+    return Icon(
+      style.icon,
+      size: 20,
+      color: style.color,
+    );
   }
 }
 
 // ============================================================================
-// CHECKPOINT HELPERS
+// CHECKPOINT STATUS STYLE
 // ============================================================================
 
-String _checkpointName(
-  AppLocalizations l10n,
-  Checkpoint checkpoint,
-  bool arabic,
-) {
-  final preferred = arabic ? checkpoint.nameAr : checkpoint.nameEn;
+class _CheckpointStatusStyle {
+  const _CheckpointStatusStyle({
+    required this.color,
+    required this.icon,
+  });
 
-  return preferred ??
-      checkpoint.nameEn ??
-      checkpoint.nameAr ??
-      l10n.checkpointUnnamed;
+  final Color color;
+  final IconData icon;
 }
 
-String _checkpointStatus(AppLocalizations l10n, CheckpointStatus status) =>
-    switch (status) {
-      CheckpointStatus.open => l10n.checkpointOpen,
-      CheckpointStatus.congested => l10n.checkpointCongested,
-      CheckpointStatus.closed => l10n.checkpointClosed,
-      CheckpointStatus.unknown => l10n.checkpointUnknown,
-    };
+_CheckpointStatusStyle _checkpointStatusStyle(
+  BuildContext context,
+  String status,
+) {
+  final theme = Theme.of(context);
+  final normalized = status.trim();
 
-IconData _checkpointIcon(CheckpointStatus status) => switch (status) {
-  CheckpointStatus.open => Icons.check_rounded,
-  CheckpointStatus.congested => Icons.hourglass_bottom_rounded,
-  CheckpointStatus.closed => Icons.block_rounded,
-  CheckpointStatus.unknown => Icons.question_mark_rounded,
-};
+  switch (normalized) {
+    case 'سالك':
+      return const _CheckpointStatusStyle(
+        color: SemanticColors.success,
+        icon: Icons.check_circle_rounded,
+      );
 
-Color _checkpointColor(CheckpointStatus status) => switch (status) {
-  CheckpointStatus.open => SemanticColors.success,
-  CheckpointStatus.congested => SemanticColors.warning,
-  CheckpointStatus.closed => SemanticColors.error,
-  CheckpointStatus.unknown => SemanticColors.pendingContainer,
-};
+    case 'أزمة متوسطة':
+      return const _CheckpointStatusStyle(
+        color: SemanticColors.warning,
+        icon: Icons.traffic_rounded,
+      );
+
+    case 'أزمة':
+      return const _CheckpointStatusStyle(
+        color: SemanticColors.error,
+        icon: Icons.warning_amber_rounded,
+      );
+
+    case 'الحالة غير متوفرة':
+      return _CheckpointStatusStyle(
+        color: theme.colorScheme.onSurfaceVariant,
+        icon: Icons.help_outline_rounded,
+      );
+
+    default:
+      return _CheckpointStatusStyle(
+        color: theme.colorScheme.primary,
+        icon: Icons.info_outline_rounded,
+      );
+  }
+}
+
+// ============================================================================
+// CHECKPOINT STATUS HELPERS
+// ============================================================================
+
+String _checkpointStatusLabel(
+  String? status,
+) {
+  final value = status?.trim();
+
+  if (value == null || value.isEmpty) {
+    return 'الحالة غير متوفرة';
+  }
+
+  return value;
+}
+
+bool _isCongested(
+  String? status,
+) {
+  final value = status?.trim();
+
+  return value == 'أزمة' ||
+      value == 'أزمة متوسطة';
+}
+
+// ============================================================================
+// CHECKPOINT TIME
+// ============================================================================
+
+String _formatCheckpointTime(
+  BuildContext context,
+  DateTime value,
+) {
+  final material =
+      MaterialLocalizations.of(context);
+
+  final local = value.toLocal();
+
+  return '${material.formatCompactDate(local)} '
+      '${material.formatTimeOfDay(
+        TimeOfDay.fromDateTime(local),
+      )}';
+}
+
+// ============================================================================
+// BOTTOM SHEET HANDLE
+// ============================================================================
+
+class _BottomSheetHandle extends StatelessWidget {
+  const _BottomSheetHandle();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        width: 38,
+        height: 4,
+        decoration: BoxDecoration(
+          color: border,
+          borderRadius: BorderRadius.circular(10),
+        ),
+      ),
+    );
+  }
+}
