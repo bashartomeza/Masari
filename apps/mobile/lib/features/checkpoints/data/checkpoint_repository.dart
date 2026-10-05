@@ -1,26 +1,55 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:convert';
 
-import '../../auth/data/authenticated_api_client.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
+
 import '../domain/checkpoint_models.dart';
 
 final checkpointRepositoryProvider = Provider<CheckpointRepository>((ref) {
-  return CheckpointRepository(
-    apiClient: ref.watch(authenticatedApiClientProvider),
-  );
+  return const CheckpointRepository();
 });
 
-/// Reads barriers through Masari's own API.
+/// Temporary direct connection to AweenRayeh.
 ///
-/// The upstream feed is deliberately not called from the app: the key would
-/// ship in the APK and the call would sit outside the session boundary. The
-/// server proxies it, so this is an ordinary authenticated endpoint.
+/// TODO:
+/// Move the API key back to Masari backend before production.
+/// The AweenRayeh documentation explicitly says the key should
+/// remain server-side and not be embedded in a mobile app.
 class CheckpointRepository {
-  const CheckpointRepository({required this.apiClient});
+  const CheckpointRepository();
 
-  final AuthenticatedApiClient apiClient;
+  static const String _baseUrl = 'https://db.aweenrayeh.com';
+
+  static const String _apiKey =
+      'ar_partner_hebron_9a85ac2f1980a9db974ec558f0bfef16cef6d26bddd79445';
 
   Future<CheckpointSnapshot> checkpoints() async {
-    final json = await apiClient.getJson('/checkpoints');
-    return CheckpointSnapshot.fromJson(json);
+    final response = await http.get(
+      Uri.parse('$_baseUrl/v1/partner/checkpoints'),
+      headers: {
+        'X-Api-Key': _apiKey,
+        'Accept': 'application/json',
+      },
+    );
+
+    print('AweenRayeh status: ${response.statusCode}');
+    print('AweenRayeh response: ${response.body}');
+
+    if (response.statusCode != 200) {
+      throw Exception(
+        'AweenRayeh API error: '
+        '${response.statusCode} ${response.body}',
+      );
+    }
+
+    final decoded = jsonDecode(response.body);
+
+    if (decoded is! Map<String, dynamic>) {
+      throw const FormatException(
+        'Invalid AweenRayeh response',
+      );
+    }
+
+    return CheckpointSnapshot.fromJson(decoded);
   }
 }
