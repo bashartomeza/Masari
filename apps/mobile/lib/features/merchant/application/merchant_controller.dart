@@ -170,6 +170,13 @@ class MerchantOrderController extends AsyncNotifier<MerchantOrderViewState> {
     ref.invalidate(merchantDashboardProvider);
   }
 
+  Future<void> cancelOrder() async {
+    await ref.read(merchantRepositoryProvider).cancelOrder(_orderId);
+    await refresh();
+    ref.invalidate(merchantDashboardProvider);
+    ref.invalidate(merchantMatchInboxProvider);
+  }
+
   Future<MerchantMatch> runMatch() async {
     final match = await ref.read(merchantRepositoryProvider).runMatch(_orderId);
     await refresh();

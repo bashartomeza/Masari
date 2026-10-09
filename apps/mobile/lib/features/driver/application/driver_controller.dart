@@ -397,6 +397,39 @@ class DriverTripController extends AsyncNotifier<DriverTripState> {
     ref.invalidate(driverDashboardProvider);
   }
 
+  Future<void> cancelTrip() async {
+    final current = state.value;
+    if (current == null || current.actionInProgress) return;
+    final cancellable = {
+      'accepted',
+      'pickup_started',
+      'picked_up',
+      'in_transit',
+    }.contains(current.trip.status);
+    if (!cancellable) return;
+    await _runAction(() async {
+      await ref
+          .read(driverRepositoryProvider)
+          .updateTripStatus(_tripId, 'cancelled');
+    });
+    ref.invalidate(driverDashboardProvider);
+  }
+
+  Future<void> failDelivery() async {
+    final current = state.value;
+    if (current == null ||
+        current.actionInProgress ||
+        current.trip.status != 'in_transit') {
+      return;
+    }
+    await _runAction(() async {
+      await ref
+          .read(driverRepositoryProvider)
+          .updateTripStatus(_tripId, 'failed');
+    });
+    ref.invalidate(driverDashboardProvider);
+  }
+
   Future<void> simulateStep() async {
     final current = state.value;
     if (current == null || current.actionInProgress) return;

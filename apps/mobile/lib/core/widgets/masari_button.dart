@@ -177,7 +177,7 @@ class MasariButton extends StatelessWidget {
         minimumSize: Size(expand ? double.infinity : 0, AppTokens.buttonHeight),
         padding: const EdgeInsets.symmetric(horizontal: AppTokens.spaceMedium),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppTokens.radiusLarge),
+          borderRadius: BorderRadius.circular(AppTokens.radiusAction),
         ),
         textStyle: const TextStyle(
           fontFamily: AppTheme.fontFamily,

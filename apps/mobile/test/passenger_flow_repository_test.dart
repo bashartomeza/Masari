@@ -184,6 +184,30 @@ void main() {
         match.score,
         0.9317,
       );
+
+      expect(
+        match.passengerRequestId,
+        'request_1',
+      );
+    },
+  );
+
+  test(
+    'persisted passenger match can be recovered after reopening',
+    () async {
+      final repo = MatchingRepository(
+        apiClient: _client(
+          (request) async => http.Response(
+            '{"matches":[${_matchSummaryJson("accepted")}]}',
+            200,
+          ),
+        ),
+      );
+
+      final match = await repo.latestForPassengerRequest('request_1');
+      expect(match?.id, 'match_1');
+      expect(match?.status, 'accepted');
+      expect(match?.passengerRequestId, 'request_1');
     },
   );
 
@@ -243,7 +267,6 @@ void main() {
   );
 }
 
-
 // ==========================================================================
 // TEST CLIENT
 // ==========================================================================
@@ -255,7 +278,6 @@ AuthenticatedApiClient _client(
     handler: handler,
   ).client;
 }
-
 
 // ==========================================================================
 // PASSENGER REQUEST JSON
@@ -274,7 +296,6 @@ String _requestJson(String status) =>
     '"status":"$status",'
     '"created_at":"2026-07-01T09:00:00.000Z"}';
 
-
 // ==========================================================================
 // MATCHING
 // ==========================================================================
@@ -289,7 +310,8 @@ const _matchResponse =
     '"origin_label":"Hebron / PPU / Bab Al-Zawiya",'
     '"destination_label":"Bethlehem",'
     '"driver":{"vehicle_type":"sedan"}'
-    '}'
+    '},'
+    '"passenger_request":{"id":"request_1"}'
     '},'
     '"scoringBreakdown":{'
     '"corridorOverlap":0.95,'
@@ -300,6 +322,23 @@ const _matchResponse =
     '"finalScore":0.9317'
     '}}';
 
+String _matchSummaryJson(String status) =>
+    '{"id":"match_1",'
+    '"status":"$status",'
+    '"score":"0.9317",'
+    '"explanation":"Driver selected.",'
+    '"scoring_breakdown":{'
+    '"corridorOverlap":0.95,'
+    '"pickupDistanceScore":0.827,'
+    '"timingFit":0.9,'
+    '"trustScore":0.86,'
+    '"capacityFit":1,'
+    '"finalScore":0.9317},'
+    '"driver_route":{'
+    '"origin_label":"Hebron / PPU / Bab Al-Zawiya",'
+    '"destination_label":"Bethlehem",'
+    '"driver":{"vehicle_type":"sedan"}},'
+    '"passenger_request":{"id":"request_1"}}';
 
 // ==========================================================================
 // TRIP
@@ -313,7 +352,6 @@ const _tripJson =
     '"origin_label":"Hebron / PPU / Bab Al-Zawiya",'
     '"destination_label":"Bethlehem"'
     '}}';
-
 
 // ==========================================================================
 // LOCATION

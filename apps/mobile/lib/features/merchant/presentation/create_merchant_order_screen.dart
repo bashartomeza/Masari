@@ -83,6 +83,13 @@ class _CreateMerchantOrderScreenState
             FilledButton(
               key: const ValueKey('submitMerchantOrder'),
               onPressed: _busy ? null : _submit,
+              style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.tertiary,
+                foregroundColor: Theme.of(context).colorScheme.onTertiary,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppTokens.radiusAction),
+                ),
+              ),
               child: Text(l10n.submitOrder),
             ),
           ],

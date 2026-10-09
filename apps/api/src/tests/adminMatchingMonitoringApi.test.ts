@@ -79,7 +79,13 @@ describe("Admin matching and batching monitoring HTTP boundary", () => {
       return user ? {
         id: where.id,
         user_id: user.id,
-        user: { ...user, account_status: "active", security_version: 1 },
+        user: {
+          ...user,
+          account_status: "active",
+          security_version: 1,
+          profile_state: "complete",
+          email_verified_at: new Date()
+        },
         security_version_at_issue: 1,
         expires_at: new Date(where.id.endsWith("_expired") ? Date.now() - 60_000 : Date.now() + 60_000),
         revoked_at: where.id.endsWith("_revoked") ? new Date() : null

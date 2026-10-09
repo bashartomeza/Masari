@@ -16,7 +16,7 @@ test("security remediation keeps vulnerable dependency floors fixed", () => {
       mariadb: "3.4.7"
     },
     "deepmerge-ts": "8.0.1",
-    "fast-uri": "3.1.6",
+    "fast-uri": "3.1.8",
     mariadb: "3.4.7",
     mysql2: "3.23.1",
     prisma: {
@@ -29,7 +29,7 @@ test("security remediation keeps vulnerable dependency floors fixed", () => {
 
   const expected = {
     "node_modules/deepmerge-ts": "8.0.1",
-    "node_modules/fast-uri": "3.1.6",
+    "node_modules/fast-uri": "3.1.8",
     "node_modules/mariadb": "3.4.7",
     "node_modules/mysql2": "3.23.1",
     "node_modules/qs": "6.16.0",

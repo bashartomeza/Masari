@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:masari_mobile/l10n/app_localizations.dart';
 
+import '../../../core/api/api_error.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/language_switch.dart';
 import '../../../core/widgets/masari_card.dart';
@@ -20,14 +21,22 @@ class RequestDetailScreen extends ConsumerWidget {
     final detail = ref.watch(passengerRequestDetailProvider(requestId));
     return Scaffold(
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(AppTokens.spaceLarge),
-          children: [
-            const Align(
-              alignment: AlignmentDirectional.centerEnd,
-              child: LanguageSwitch(),
-            ),
-            Text(
+        child: RefreshIndicator(
+          onRefresh: () async {
+            await Future.wait([
+              ref.refresh(passengerRequestDetailProvider(requestId).future),
+              ref.refresh(passengerTripForRequestProvider(requestId).future),
+            ]);
+          },
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(AppTokens.spaceLarge),
+            children: [
+              const Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: LanguageSwitch(),
+              ),
+              Text(
               l10n.requestDetails,
               style: Theme.of(context).textTheme.headlineMedium,
             ),
@@ -55,15 +64,94 @@ class RequestDetailScreen extends ConsumerWidget {
                       '${l10n.currentStatus}: ${_statusLabel(l10n, request.status)}',
                     ),
                     Text('${l10n.createdTime}: ${request.createdAt}'),
+                    Consumer(
+                      builder: (context, ref, _) {
+                        final trip = ref.watch(
+                          passengerTripForRequestProvider(request.id),
+                        );
+                        return trip.when(
+                          loading: () => const SizedBox.shrink(),
+                          error: (_, _) => const SizedBox.shrink(),
+                          data: (value) {
+                            if (value == null) return const SizedBox.shrink();
+                            return Padding(
+                              padding: const EdgeInsets.only(
+                                top: AppTokens.spaceSmall,
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '${l10n.currentStatus}: '
+                                    '${_statusLabel(l10n, value.status)}',
+                                  ),
+                                  TextButton(
+                                    onPressed: () => context.go(
+                                      '/passenger/trip/${value.id}',
+                                    ),
+                                    child: Text(l10n.tripTimeline),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
                     const SizedBox(height: AppTokens.spaceLarge),
+                    if (request.status == 'matched')
+                      FilledButton(
+                        onPressed: () async {
+                          try {
+                            final match = await ref
+                                .read(matchingRepositoryProvider)
+                                .latestForPassengerRequest(request.id);
+                            if (!context.mounted) return;
+                            if (match != null) {
+                              context.go('/passenger/match/${match.id}');
+                            } else {
+                              ref.invalidate(
+                                passengerRequestDetailProvider(requestId),
+                              );
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text(l10n.requestFailed)),
+                              );
+                            }
+                          } catch (error) {
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  _matchingErrorLabel(l10n, error),
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                        child: Text(l10n.findCompatibleRoute),
+                      ),
                     if (request.canMatch)
                       FilledButton(
                         onPressed: () async {
-                          final match = await ref
-                              .read(matchingRepositoryProvider)
-                              .runForPassengerRequest(request.id);
-                          if (context.mounted) {
-                            context.go('/passenger/match/${match.id}');
+                          try {
+                            final match = await ref
+                                .read(matchingRepositoryProvider)
+                                .runForPassengerRequest(request.id);
+                            if (context.mounted) {
+                              context.go('/passenger/match/${match.id}');
+                            }
+                          } catch (error) {
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  _matchingErrorLabel(l10n, error),
+                                ),
+                              ),
+                            );
+                            ref.invalidate(
+                              passengerRequestDetailProvider(requestId),
+                            );
                           }
                         },
                         child: Text(l10n.findCompatibleRoute),
@@ -99,6 +187,7 @@ class RequestDetailScreen extends ConsumerWidget {
             ),
           ],
         ),
+        ),
       ),
     );
   }
@@ -114,5 +203,19 @@ String _statusLabel(AppLocalizations l10n, String status) => switch (status) {
   'cancelled' => l10n.statusCancelled,
   'completed' => l10n.statusCompleted,
   'pickup_started' => l10n.statusPickupStarted,
+  'expired' => l10n.statusExpired,
   _ => status,
 };
+
+String _matchingErrorLabel(AppLocalizations l10n, Object error) {
+  if (error is! ApiException) return l10n.requestFailed;
+  if (error.type == ApiErrorType.network) return l10n.networkUnavailable;
+  if (error.type == ApiErrorType.timeout) return l10n.requestTimedOut;
+  if (error.type == ApiErrorType.forbidden) return l10n.forbidden;
+  return switch (error.message) {
+    'no_compatible_driver_route' => l10n.noCompatibleDriverFound,
+    'passenger_request_already_matched' => l10n.statusMatched,
+    'passenger_request_not_matchable' => l10n.requestFailed,
+    _ => l10n.requestFailed,
+  };
+}

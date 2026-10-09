@@ -107,7 +107,9 @@ class PassengerHomeScreen extends ConsumerWidget {
       ],
       data: (state) {
         final request = state.activeRequest;
-        final trip = state.activeTrip;
+        final trip = request == null
+            ? state.activeTrip
+            : state.tripForRequest(request.id);
         if (request == null && trip == null) return const [];
         return [
           const SizedBox(height: AppTokens.spaceMedium),

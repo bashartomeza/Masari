@@ -5,12 +5,14 @@ import "dotenv/config";
 import { createApp } from "./app.js";
 import { config } from "./config.js";
 import { startCanonicalDispatchWorker } from "./lib/canonicalDispatchWorker.js";
+import { startLegacyDispatchWorker } from "./lib/legacyDispatchWorker.js";
 import { createOperationalLogger } from "./lib/logger.js";
 import { prisma } from "./lib/prisma.js";
 
 const logger = createOperationalLogger(config);
 const app = createApp(config, { logger });
 const canonicalDispatchWorker = startCanonicalDispatchWorker(config, logger);
+const legacyDispatchWorker = startLegacyDispatchWorker(logger);
 let shuttingDown = false;
 
 const server = app.listen(config.port, () => {
@@ -21,6 +23,7 @@ async function shutdown(signal: NodeJS.Signals) {
   if (shuttingDown) return;
   shuttingDown = true;
   canonicalDispatchWorker?.stop();
+  legacyDispatchWorker.stop();
   logger.info({ event: "shutdown_started", signal }, "Masari API shutdown started");
 
   const forcedExit = setTimeout(() => {

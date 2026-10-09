@@ -25,26 +25,26 @@ import '../data/driver_models.dart';
 // MASARI DRIVER MAP COLORS
 // ============================================================
 
-const Color navy = Color(0xFF102A43);
-const Color orange = Color(0xFFF97316);
-const Color orangeDark = Color(0xFFE85D04);
-const Color orangeSoft = Color(0xFFFFF3EA);
+const Color navy = Color(0xFF2F4A3A);
+const Color orange = Color(0xFFC66A3D);
+const Color orangeDark = Color(0xFF8A3F2A);
+const Color orangeSoft = Color(0xFFF2DED1);
 
-const Color success = Color(0xFF16A34A);
-const Color successSoft = Color(0xFFEAF8F1);
+const Color success = Color(0xFF2F4A3A);
+const Color successSoft = Color(0xFFE7EFE1);
 
-const Color warning = Color(0xFFF59E0B);
-const Color error = Color(0xFFDC2626);
+const Color warning = Color(0xFFA36B22);
+const Color error = Color(0xFF8A3F2A);
 
 const Color white = Color(0xFFFFFFFF);
-const Color background = Color(0xFFF8FAFC);
+const Color background = Color(0xFFF9F5EE);
 
-const Color textDark = Color(0xFF111418);
-const Color textSecondary = Color(0xFF68707B);
-const Color textMuted = Color(0xFF9AA1AA);
+const Color textDark = Color(0xFF243129);
+const Color textSecondary = Color(0xFF5B625D);
+const Color textMuted = Color(0xFF8B867D);
 
-const Color border = Color(0xFFE8EAED);
-const Color driverBlue = Color(0xFF2563EB);
+const Color border = Color(0xFFD7CEC1);
+const Color driverBlue = Color(0xFF7A8F5A);
 
 // ============================================================
 // DRIVER TRIP SCREEN
@@ -623,7 +623,7 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
                   context,
                   l10n,
                   state,
-                  
+
                 ),
               ],
             ),
@@ -1280,7 +1280,15 @@ Widget _QuickInfoItem({
     // The driver can only use the real trip action.
     // ----------------------------------------------------------
 
-    if (nextStatus == null) {
+    final canCancel = {
+      'accepted',
+      'pickup_started',
+      'picked_up',
+      'in_transit',
+    }.contains(state.trip.status);
+    final canFail = state.trip.status == 'in_transit';
+
+    if (nextStatus == null && !canCancel && !canFail) {
       return _buildRefreshButton(
         context,
         l10n,
@@ -1334,6 +1342,58 @@ Widget _QuickInfoItem({
                   ),
           ),
         ),
+
+        if (canCancel) ...[
+          const SizedBox(height: 7),
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: OutlinedButton.icon(
+              onPressed: state.actionInProgress ? null : _cancelTrip,
+              icon: const Icon(Icons.cancel_outlined, size: 17),
+              label: Text(
+                l10n.cancelRequest,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: error,
+                side: BorderSide(color: error.withOpacity(0.45)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(13),
+                ),
+              ),
+            ),
+          ),
+        ],
+
+        if (canFail) ...[
+          const SizedBox(height: 7),
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: OutlinedButton.icon(
+              onPressed: state.actionInProgress ? null : _failDelivery,
+              icon: const Icon(Icons.report_problem_outlined, size: 17),
+              label: Text(
+                l10nFailDelivery(context),
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: error,
+                side: BorderSide(color: error.withOpacity(0.45)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(13),
+                ),
+              ),
+            ),
+          ),
+        ],
 
         const SizedBox(height: 7),
 
@@ -1403,6 +1463,91 @@ Widget _QuickInfoItem({
             )
             .advanceStatus(),
       );
+
+  Future<void> _failDelivery() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10nFailDeliveryTitle(context)),
+        content: Text(l10nFailDeliveryMessage(context)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(l10nFailDelivery(context)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await _action(
+      () => ref
+          .read(
+            driverTripControllerProvider(
+              widget.tripId,
+            ).notifier,
+          )
+          .failDelivery(),
+    );
+  }
+
+  String l10nFailDelivery(BuildContext context) =>
+      Localizations.localeOf(context).languageCode == 'ar'
+          ? 'تسجيل فشل التوصيل'
+          : 'Mark delivery failed';
+
+  String l10nFailDeliveryTitle(BuildContext context) =>
+      Localizations.localeOf(context).languageCode == 'ar'
+          ? 'فشل التوصيل'
+          : 'Delivery failed';
+
+  String l10nFailDeliveryMessage(BuildContext context) =>
+      Localizations.localeOf(context).languageCode == 'ar'
+          ? 'هل تريد تسجيل الرحلة كتوصيل فاشل'
+          : 'Are you sure you want to mark this delivery as failed';
+
+  Future<void> _cancelTrip() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10nCancelTripTitle(context)),
+        content: Text(l10nCancelTripMessage(context)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(AppLocalizations.of(context).cancelRequest),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await _action(
+      () => ref
+          .read(
+            driverTripControllerProvider(
+              widget.tripId,
+            ).notifier,
+          )
+          .cancelTrip(),
+    );
+  }
+
+  String l10nCancelTripTitle(BuildContext context) =>
+      Localizations.localeOf(context).languageCode == 'ar'
+          ? 'إلغاء الرحلة'
+          : 'Cancel trip';
+
+  String l10nCancelTripMessage(BuildContext context) =>
+      Localizations.localeOf(context).languageCode == 'ar'
+          ? 'هل أنت متأكد من إلغاء الرحلة الحالية'
+          : 'Are you sure you want to cancel this trip';
 
   Future<void> _action(
     Future<void> Function() action,

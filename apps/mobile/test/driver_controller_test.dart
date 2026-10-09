@@ -87,6 +87,58 @@ void main() {
     expect(fake.createCalls, 1);
   });
 
+  test(
+    'driver can cancel an active trip through the persisted lifecycle',
+    () async {
+      final fake = _FakeDriverRepository(
+        trips: [_trip(status: 'in_transit')],
+      );
+      final container = _container(fake);
+      addTearDown(container.dispose);
+
+      await container.read(driverTripControllerProvider('trip_1').future);
+      await container
+          .read(driverTripControllerProvider('trip_1').notifier)
+          .cancelTrip();
+
+      expect(fake.statusUpdates, [('trip_1', 'cancelled')]);
+      expect(
+        container
+            .read(driverTripControllerProvider('trip_1'))
+            .value
+            ?.trip
+            .status,
+        'cancelled',
+      );
+    },
+  );
+
+  test(
+    'driver can mark an in-transit delivery failed',
+    () async {
+      final fake = _FakeDriverRepository(
+        trips: [_trip(status: 'in_transit')],
+      );
+      final container = _container(fake);
+      addTearDown(container.dispose);
+
+      await container.read(driverTripControllerProvider('trip_1').future);
+      await container
+          .read(driverTripControllerProvider('trip_1').notifier)
+          .failDelivery();
+
+      expect(fake.statusUpdates, [('trip_1', 'failed')]);
+      expect(
+        container
+            .read(driverTripControllerProvider('trip_1'))
+            .value
+            ?.trip
+            .status,
+        'failed',
+      );
+    },
+  );
+
   test('route deactivation refreshes success and surfaces failure', () async {
     final fake = _FakeDriverRepository(routes: [_route()]);
     final container = _container(fake);
@@ -458,7 +510,7 @@ class _FakeDriverRepository extends DriverRepository {
   void Function()? onOnlineSend;
   void Function()? afterOnlineCommit;
   final List<String> observedKeys = [];
-
+  final List<(String, String)> statusUpdates = [];
   @override
   Future<List<DriverRoute>> listRoutes() async {
     if (failLists) throw StateError('route failure');
@@ -565,6 +617,15 @@ class _FakeDriverRepository extends DriverRepository {
 
   @override
   Future<DriverTrip> tripDetail(String id) async => trips.first;
+
+  @override
+  Future<void> updateTripStatus(String id, String status) async {
+    statusUpdates.add((id, status));
+    trips = [
+      _trip(status: status),
+      ...trips.skip(1),
+    ];
+  }
 
   @override
   Future<TripLocation?> latestLocation(String id) async => TripLocation(

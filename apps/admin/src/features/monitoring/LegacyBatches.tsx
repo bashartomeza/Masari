@@ -6,10 +6,10 @@ import { RouteDialog } from "../routes/RouteDialog";
 import type { BatchQueryInput, BatchRow, CurrentOrderParcelsPage, DriverRouteStatus, MerchantOrderStatus, Page, ParcelBatchStatus, ParcelRow, ParcelStatus } from "./contracts";
 import { createObservationGate, type ObservationState } from "./monitoringState";
 
-const batchStatuses: ParcelBatchStatus[] = ["created", "proposed", "assigned", "picked_up", "in_transit", "delivered"];
-const orderStatuses: MerchantOrderStatus[] = ["draft", "submitted", "batched", "assigned", "in_transit", "completed"];
+const batchStatuses: ParcelBatchStatus[] = ["created", "proposed", "assigned", "picked_up", "in_transit", "delivered", "cancelled", "failed", "expired"];
+const orderStatuses: MerchantOrderStatus[] = ["draft", "submitted", "batched", "matched", "assigned", "in_transit", "delivered", "completed", "cancelled", "failed", "expired"];
 const routeStatuses: DriverRouteStatus[] = ["inactive", "active", "assigned", "on_trip", "completed"];
-const parcelStatuses: ParcelStatus[] = ["pending", "batched", "assigned", "picked_up", "in_transit", "delivered"];
+const parcelStatuses: ParcelStatus[] = ["pending", "batched", "assigned", "picked_up", "in_transit", "delivered", "cancelled", "failed", "expired"];
 
 function errorStatus(error: unknown) { return (error as ApiError | undefined)?.status; }
 function isTerminal(error: unknown) { return errorStatus(error) === 401 || errorStatus(error) === 403; }

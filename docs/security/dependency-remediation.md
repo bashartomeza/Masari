@@ -14,7 +14,7 @@ bridges, not versions declared compatible by those upstream pins:
   updated its exact 3.4.5 dependency in the selected 7.9.1 adapter.
 - `mysql2` 3.23.1 fixes both Prisma-pinned advisories (including the
   decompression issue fixed after 3.23.0) without downgrading Prisma.
-- `fast-uri` 3.1.6 fixes the AJV-supported 3.x advisory range.
+- `fast-uri` 3.1.8 is pinned as the current patched 3.x release for the AJV-supported dependency path.
 - `qs` 6.16.0 fixes the Express/body-parser-supported 6.x advisory range.
 - API and Admin `vitest`, including its matching `@vitest/*` packages, use
   4.1.11 to remediate the mocker advisory.

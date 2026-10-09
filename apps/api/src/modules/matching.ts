@@ -1,7 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
-import { auditEvent } from "../lib/audit.js";
 import { clamp01, haversineKm, LOCKED_DESTINATION, LOCKED_ORIGIN, round, toNumber } from "../lib/geo.js";
 import { latitudeSchema, longitudeSchema } from "../lib/validation.js";
 import { requireAuth, requireRole, type AuthenticatedRequest } from "../middleware/auth.js";
@@ -9,6 +8,7 @@ import { HttpError } from "../middleware/error.js";
 import { LOCKED_CORRIDOR_KEY, LOCKED_CORRIDOR_LABEL } from "./demoReset.js";
 import type { Prisma } from "../generated/prisma/client.js";
 import { AuditAction, MatchStatus } from "../generated/prisma/enums.js";
+import { reserveLegacyCapacity } from "../services/legacyCapacity.js";
 
 const runMatchSchema = z
   .object({
@@ -65,6 +65,7 @@ const matchSummarySelect = {
       driver: {
         select: {
           user_id: true,
+          user: { select: { name: true } },
           vehicle_type: true,
           verified: true,
           trust_score: true
@@ -139,6 +140,7 @@ function toMatchSummary(match: MatchSummaryRecord) {
       parcel_capacity_available: match.driver_route.parcel_capacity_available,
       status: match.driver_route.status,
       driver: {
+        name: match.driver_route.driver.user.name,
         vehicle_type: match.driver_route.driver.vehicle_type,
         verified: match.driver_route.driver.verified,
         trust_score: match.driver_route.driver.trust_score
@@ -185,7 +187,18 @@ async function loadAuthorizedInput(req: AuthenticatedRequest, input: MatchInput)
         where: { id: input.merchantOrderId },
         include: {
           parcels: true,
-          parcel_batches: { select: { id: true }, orderBy: { created_at: "desc" }, take: 1 }
+          parcel_batches: {
+            where: { status: { notIn: ["cancelled", "failed", "expired"] } },
+            select: { id: true },
+            orderBy: { created_at: "desc" },
+            take: 1
+          },
+          batch_members: {
+            where: { active: true },
+            select: { parcel_batch_id: true },
+            orderBy: { created_at: "desc" },
+            take: 1
+          }
         }
       })
     : null;
@@ -259,6 +272,7 @@ type PassengerDemand = {
 async function rankDriverRoutes(input: {
   passengerRequest?: PassengerDemand | null;
   parcelCount: number;
+  excludeRouteIds?: ReadonlySet<string>;
 }) {
   const routes = await prisma.driverRoute.findMany({
     where: {
@@ -279,6 +293,7 @@ async function rankDriverRoutes(input: {
   });
 
   return routes
+    .filter((route) => !input.excludeRouteIds?.has(route.id))
     .filter((route) => !input.passengerRequest || route.seats_available >= input.passengerRequest.passenger_count)
     .filter((route) => input.parcelCount === 0 || route.parcel_capacity_available >= input.parcelCount)
     .map((route) => ({
@@ -333,8 +348,27 @@ function passengerDemandFromSearch(input: PassengerMatchSearchInput): PassengerD
 
 async function createBestMatch(req: AuthenticatedRequest, input: MatchInput) {
   const { passengerRequest, merchantOrder } = await loadAuthorizedInput(req, input);
-  const parcelCount = merchantOrder?.parcels.length ?? 0;
-  const candidates = await rankDriverRoutes({ passengerRequest, parcelCount });
+  const merchantBatchId = merchantOrder?.parcel_batches[0]?.id ?? merchantOrder?.batch_members[0]?.parcel_batch_id ?? null;
+  const parcelCount = merchantOrder
+    ? merchantBatchId
+      ? await prisma.parcel.count({ where: { batch_id: merchantBatchId, status: { notIn: ["cancelled", "failed", "expired"] } } })
+      : merchantOrder.parcels.length
+    : 0;
+  const rejectedRoutes = passengerRequest
+    ? await prisma.match.findMany({
+        where: {
+          passenger_request_id: passengerRequest.id,
+          operational_mode: "legacy",
+          status: { in: [MatchStatus.rejected, MatchStatus.expired, MatchStatus.invalidated] }
+        },
+        select: { driver_route_id: true }
+      })
+    : [];
+  const candidates = await rankDriverRoutes({
+    passengerRequest,
+    parcelCount,
+    excludeRouteIds: new Set(rejectedRoutes.map((item) => item.driver_route_id))
+  });
 
   const best = input.driverRouteId
     ? candidates.find((candidate) => candidate.route.id === input.driverRouteId)
@@ -350,28 +384,132 @@ async function createBestMatch(req: AuthenticatedRequest, input: MatchInput) {
     `Driver selected because the route matches the ${LOCKED_CORRIDOR_LABEL} corridor, ` +
     "pickup is near the route, capacity is available, and trust score is high.";
 
-  const match = await prisma.match.create({
-    data: {
-      driver_route_id: best.route.id,
-      passenger_request_id: passengerRequest?.id,
-      merchant_order_id: merchantOrder?.id,
-      parcel_batch_id: merchantOrder?.parcel_batches[0]?.id,
-      score: best.breakdown.finalScore.toFixed(4),
-      method: "masari_route_score",
-      explanation,
-      scoring_breakdown: best.breakdown,
-      status: "proposed"
-    },
-    include: { driver_route: { include: { driver: true } }, passenger_request: true, merchant_order: true, parcel_batch: true }
-  });
+  if (passengerRequest && !["pending", "matched"].includes(passengerRequest.status)) {
+    throw new HttpError(409, "passenger_request_not_matchable");
+  }
+  if (merchantOrder && !["submitted", "batched", "matched"].includes(merchantOrder.status)) {
+    throw new HttpError(409, "merchant_order_not_matchable");
+  }
 
-  await auditEvent(prisma, {
-    userId: req.user!.id,
-    action: AuditAction.match_decision,
-    entityType: "Match",
-    entityId: match.id,
-    metadata: { method: match.method, score: best.breakdown.finalScore }
-  });
+  let match;
+  try {
+    match = await prisma.$transaction(async (tx) => {
+      if (passengerRequest) {
+        const claimedRequest = await tx.passengerRequest.updateMany({
+          where: {
+            id: passengerRequest.id,
+            passenger_id: passengerRequest.passenger_id,
+            status: { in: ["pending", "matched"] },
+            canonical_entry_version: null
+          },
+          data: { status: "matched" }
+        });
+        if (claimedRequest.count !== 1) {
+          throw new HttpError(409, "passenger_request_not_matchable");
+        }
+
+        const active = await tx.match.findFirst({
+          where: {
+            passenger_request_id: passengerRequest.id,
+            operational_mode: "legacy",
+            status: { in: [MatchStatus.proposed, MatchStatus.sent_to_driver, MatchStatus.accepted] }
+          }
+        });
+        if (active) throw new HttpError(409, "passenger_request_already_matched");
+      }
+
+      if (merchantOrder) {
+        const active = await tx.match.findFirst({
+          where: merchantBatchId
+            ? {
+                parcel_batch_id: merchantBatchId,
+                operational_mode: "legacy",
+                status: { in: [MatchStatus.proposed, MatchStatus.sent_to_driver, MatchStatus.accepted] }
+              }
+            : {
+                merchant_order_id: merchantOrder.id,
+                operational_mode: "legacy",
+                status: { in: [MatchStatus.proposed, MatchStatus.sent_to_driver, MatchStatus.accepted] }
+              }
+        });
+        if (active) throw new HttpError(409, "merchant_order_already_matched");
+
+        if (merchantBatchId) {
+          const members = await tx.parcelBatchOrder.findMany({
+            where: { parcel_batch_id: merchantBatchId },
+            select: { merchant_order_id: true }
+          });
+          if (!members.length) throw new HttpError(409, "batch_not_matchable");
+          const orderIds = members.map((item) => item.merchant_order_id);
+          const claimed = await tx.merchantOrder.updateMany({
+            where: { id: { in: orderIds }, status: { in: ["batched", "submitted"] } },
+            data: { status: "matched" }
+          });
+          if (claimed.count !== orderIds.length) throw new HttpError(409, "batch_not_matchable");
+        } else {
+          const claimed = await tx.merchantOrder.updateMany({
+            where: { id: merchantOrder.id, status: "submitted" },
+            data: { status: "matched" }
+          });
+          if (claimed.count !== 1) throw new HttpError(409, "merchant_order_not_matchable");
+        }
+
+        if (merchantBatchId) {
+          await tx.parcelBatch.update({ where: { id: merchantBatchId }, data: { driver_route_id: best.route.id, status: "proposed" } });
+        }
+      }
+
+      const seatsToReserve = passengerRequest?.passenger_count ?? 0;
+      if (seatsToReserve || parcelCount) {
+        await reserveLegacyCapacity(tx, {
+          driverRouteId: best.route.id,
+          seats: seatsToReserve,
+          parcelUnits: parcelCount
+        });
+      }
+
+      const created = await tx.match.create({
+        data: {
+          driver_route_id: best.route.id,
+          passenger_request_id: passengerRequest?.id,
+          merchant_order_id: merchantOrder?.id,
+          parcel_batch_id: merchantBatchId,
+          score: best.breakdown.finalScore.toFixed(4),
+          method: "masari_route_score",
+          explanation,
+          scoring_breakdown: best.breakdown,
+          status: MatchStatus.proposed,
+          expires_at: new Date(Date.now() + 10 * 60 * 1000),
+          legacy_capacity_held: true,
+          legacy_demand_key: passengerRequest
+            ? `passenger:${passengerRequest.id}`
+            : null
+        },
+        include: {
+          driver_route: { include: { driver: true } },
+          passenger_request: true,
+          merchant_order: true,
+          parcel_batch: true
+        }
+      });
+
+      await tx.auditEvent.create({
+        data: {
+          user_id: req.user!.id,
+          action: AuditAction.match_decision,
+          entity_type: "Match",
+          entity_id: created.id,
+          metadata: { method: created.method, score: best.breakdown.finalScore }
+        }
+      });
+      return created;
+    });
+  } catch (error) {
+    if (error && typeof error === "object" && "code" in error && error.code === "P2002") {
+      throw new HttpError(409, passengerRequest ? "passenger_request_already_matched" : "match_conflict");
+    }
+    throw error;
+  }
 
   return { match, scoringBreakdown: best.breakdown, candidatesConsidered: candidates.length };
 }
