@@ -87,6 +87,27 @@ void main() {
     }, reason: 'nothing dropped');
   });
 
+  test('expired requests remain visible in past history', () {
+    final state = PassengerHistoryState(
+      requests: [request(id: 'expired', status: 'expired')],
+      trips: const [],
+    );
+
+    expect(state.past.map((r) => r.id), ['expired']);
+    expect(state.active, isEmpty);
+    expect(state.cancelled, isEmpty);
+  });
+
+  test('delivered remains active until the trip is completed', () {
+    final state = PassengerHistoryState(
+      requests: [request(id: 'delivered', status: 'delivered')],
+      trips: const [],
+    );
+
+    expect(state.active.map((r) => r.id), ['delivered']);
+    expect(state.past, isEmpty);
+  });
+
   test('buckets are newest first', () {
     final older = PassengerRequest(
       id: 'older',

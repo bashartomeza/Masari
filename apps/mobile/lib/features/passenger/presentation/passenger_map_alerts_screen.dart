@@ -2396,8 +2396,7 @@ class _StatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isCompleted =
-        status == 'completed' ||
-        status == 'delivered';
+        status == 'completed' || status == 'delivered';
 
     final isCancelled =
         status == 'cancelled';

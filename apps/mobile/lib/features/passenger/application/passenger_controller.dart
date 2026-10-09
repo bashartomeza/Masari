@@ -16,7 +16,24 @@ class PassengerDashboardState {
 
   PassengerRequest? get activeRequest =>
       activeRequests.isEmpty ? null : activeRequests.first;
-  PassengerTrip? get activeTrip => trips.isEmpty ? null : trips.first;
+
+  PassengerTrip? get activeTrip {
+    for (final trip in trips) {
+      if (trip.status != 'completed' &&
+          trip.status != 'cancelled' &&
+          trip.status != 'failed') {
+        return trip;
+      }
+    }
+    return null;
+  }
+
+  PassengerTrip? tripForRequest(String requestId) {
+    for (final trip in trips) {
+      if (trip.passengerRequestId == requestId) return trip;
+    }
+    return null;
+  }
 }
 
 final passengerDashboardProvider =
@@ -52,4 +69,13 @@ class PassengerDashboardController
 final passengerRequestDetailProvider = FutureProvider.autoDispose
     .family<PassengerRequest, String>((ref, id) {
       return ref.watch(passengerRepositoryProvider).requestDetail(id);
+    });
+
+final passengerTripForRequestProvider = FutureProvider.autoDispose
+    .family<PassengerTrip?, String>((ref, requestId) async {
+      final trips = await ref.watch(tripRepositoryProvider).listTrips();
+      for (final trip in trips) {
+        if (trip.passengerRequestId == requestId) return trip;
+      }
+      return null;
     });

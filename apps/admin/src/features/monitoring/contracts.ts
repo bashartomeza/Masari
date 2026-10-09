@@ -1,8 +1,8 @@
 export type DriverRouteStatus = "inactive" | "active" | "assigned" | "on_trip" | "completed";
-export type RequestStatus = "draft" | "pending" | "matched" | "accepted" | "picked_up" | "in_transit" | "delivered" | "cancelled";
-export type MerchantOrderStatus = "draft" | "submitted" | "batched" | "assigned" | "in_transit" | "completed";
-export type ParcelStatus = "pending" | "batched" | "assigned" | "picked_up" | "in_transit" | "delivered";
-export type ParcelBatchStatus = "created" | "proposed" | "assigned" | "picked_up" | "in_transit" | "delivered";
+export type RequestStatus = "draft" | "pending" | "matched" | "accepted" | "picked_up" | "in_transit" | "delivered" | "completed" | "cancelled" | "expired";
+export type MerchantOrderStatus = "draft" | "submitted" | "batched" | "matched" | "assigned" | "in_transit" | "delivered" | "completed" | "cancelled" | "failed" | "expired";
+export type ParcelStatus = "pending" | "batched" | "assigned" | "picked_up" | "in_transit" | "delivered" | "cancelled" | "failed" | "expired";
+export type ParcelBatchStatus = "created" | "proposed" | "assigned" | "picked_up" | "in_transit" | "delivered" | "cancelled" | "failed" | "expired";
 export type MatchStatus = "proposed" | "sent_to_driver" | "accepted" | "rejected" | "expired" | "invalidated";
 
 export type Range = { from: string; until: string };

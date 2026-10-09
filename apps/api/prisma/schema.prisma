@@ -101,16 +101,23 @@ enum RequestStatus {
   picked_up
   in_transit
   delivered
+  completed
   cancelled
+  expired
 }
 
 enum MerchantOrderStatus {
   draft
   submitted
   batched
+  matched
   assigned
   in_transit
+  delivered
   completed
+  cancelled
+  failed
+  expired
 }
 
 enum ParcelStatus {
@@ -120,6 +127,9 @@ enum ParcelStatus {
   picked_up
   in_transit
   delivered
+  cancelled
+  failed
+  expired
 }
 
 enum ParcelBatchStatus {
@@ -129,6 +139,9 @@ enum ParcelBatchStatus {
   picked_up
   in_transit
   delivered
+  cancelled
+  failed
+  expired
 }
 
 enum MatchStatus {
@@ -191,6 +204,7 @@ enum TripStatus {
   delivered
   completed
   cancelled
+  failed
 }
 
 enum AuditAction {
@@ -1015,6 +1029,7 @@ model MerchantOrder {
   route_version  ServiceRouteVersion? @relation(fields: [route_version_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
   parcels        Parcel[]
   parcel_batches ParcelBatch[]
+  batch_members  ParcelBatchOrder[]
   matches        Match[]
   trips          Trip[]
   canonical_dispatch CanonicalDemandDispatch?
@@ -1062,8 +1077,26 @@ model ParcelBatch {
   driver_route   DriverRoute?  @relation(fields: [driver_route_id], references: [id], onDelete: SetNull)
   matches        Match[]
   trips          Trip[]
+  members        ParcelBatchOrder[]
 
+  @@index([driver_route_id, status])
   @@map("parcel_batches")
+}
+
+model ParcelBatchOrder {
+  id                String   @id @default(cuid())
+  parcel_batch_id   String
+  merchant_order_id String
+  active            Boolean  @default(true)
+  active_membership_key String? @unique @db.VarChar(191)
+  created_at        DateTime @default(now())
+
+  parcel_batch   ParcelBatch   @relation(fields: [parcel_batch_id], references: [id], onDelete: Cascade)
+  merchant_order MerchantOrder @relation(fields: [merchant_order_id], references: [id], onDelete: Cascade)
+
+  @@unique([parcel_batch_id, merchant_order_id], map: "parcel_batch_orders_unique")
+  @@index([merchant_order_id, created_at])
+  @@map("parcel_batch_orders")
 }
 
 model Match {
@@ -1099,6 +1132,8 @@ model Match {
   canonical_assignment_key String? @db.Char(64)
   expiry_failure_count Int         @default(0)
   expiry_last_failed_at DateTime?
+  legacy_demand_key    String?     @unique @db.VarChar(191)
+  legacy_capacity_held Boolean     @default(false)
 
   driver_route      DriverRoute       @relation(fields: [driver_route_id], references: [id], onDelete: Restrict)
   mode_driver_route DriverRoute       @relation("MatchAvailabilityMode", fields: [driver_route_id, operational_mode], references: [id, operational_mode], onDelete: Restrict, onUpdate: Restrict)
@@ -1173,6 +1208,7 @@ model Trip {
   canonical_dispatch_id  String?    @unique
   canonical_assignment_key String?  @db.Char(64)
   canonical_availability_key String? @unique @db.VarChar(191)
+  legacy_assignment_key String? @unique @db.VarChar(191)
 
   driver_route      DriverRoute       @relation(fields: [driver_route_id], references: [id], onDelete: Restrict)
   mode_driver_route DriverRoute       @relation("TripAvailabilityMode", fields: [driver_route_id, operational_mode], references: [id, operational_mode], onDelete: Restrict, onUpdate: Restrict)

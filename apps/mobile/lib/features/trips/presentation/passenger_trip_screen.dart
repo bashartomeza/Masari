@@ -39,23 +39,23 @@ class _PassengerTripScreenState
   // MASARI DESIGN SYSTEM
   // ============================================================
 
-  static const Color _orange = Color(0xFFFF6B1A);
-  static const Color _orangeDark = Color(0xFFE85B0D);
-  static const Color _orangeSoft = Color(0xFFFFF2EA);
+  static const Color _orange = Color(0xFFC66A3D);
+  static const Color _orangeDark = Color(0xFF8A3F2A);
+  static const Color _orangeSoft = Color(0xFFF2DED1);
 
-  static const Color _background = Color(0xFFF7F8FA);
+  static const Color _background = Color(0xFFF9F5EE);
   static const Color _white = Colors.white;
 
-  static const Color _text = Color(0xFF111418);
-  static const Color _secondary = Color(0xFF68707B);
-  static const Color _muted = Color(0xFF9AA1AA);
+  static const Color _text = Color(0xFF243129);
+  static const Color _secondary = Color(0xFF5B625D);
+  static const Color _muted = Color(0xFF8B867D);
 
-  static const Color _line = Color(0xFFE8EAED);
+  static const Color _line = Color(0xFFD7CEC1);
 
-  static const Color _success = Color(0xFF16A163);
-  static const Color _successSoft = Color(0xFFEAF8F1);
+  static const Color _success = Color(0xFF2F4A3A);
+  static const Color _successSoft = Color(0xFFE7EFE1);
 
-  static const Color _blue = Color(0xFF2563EB);
+  static const Color _blue = Color(0xFF7A8F5A);
 
   // ============================================================
   // LIFECYCLE
@@ -528,8 +528,10 @@ class _PassengerTripScreenState
     final isActive =
         status == 'active' ||
         status == 'ongoing' ||
+        status == 'pickup_started' ||
         status == 'in_transit' ||
-        status == 'picked_up';
+        status == 'picked_up' ||
+        status == 'delivered';
 
     final isArabic =
         Localizations.localeOf(context).languageCode == 'ar';

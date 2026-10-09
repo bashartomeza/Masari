@@ -70,3 +70,10 @@ Application behavior remains frozen. This release changes only the database prov
 ## Startup requirements
 
 Follow `MYSQL_MIGRATION.md` and `README_DEMO_START.md`, then require `npm run demo:preflight` and `npm run demo:smoke` success before judges arrive. The full operational procedure is in `DEMO_RUNBOOK.md`; presenter cues are in `JUDGE_SCRIPT.md`; fallback is in `BACKUP_DEMO.md`.
+
+- Security follow-up: updated the existing fast-uri override to 3.1.8 to address current patched 3.x advisories without a Prisma downgrade.
+
+## CI remediation update
+
+The latest CI pass identified and corrected a backend Admin test-fixture authorization mismatch and a Flutter formatter-only failure caused by missing final newlines. Dependency remediation also pins `fast-uri` at `3.1.8`.
+

@@ -9,9 +9,9 @@ import { createObservationGate, type ObservationState } from "./monitoringState"
 const statuses: MatchStatus[] = ["proposed", "sent_to_driver", "accepted", "rejected", "expired", "invalidated"];
 const kinds: DemandKind[] = ["passenger_only", "merchant_only", "combined"];
 const routeStatuses: DriverRouteStatus[] = ["inactive", "active", "assigned", "on_trip", "completed"];
-const requestStatuses: RequestStatus[] = ["draft", "pending", "matched", "accepted", "picked_up", "in_transit", "delivered", "cancelled"];
-const orderStatuses: MerchantOrderStatus[] = ["draft", "submitted", "batched", "assigned", "in_transit", "completed"];
-const batchStatuses: ParcelBatchStatus[] = ["created", "proposed", "assigned", "picked_up", "in_transit", "delivered"];
+const requestStatuses: RequestStatus[] = ["draft", "pending", "matched", "accepted", "picked_up", "in_transit", "delivered", "completed", "cancelled", "expired"];
+const orderStatuses: MerchantOrderStatus[] = ["draft", "submitted", "batched", "matched", "assigned", "in_transit", "delivered", "completed", "cancelled", "failed", "expired"];
+const batchStatuses: ParcelBatchStatus[] = ["created", "proposed", "assigned", "picked_up", "in_transit", "delivered", "cancelled", "failed", "expired"];
 
 function errorStatus(error: unknown) { return (error as ApiError | undefined)?.status; }
 function isTerminal(error: unknown) { return errorStatus(error) === 401 || errorStatus(error) === 403; }

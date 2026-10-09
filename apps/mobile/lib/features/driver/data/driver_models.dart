@@ -280,7 +280,8 @@ class DriverTrip {
   final DriverMerchantSummary? merchantOrder;
   final DriverParcelBatchSummary? parcelBatch;
 
-  bool get isActive => status != 'completed' && status != 'cancelled';
+  bool get isActive =>
+      status != 'completed' && status != 'cancelled' && status != 'failed';
   String? get nextStatus => switch (status) {
     'accepted' => 'pickup_started',
     'pickup_started' => 'picked_up',

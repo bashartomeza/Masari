@@ -29,10 +29,9 @@ class PassengerRequest {
   final DateTime createdAt;
 
   bool get canCancel =>
-      status == 'pending' || status == 'matched';
+      status == 'pending' || status == 'matched' || status == 'accepted';
 
-  bool get canMatch =>
-      status == 'pending' || status == 'matched';
+  bool get canMatch => status == 'pending';
 
   factory PassengerRequest.fromJson(
     Map<String, dynamic> json,
@@ -103,7 +102,6 @@ class PassengerLocation {
   final double longitude;
 }
 
-
 /// Legacy pickup preset.
 ///
 /// Kept temporarily so other parts of the app that may still
@@ -122,7 +120,6 @@ class PickupPreset {
   final double lat;
   final double lng;
 }
-
 
 /// An active driver availability a passenger could still book.
 ///
@@ -218,7 +215,6 @@ class AvailableDeparture {
   }
 }
 
-
 // ---------------------------------------------------------------------------
 // LEGACY CONSTANTS
 // ---------------------------------------------------------------------------
@@ -252,7 +248,6 @@ const lockedDestinationLat = 31.7054;
 
 const lockedDestinationLng = 35.2024;
 
-
 // ---------------------------------------------------------------------------
 // JSON HELPERS
 // ---------------------------------------------------------------------------
@@ -272,7 +267,6 @@ String _string(
   );
 }
 
-
 double _double(
   Map<String, dynamic> json,
   String key,
@@ -291,7 +285,6 @@ double _double(
     'Missing $key',
   );
 }
-
 
 int _int(
   Map<String, dynamic> json,

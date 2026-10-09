@@ -218,7 +218,7 @@ export function TripsManagementView(props: TripsManagementViewProps) {
     <BentoGrid>
       <Card span={12} padded={false}>
         <CardHeader title={t("tripDirectory")} badge={<StatusBadge tone="info">{number(data.total)}</StatusBadge>} action={<div className="card__actions trips-management__filters">
-          <label className="field field--inline">{t("columnStatus")}<select value={statusFilter} onChange={(event) => props.onStatusFilterChange(event.target.value as TripStatus | "all")}><option value="all">{t("all")}</option>{(["created", "accepted", "pickup_started", "picked_up", "in_transit", "delivered", "completed", "cancelled"] as TripStatus[]).map((value) => <option key={value} value={value}>{status(value)}</option>)}</select></label>
+          <label className="field field--inline">{t("columnStatus")}<select value={statusFilter} onChange={(event) => props.onStatusFilterChange(event.target.value as TripStatus | "all")}><option value="all">{t("all")}</option>{(["created", "accepted", "pickup_started", "picked_up", "in_transit", "delivered", "completed", "cancelled", "failed"] as TripStatus[]).map((value) => <option key={value} value={value}>{status(value)}</option>)}</select></label>
           <label className="field field--inline">{t("tripSource")}<select value={kindFilter} onChange={(event) => props.onKindFilterChange(event.target.value as AdminTripKind | "all")}><option value="all">{t("all")}</option><option value="legacy">{t("tripKind_legacy")}</option><option value="canonical">{t("tripKind_canonical")}</option><option value="shared">{t("tripKind_shared")}</option></select></label>
           <Button size="sm" variant="ghost" icon="refresh" onClick={props.onRefresh}>{t("refreshTrips")}</Button>
         </div>} />

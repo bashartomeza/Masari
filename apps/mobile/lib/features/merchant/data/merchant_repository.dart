@@ -49,6 +49,11 @@ class MerchantRepository {
     return MerchantBatch.fromJson(json['batch'] as Map<String, dynamic>);
   }
 
+  Future<MerchantOrder> cancelOrder(String orderId) async {
+    final json = await apiClient.patchJson('/merchant/orders/$orderId/cancel');
+    return MerchantOrder.fromJson(json['order'] as Map<String, dynamic>);
+  }
+
   Future<MerchantMatch> runMatch(String orderId) async {
     final json = await apiClient.postJson(
       '/matches/run',

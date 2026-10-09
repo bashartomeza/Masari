@@ -4,14 +4,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { scoreDriverRoute } from "../modules/matching.js";
 
 const prismaMock = vi.hoisted(() => ({
+  $transaction: vi.fn(),
   user: { findUnique: vi.fn() },
   authSession: { findUnique: vi.fn(), update: vi.fn() },
   auditEvent: { create: vi.fn() },
-  passengerRequest: { findUnique: vi.fn(), findFirst: vi.fn() },
-  merchantOrder: { findUnique: vi.fn(), findFirst: vi.fn(), update: vi.fn() },
-  driverRoute: { findMany: vi.fn(), findFirst: vi.fn() },
-  match: { create: vi.fn(), findUnique: vi.fn() },
-  parcelBatch: { create: vi.fn() },
+  passengerRequest: { findUnique: vi.fn(), findFirst: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
+  merchantOrder: { findUnique: vi.fn(), findFirst: vi.fn(), findMany: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
+  driverRoute: { findMany: vi.fn(), findFirst: vi.fn(), updateMany: vi.fn() },
+  match: { create: vi.fn(), findUnique: vi.fn(), findFirst: vi.fn(), findMany: vi.fn() },
+  parcelBatch: { create: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
+  parcelBatchOrder: { findMany: vi.fn(), updateMany: vi.fn() },
+  parcel: { count: vi.fn(), updateMany: vi.fn() },
   comparisonRun: { create: vi.fn(), findUnique: vi.fn() }
 }));
 
@@ -48,7 +51,8 @@ const passengerRequest = {
   pickup_lat: "31.550000",
   pickup_lng: "35.100000",
   passenger_count: 1,
-  preferred_time: new Date("2026-07-02T10:00:00.000Z")
+  preferred_time: new Date("2026-07-02T10:00:00.000Z"),
+  status: "pending"
 };
 
 const merchantOrder = {
@@ -124,6 +128,18 @@ describe("matching, batching, comparison", () => {
     });
     prismaMock.authSession.update.mockResolvedValue({});
     prismaMock.auditEvent.create.mockResolvedValue({ id: "audit_1" });
+    prismaMock.match.findFirst.mockResolvedValue(null);
+    prismaMock.match.findMany.mockResolvedValue([]);
+    prismaMock.merchantOrder.findMany.mockResolvedValue([]);
+    prismaMock.merchantOrder.updateMany.mockResolvedValue({ count: 1 });
+    prismaMock.driverRoute.updateMany.mockResolvedValue({ count: 1 });
+    prismaMock.parcelBatchOrder.findMany.mockResolvedValue([]);
+    prismaMock.parcelBatchOrder.updateMany.mockResolvedValue({ count: 1 });
+    prismaMock.parcel.count.mockResolvedValue(0);
+    prismaMock.parcel.updateMany.mockResolvedValue({ count: 1 });
+    prismaMock.passengerRequest.update.mockResolvedValue({});
+    prismaMock.passengerRequest.updateMany.mockResolvedValue({ count: 1 });
+    prismaMock.$transaction.mockImplementation((callback: (tx: typeof prismaMock) => unknown) => callback(prismaMock));
   });
 
   it("route-compatible driver scores higher than nearest wrong-direction driver", () => {
@@ -275,6 +291,95 @@ describe("matching, batching, comparison", () => {
 
     expect(response.body.match.driver_route_id).toBe("route_compatible");
     expect(response.body.scoringBreakdown.finalScore).toEqual(expect.any(Number));
+    expect(prismaMock.passengerRequest.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: "req_1",
+          passenger_id: "passenger_1",
+          status: { in: ["pending", "matched"] }
+        }),
+        data: { status: "matched" }
+      })
+    );
+    expect(prismaMock.match.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          passenger_request_id: "req_1",
+          legacy_demand_key: "passenger:req_1",
+          status: "proposed"
+        })
+      })
+    );
+  });
+
+  it("reserves real driver capacity when a passenger match is created", async () => {
+    prismaMock.passengerRequest.findUnique.mockResolvedValue(passengerRequest);
+    prismaMock.merchantOrder.findUnique.mockResolvedValue(null);
+    prismaMock.driverRoute.findMany.mockResolvedValue([compatibleRoute]);
+    prismaMock.match.create.mockImplementation(({ data }) => ({ id: "match_capacity", ...data, driver_route: compatibleRoute }));
+
+    await request(createApp())
+      .post("/api/v1/matches/run")
+      .set(auth("passenger_1"))
+      .send({ passengerRequestId: "req_1" })
+      .expect(201);
+
+    expect(prismaMock.driverRoute.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        id: "route_compatible",
+        seats_available: { gte: 1 },
+        parcel_capacity_available: { gte: 0 }
+      }),
+      data: expect.objectContaining({ seats_available: { decrement: 1 } })
+    }));
+    expect(prismaMock.match.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ legacy_capacity_held: true })
+    }));
+  });
+
+  it("does not rematch a passenger to a route they already rejected", async () => {
+    prismaMock.passengerRequest.findUnique.mockResolvedValue(passengerRequest);
+    prismaMock.merchantOrder.findUnique.mockResolvedValue(null);
+    prismaMock.match.findMany.mockResolvedValue([{ driver_route_id: "route_compatible" }]);
+    prismaMock.driverRoute.findMany.mockResolvedValue([compatibleRoute]);
+
+    await request(createApp())
+      .post("/api/v1/matches/run")
+      .set(auth("passenger_1"))
+      .send({ passengerRequestId: "req_1" })
+      .expect(404);
+
+    expect(prismaMock.match.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects duplicate active matching for the same passenger request", async () => {
+    prismaMock.passengerRequest.findUnique.mockResolvedValue(passengerRequest);
+    prismaMock.merchantOrder.findUnique.mockResolvedValue(null);
+    prismaMock.driverRoute.findMany.mockResolvedValue([compatibleRoute]);
+    prismaMock.match.findFirst.mockResolvedValue({ id: "existing_match" });
+
+    await request(createApp())
+      .post("/api/v1/matches/run")
+      .set(auth("passenger_1"))
+      .send({ passengerRequestId: "req_1" })
+      .expect(409);
+
+    expect(prismaMock.match.create).not.toHaveBeenCalled();
+  });
+
+  it("does not resurrect a passenger request that was cancelled during matching", async () => {
+    prismaMock.passengerRequest.findUnique.mockResolvedValue(passengerRequest);
+    prismaMock.merchantOrder.findUnique.mockResolvedValue(null);
+    prismaMock.driverRoute.findMany.mockResolvedValue([compatibleRoute]);
+    prismaMock.passengerRequest.updateMany.mockResolvedValue({ count: 0 });
+
+    await request(createApp())
+      .post("/api/v1/matches/run")
+      .set(auth("passenger_1"))
+      .send({ passengerRequestId: "req_1" })
+      .expect(409);
+
+    expect(prismaMock.match.create).not.toHaveBeenCalled();
   });
 
   it("creates the match for the passenger-selected candidate", async () => {
@@ -366,6 +471,51 @@ describe("matching, batching, comparison", () => {
 
     const response = await request(createApp()).get("/api/v1/matches/match_1").set(auth("passenger_1")).expect(200);
     expect(response.body.scoringBreakdown.finalScore).toBe(0.9);
+  });
+
+  it("batches multiple compatible real merchant orders into one persisted batch", async () => {
+    const secondOrder = {
+      ...merchantOrder,
+      id: "order_2",
+      parcels: [
+        { id: "parcel_5", status: "pending" },
+        { id: "parcel_6", status: "pending" }
+      ]
+    };
+    prismaMock.merchantOrder.findUnique.mockResolvedValue(merchantOrder);
+    prismaMock.merchantOrder.findMany.mockResolvedValue([merchantOrder, secondOrder]);
+    prismaMock.parcelBatch.create.mockImplementation(({ data }) => ({
+      id: "batch_multi",
+      status: "created",
+      ...data,
+      members: data.members?.create?.map((member: { merchant_order_id: string }) => ({ merchant_order_id: member.merchant_order_id })) ?? []
+    }));
+
+    const response = await request(createApp())
+      .post("/api/v1/merchant/orders/order_1/batch")
+      .set(auth("merchant_1"))
+      .expect(201);
+
+    expect(response.body.batch.id).toBe("batch_multi");
+    expect(prismaMock.parcelBatch.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        merchant_order_id: "order_1",
+        members: {
+          create: [
+            expect.objectContaining({ merchant_order_id: "order_1", active: true, active_membership_key: "order_1" }),
+            expect.objectContaining({ merchant_order_id: "order_2", active: true, active_membership_key: "order_2" })
+          ]
+        }
+      })
+    }));
+    expect(prismaMock.merchantOrder.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: { in: ["order_1", "order_2"] }, status: "submitted" },
+      data: { status: "batched" }
+    }));
+    expect(prismaMock.parcel.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ order_id: { in: ["order_1", "order_2"] } }),
+      data: expect.objectContaining({ status: "batched", batch_id: "batch_multi" })
+    }));
   });
 
   it("merchant can batch own order into one batch", async () => {

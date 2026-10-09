@@ -5,25 +5,14 @@ import 'semantic_colors.dart';
 
 /// Masari's Material 3 theme.
 ///
-/// Built from design-system.html: warm orange ("Professional Orange") is the
-/// app's dominant brand colour, with navy kept in reserve for the handful of
-/// places the design system requires it regardless — the Tertiary button's
-/// text (`.ms-btn-tertiary`) and the passenger's own chat bubble
-/// (`.bubble-user`), both pinned to `--ms-secondary` in the source file. The
-/// type scale uses IBM Plex Sans Arabic, bundled in `assets/fonts/` so it
-/// renders offline in low-bandwidth areas.
+/// Masari's Material 3 theme.
 ///
-/// [primary]/[primaryContainer] hold the design system's `--ms-primary`
-/// (orange) values, matching the name literally — by product direction this
-/// app leans on orange throughout rather than rationing it to one element per
-/// screen. [secondary]/[secondaryContainer] hold `--ms-secondary` (navy) for
-/// the call sites above. [SemanticColors.action] duplicates the orange under
-/// its own name for call sites that want to read by intent ("this is the
-/// movement colour") rather than by hue.
-///
-/// The scheme is written out explicitly rather than generated from a seed, so
-/// the values match the design system exactly instead of being approximated by
-/// Material's tonal-palette algorithm.
+/// The supplied task UI reference was used as the visual source for the
+/// passenger request/matching/trip flows, driver request/trip flows, and
+/// merchant shipment/batching/tracking flows. Its five anchor colours are
+/// retained exactly while the existing bundled Arabic font is preserved for
+/// offline rendering. Shared Material components stay in one theme so the
+/// task screens do not need a second parallel styling system.
 class AppTheme {
   const AppTheme._();
 
@@ -31,53 +20,51 @@ class AppTheme {
   static const fontFamily = 'IBMPlexSansArabic';
 
   // ---------------------------------------------------------------------------
-  // Brand palette — design-system.html §B.
+  // Masari reference palette — aligned with the supplied task UI reference.
+  // The five anchor colours are the exact swatches from the reference:
+  // #2F4A3A, #7A8F5A, #E6D2B3, #C66A3D, #8A3F2A.
   // ---------------------------------------------------------------------------
 
-  /// Orange — `--ms-primary` / `--ms-orange-600`. The app's dominant brand
-  /// colour; see [SemanticColors.action] for the intent-named alias.
-  static const primary = Color(0xFFE9561B);
+  /// Deep green — primary navigation and main actions.
+  static const primary = Color(0xFF2F4A3A);
   static const onPrimary = Color(0xFFFFFFFF);
-  static const primaryContainer = Color(0xFFFDE0D3); // orange.100
-  static const onPrimaryContainer = Color(0xFF783011); // orange.900
+  static const primaryContainer = Color(0xFFE6D2B3);
+  static const onPrimaryContainer = Color(0xFF2F4A3A);
 
-  /// Navy — `--ms-secondary` / `--ms-navy-600`. Kept for the call sites the
-  /// design system pins to navy regardless of brand emphasis — see the class
-  /// doc.
-  static const secondary = Color(0xFF28408F);
+  /// Olive — secondary controls and active/supporting states.
+  static const secondary = Color(0xFF7A8F5A);
   static const onSecondary = Color(0xFFFFFFFF);
-  static const secondaryContainer = Color(0xFFF4F6FA); // navy.50
-  static const onSecondaryContainer = Color(0xFF172554); // navy.900
+  static const secondaryContainer = Color(0xFFEAF0DD);
+  static const onSecondaryContainer = Color(0xFF40512D);
 
-  /// Teal — `--ms-tertiary`. Merchant and parcel iconography only.
-  static const tertiary = Color(0xFF25687E);
+  /// Terracotta — highlights, progress and delivery emphasis.
+  static const tertiary = Color(0xFFC66A3D);
   static const onTertiary = Color(0xFFFFFFFF);
-  static const tertiaryContainer = Color(0xFFDFF0F6);
-  static const onTertiaryContainer = Color(0xFF124454);
+  static const tertiaryContainer = Color(0xFFF2DED1);
+  static const onTertiaryContainer = Color(0xFF6D3420);
 
-  static const background = Color(0xFFFAFAFA); // neutral.50
-  static const surface = Color(0xFFFAFAFA);
-  static const surfaceDim = Color(0xFFD0D2D8); // neutral.300 — nearest token;
-  // the design system does not name a dedicated "dim" surface.
+  static const background = Color(0xFFF9F5EE);
+  static const surface = Color(0xFFFFFCF8);
+  static const surfaceDim = Color(0xFFD9D0C2);
   static const surfaceContainerLowest = Color(0xFFFFFFFF);
-  static const surfaceContainerLow = Color(0xFFFAFAFA); // neutral.50
-  static const surfaceContainer = Color(0xFFF3F3F4); // neutral.100
-  static const surfaceContainerHigh = Color(0xFFE6E7EA); // neutral.200
-  static const surfaceContainerHighest = Color(0xFFD0D2D8); // neutral.300
+  static const surfaceContainerLow = Color(0xFFF5EFE6);
+  static const surfaceContainer = Color(0xFFEFE6DA);
+  static const surfaceContainerHigh = Color(0xFFE6D2B3);
+  static const surfaceContainerHighest = Color(0xFFD8C2A1);
 
-  static const onSurface = Color(0xFF1C1D21); // neutral.900
-  static const onSurfaceVariant = Color(0xFF4F525F); // neutral.700
-  static const inverseSurface = Color(0xFF1C1D21);
-  static const inverseOnSurface = Color(0xFFFAFAFA);
-  static const inversePrimary = Color(0xFFFE986C); // orange.300, per spec
+  static const onSurface = Color(0xFF243129);
+  static const onSurfaceVariant = Color(0xFF5B625D);
+  static const inverseSurface = Color(0xFF243129);
+  static const inverseOnSurface = Color(0xFFFFFCF8);
+  static const inversePrimary = Color(0xFFB8C7A9);
 
-  static const outline = Color(0xFF898E9F); // neutral.500
-  static const outlineVariant = Color(0xFFE6E7EA); // neutral.200
+  static const outline = Color(0xFF9C968C);
+  static const outlineVariant = Color(0xFFD7CEC1);
 
-  /// Legacy alias. The pre-redesign theme exposed `deepGreen` as the brand
-  /// colour; it now points at [primary] so existing call sites pick up the
-  /// current palette without a sweeping rename. Prefer
-  /// `Theme.of(context).colorScheme.primary` in new code.
+  /// Dark terracotta used for destructive/failure emphasis.
+  static const darkTerracotta = Color(0xFF8A3F2A);
+
+  /// Legacy alias retained for existing call sites.
   static const deepGreen = primary;
 
   static const colorScheme = ColorScheme(
@@ -116,114 +103,92 @@ class AppTheme {
   );
 
   // ---------------------------------------------------------------------------
-  // Type scale — design-system.html §C.1.
-  //
-  // Line heights are expressed as multiples of the font size, computed from
-  // the design system's exact px pairs so they match to the fraction rather
-  // than a rounded decimal. Letter-spacing is always 0 — Arabic is a joined
-  // script and tracking breaks glyph connections (§C, "Not allowed, ever").
-  //
-  // Flutter's fifteen TextTheme slots line up positionally with the design
-  // system's fifteen named steps (display/headline/title/body/label ×
-  // large/medium/small), so each maps 1:1 by name.
+  // Type scale — adapted from the supplied reference's mobile hierarchy.
+  // Arabic text keeps the existing bundled IBM Plex Sans Arabic family so the
+  // app still renders without downloading fonts at runtime.
   // ---------------------------------------------------------------------------
 
   static const textTheme = TextTheme(
-    // display-l 40/52, SemiBold
     displayLarge: TextStyle(
-      fontSize: 40,
-      fontWeight: FontWeight.w600,
-      height: 52 / 40,
+      fontSize: 32,
+      fontWeight: FontWeight.w700,
+      height: 40 / 32,
     ),
-    // display-m 34/46, SemiBold
     displayMedium: TextStyle(
-      fontSize: 34,
-      fontWeight: FontWeight.w600,
-      height: 46 / 34,
-    ),
-    // display-s 28/40, SemiBold
-    displaySmall: TextStyle(
       fontSize: 28,
-      fontWeight: FontWeight.w600,
-      height: 40 / 28,
+      fontWeight: FontWeight.w700,
+      height: 36 / 28,
     ),
-    // headline-l 24/34, SemiBold
-    headlineLarge: TextStyle(
+    displaySmall: TextStyle(
       fontSize: 24,
-      fontWeight: FontWeight.w600,
-      height: 34 / 24,
+      fontWeight: FontWeight.w700,
+      height: 32 / 24,
     ),
-    // headline-m 20/30, SemiBold
+    headlineLarge: TextStyle(
+      fontSize: 22,
+      fontWeight: FontWeight.w600,
+      height: 30 / 22,
+    ),
     headlineMedium: TextStyle(
       fontSize: 20,
       fontWeight: FontWeight.w600,
-      height: 30 / 20,
+      height: 28 / 20,
     ),
-    // headline-s 18/28, Medium
     headlineSmall: TextStyle(
       fontSize: 18,
-      fontWeight: FontWeight.w500,
+      fontWeight: FontWeight.w600,
       height: 28 / 18,
     ),
-    // title-l 17/26, Medium
     titleLarge: TextStyle(
       fontSize: 17,
-      fontWeight: FontWeight.w500,
+      fontWeight: FontWeight.w600,
       height: 26 / 17,
     ),
-    // title-m 15/24, Medium
     titleMedium: TextStyle(
       fontSize: 15,
-      fontWeight: FontWeight.w500,
+      fontWeight: FontWeight.w600,
       height: 24 / 15,
     ),
-    // title-s 14/22, Medium
     titleSmall: TextStyle(
       fontSize: 14,
-      fontWeight: FontWeight.w500,
+      fontWeight: FontWeight.w600,
       height: 22 / 14,
     ),
-    // body-l 16/26, Regular
     bodyLarge: TextStyle(
+      fontSize: 18,
+      fontWeight: FontWeight.w400,
+      height: 26 / 18,
+    ),
+    bodyMedium: TextStyle(
       fontSize: 16,
       fontWeight: FontWeight.w400,
-      height: 26 / 16,
+      height: 24 / 16,
     ),
-    // body-m 14/24, Regular — the most-used slot
-    bodyMedium: TextStyle(
-      fontSize: 14,
-      fontWeight: FontWeight.w400,
-      height: 24 / 14,
-    ),
-    // body-s 13/22, Regular
     bodySmall: TextStyle(
-      fontSize: 13,
+      fontSize: 12,
       fontWeight: FontWeight.w400,
-      height: 22 / 13,
+      height: 18 / 12,
     ),
-    // label-l 15/22, Bold — button labels
     labelLarge: TextStyle(
-      fontSize: 15,
-      fontWeight: FontWeight.w700,
-      height: 22 / 15,
+      fontSize: 14,
+      fontWeight: FontWeight.w600,
+      height: 20 / 14,
     ),
-    // label-m 13/20, Medium — chips
     labelMedium: TextStyle(
       fontSize: 13,
       fontWeight: FontWeight.w500,
       height: 20 / 13,
     ),
-    // label-s 11/18, Medium
     labelSmall: TextStyle(
       fontSize: 11,
       fontWeight: FontWeight.w500,
-      height: 18 / 11,
+      height: 16 / 11,
     ),
   );
 
   static ThemeData get light {
     final buttonShape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(AppTokens.radiusLarge),
+      borderRadius: BorderRadius.circular(AppTokens.radiusDefault),
     );
 
     return ThemeData(
@@ -245,9 +210,8 @@ class AppTheme {
         ),
       ),
 
-      // `.ms-topbar` is unstyled chrome — a plain surface with default text,
-      // never a brand colour, so the app bar never competes with the
-      // screen's one orange action (§A, principle 1: "no orange as chrome").
+      // App chrome stays quiet in the reference: a warm surface with a thin
+      // divider so the page action remains the visual focus.
       appBarTheme: const AppBarTheme(
         backgroundColor: background,
         foregroundColor: onSurface,
@@ -262,9 +226,7 @@ class AppTheme {
         ),
       ),
 
-      // §G.1 buttons — `lg` radius, `label-l` (Bold) text. This styles plain
-      // unstyled `FilledButton`/`OutlinedButton`/`TextButton` calls; the
-      // dedicated `MasariButton` widget sets its own colours per variant.
+      // Shared buttons use the compact 8px radius visible in the reference.
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           backgroundColor: primary,
@@ -279,9 +241,8 @@ class AppTheme {
         ),
       ),
 
-      // §G.1 has no bordered variant; an outlined button reads as Tertiary
-      // (transparent, navy text) with its border kept as the one visual cue
-      // that distinguishes it from a text button.
+      // Outlined controls use the olive secondary colour to stay distinct from
+      // the green primary CTA.
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: secondary,
@@ -296,7 +257,7 @@ class AppTheme {
         ),
       ),
 
-      // `.ms-btn-tertiary` — transparent, navy text.
+      // Low-emphasis text actions use the olive secondary colour.
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: secondary,
@@ -310,17 +271,14 @@ class AppTheme {
         ),
       ),
 
-      // A floating action button is inherently the one action available on
-      // its screen, so it takes the literal orange rather than the
-      // structural navy `primary`.
+      // A floating action button uses the same primary action treatment.
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
         backgroundColor: SemanticColors.action,
         foregroundColor: SemanticColors.onAction,
       ),
 
-      // §G.3 text field — `sm` radius, orange focus ring.
-      // Arabic placeholder text aligns to the start of the reading direction;
-      // Flutter handles that automatically under RTL.
+      // Reference fields use a light surface, thin outline and a terracotta
+      // focus accent. Arabic alignment remains controlled by ambient RTL.
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: surfaceContainerLowest,
@@ -368,14 +326,14 @@ class AppTheme {
         ),
       ),
 
-      // Level 3 — pulls focus from the map behind it. §G.18 sheet — `lg`
-      // radius on the top corners.
+      // Level 3 — pulls focus from the map behind it. Reference sheets use a
+      // compact 12px top radius rather than a pill-like corner.
       bottomSheetTheme: const BottomSheetThemeData(
-        backgroundColor: surfaceContainerHigh,
+        backgroundColor: surfaceContainerLowest,
         elevation: AppTokens.elevationOverlay,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(
-            top: Radius.circular(AppTokens.radiusLarge),
+            top: Radius.circular(AppTokens.radiusMedium),
           ),
         ),
         showDragHandle: true,
@@ -393,9 +351,8 @@ class AppTheme {
       ),
 
       // Labels are mandatory: icon-only navigation is ambiguous in Arabic.
-      // §G phone-frame bottom nav — the active tab, and the pill behind its
-      // icon, both take the orange the design system explicitly gives them
-      // (`.ms-nav-item.active` and `.ms-nav-item.active .ms-nav-dot`).
+      // The active item uses the light beige/olive treatment from the
+      // reference.
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: surfaceContainerLowest,
         indicatorColor: primaryContainer,
@@ -426,7 +383,7 @@ class AppTheme {
         space: AppTokens.spaceMedium,
       ),
 
-      // §G.20 toast — `sm` radius, inverse surface.
+      // Toasts remain compact and quiet.
       snackBarTheme: SnackBarThemeData(
         backgroundColor: inverseSurface,
         contentTextStyle: const TextStyle(
@@ -439,9 +396,8 @@ class AppTheme {
         behavior: SnackBarBehavior.floating,
       ),
 
-      // A passive waiting state, not the screen's one actionable/in-motion
-      // element, so it stays off orange regardless of the app's general
-      // orange emphasis.
+      // Waiting is deliberately subdued; action colour is reserved for the
+      // next thing the user can actually do.
       progressIndicatorTheme: const ProgressIndicatorThemeData(
         color: secondary,
         linearTrackColor: surfaceContainerHigh,

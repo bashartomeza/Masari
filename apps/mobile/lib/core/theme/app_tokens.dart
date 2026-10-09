@@ -1,8 +1,7 @@
 /// Masari design tokens.
 ///
-/// Values come from design-system.html §D (space, grid, radius, elevation):
-/// an 8-point grid, a four-step radius scale, and touch targets sized for
-/// one-handed mobile use.
+/// Shared mobile layout tokens used by the supplied Masari reference flows:
+/// spacing, radii, elevation, and touch targets.
 ///
 /// [spaceSmall], [spaceMedium] and [spaceLarge] predate the design system but
 /// already match its `sm`/`md`/`lg` steps, so they are kept as-is — the wider
@@ -62,6 +61,9 @@ class AppTokens {
 
   /// 20px — `lg`. Buttons and the top corners of sheets.
   static const radiusLarge = 20.0;
+
+  /// 8px — action controls in the supplied reference.
+  static const radiusAction = 8.0;
 
   /// Fully round — status chips and badges, which must stay visually distinct
   /// from actionable buttons.

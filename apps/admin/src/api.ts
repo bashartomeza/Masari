@@ -470,7 +470,7 @@ export type Comparison = {
 export type Trip = { id: string; status: string; driver_route_id: string; passenger_request_id?: string; merchant_order_id?: string; created_at?: string };
 export type LocationEvent = { id: string; lat: string; lng: string; source: string; sequence: number; recorded_at: string };
 
-export type TripStatus = "created" | "accepted" | "pickup_started" | "picked_up" | "in_transit" | "delivered" | "completed" | "cancelled";
+export type TripStatus = "created" | "accepted" | "pickup_started" | "picked_up" | "in_transit" | "delivered" | "completed" | "cancelled" | "failed";
 export type AdminForwardTripStatus = "pickup_started" | "picked_up" | "in_transit" | "delivered" | "completed";
 export type AdminTripKind = "legacy" | "canonical" | "shared";
 export type AdminTripPerson = { id: string; name: string; phone: string; demo_account: boolean };

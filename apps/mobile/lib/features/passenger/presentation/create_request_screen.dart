@@ -3,11 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:masari_mobile/l10n/app_localizations.dart';
 
+import '../../../core/api/api_error.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/language_switch.dart';
 import '../../../core/widgets/masari_card.dart';
 import '../../../core/widgets/masari_map.dart';
 import '../../canonical_routes/domain/canonical_route_models.dart';
+import '../../matching/data/matching_repository.dart';
 import '../data/passenger_models.dart';
 import '../data/passenger_repository.dart';
 import 'location_picker_screen.dart';
@@ -391,10 +393,24 @@ class _CreateRequestScreenState
             passengerCount: _count,
           );
 
-      if (mounted) {
-        context.go(
-          '/passenger/request/${created.id}',
-        );
+      try {
+        final match = await ref
+            .read(matchingRepositoryProvider)
+            .runForPassengerRequest(created.id);
+        if (mounted) {
+          context.go('/passenger/match/${match.id}');
+        }
+      } catch (error) {
+        // The request is already persisted. A matching failure (including no
+        // compatible driver) must never discard it or encourage a duplicate
+        // submission; the detail screen can retry matching against real data.
+        if (mounted) {
+          final l10n = AppLocalizations.of(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(_matchingCreateErrorLabel(l10n, error))),
+          );
+          context.go('/passenger/request/${created.id}');
+        }
       }
     } catch (_) {
       if (mounted) {
@@ -423,6 +439,15 @@ class _CreateRequestScreenState
     return '${location.latitude.toStringAsFixed(6)}, '
         '${location.longitude.toStringAsFixed(6)}';
   }
+}
+
+String _matchingCreateErrorLabel(AppLocalizations l10n, Object error) {
+  if (error is! ApiException) return l10n.requestFailed;
+  if (error.type == ApiErrorType.network) return l10n.networkUnavailable;
+  if (error.type == ApiErrorType.timeout) return l10n.requestTimedOut;
+  return error.message == 'no_compatible_driver_route'
+      ? l10n.noCompatibleDriverFound
+      : l10n.requestFailed;
 }
 
 // ==========================================================================

@@ -7,13 +7,14 @@ const prismaMock = vi.hoisted(() => ({
   user: { findUnique: vi.fn() },
   authSession: { findUnique: vi.fn(), update: vi.fn() },
   auditEvent: { create: vi.fn() },
-  match: { findUnique: vi.fn(), update: vi.fn() },
+  match: { findUnique: vi.fn(), update: vi.fn(), updateMany: vi.fn(), findMany: vi.fn() },
   trip: { findFirst: vi.fn(), create: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
-  driverRoute: { update: vi.fn() },
-  passengerRequest: { update: vi.fn() },
-  merchantOrder: { update: vi.fn() },
-  parcelBatch: { update: vi.fn() },
-  parcel: { updateMany: vi.fn() },
+  driverRoute: { update: vi.fn(), updateMany: vi.fn() },
+  passengerRequest: { findUnique: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
+  merchantOrder: { update: vi.fn(), updateMany: vi.fn() },
+  parcelBatch: { findUnique: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
+  parcelBatchOrder: { findMany: vi.fn(), updateMany: vi.fn() },
+  parcel: { count: vi.fn(), updateMany: vi.fn() },
   locationEvent: { findFirst: vi.fn(), create: vi.fn(), deleteMany: vi.fn() }
 }));
 
@@ -98,6 +99,17 @@ describe("trip acceptance, status, and tracking", () => {
     });
     prismaMock.authSession.update.mockResolvedValue({});
     prismaMock.auditEvent.create.mockResolvedValue({ id: "audit_1" });
+    prismaMock.match.updateMany.mockResolvedValue({ count: 1 });
+    prismaMock.match.findMany.mockResolvedValue([]);
+    prismaMock.trip.findFirst.mockResolvedValue(null);
+    prismaMock.passengerRequest.findUnique.mockResolvedValue({ passenger_count: 1 });
+    prismaMock.merchantOrder.updateMany.mockResolvedValue({ count: 1 });
+    prismaMock.parcelBatch.findUnique.mockResolvedValue({ id: "batch_1", status: "proposed" });
+    prismaMock.parcelBatchOrder.findMany.mockResolvedValue([{ merchant_order_id: "order_1" }]);
+    prismaMock.parcelBatchOrder.updateMany.mockResolvedValue({ count: 1 });
+    prismaMock.parcel.count.mockResolvedValue(1);
+    prismaMock.driverRoute.updateMany.mockResolvedValue({ count: 1 });
+    prismaMock.passengerRequest.updateMany.mockResolvedValue({ count: 1 });
     prismaMock.trip.updateMany.mockResolvedValue({ count: 1 });
     prismaMock.$transaction.mockImplementation((callback: (tx: typeof prismaMock) => unknown) => callback(prismaMock));
   });
@@ -112,6 +124,69 @@ describe("trip acceptance, status, and tracking", () => {
 
     expect(response.body.trip.status).toBe("accepted");
     expect(prismaMock.trip.create).toHaveBeenCalledOnce();
+    expect(prismaMock.trip.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          passenger_request_id: "request_1",
+          legacy_assignment_key: "passenger:request_1",
+          status: "accepted"
+        })
+      })
+    );
+    expect(prismaMock.driverRoute.updateMany).toHaveBeenCalledWith({
+      where: { id: "route_1", status: "active" },
+      data: { status: "assigned" }
+    });
+    expect(prismaMock.passengerRequest.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { status: "accepted" } })
+    );
+  });
+
+  it("prevents a duplicate trip for a passenger request even when an older trip used another route", async () => {
+    prismaMock.match.findUnique.mockResolvedValue(baseMatch);
+    prismaMock.trip.findFirst.mockResolvedValue({
+      id: "legacy_trip",
+      passenger_request_id: "request_1",
+      driver_route_id: "old_route",
+      status: "completed"
+    });
+
+    await request(createApp())
+      .post("/api/v1/matches/match_1/accept")
+      .set(auth("driver_1"))
+      .expect(409);
+
+    expect(prismaMock.trip.create).not.toHaveBeenCalled();
+  });
+
+  it("prevents a second concurrent accept after the match claim is lost", async () => {
+    prismaMock.match.findUnique.mockResolvedValue(baseMatch);
+    prismaMock.trip.findFirst.mockResolvedValue(null);
+    prismaMock.match.updateMany.mockResolvedValue({ count: 0 });
+
+    await request(createApp())
+      .post("/api/v1/matches/match_1/accept")
+      .set(auth("driver_1"))
+      .expect(409);
+
+    expect(prismaMock.trip.create).not.toHaveBeenCalled();
+  });
+
+  it("accepting a legacy match claims the reserved capacity exactly once", async () => {
+    prismaMock.match.findUnique.mockResolvedValue({ ...baseMatch, legacy_capacity_held: false });
+    prismaMock.trip.findFirst.mockResolvedValue(null);
+    prismaMock.trip.create.mockResolvedValue({ id: "trip_1", status: "accepted" });
+    prismaMock.match.update.mockResolvedValue({ ...baseMatch, status: "accepted", legacy_capacity_held: true });
+
+    await request(createApp()).post("/api/v1/matches/match_1/accept").set(auth("driver_1")).expect(201);
+
+    expect(prismaMock.driverRoute.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ id: "route_1", seats_available: { gte: 1 }, parcel_capacity_available: { gte: 1 } }),
+      data: expect.objectContaining({ seats_available: { decrement: 1 }, parcel_capacity_available: { decrement: 1 } })
+    }));
+    expect(prismaMock.match.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ status: "accepted", legacy_capacity_held: true })
+    }));
   });
 
   it("driver cannot accept another driver route match", async () => {
@@ -129,6 +204,20 @@ describe("trip acceptance, status, and tracking", () => {
     await request(createApp()).post("/api/v1/matches/match_1/accept").set(auth("admin_1")).expect(201);
   });
 
+  it("driver cannot reject another driver's match", async () => {
+    prismaMock.match.findUnique.mockResolvedValue({
+      ...baseMatch,
+      driver_route: { ...baseMatch.driver_route, driver: { user_id: "driver_2" } }
+    });
+
+    await request(createApp())
+      .post("/api/v1/matches/match_1/reject")
+      .set(auth("driver_1"))
+      .expect(403);
+
+    expect(prismaMock.match.updateMany).not.toHaveBeenCalled();
+  });
+
   it("rejecting a match does not create a trip", async () => {
     prismaMock.match.findUnique.mockResolvedValue(baseMatch);
     prismaMock.match.update.mockResolvedValue({ ...baseMatch, status: "rejected" });
@@ -137,6 +226,10 @@ describe("trip acceptance, status, and tracking", () => {
 
     expect(response.body.match.status).toBe("rejected");
     expect(prismaMock.trip.create).not.toHaveBeenCalled();
+    expect(prismaMock.passengerRequest.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: "request_1", status: "matched" },
+      data: { status: "pending" }
+    }));
   });
 
   it("legacy accept and reject never process a canonical match", async () => {
@@ -151,6 +244,7 @@ describe("trip acceptance, status, and tracking", () => {
     await request(createApp()).post("/api/v1/matches/match_1/reject").set(auth("driver_1")).expect(409);
     expect(prismaMock.trip.create).not.toHaveBeenCalled();
     expect(prismaMock.match.update).not.toHaveBeenCalled();
+    expect(prismaMock.match.updateMany).not.toHaveBeenCalled();
   });
 
   it("already accepted or rejected match cannot be accepted", async () => {
@@ -232,6 +326,114 @@ describe("trip acceptance, status, and tracking", () => {
     prismaMock.trip.findUnique.mockResolvedValue(baseTrip("accepted"));
 
     await request(createApp()).post("/api/v1/trips/trip_1/status").set(auth("driver_1")).send({ status: "delivered" }).expect(409);
+  });
+
+  it("pickup start records the actual start time and marks the route on trip", async () => {
+    prismaMock.trip.findUnique.mockResolvedValue(baseTrip("accepted"));
+    prismaMock.trip.update.mockResolvedValue(baseTrip("pickup_started"));
+
+    await request(createApp())
+      .post("/api/v1/trips/trip_1/status")
+      .set(auth("driver_1"))
+      .send({ status: "pickup_started" })
+      .expect(200);
+
+    expect(prismaMock.trip.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "pickup_started", started_at: expect.any(Date) })
+      })
+    );
+    expect(prismaMock.driverRoute.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { status: "on_trip" } })
+    );
+  });
+
+  it("driver rejection releases the held legacy capacity", async () => {
+    prismaMock.match.findUnique.mockResolvedValue({ ...baseMatch, legacy_capacity_held: true });
+    prismaMock.match.update.mockResolvedValue({ ...baseMatch, status: "rejected" });
+
+    await request(createApp()).post("/api/v1/matches/match_1/reject").set(auth("driver_1")).expect(200);
+
+    expect(prismaMock.driverRoute.update).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: "route_1" },
+      data: expect.objectContaining({ seats_available: { increment: 1 } })
+    }));
+  });
+
+  it("trip cancellation persists to the passenger request and closes the route", async () => {
+    prismaMock.trip.findUnique.mockResolvedValue(baseTrip("accepted"));
+    prismaMock.trip.update.mockResolvedValue(baseTrip("cancelled"));
+
+    await request(createApp())
+      .post("/api/v1/trips/trip_1/status")
+      .set(auth("driver_1"))
+      .send({ status: "cancelled" })
+      .expect(200);
+
+    expect(prismaMock.passengerRequest.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { status: "cancelled" } })
+    );
+    expect(prismaMock.driverRoute.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: "completed" }) })
+    );
+  });
+
+  it("trip cancellation after start releases legacy capacity and closes the route", async () => {
+    prismaMock.trip.findUnique.mockResolvedValue(baseTrip("in_transit"));
+    prismaMock.trip.update.mockResolvedValue(baseTrip("cancelled"));
+
+    await request(createApp())
+      .post("/api/v1/trips/trip_1/status")
+      .set(auth("driver_1"))
+      .send({ status: "cancelled" })
+      .expect(200);
+
+    expect(prismaMock.driverRoute.update).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        seats_available: { increment: 1 },
+        parcel_capacity_available: { increment: 1 },
+        status: "active"
+      })
+    }));
+    expect(prismaMock.passengerRequest.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { status: "cancelled" } })
+    );
+    expect(prismaMock.driverRoute.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: "completed" }) })
+    );
+  });
+
+  it("failed delivery is terminal and synchronizes merchant entities", async () => {
+    prismaMock.trip.findUnique.mockResolvedValue(baseTrip("in_transit"));
+    prismaMock.trip.update.mockResolvedValue(baseTrip("failed"));
+
+    await request(createApp())
+      .post("/api/v1/trips/trip_1/status")
+      .set(auth("driver_1"))
+      .send({ status: "failed" })
+      .expect(200);
+
+    expect(prismaMock.driverRoute.update).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        seats_available: { increment: 1 },
+        parcel_capacity_available: { increment: 1 },
+        status: "active"
+      })
+    }));
+    expect(prismaMock.passengerRequest.update).toHaveBeenCalledWith(expect.objectContaining({ data: { status: "cancelled" } }));
+    expect(prismaMock.parcelBatch.update).toHaveBeenCalledWith(expect.objectContaining({ data: { status: "failed" } }));
+    expect(prismaMock.parcel.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: { status: "failed" } }));
+    expect(prismaMock.merchantOrder.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: { status: "failed" } }));
+  });
+
+  it("completed is persisted to the passenger request and closes the route", async () => {
+    prismaMock.trip.findUnique.mockResolvedValue(baseTrip("delivered"));
+    prismaMock.trip.update.mockResolvedValue(baseTrip("completed"));
+
+    await request(createApp()).post("/api/v1/trips/trip_1/status").set(auth("driver_1")).send({ status: "completed" }).expect(200);
+
+    expect(prismaMock.passengerRequest.update).toHaveBeenCalledWith(expect.objectContaining({ data: { status: "completed" } }));
+    expect(prismaMock.driverRoute.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: "completed" }) }));
   });
 
   it("picked_up updates related request, batch, and parcels", async () => {

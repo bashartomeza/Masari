@@ -151,6 +151,8 @@ class MerchantOrder {
   final List<MerchantBatch> batches;
 
   bool get canBatch => status == 'submitted' && batches.isEmpty;
+  bool get canCancel =>
+      const {'submitted', 'batched', 'matched'}.contains(status);
   MerchantBatch? get latestBatch => batches.isEmpty ? null : batches.first;
 
   factory MerchantOrder.fromJson(Map<String, dynamic> json) {
@@ -271,7 +273,8 @@ class MerchantTrip {
   final MerchantOrder order;
   final MerchantBatch? batch;
 
-  bool get isActive => status != 'completed' && status != 'cancelled';
+  bool get isActive =>
+      status != 'completed' && status != 'cancelled' && status != 'failed';
 
   factory MerchantTrip.fromJson(Map<String, dynamic> json) {
     final orderJson = json['merchant_order'];
