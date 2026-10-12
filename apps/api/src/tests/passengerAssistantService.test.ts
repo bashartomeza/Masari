@@ -17,6 +17,25 @@ const environment = {
   ASSISTANT_PROVIDER: "xai"
 };
 
+it.each(["ar", "en"] as const)("asks for a new time when the provider returns a past departure (%s)", async (locale) => {
+  const service = createPassengerAssistantService(createConfig(environment), {
+    contextLoader: async () => ({ passenger_requests: [] }),
+    now: () => new Date("2026-10-12T14:00:00Z"),
+    fetchImpl: async () => new Response(JSON.stringify({ output_text: JSON.stringify({
+      status: "request_review", message: "Review your ride", suggestions: [],
+      request: { pickup_key: "bab_al_zawiya", pickup_label: "Bab Al-Zawiya",
+        destination_key: "bethlehem", destination_label: "Bethlehem Center",
+        preferred_time: "2026-10-12T15:00:00+03:00", passenger_count: 1 }
+    }) }), { status: 200 })
+  });
+  const reply = await service.answer({ passengerId: "passenger_1", locale,
+    message: "Find me a ride from Bab Al-Zawiya to Bethlehem at 3 PM for one passenger", history: [] });
+  expect(reply.status).toBe("clarification");
+  expect(reply.message).toContain(locale === "ar" ? "الوقت المطلوب مضى" : "already passed");
+  expect(reply.suggestions).toEqual([locale === "ar" ? "غداً بنفس الوقت" : "Tomorrow at the same time"]);
+  expect(reply.request).toBeUndefined();
+});
+
 describe("xAI passenger assistant service", () => {
   it("sends bounded authoritative context to Grok and parses structured output", async () => {
     let requestUrl: string | URL | Request | undefined;

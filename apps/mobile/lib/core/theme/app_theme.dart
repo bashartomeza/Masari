@@ -26,9 +26,9 @@ class AppTheme {
   // ---------------------------------------------------------------------------
 
   /// Deep green — primary navigation and main actions.
-  static const primary = Color(0xFF2F4A3A);
+  static const primary = Color(0xFF293D30);
   static const onPrimary = Color(0xFFFFFFFF);
-  static const primaryContainer = Color(0xFFE6D2B3);
+  static const primaryContainer = Color(0xFFF0DDBB);
   static const onPrimaryContainer = Color(0xFF2F4A3A);
 
   /// Olive — secondary controls and active/supporting states.
@@ -38,13 +38,13 @@ class AppTheme {
   static const onSecondaryContainer = Color(0xFF40512D);
 
   /// Terracotta — highlights, progress and delivery emphasis.
-  static const tertiary = Color(0xFFC66A3D);
+  static const tertiary = Color(0xFFC45D30);
   static const onTertiary = Color(0xFFFFFFFF);
   static const tertiaryContainer = Color(0xFFF2DED1);
   static const onTertiaryContainer = Color(0xFF6D3420);
 
-  static const background = Color(0xFFF9F5EE);
-  static const surface = Color(0xFFFFFCF8);
+  static const background = Color(0xFFF7F4EA);
+  static const surface = Color(0xFFFFFEFA);
   static const surfaceDim = Color(0xFFD9D0C2);
   static const surfaceContainerLowest = Color(0xFFFFFFFF);
   static const surfaceContainerLow = Color(0xFFF5EFE6);
@@ -59,7 +59,7 @@ class AppTheme {
   static const inversePrimary = Color(0xFFB8C7A9);
 
   static const outline = Color(0xFF9C968C);
-  static const outlineVariant = Color(0xFFD7CEC1);
+  static const outlineVariant = Color(0xFFE3E1D7);
 
   /// Dark terracotta used for destructive/failure emphasis.
   static const darkTerracotta = Color(0xFF8A3F2A);
@@ -155,14 +155,14 @@ class AppTheme {
       height: 22 / 14,
     ),
     bodyLarge: TextStyle(
-      fontSize: 18,
-      fontWeight: FontWeight.w400,
-      height: 26 / 18,
-    ),
-    bodyMedium: TextStyle(
       fontSize: 16,
       fontWeight: FontWeight.w400,
-      height: 24 / 16,
+      height: 1.6,
+    ),
+    bodyMedium: TextStyle(
+      fontSize: 14,
+      fontWeight: FontWeight.w400,
+      height: 1.6,
     ),
     bodySmall: TextStyle(
       fontSize: 12,
@@ -229,7 +229,7 @@ class AppTheme {
       // Shared buttons use the compact 8px radius visible in the reference.
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: primary,
+          backgroundColor: tertiary,
           foregroundColor: onPrimary,
           minimumSize: const Size.fromHeight(AppTokens.buttonHeight),
           shape: buttonShape,

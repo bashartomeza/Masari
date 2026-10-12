@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_error.dart';
 import '../data/passenger_assistant_repository.dart';
 import '../domain/passenger_assistant_models.dart';
+import '../data/assistant_conversation_storage.dart';
+import '../../auth/application/auth_controller.dart';
 
 final passengerAssistantControllerProvider =
     AsyncNotifierProvider<
@@ -12,12 +14,25 @@ final passengerAssistantControllerProvider =
 
 class PassengerAssistantController
     extends AsyncNotifier<PassengerAssistantState> {
+  Future<void> _saving = Future.value();
   @override
   Future<PassengerAssistantState> build() async {
-    // The asynchronous boundary gives the screen a deterministic initial
-    // loading state without inventing conversation content.
-    await Future<void>.value();
-    return const PassengerAssistantState();
+    final userId = ref.watch(authControllerProvider.select((value) => value.value?.user?.id));
+    final storage = ref.read(assistantConversationStorageProvider);
+    final stopSaving = listenSelf((previous, next) {
+      final current = next.value;
+      if (userId == null || current == null || current.messages.isEmpty) return;
+      // Preserve write order so a slow older save cannot replace a newer reply.
+      _saving = _saving.then((_) => storage.save(userId, current)).catchError((Object _) {});
+    });
+    ref.onDispose(stopSaving);
+    if (userId == null) return const PassengerAssistantState();
+    await _saving;
+    try {
+      return await storage.read(userId);
+    } catch (_) {
+      return const PassengerAssistantState();
+    }
   }
 
   Future<void> submit(String query, {required String locale}) async {
