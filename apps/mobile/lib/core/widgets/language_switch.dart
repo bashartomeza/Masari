@@ -10,7 +10,8 @@ class ShellLanguageControl extends InheritedWidget {
   const ShellLanguageControl({required super.child, super.key});
 
   static bool isProvided(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<ShellLanguageControl>() != null;
+      context.dependOnInheritedWidgetOfExactType<ShellLanguageControl>() !=
+      null;
 
   @override
   bool updateShouldNotify(ShellLanguageControl oldWidget) => false;

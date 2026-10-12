@@ -58,9 +58,10 @@ const passengerRequest = {
 const merchantOrder = {
   id: "order_1",
   merchant_id: "merchant_1",
+  pickup_lat: "31.550000", pickup_lng: "35.100000",
   status: "submitted",
   parcels: Array.from({ length: 5 }, (_, index) => ({ id: `parcel_${index}`, status: "pending" })),
-  parcel_batches: []
+  parcel_batches: [], batch_members: []
 };
 
 const compatibleRoute = {
@@ -432,6 +433,8 @@ describe("matching, batching, comparison", () => {
   });
 
   it("combined matching links the merchant's persisted parcel batch", async () => {
+    prismaMock.parcelBatchOrder.findMany.mockResolvedValue([{ merchant_order_id: "order_1" }]);
+    prismaMock.parcel.count.mockResolvedValue(5);
     prismaMock.passengerRequest.findUnique.mockResolvedValue(passengerRequest);
     prismaMock.merchantOrder.findUnique.mockResolvedValue({
       ...merchantOrder,

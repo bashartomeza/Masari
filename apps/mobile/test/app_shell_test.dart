@@ -420,7 +420,7 @@ void main() {
   testWidgets('English switch uses LTR and persists', (tester) async {
     await _pumpApp(tester);
 
-    await tester.tap(find.text('English'));
+    await tester.tap(find.byTooltip('English'));
     await tester.pumpAndSettle();
 
     expect(find.text('Masari'), findsOneWidget);
@@ -523,7 +523,10 @@ void main() {
     );
 
     expect(find.byKey(const ValueKey('passengerHome')), findsOneWidget);
-    expect(find.textContaining('Demo Passenger'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('openPassengerAssistant')),
+      findsOneWidget,
+    );
   });
 
   testWidgets(
@@ -626,7 +629,7 @@ void main() {
       handler: _passengerHandler,
     );
 
-    expect(find.textContaining('Demo Passenger'), findsOneWidget);
+    expect(find.byKey(const ValueKey('passengerHome')), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('logoutButton')));
     await tester.pumpAndSettle();
     expect(find.text('Confirm logout'), findsOneWidget);
@@ -634,7 +637,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Sign in'), findsWidgets);
-    expect(find.text('Arabic'), findsOneWidget);
+    expect(find.byTooltip('Arabic'), findsOneWidget);
   });
 
   testWidgets('shared session screen is Arabic RTL and hides sensitive IDs', (

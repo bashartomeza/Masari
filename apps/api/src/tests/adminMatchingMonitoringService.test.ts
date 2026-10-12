@@ -123,7 +123,7 @@ describe("admin matching monitoring service", () => {
     expect(result.data).toEqual({
       range, pending_passenger_requests: 4, submitted_merchant_orders: 5,
       match_results_by_status: { proposed: 0, sent_to_driver: 0, accepted: 2, rejected: 0, expired: 0, invalidated: 0 },
-      batches_by_status: { created: 1, proposed: 9, assigned: 2, picked_up: 3, in_transit: 4, delivered: 0 },
+      batches_by_status: { created: 1, proposed: 9, assigned: 2, picked_up: 3, in_transit: 4, delivered: 0, cancelled: 0, failed: 0, expired: 0 },
       active_batches: 10,
       capabilities: { canonical_monitoring: "unavailable", failed_attempt_history: "not_recorded", completed_batches: "not_supported" }
     });

@@ -13,11 +13,11 @@ const lockfile = JSON.parse(readFileSync(resolve(root, "package-lock.json"), "ut
 test("security remediation keeps vulnerable dependency floors fixed", () => {
   assert.deepEqual(packageJson.overrides, {
     "@prisma/adapter-mariadb": {
-      mariadb: "3.4.7"
+      mariadb: "3.5.4"
     },
     "deepmerge-ts": "8.0.1",
     "fast-uri": "3.1.8",
-    mariadb: "3.4.7",
+    mariadb: "3.5.4",
     mysql2: "3.23.1",
     prisma: {
       mysql2: "3.23.1"
@@ -30,7 +30,7 @@ test("security remediation keeps vulnerable dependency floors fixed", () => {
   const expected = {
     "node_modules/deepmerge-ts": "8.0.1",
     "node_modules/fast-uri": "3.1.8",
-    "node_modules/mariadb": "3.4.7",
+    "node_modules/mariadb": "3.5.4",
     "node_modules/mysql2": "3.23.1",
     "node_modules/qs": "6.16.0",
     "node_modules/vitest": "4.1.11"

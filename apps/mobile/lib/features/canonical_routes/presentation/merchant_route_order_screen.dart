@@ -95,7 +95,10 @@ class _MerchantRouteOrderScreenState
     final l10n = AppLocalizations.of(context);
     if (_result != null) {
       return Scaffold(
-        appBar: AppBar(title: Text(l10n.canonicalMerchantOrder), leading: const MasariBackButton(fallback: '/merchant')),
+        appBar: AppBar(
+          title: Text(l10n.canonicalMerchantOrder),
+          leading: const MasariBackButton(fallback: '/merchant'),
+        ),
         body: SafeArea(
           child: ListView(
             padding: const EdgeInsets.all(AppTokens.spaceLarge),
@@ -116,7 +119,10 @@ class _MerchantRouteOrderScreenState
     }
     return CanonicalFeatureGate(
       child: Scaffold(
-        appBar: AppBar(title: Text(l10n.canonicalMerchantOrder), leading: const MasariBackButton(fallback: '/merchant')),
+        appBar: AppBar(
+          title: Text(l10n.canonicalMerchantOrder),
+          leading: const MasariBackButton(fallback: '/merchant'),
+        ),
         body: SafeArea(
           child: ref
               .watch(canonicalRouteCatalogProvider)

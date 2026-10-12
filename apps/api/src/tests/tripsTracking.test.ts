@@ -9,7 +9,7 @@ const prismaMock = vi.hoisted(() => ({
   auditEvent: { create: vi.fn() },
   match: { findUnique: vi.fn(), update: vi.fn(), updateMany: vi.fn(), findMany: vi.fn() },
   trip: { findFirst: vi.fn(), create: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
-  driverRoute: { update: vi.fn(), updateMany: vi.fn() },
+  driverRoute: { findUnique: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
   passengerRequest: { findUnique: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
   merchantOrder: { update: vi.fn(), updateMany: vi.fn() },
   parcelBatch: { findUnique: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
@@ -55,7 +55,7 @@ const baseMatch = {
   merchant_order_id: "order_1",
   parcel_batch_id: "batch_1",
   driver_route: { id: "route_1", driver_id: "profile_1", driver: { id: "profile_1", user_id: "driver_1" } },
-  passenger_request: { id: "request_1", passenger_id: "passenger_1" },
+  passenger_request: { id: "request_1", passenger_id: "passenger_1", passenger_count: 1 },
   merchant_order: { id: "order_1", merchant_id: "merchant_1", parcels: [{ id: "parcel_1" }] },
   parcel_batch: { id: "batch_1" }
 };
@@ -70,7 +70,7 @@ function baseTrip(status = "accepted") {
     parcel_batch_id: "batch_1",
     status,
     driver_route: { id: "route_1", driver_id: "profile_1", driver: { id: "profile_1", user_id: "driver_1" } },
-    passenger_request: { id: "request_1", passenger_id: "passenger_1" },
+    passenger_request: { id: "request_1", passenger_id: "passenger_1", passenger_count: 1 },
     merchant_order: { id: "order_1", merchant_id: "merchant_1", parcels: [{ id: "parcel_1" }] },
     parcel_batch: { id: "batch_1" }
   };
@@ -109,6 +109,7 @@ describe("trip acceptance, status, and tracking", () => {
     prismaMock.parcelBatchOrder.updateMany.mockResolvedValue({ count: 1 });
     prismaMock.parcel.count.mockResolvedValue(1);
     prismaMock.driverRoute.updateMany.mockResolvedValue({ count: 1 });
+    prismaMock.driverRoute.findUnique.mockResolvedValue({ id: "route_1", status: "assigned" });
     prismaMock.passengerRequest.updateMany.mockResolvedValue({ count: 1 });
     prismaMock.trip.updateMany.mockResolvedValue({ count: 1 });
     prismaMock.$transaction.mockImplementation((callback: (tx: typeof prismaMock) => unknown) => callback(prismaMock));
@@ -344,7 +345,7 @@ describe("trip acceptance, status, and tracking", () => {
       })
     );
     expect(prismaMock.driverRoute.update).toHaveBeenCalledWith(
-      expect.objectContaining({ data: { status: "on_trip" } })
+      expect.objectContaining({ data: expect.objectContaining({ status: "on_trip" }) })
     );
   });
 
@@ -370,11 +371,11 @@ describe("trip acceptance, status, and tracking", () => {
       .send({ status: "cancelled" })
       .expect(200);
 
-    expect(prismaMock.passengerRequest.update).toHaveBeenCalledWith(
+    expect(prismaMock.passengerRequest.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({ data: { status: "cancelled" } })
     );
     expect(prismaMock.driverRoute.update).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ status: "completed" }) })
+      expect.objectContaining({ data: expect.objectContaining({ status: "active" }) })
     );
   });
 
@@ -395,7 +396,7 @@ describe("trip acceptance, status, and tracking", () => {
         status: "active"
       })
     }));
-    expect(prismaMock.passengerRequest.update).toHaveBeenCalledWith(
+    expect(prismaMock.passengerRequest.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({ data: { status: "cancelled" } })
     );
     expect(prismaMock.driverRoute.update).toHaveBeenCalledWith(
@@ -420,7 +421,7 @@ describe("trip acceptance, status, and tracking", () => {
         status: "active"
       })
     }));
-    expect(prismaMock.passengerRequest.update).toHaveBeenCalledWith(expect.objectContaining({ data: { status: "cancelled" } }));
+    expect(prismaMock.passengerRequest.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: { status: "cancelled" } }));
     expect(prismaMock.parcelBatch.update).toHaveBeenCalledWith(expect.objectContaining({ data: { status: "failed" } }));
     expect(prismaMock.parcel.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: { status: "failed" } }));
     expect(prismaMock.merchantOrder.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: { status: "failed" } }));
@@ -432,7 +433,7 @@ describe("trip acceptance, status, and tracking", () => {
 
     await request(createApp()).post("/api/v1/trips/trip_1/status").set(auth("driver_1")).send({ status: "completed" }).expect(200);
 
-    expect(prismaMock.passengerRequest.update).toHaveBeenCalledWith(expect.objectContaining({ data: { status: "completed" } }));
+    expect(prismaMock.passengerRequest.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: { status: "completed" } }));
     expect(prismaMock.driverRoute.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: "completed" }) }));
   });
 
@@ -442,7 +443,7 @@ describe("trip acceptance, status, and tracking", () => {
 
     await request(createApp()).post("/api/v1/trips/trip_1/status").set(auth("driver_1")).send({ status: "picked_up" }).expect(200);
 
-    expect(prismaMock.passengerRequest.update).toHaveBeenCalledWith(expect.objectContaining({ data: { status: "picked_up" } }));
+    expect(prismaMock.passengerRequest.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: { status: "picked_up" } }));
     expect(prismaMock.parcelBatch.update).toHaveBeenCalledWith(expect.objectContaining({ data: { status: "picked_up" } }));
     expect(prismaMock.parcel.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: { status: "picked_up" } }));
   });

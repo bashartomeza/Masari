@@ -101,9 +101,12 @@ class _PassengerAssistantScreenState
 
     return Scaffold(
       key: const ValueKey('passengerAssistantScreen'),
-      appBar: ShellLanguageControl.isProvided(context) ? null : AppBar(
-        title: Text(l10n.assistantTitle),
-        leading: const MasariBackButton(fallback: '/passenger')),
+      appBar: ShellLanguageControl.isProvided(context)
+          ? null
+          : AppBar(
+              title: Text(l10n.assistantTitle),
+              leading: const MasariBackButton(fallback: '/passenger'),
+            ),
       body: Column(
         children: [
           Expanded(

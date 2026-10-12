@@ -18,33 +18,59 @@ import 'support/auth_test_support.dart';
 
 void main() {
   group('assistant repository', () {
-    test('retries matching the saved request without creating a second booking', () async {
-      var creates = 0;
-      final matchedRequests = <String>[];
-      final auth = TestAuthenticatedClient(handler: (request) async {
-        if (request.url.path == '/api/v1/passenger/requests') {
-          creates++;
-          return http.Response('{"request":{"id":"saved_request"}}', 201);
-        }
-        if (request.url.path == '/api/v1/matches/run') {
-          matchedRequests.add(jsonDecode(request.body)['passengerRequestId'] as String);
-          return matchedRequests.length == 1
-            ? http.Response('{"error":"no_compatible_driver_route"}', 409)
-            : http.Response('{"match":{"id":"match_1"}}', 200);
-        }
-        return http.Response('{}', 404);
-      });
-      final repository = ApiPassengerAssistantRepository(apiClient: auth.client);
-      final draft = PassengerAssistantTripDraft(pickupKey: 'bab_al_zawiya',
-        pickupLabel: 'Bab Al-Zawiya', destinationKey: 'bethlehem',
-        destinationLabel: 'Bethlehem Center', preferredTime: DateTime.utc(2030, 1, 2, 12), passengerCount: 1);
-      const option = PassengerAssistantTripOption(id: 'route_1', driverName: 'Driver',
-        fromLabel: 'Bab Al-Zawiya', toLabel: 'Bethlehem Center', seatsAvailable: 2, score: 0.9);
-      await expectLater(repository.selectTrip(draft: draft, option: option), throwsA(isA<ApiException>()));
-      expect(await repository.selectTrip(draft: draft.copyWith(), option: option), 'match_1');
-      expect(creates, 1);
-      expect(matchedRequests, ['saved_request', 'saved_request']);
-    });
+    test(
+      'retries matching the saved request without creating a second booking',
+      () async {
+        var creates = 0;
+        final matchedRequests = <String>[];
+        final auth = TestAuthenticatedClient(
+          handler: (request) async {
+            if (request.url.path == '/api/v1/passenger/requests') {
+              creates++;
+              return http.Response('{"request":{"id":"saved_request"}}', 201);
+            }
+            if (request.url.path == '/api/v1/matches/run') {
+              matchedRequests.add(
+                jsonDecode(request.body)['passengerRequestId'] as String,
+              );
+              return matchedRequests.length == 1
+                  ? http.Response('{"error":"no_compatible_driver_route"}', 409)
+                  : http.Response('{"match":{"id":"match_1"}}', 200);
+            }
+            return http.Response('{}', 404);
+          },
+        );
+        final repository = ApiPassengerAssistantRepository(
+          apiClient: auth.client,
+        );
+        final draft = PassengerAssistantTripDraft(
+          pickupKey: 'bab_al_zawiya',
+          pickupLabel: 'Bab Al-Zawiya',
+          destinationKey: 'bethlehem',
+          destinationLabel: 'Bethlehem Center',
+          preferredTime: DateTime.utc(2030, 1, 2, 12),
+          passengerCount: 1,
+        );
+        const option = PassengerAssistantTripOption(
+          id: 'route_1',
+          driverName: 'Driver',
+          fromLabel: 'Bab Al-Zawiya',
+          toLabel: 'Bethlehem Center',
+          seatsAvailable: 2,
+          score: 0.9,
+        );
+        await expectLater(
+          repository.selectTrip(draft: draft, option: option),
+          throwsA(isA<ApiException>()),
+        );
+        expect(
+          await repository.selectTrip(draft: draft.copyWith(), option: option),
+          'match_1',
+        );
+        expect(creates, 1);
+        expect(matchedRequests, ['saved_request', 'saved_request']);
+      },
+    );
     test(
       'searches real routes, then creates a request for the selected route',
       () async {

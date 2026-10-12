@@ -17,13 +17,17 @@ class PassengerAssistantController
   Future<void> _saving = Future.value();
   @override
   Future<PassengerAssistantState> build() async {
-    final userId = ref.watch(authControllerProvider.select((value) => value.value?.user?.id));
+    final userId = ref.watch(
+      authControllerProvider.select((value) => value.value?.user?.id),
+    );
     final storage = ref.read(assistantConversationStorageProvider);
     final stopSaving = listenSelf((previous, next) {
       final current = next.value;
       if (userId == null || current == null || current.messages.isEmpty) return;
       // Preserve write order so a slow older save cannot replace a newer reply.
-      _saving = _saving.then((_) => storage.save(userId, current)).catchError((Object _) {});
+      _saving = _saving
+          .then((_) => storage.save(userId, current))
+          .catchError((Object _) {});
     });
     ref.onDispose(stopSaving);
     if (userId == null) return const PassengerAssistantState();

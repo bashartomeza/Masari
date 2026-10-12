@@ -14,7 +14,7 @@ const prismaMock = vi.hoisted(() => ({
     findFirst: vi.fn(),
   },
   driverRoute: { update: vi.fn() },
-  passengerRequest: { update: vi.fn() },
+  passengerRequest: { update: vi.fn(), updateMany: vi.fn() },
   merchantOrder: { update: vi.fn() },
   parcelBatch: { update: vi.fn() },
   parcel: { updateMany: vi.fn() },
@@ -317,7 +317,7 @@ describe("Admin trip management", () => {
     expect(JSON.stringify(response.body)).not.toMatch(/route_snapshot|checksum|private/);
     expect(prismaMock.trip.update).toHaveBeenCalledWith({
       where: { id: "trip_legacy", status: "accepted" },
-      data: { status: "pickup_started", completed_at: undefined },
+      data: { status: "pickup_started", started_at: expect.any(Date), completed_at: undefined },
     });
     expect(prismaMock.driverRoute.update).toHaveBeenCalledOnce();
     expect(prismaMock.auditEvent.create).toHaveBeenCalledOnce();

@@ -5,7 +5,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:masari_mobile/core/widgets/masari_section.dart';
 import 'package:masari_mobile/core/widgets/state_views.dart';
 import 'package:masari_mobile/features/canonical_routes/domain/canonical_route_models.dart';
-import 'package:masari_mobile/features/driver/presentation/driver_trip_screen.dart' as StatusTone;
+import '../../../core/widgets/status_chip.dart';
 import 'package:masari_mobile/features/driver/presentation/driver_ui.dart';
 import 'package:masari_mobile/features/trips/data/trip_models.dart';
 import 'package:masari_mobile/l10n/app_localizations.dart';
@@ -17,7 +17,6 @@ import '../../../core/widgets/language_switch.dart';
 import '../../../core/widgets/masari_map.dart';
 import '../../checkpoints/application/checkpoint_controller.dart';
 import '../../checkpoints/domain/checkpoint_models.dart';
-import '../../security/presentation/session_status_banner.dart';
 import '../application/driver_controller.dart';
 import '../data/driver_models.dart';
 
@@ -61,8 +60,7 @@ class DriverTripScreen extends ConsumerStatefulWidget {
   final bool showAppBar;
 
   @override
-  ConsumerState<DriverTripScreen> createState() =>
-      _DriverTripScreenState();
+  ConsumerState<DriverTripScreen> createState() => _DriverTripScreenState();
 }
 
 class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
@@ -109,29 +107,17 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
 
-    final tripState = ref.watch(
-      driverTripControllerProvider(widget.tripId),
-    );
+    final tripState = ref.watch(driverTripControllerProvider(widget.tripId));
 
     return Scaffold(
       key: const ValueKey('driverTrip'),
       backgroundColor: background,
       body: tripState.when(
         loading: () => const Center(
-          child: CircularProgressIndicator(
-            color: orange,
-            strokeWidth: 2.5,
-          ),
+          child: CircularProgressIndicator(color: orange, strokeWidth: 2.5),
         ),
-        error: (error, _) => _buildErrorState(
-          context,
-          l10n,
-        ),
-        data: (state) => _buildImmersiveContent(
-          context,
-          l10n,
-          state,
-        ),
+        error: (error, _) => _buildErrorState(context, l10n),
+        data: (state) => _buildImmersiveContent(context, l10n, state),
       ),
     );
   }
@@ -145,13 +131,11 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
     AppLocalizations l10n,
     DriverTripState state,
   ) {
-    final isArabic =
-        Localizations.localeOf(context).languageCode == 'ar';
+    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
 
     final checkpoints = ref.watch(checkpointsProvider);
 
-    final checkpointSnapshot =
-        checkpoints.value ?? CheckpointSnapshot.empty;
+    final checkpointSnapshot = checkpoints.value ?? CheckpointSnapshot.empty;
 
     return Stack(
       fit: StackFit.expand,
@@ -159,7 +143,6 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
         // ========================================================
         // FULL SCREEN MAP
         // ========================================================
-
         Positioned.fill(
           child: _DriverMapSection(
             l10n: l10n,
@@ -174,14 +157,12 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
         // ========================================================
         // TOP CONTROLS
         // ========================================================
-
         Positioned(
           top: MediaQuery.of(context).padding.top + 10,
           left: 14,
           right: 14,
           child: Row(
-            textDirection:
-                isArabic ? TextDirection.rtl : TextDirection.ltr,
+            textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
             children: [
               _buildFloatingButton(
                 icon: Icons.arrow_back_rounded,
@@ -214,15 +195,11 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
                 onPressed: () {
                   ref
                       .read(
-                        driverTripControllerProvider(
-                          widget.tripId,
-                        ).notifier,
+                        driverTripControllerProvider(widget.tripId).notifier,
                       )
                       .refresh();
 
-                  ref
-                      .read(checkpointsProvider.notifier)
-                      .refresh();
+                  ref.read(checkpointsProvider.notifier).refresh();
                 },
               ),
             ],
@@ -232,41 +209,29 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
         // ========================================================
         // LIVE BADGE
         // ========================================================
-
         Positioned(
           top: MediaQuery.of(context).padding.top + 68,
           left: 14,
           right: 14,
           child: Row(
-            children: [
-              _buildLiveBadge(
-                context,
-                state,
-              ),
-              const Spacer(),
-            ],
+            children: [_buildLiveBadge(context, state), const Spacer()],
           ),
         ),
 
         // ========================================================
         // ERROR
         // ========================================================
-
         if (_error != null)
           Positioned(
             top: MediaQuery.of(context).padding.top + 122,
             left: 14,
             right: 14,
-            child: OfflineBanner(
-              message: _error!,
-              tone: BannerTone.error,
-            ),
+            child: OfflineBanner(message: _error!, tone: BannerTone.error),
           ),
 
         // ========================================================
         // BOTTOM INFO PANEL
         // ========================================================
-
         Positioned.fill(
           child: _buildBottomSheet(
             context,
@@ -299,21 +264,17 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
           width: 46,
           height: 46,
           decoration: BoxDecoration(
-            color: white.withOpacity(0.96),
+            color: white.withValues(alpha: 0.96),
             borderRadius: BorderRadius.circular(15),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.12),
+                color: Colors.black.withValues(alpha: 0.12),
                 blurRadius: 18,
                 offset: const Offset(0, 6),
               ),
             ],
           ),
-          child: Icon(
-            icon,
-            color: textDark,
-            size: 21,
-          ),
+          child: Icon(icon, color: textDark, size: 21),
         ),
       ),
     );
@@ -326,23 +287,19 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
   Widget _buildLanguageButton() {
     return Container(
       height: 46,
-      padding: const EdgeInsets.symmetric(
-        horizontal: 10,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
-        color: white.withOpacity(0.96),
+        color: white.withValues(alpha: 0.96),
         borderRadius: BorderRadius.circular(15),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.12),
+            color: Colors.black.withValues(alpha: 0.12),
             blurRadius: 18,
             offset: const Offset(0, 6),
           ),
         ],
       ),
-      child: const Center(
-        child: LanguageSwitch(),
-      ),
+      child: const Center(child: LanguageSwitch()),
     );
   }
 
@@ -350,10 +307,7 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
   // LIVE BADGE
   // ============================================================
 
-  Widget _buildLiveBadge(
-    BuildContext context,
-    DriverTripState state,
-  ) {
+  Widget _buildLiveBadge(BuildContext context, DriverTripState state) {
     final status = state.trip.status.toLowerCase();
 
     final isActive =
@@ -362,20 +316,16 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
         status == 'in_transit' ||
         status == 'picked_up';
 
-    final isArabic =
-        Localizations.localeOf(context).languageCode == 'ar';
+    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
 
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: 8,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: white.withOpacity(0.95),
+        color: white.withValues(alpha: 0.95),
         borderRadius: BorderRadius.circular(30),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.10),
+            color: Colors.black.withValues(alpha: 0.10),
             blurRadius: 16,
             offset: const Offset(0, 5),
           ),
@@ -383,8 +333,7 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
-        textDirection:
-            isArabic ? TextDirection.rtl : TextDirection.ltr,
+        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
         children: [
           Container(
             width: 8,
@@ -397,9 +346,7 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
           const SizedBox(width: 7),
           Text(
             isActive
-                ? (isArabic
-                    ? 'الرحلة جارية'
-                    : 'TRIP IN PROGRESS')
+                ? (isArabic ? 'الرحلة جارية' : 'TRIP IN PROGRESS')
                 : driverStatusLabel(
                     AppLocalizations.of(context),
                     state.trip.status,
@@ -443,9 +390,7 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
         return Container(
           decoration: const BoxDecoration(
             color: white,
-            borderRadius: BorderRadius.vertical(
-              top: Radius.circular(28),
-            ),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
             boxShadow: [
               BoxShadow(
                 color: Colors.black12,
@@ -459,17 +404,11 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
             child: ListView(
               controller: scrollController,
               physics: const ClampingScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(
-                16,
-                9,
-                16,
-                18,
-              ),
+              padding: const EdgeInsets.fromLTRB(16, 9, 16, 18),
               children: [
                 // ==================================================
                 // DRAG HANDLE
                 // ==================================================
-
                 const _BottomSheetHandle(),
 
                 const SizedBox(height: 12),
@@ -477,10 +416,10 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
                 // ==================================================
                 // ROUTE HEADER
                 // ==================================================
-
                 Row(
-                  textDirection:
-                      isArabic ? TextDirection.rtl : TextDirection.ltr,
+                  textDirection: isArabic
+                      ? TextDirection.rtl
+                      : TextDirection.ltr,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
@@ -490,12 +429,7 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
                             : CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '${localizedOrigin(
-                              context,
-                              trip.route.originLabel.isNotEmpty
-                                  ? trip.route.originLabel
-                                  : lockedDriverOriginLabel,
-                            )}  →  ${l10n.bethlehem}',
+                            '${localizedOrigin(context, trip.route.originLabel.isNotEmpty ? trip.route.originLabel : lockedDriverOriginLabel)}  →  ${l10n.bethlehem}',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             textAlign: isArabic
@@ -518,23 +452,19 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
                               Icon(
                                 Icons.circle,
                                 size: 7,
-                                color: location != null
-                                    ? success
-                                    : orange,
+                                color: location != null ? success : orange,
                               ),
                               const SizedBox(width: 6),
                               Text(
                                 location != null
                                     ? (isArabic
-                                        ? 'تتبع مباشر'
-                                        : 'Live tracking')
+                                          ? 'تتبع مباشر'
+                                          : 'Live tracking')
                                     : (isArabic
-                                        ? 'بانتظار الموقع'
-                                        : 'Waiting for location'),
+                                          ? 'بانتظار الموقع'
+                                          : 'Waiting for location'),
                                 style: TextStyle(
-                                  color: location != null
-                                      ? success
-                                      : orange,
+                                  color: location != null ? success : orange,
                                   fontSize: 10,
                                   fontWeight: FontWeight.w800,
                                 ),
@@ -554,14 +484,12 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
                 // ==================================================
                 // QUICK INFO
                 // ==================================================
-
                 Row(
                   children: [
                     Expanded(
-                      child: _QuickInfoItem(
+                      child: _quickInfoItem(
                         icon: Icons.people_alt_rounded,
-                        value:
-                            '${trip.passengerRequest?.passengerCount ?? 0}',
+                        value: '${trip.passengerRequest?.passengerCount ?? 0}',
                         label: l10n.passengerCount,
                       ),
                     ),
@@ -571,10 +499,9 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
                     if ((trip.merchantOrder?.parcelCount ?? 0) > 0) ...[
                       const SizedBox(width: 8),
                       Expanded(
-                        child: _QuickInfoItem(
+                        child: _quickInfoItem(
                           icon: Icons.inventory_2_rounded,
-                          value:
-                              '${trip.merchantOrder?.parcelCount ?? 0}',
+                          value: '${trip.merchantOrder?.parcelCount ?? 0}',
                           label: l10n.parcelCount,
                         ),
                       ),
@@ -583,10 +510,9 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
                     const SizedBox(width: 8),
 
                     Expanded(
-                      child: _QuickInfoItem(
+                      child: _quickInfoItem(
                         icon: Icons.traffic_rounded,
-                        value:
-                            '${checkpointSnapshot.checkpoints.length}',
+                        value: '${checkpointSnapshot.checkpoints.length}',
                         label: 'الحواجز',
                         onTap: () {
                           _showCheckpointCities(
@@ -604,27 +530,15 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
 
                 const SizedBox(height: 10),
 
-                _buildEtaCard(
-                  context,
-                  state,
-                ),
+                _buildEtaCard(context, state),
 
                 const SizedBox(height: 9),
 
-                _buildCurrentLocationCard(
-                  context,
-                  l10n,
-                  location,
-                ),
+                _buildCurrentLocationCard(context, l10n, location),
 
                 const SizedBox(height: 9),
 
-                _buildTripActions(
-                  context,
-                  l10n,
-                  state,
-
-                ),
+                _buildTripActions(context, l10n, state),
               ],
             ),
           ),
@@ -637,10 +551,7 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
   // STATUS PILL
   // ============================================================
 
-  Widget _buildStatusPill(
-    BuildContext context,
-    String status,
-  ) {
+  Widget _buildStatusPill(BuildContext context, String status) {
     final tone = statusToneFor(status);
 
     final color = switch (tone) {
@@ -651,19 +562,13 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
     };
 
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 6,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.09),
+        color: color.withValues(alpha: 0.09),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
-        driverStatusLabel(
-          AppLocalizations.of(context),
-          status,
-        ),
+        driverStatusLabel(AppLocalizations.of(context), status),
         style: TextStyle(
           color: color,
           fontSize: 9,
@@ -677,82 +582,71 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
   // ============================================================
   // QUICK INFO ITEM
   // ============================================================
-Widget _QuickInfoItem({
-  required IconData icon,
-  required String value,
-  required String label,
-  VoidCallback? onTap,
-}) {
-  final content = Container(
-    height: 66,
-    padding: const EdgeInsets.symmetric(
-      horizontal: 10,
-      vertical: 9,
-    ),
-    decoration: BoxDecoration(
-      color: onTap != null
-          ? orangeSoft.withOpacity(0.45)
-          : background,
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(
-        color: onTap != null
-            ? orange.withOpacity(0.15)
-            : border,
+  Widget _quickInfoItem({
+    required IconData icon,
+    required String value,
+    required String label,
+    VoidCallback? onTap,
+  }) {
+    final content = Container(
+      height: 76,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      decoration: BoxDecoration(
+        color: onTap != null ? orangeSoft.withValues(alpha: 0.45) : background,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: onTap != null ? orange.withValues(alpha: 0.15) : border,
+        ),
       ),
-    ),
-    child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(
-          icon,
-          size: 20,
-          color: orange,
-        ),
-        const SizedBox(height: 3),
-        Text(
-          value,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: textDark,
-            fontSize: 17,
-            height: 1,
-            fontWeight: FontWeight.w900,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 20, color: orange),
+          const SizedBox(height: 3),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: textDark,
+              fontSize: 17,
+              height: 1,
+              fontWeight: FontWeight.w900,
+            ),
           ),
-        ),
-        const SizedBox(height: 3),
-        Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: textSecondary,
-            fontSize: 9,
-            height: 1,
-            fontWeight: FontWeight.w800,
+          const SizedBox(height: 3),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: textSecondary,
+              fontSize: 9,
+              height: 1,
+              fontWeight: FontWeight.w800,
+            ),
           ),
-        ),
-      ],
-    ),
-  );
+        ],
+      ),
+    );
 
-  // إذا ما في onTap، رجّعي الـcontent مباشرة
-  if (onTap == null) {
-    return content;
-  }
+    // إذا ما في onTap، رجّعي الـcontent مباشرة
+    if (onTap == null) {
+      return content;
+    }
 
-  // إذا في onTap، خلي الكرت قابل للضغط
-  return Material(
-    color: Colors.transparent,
-    borderRadius: BorderRadius.circular(16),
-    child: InkWell(
-      onTap: onTap,
+    // إذا في onTap، خلي الكرت قابل للضغط
+    return Material(
+      color: Colors.transparent,
       borderRadius: BorderRadius.circular(16),
-      child: content,
-    ),
-  );
-}
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: content,
+      ),
+    );
+  }
   // ============================================================
   // CHECKPOINT CITIES
   // ============================================================
@@ -769,9 +663,7 @@ Widget _QuickInfoItem({
         context: context,
         backgroundColor: white,
         shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            top: Radius.circular(28),
-          ),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
         builder: (_) => const SafeArea(
           child: Padding(
@@ -779,10 +671,7 @@ Widget _QuickInfoItem({
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                CircularProgressIndicator(
-                  color: orange,
-                  strokeWidth: 2.5,
-                ),
+                CircularProgressIndicator(color: orange, strokeWidth: 2.5),
                 SizedBox(height: 14),
                 Text(
                   'جاري تحديث الحواجز...',
@@ -805,18 +694,11 @@ Widget _QuickInfoItem({
         context: context,
         backgroundColor: white,
         shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            top: Radius.circular(28),
-          ),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
         builder: (_) => SafeArea(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              22,
-              14,
-              22,
-              24,
-            ),
+            padding: const EdgeInsets.fromLTRB(22, 14, 22, 24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -877,10 +759,7 @@ Widget _QuickInfoItem({
           ? 'مدينة غير محددة'
           : checkpoint.city.trim();
 
-      grouped.putIfAbsent(
-        city,
-        () => <Checkpoint>[],
-      );
+      grouped.putIfAbsent(city, () => <Checkpoint>[]);
 
       grouped[city]!.add(checkpoint);
     }
@@ -892,21 +771,14 @@ Widget _QuickInfoItem({
       isScrollControlled: true,
       backgroundColor: white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(30),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
       ),
       builder: (sheetContext) {
         return SafeArea(
           child: SizedBox(
             height: MediaQuery.of(context).size.height * 0.72,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                20,
-                12,
-                20,
-                20,
-              ),
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -984,21 +856,15 @@ Widget _QuickInfoItem({
                     child: ListView.separated(
                       physics: const BouncingScrollPhysics(),
                       itemCount: cities.length,
-                      separatorBuilder: (_, __) =>
-                          const SizedBox(height: 8),
+                      separatorBuilder: (_, _) => const SizedBox(height: 8),
                       itemBuilder: (_, index) {
                         final city = cities[index];
                         final cityCheckpoints = grouped[city]!;
 
-                        final hasTrafficIssue =
-                            cityCheckpoints.any(
+                        final hasTrafficIssue = cityCheckpoints.any(
                           (checkpoint) =>
-                              _isCongested(
-                                checkpoint.enteringStatus,
-                              ) ||
-                              _isCongested(
-                                checkpoint.leavingStatus,
-                              ),
+                              _isCongested(checkpoint.enteringStatus) ||
+                              _isCongested(checkpoint.leavingStatus),
                         );
 
                         return _CityCheckpointTile(
@@ -1045,21 +911,14 @@ Widget _QuickInfoItem({
       isScrollControlled: true,
       backgroundColor: white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(30),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
       ),
       builder: (_) {
         return SafeArea(
           child: SizedBox(
             height: MediaQuery.of(context).size.height * 0.75,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                20,
-                12,
-                20,
-                20,
-              ),
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -1087,8 +946,7 @@ Widget _QuickInfoItem({
 
                       Expanded(
                         child: Column(
-                          crossAxisAlignment:
-                              CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               city,
@@ -1121,12 +979,9 @@ Widget _QuickInfoItem({
                     child: ListView.separated(
                       physics: const BouncingScrollPhysics(),
                       itemCount: checkpoints.length,
-                      separatorBuilder: (_, __) =>
-                          const SizedBox(height: 10),
+                      separatorBuilder: (_, _) => const SizedBox(height: 10),
                       itemBuilder: (_, index) {
-                        return _CheckpointCard(
-                          checkpoint: checkpoints[index],
-                        );
+                        return _CheckpointCard(checkpoint: checkpoints[index]);
                       },
                     ),
                   ),
@@ -1148,42 +1003,31 @@ Widget _QuickInfoItem({
     AppLocalizations l10n,
     TripLocation? location,
   ) {
-    final isArabic =
-        Localizations.localeOf(context).languageCode == 'ar';
+    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: 9,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
         color: background,
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(
-          color: border,
-        ),
+        border: Border.all(color: border),
       ),
       child: Row(
-        textDirection:
-            isArabic ? TextDirection.rtl : TextDirection.ltr,
+        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
         children: [
           Container(
             width: 35,
             height: 35,
             decoration: BoxDecoration(
-              color: location == null
-                  ? white
-                  : successSoft,
+              color: location == null ? white : successSoft,
               shape: BoxShape.circle,
             ),
             child: Icon(
               location == null
                   ? Icons.location_searching_rounded
                   : Icons.location_on_rounded,
-              color: location == null
-                  ? textMuted
-                  : success,
+              color: location == null ? textMuted : success,
               size: 18,
             ),
           ),
@@ -1197,9 +1041,7 @@ Widget _QuickInfoItem({
                   : CrossAxisAlignment.start,
               children: [
                 Text(
-                  isArabic
-                      ? 'موقع المركبة'
-                      : 'Vehicle location',
+                  isArabic ? 'موقع المركبة' : 'Vehicle location',
                   style: const TextStyle(
                     color: textSecondary,
                     fontSize: 8,
@@ -1210,10 +1052,7 @@ Widget _QuickInfoItem({
                 Text(
                   location == null
                       ? l10n.noLocationYet
-                      : localizedLocationSource(
-                          l10n,
-                          location.source,
-                        ),
+                      : localizedLocationSource(l10n, location.source),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -1228,10 +1067,7 @@ Widget _QuickInfoItem({
 
           if (location != null)
             Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 7,
-                vertical: 4,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
               decoration: BoxDecoration(
                 color: successSoft,
                 borderRadius: BorderRadius.circular(9),
@@ -1254,14 +1090,8 @@ Widget _QuickInfoItem({
   // ETA
   // ============================================================
 
-  Widget _buildEtaCard(
-    BuildContext context,
-    DriverTripState state,
-  ) {
-    return _DriverEtaCard(
-      trip: state.trip,
-      location: state.location,
-    );
+  Widget _buildEtaCard(BuildContext context, DriverTripState state) {
+    return _DriverEtaCard(trip: state.trip, location: state.location);
   }
 
   // ============================================================
@@ -1289,59 +1119,51 @@ Widget _QuickInfoItem({
     final canFail = state.trip.status == 'in_transit';
 
     if (nextStatus == null && !canCancel && !canFail) {
-      return _buildRefreshButton(
-        context,
-        l10n,
-      );
+      return _buildRefreshButton(context, l10n);
     }
 
     return Column(
       children: [
-        SizedBox(
-          width: double.infinity,
-          height: 45,
-          child: ElevatedButton(
-            onPressed:
-                state.actionInProgress ? null : _advance,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: textDark,
-              foregroundColor: white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
+        if (nextStatus != null)
+          SizedBox(
+            width: double.infinity,
+            height: 45,
+            child: ElevatedButton(
+              key: ValueKey('tripAction-$nextStatus'),
+              onPressed: state.actionInProgress ? null : _advance,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: textDark,
+                foregroundColor: white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
               ),
-            ),
-            child: state.actionInProgress
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      color: white,
-                      strokeWidth: 2,
+              child: state.actionInProgress
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        color: white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          nextTripActionLabel(l10n, nextStatus),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(width: 7),
+                        const Icon(Icons.arrow_forward_rounded, size: 17),
+                      ],
                     ),
-                  )
-                : Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        nextTripActionLabel(
-                          l10n,
-                          nextStatus,
-                        ),
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      const SizedBox(width: 7),
-                      const Icon(
-                        Icons.arrow_forward_rounded,
-                        size: 17,
-                      ),
-                    ],
-                  ),
+            ),
           ),
-        ),
 
         if (canCancel) ...[
           const SizedBox(height: 7),
@@ -1360,7 +1182,7 @@ Widget _QuickInfoItem({
               ),
               style: OutlinedButton.styleFrom(
                 foregroundColor: error,
-                side: BorderSide(color: error.withOpacity(0.45)),
+                side: BorderSide(color: error.withValues(alpha: 0.45)),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(13),
                 ),
@@ -1386,7 +1208,7 @@ Widget _QuickInfoItem({
               ),
               style: OutlinedButton.styleFrom(
                 foregroundColor: error,
-                side: BorderSide(color: error.withOpacity(0.45)),
+                side: BorderSide(color: error.withValues(alpha: 0.45)),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(13),
                 ),
@@ -1397,10 +1219,7 @@ Widget _QuickInfoItem({
 
         const SizedBox(height: 7),
 
-        _buildRefreshButton(
-          context,
-          l10n,
-        ),
+        _buildRefreshButton(context, l10n),
       ],
     );
   }
@@ -1409,37 +1228,22 @@ Widget _QuickInfoItem({
   // REFRESH
   // ============================================================
 
-  Widget _buildRefreshButton(
-    BuildContext context,
-    AppLocalizations l10n,
-  ) {
+  Widget _buildRefreshButton(BuildContext context, AppLocalizations l10n) {
     return SizedBox(
       width: double.infinity,
       height: 40,
       child: OutlinedButton.icon(
         onPressed: () {
           ref
-              .read(
-                driverTripControllerProvider(
-                  widget.tripId,
-                ).notifier,
-              )
+              .read(driverTripControllerProvider(widget.tripId).notifier)
               .refresh();
 
-          ref
-              .read(checkpointsProvider.notifier)
-              .refresh();
+          ref.read(checkpointsProvider.notifier).refresh();
         },
-        icon: const Icon(
-          Icons.refresh_rounded,
-          size: 16,
-        ),
+        icon: const Icon(Icons.refresh_rounded, size: 16),
         label: Text(
           l10n.refresh,
-          style: const TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.w800,
-          ),
+          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800),
         ),
         style: OutlinedButton.styleFrom(
           shape: RoundedRectangleBorder(
@@ -1455,14 +1259,10 @@ Widget _QuickInfoItem({
   // ============================================================
 
   Future<void> _advance() => _action(
-        () => ref
-            .read(
-              driverTripControllerProvider(
-                widget.tripId,
-              ).notifier,
-            )
-            .advanceStatus(),
-      );
+    () => ref
+        .read(driverTripControllerProvider(widget.tripId).notifier)
+        .advanceStatus(),
+  );
 
   Future<void> _failDelivery() async {
     final confirmed = await showDialog<bool>(
@@ -1485,29 +1285,25 @@ Widget _QuickInfoItem({
     if (confirmed != true || !mounted) return;
     await _action(
       () => ref
-          .read(
-            driverTripControllerProvider(
-              widget.tripId,
-            ).notifier,
-          )
+          .read(driverTripControllerProvider(widget.tripId).notifier)
           .failDelivery(),
     );
   }
 
   String l10nFailDelivery(BuildContext context) =>
       Localizations.localeOf(context).languageCode == 'ar'
-          ? 'تسجيل فشل التوصيل'
-          : 'Mark delivery failed';
+      ? 'تسجيل فشل التوصيل'
+      : 'Mark delivery failed';
 
   String l10nFailDeliveryTitle(BuildContext context) =>
       Localizations.localeOf(context).languageCode == 'ar'
-          ? 'فشل التوصيل'
-          : 'Delivery failed';
+      ? 'فشل التوصيل'
+      : 'Delivery failed';
 
   String l10nFailDeliveryMessage(BuildContext context) =>
       Localizations.localeOf(context).languageCode == 'ar'
-          ? 'هل تريد تسجيل الرحلة كتوصيل فاشل'
-          : 'Are you sure you want to mark this delivery as failed';
+      ? 'هل تريد تسجيل الرحلة كتوصيل فاشل'
+      : 'Are you sure you want to mark this delivery as failed';
 
   Future<void> _cancelTrip() async {
     final confirmed = await showDialog<bool>(
@@ -1530,28 +1326,22 @@ Widget _QuickInfoItem({
     if (confirmed != true || !mounted) return;
     await _action(
       () => ref
-          .read(
-            driverTripControllerProvider(
-              widget.tripId,
-            ).notifier,
-          )
+          .read(driverTripControllerProvider(widget.tripId).notifier)
           .cancelTrip(),
     );
   }
 
   String l10nCancelTripTitle(BuildContext context) =>
       Localizations.localeOf(context).languageCode == 'ar'
-          ? 'إلغاء الرحلة'
-          : 'Cancel trip';
+      ? 'إلغاء الرحلة'
+      : 'Cancel trip';
 
   String l10nCancelTripMessage(BuildContext context) =>
       Localizations.localeOf(context).languageCode == 'ar'
-          ? 'هل أنت متأكد من إلغاء الرحلة الحالية'
-          : 'Are you sure you want to cancel this trip';
+      ? 'هل أنت متأكد من إلغاء الرحلة الحالية'
+      : 'Are you sure you want to cancel this trip';
 
-  Future<void> _action(
-    Future<void> Function() action,
-  ) async {
+  Future<void> _action(Future<void> Function() action) async {
     if (!mounted) return;
 
     setState(() => _error = null);
@@ -1561,18 +1351,11 @@ Widget _QuickInfoItem({
     } catch (error) {
       if (mounted) {
         setState(
-          () => _error = driverErrorLabel(
-            AppLocalizations.of(context),
-            error,
-          ),
+          () => _error = driverErrorLabel(AppLocalizations.of(context), error),
         );
 
         await ref
-            .read(
-              driverTripControllerProvider(
-                widget.tripId,
-              ).notifier,
-            )
+            .read(driverTripControllerProvider(widget.tripId).notifier)
             .refresh();
       }
     }
@@ -1582,10 +1365,7 @@ Widget _QuickInfoItem({
   // ERROR
   // ============================================================
 
-  Widget _buildErrorState(
-    BuildContext context,
-    AppLocalizations l10n,
-  ) {
+  Widget _buildErrorState(BuildContext context, AppLocalizations l10n) {
     return Container(
       color: background,
       child: Center(
@@ -1611,10 +1391,7 @@ Widget _QuickInfoItem({
               const SizedBox(height: 20),
 
               Text(
-                driverErrorLabel(
-                  l10n,
-                  'driver_trip_error',
-                ),
+                driverErrorLabel(l10n, 'driver_trip_error'),
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: textDark,
@@ -1632,9 +1409,7 @@ Widget _QuickInfoItem({
                   onPressed: () {
                     ref
                         .read(
-                          driverTripControllerProvider(
-                            widget.tripId,
-                          ).notifier,
+                          driverTripControllerProvider(widget.tripId).notifier,
                         )
                         .refresh();
                   },
@@ -1648,9 +1423,7 @@ Widget _QuickInfoItem({
                   ),
                   child: Text(
                     l10n.retry,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                    ),
+                    style: const TextStyle(fontWeight: FontWeight.w800),
                   ),
                 ),
               ),
@@ -1684,12 +1457,10 @@ class _DriverMapSection extends StatefulWidget {
   final bool checkpointsError;
 
   @override
-  State<_DriverMapSection> createState() =>
-      _DriverMapSectionState();
+  State<_DriverMapSection> createState() => _DriverMapSectionState();
 }
 
-class _DriverMapSectionState
-    extends State<_DriverMapSection> {
+class _DriverMapSectionState extends State<_DriverMapSection> {
   late Future<OsrmRouteResult> _routeFuture;
 
   Future<OsrmRouteResult>? _remainingRouteFuture;
@@ -1703,9 +1474,7 @@ class _DriverMapSectionState
   }
 
   @override
-  void didUpdateWidget(
-    covariant _DriverMapSection oldWidget,
-  ) {
+  void didUpdateWidget(covariant _DriverMapSection oldWidget) {
     super.didUpdateWidget(oldWidget);
 
     final oldRoute = oldWidget.trip.route;
@@ -1729,8 +1498,7 @@ class _DriverMapSectionState
     }
 
     if (routeChanged || locationChanged) {
-      _remainingRouteFuture =
-          _loadRemainingRoute();
+      _remainingRouteFuture = _loadRemainingRoute();
     }
   }
 
@@ -1757,19 +1525,12 @@ class _DriverMapSectionState
         ? route.destinationLng
         : lockedDriverDestinationLng;
 
-    final start = LatLng(
-      originLat,
-      originLng,
-    );
+    final start = LatLng(originLat, originLng);
 
-    final end = LatLng(
-      destinationLat,
-      destinationLng,
-    );
+    final end = LatLng(destinationLat, destinationLng);
 
     try {
-      final result =
-          await const OsrmRouteService().getRoute(
+      final result = await const OsrmRouteService().getRoute(
         start: start,
         end: end,
       );
@@ -1780,10 +1541,7 @@ class _DriverMapSectionState
     } catch (_) {}
 
     return OsrmRouteResult(
-      points: [
-        start,
-        end,
-      ],
+      points: [start, end],
       durationSeconds: 0,
       distanceMeters: 0,
     );
@@ -1811,14 +1569,8 @@ class _DriverMapSectionState
         : lockedDriverDestinationLng;
 
     return _requestRemainingRoute(
-      start: LatLng(
-        location.lat,
-        location.lng,
-      ),
-      end: LatLng(
-        destinationLat,
-        destinationLng,
-      ),
+      start: LatLng(location.lat, location.lng),
+      end: LatLng(destinationLat, destinationLng),
     );
   }
 
@@ -1827,8 +1579,7 @@ class _DriverMapSectionState
     required LatLng end,
   }) async {
     try {
-      final result =
-          await const OsrmRouteService().getRoute(
+      final result = await const OsrmRouteService().getRoute(
         start: start,
         end: end,
       );
@@ -1869,21 +1620,14 @@ class _DriverMapSectionState
         ? route.destinationLng
         : lockedDriverDestinationLng;
 
-    final origin = GeoPoint(
-      originLat,
-      originLng,
-    );
+    final origin = GeoPoint(originLat, originLng);
 
-    final destination = GeoPoint(
-      destinationLat,
-      destinationLng,
-    );
+    final destination = GeoPoint(destinationLat, destinationLng);
 
     final markers = <MasariMapMarker>[
       // ----------------------------------------------------------
       // ORIGIN
       // ----------------------------------------------------------
-
       MasariMapMarker(
         position: origin,
         icon: Icons.trip_origin_rounded,
@@ -1902,27 +1646,20 @@ class _DriverMapSectionState
       // ----------------------------------------------------------
       // DESTINATION
       // ----------------------------------------------------------
-
       MasariMapMarker(
         position: destination,
         icon: Icons.flag_rounded,
         color: SemanticColors.completedRoute,
-        label: widget.l10n.mapDestinationLabel(
-          widget.l10n.bethlehem,
-        ),
+        label: widget.l10n.mapDestinationLabel(widget.l10n.bethlehem),
         size: 42,
       ),
 
       // ----------------------------------------------------------
       // DRIVER / VEHICLE
       // ----------------------------------------------------------
-
       if (widget.location != null)
         MasariMapMarker(
-          position: GeoPoint(
-            widget.location!.lat,
-            widget.location!.lng,
-          ),
+          position: GeoPoint(widget.location!.lat, widget.location!.lng),
           icon: Icons.local_shipping_rounded,
           color: orange,
           label: widget.l10n.mapYourLocation,
@@ -1934,22 +1671,12 @@ class _DriverMapSectionState
       future: _routeFuture,
       builder: (context, snapshot) {
         final routedPoints = snapshot.data?.points
-            .map(
-              (point) => GeoPoint(
-                point.latitude,
-                point.longitude,
-              ),
-            )
+            .map((point) => GeoPoint(point.latitude, point.longitude))
             .toList(growable: false);
 
-        final pathPoints =
-            routedPoints != null &&
-                    routedPoints.length >= 2
-                ? routedPoints
-                : <GeoPoint>[
-                    origin,
-                    destination,
-                  ];
+        final pathPoints = routedPoints != null && routedPoints.length >= 2
+            ? routedPoints
+            : <GeoPoint>[origin, destination];
 
         return LayoutBuilder(
           builder: (context, constraints) {
@@ -1962,14 +1689,11 @@ class _DriverMapSectionState
                   // ------------------------------------------------
                   // MAP
                   // ------------------------------------------------
-
                   Positioned.fill(
                     child: MasariMap(
                       height: constraints.maxHeight,
-                      emptyLabel:
-                          widget.l10n.mapRouteMissingCoordinates,
-                      attributionLabel:
-                          widget.l10n.mapAttribution,
+                      emptyLabel: widget.l10n.mapRouteMissingCoordinates,
+                      attributionLabel: widget.l10n.mapAttribution,
                       paths: [
                         if (pathPoints.length >= 2)
                           MasariMapPath(
@@ -1987,35 +1711,27 @@ class _DriverMapSectionState
                   // ------------------------------------------------
                   // MAP LEGEND
                   // ------------------------------------------------
-
                   Positioned(
                     left: 14,
                     bottom: 255,
                     child: _MapLegend(
                       l10n: widget.l10n,
-                      hasDriverLocation:
-                          widget.location != null,
+                      hasDriverLocation: widget.location != null,
                     ),
                   ),
 
                   // ------------------------------------------------
                   // REMAINING ROUTE
                   // ------------------------------------------------
-
                   if (_remainingRouteFuture != null)
                     Positioned(
                       left: 14,
                       right: 14,
                       bottom: 192,
-                      child:
-                          FutureBuilder<OsrmRouteResult>(
+                      child: FutureBuilder<OsrmRouteResult>(
                         future: _remainingRouteFuture,
-                        builder: (
-                          context,
-                          routeSnapshot,
-                        ) {
-                          final result =
-                              routeSnapshot.data;
+                        builder: (context, routeSnapshot) {
+                          final result = routeSnapshot.data;
 
                           if (result == null ||
                               result.durationSeconds <= 0 ||
@@ -2023,9 +1739,7 @@ class _DriverMapSectionState
                             return const SizedBox.shrink();
                           }
 
-                          return _RemainingRouteCard(
-                            result: result,
-                          );
+                          return _RemainingRouteCard(result: result);
                         },
                       ),
                     ),
@@ -2044,21 +1758,16 @@ class _DriverMapSectionState
 // ============================================================================
 
 class _DriverEtaCard extends StatefulWidget {
-  const _DriverEtaCard({
-    required this.trip,
-    required this.location,
-  });
+  const _DriverEtaCard({required this.trip, required this.location});
 
   final DriverTrip trip;
   final TripLocation? location;
 
   @override
-  State<_DriverEtaCard> createState() =>
-      _DriverEtaCardState();
+  State<_DriverEtaCard> createState() => _DriverEtaCardState();
 }
 
-class _DriverEtaCardState
-    extends State<_DriverEtaCard> {
+class _DriverEtaCardState extends State<_DriverEtaCard> {
   Future<OsrmRouteResult>? _future;
   String? _key;
 
@@ -2069,9 +1778,7 @@ class _DriverEtaCardState
   }
 
   @override
-  void didUpdateWidget(
-    covariant _DriverEtaCard oldWidget,
-  ) {
+  void didUpdateWidget(covariant _DriverEtaCard oldWidget) {
     super.didUpdateWidget(oldWidget);
     _ensureRoute();
   }
@@ -2087,18 +1794,15 @@ class _DriverEtaCardState
         ? route.destinationLng
         : lockedDriverDestinationLng;
 
-    final startLat = widget.location?.lat ??
-        (route.originLat != 0
-            ? route.originLat
-            : lockedDriverOriginLat);
+    final startLat =
+        widget.location?.lat ??
+        (route.originLat != 0 ? route.originLat : lockedDriverOriginLat);
 
-    final startLng = widget.location?.lng ??
-        (route.originLng != 0
-            ? route.originLng
-            : lockedDriverOriginLng);
+    final startLng =
+        widget.location?.lng ??
+        (route.originLng != 0 ? route.originLng : lockedDriverOriginLng);
 
-    final key =
-        '$startLat,$startLng|$destinationLat,$destinationLng';
+    final key = '$startLat,$startLng|$destinationLat,$destinationLng';
 
     if (_future != null && _key == key) {
       return;
@@ -2107,14 +1811,8 @@ class _DriverEtaCardState
     _key = key;
 
     _future = _request(
-      start: LatLng(
-        startLat,
-        startLng,
-      ),
-      end: LatLng(
-        destinationLat,
-        destinationLng,
-      ),
+      start: LatLng(startLat, startLng),
+      end: LatLng(destinationLat, destinationLng),
     );
   }
 
@@ -2123,8 +1821,7 @@ class _DriverEtaCardState
     required LatLng end,
   }) async {
     try {
-      final result =
-          await const OsrmRouteService().getRoute(
+      final result = await const OsrmRouteService().getRoute(
         start: start,
         end: end,
       );
@@ -2154,26 +1851,18 @@ class _DriverEtaCardState
           return const SizedBox.shrink();
         }
 
-        final isArabic =
-            Localizations.localeOf(context).languageCode ==
-                'ar';
+        final isArabic = Localizations.localeOf(context).languageCode == 'ar';
 
         return Container(
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(
-            horizontal: 11,
-            vertical: 9,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
           decoration: BoxDecoration(
             color: orangeSoft,
             borderRadius: BorderRadius.circular(15),
-            border: Border.all(
-              color: orange.withOpacity(0.12),
-            ),
+            border: Border.all(color: orange.withValues(alpha: 0.12)),
           ),
           child: Row(
-            textDirection:
-                isArabic ? TextDirection.rtl : TextDirection.ltr,
+            textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
             children: [
               Container(
                 width: 35,
@@ -2198,9 +1887,7 @@ class _DriverEtaCardState
                       : CrossAxisAlignment.start,
                   children: [
                     Text(
-                      isArabic
-                          ? 'الوقت المتبقي'
-                          : 'Remaining time',
+                      isArabic ? 'الوقت المتبقي' : 'Remaining time',
                       style: const TextStyle(
                         color: textSecondary,
                         fontSize: 8,
@@ -2223,7 +1910,7 @@ class _DriverEtaCardState
               Container(
                 width: 1,
                 height: 28,
-                color: orange.withOpacity(0.16),
+                color: orange.withValues(alpha: 0.16),
               ),
 
               const SizedBox(width: 10),
@@ -2265,25 +1952,20 @@ class _DriverEtaCardState
 // ============================================================================
 
 class _RemainingRouteCard extends StatelessWidget {
-  const _RemainingRouteCard({
-    required this.result,
-  });
+  const _RemainingRouteCard({required this.result});
 
   final OsrmRouteResult result;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: 9,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
         color: navy,
         borderRadius: BorderRadius.circular(15),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.15),
+            color: Colors.black.withValues(alpha: 0.15),
             blurRadius: 15,
             offset: const Offset(0, 6),
           ),
@@ -2295,7 +1977,7 @@ class _RemainingRouteCard extends StatelessWidget {
             width: 35,
             height: 35,
             decoration: BoxDecoration(
-              color: orange.withOpacity(0.14),
+              color: orange.withValues(alpha: 0.14),
               shape: BoxShape.circle,
             ),
             child: const Icon(
@@ -2309,8 +1991,7 @@ class _RemainingRouteCard extends StatelessWidget {
 
           Expanded(
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
                   'الوقت المتبقي',
@@ -2333,17 +2014,12 @@ class _RemainingRouteCard extends StatelessWidget {
             ),
           ),
 
-          Container(
-            width: 1,
-            height: 28,
-            color: Colors.white24,
-          ),
+          Container(width: 1, height: 28, color: Colors.white24),
 
           const SizedBox(width: 10),
 
           Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.end,
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               const Text(
                 'المسافة',
@@ -2375,10 +2051,7 @@ class _RemainingRouteCard extends StatelessWidget {
 // ============================================================================
 
 class _MapLegend extends StatelessWidget {
-  const _MapLegend({
-    required this.l10n,
-    required this.hasDriverLocation,
-  });
+  const _MapLegend({required this.l10n, required this.hasDriverLocation});
 
   final AppLocalizations l10n;
   final bool hasDriverLocation;
@@ -2386,13 +2059,10 @@ class _MapLegend extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: white.withOpacity(0.94),
+      color: white.withValues(alpha: 0.94),
       borderRadius: BorderRadius.circular(15),
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 10,
-          vertical: 7,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
         child: Wrap(
           spacing: 10,
           runSpacing: 5,
@@ -2442,20 +2112,13 @@ class _LegendItem extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(
-          icon,
-          size: 14,
-          color: color,
-        ),
+        Icon(icon, size: 14, color: color),
         const SizedBox(width: 4),
         Text(
           label,
-          style: Theme.of(context)
-              .textTheme
-              .labelSmall
-              ?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w700),
         ),
       ],
     );
@@ -2464,55 +2127,6 @@ class _LegendItem extends StatelessWidget {
 
 // ============================================================================
 // MAP NOTICE
-// ============================================================================
-
-class _MapNotice extends StatelessWidget {
-  const _MapNotice({
-    required this.icon,
-    required this.message,
-  });
-
-  final IconData icon;
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: white.withOpacity(0.94),
-      borderRadius: BorderRadius.circular(14),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 8,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 17,
-              color: textSecondary,
-            ),
-            const SizedBox(width: 6),
-            Flexible(
-              child: Text(
-                message,
-                style: const TextStyle(
-                  color: textDark,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ============================================================================
-// CHECKPOINT CITY TILE
 // ============================================================================
 
 class _CityCheckpointTile extends StatelessWidget {
@@ -2540,9 +2154,7 @@ class _CityCheckpointTile extends StatelessWidget {
           decoration: BoxDecoration(
             color: background,
             borderRadius: BorderRadius.circular(17),
-            border: Border.all(
-              color: border,
-            ),
+            border: Border.all(color: border),
           ),
           child: Row(
             children: [
@@ -2550,16 +2162,12 @@ class _CityCheckpointTile extends StatelessWidget {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: hasTrafficIssue
-                      ? orangeSoft
-                      : successSoft,
+                  color: hasTrafficIssue ? orangeSoft : successSoft,
                   borderRadius: BorderRadius.circular(13),
                 ),
                 child: Icon(
                   Icons.location_city_rounded,
-                  color: hasTrafficIssue
-                      ? orange
-                      : success,
+                  color: hasTrafficIssue ? orange : success,
                   size: 21,
                 ),
               ),
@@ -2568,8 +2176,7 @@ class _CityCheckpointTile extends StatelessWidget {
 
               Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       city,
@@ -2634,9 +2241,7 @@ class _CityCheckpointTile extends StatelessWidget {
 // ============================================================================
 
 class _CheckpointCard extends StatelessWidget {
-  const _CheckpointCard({
-    required this.checkpoint,
-  });
+  const _CheckpointCard({required this.checkpoint});
 
   final Checkpoint checkpoint;
 
@@ -2647,21 +2252,16 @@ class _CheckpointCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: border,
-        ),
+        border: Border.all(color: border),
       ),
       child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.stretch,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // --------------------------------------------------------
           // HEADER
           // --------------------------------------------------------
-
           Row(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
                 width: 42,
@@ -2681,13 +2281,10 @@ class _CheckpointCard extends StatelessWidget {
 
               Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      checkpoint.nameAr.isNotEmpty
-                          ? checkpoint.nameAr
-                          : 'حاجز',
+                      checkpoint.nameAr.isNotEmpty ? checkpoint.nameAr : 'حاجز',
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -2721,15 +2318,11 @@ class _CheckpointCard extends StatelessWidget {
           // --------------------------------------------------------
           // ENTERING
           // --------------------------------------------------------
-
           _CheckpointDirectionCard(
             icon: Icons.login_rounded,
             title: 'الدخول',
-            status: _checkpointStatusLabel(
-              checkpoint.enteringStatus,
-            ),
-            updatedAt:
-                checkpoint.enteringStatusLastUpdated,
+            status: _checkpointStatusLabel(checkpoint.enteringStatus),
+            updatedAt: checkpoint.enteringStatusLastUpdated,
           ),
 
           const SizedBox(height: 8),
@@ -2737,15 +2330,11 @@ class _CheckpointCard extends StatelessWidget {
           // --------------------------------------------------------
           // LEAVING
           // --------------------------------------------------------
-
           _CheckpointDirectionCard(
             icon: Icons.logout_rounded,
             title: 'الخروج',
-            status: _checkpointStatusLabel(
-              checkpoint.leavingStatus,
-            ),
-            updatedAt:
-                checkpoint.leavingStatusLastUpdated,
+            status: _checkpointStatusLabel(checkpoint.leavingStatus),
+            updatedAt: checkpoint.leavingStatusLastUpdated,
           ),
         ],
       ),
@@ -2757,8 +2346,7 @@ class _CheckpointCard extends StatelessWidget {
 // CHECKPOINT DIRECTION
 // ============================================================================
 
-class _CheckpointDirectionCard
-    extends StatelessWidget {
+class _CheckpointDirectionCard extends StatelessWidget {
   const _CheckpointDirectionCard({
     required this.icon,
     required this.title,
@@ -2773,19 +2361,14 @@ class _CheckpointDirectionCard
 
   @override
   Widget build(BuildContext context) {
-    final style = _checkpointStatusStyle(
-      context,
-      status,
-    );
+    final style = _checkpointStatusStyle(context, status);
 
     return Container(
       padding: const EdgeInsets.all(11),
       decoration: BoxDecoration(
-        color: style.color.withOpacity(0.045),
+        color: style.color.withValues(alpha: 0.045),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: style.color.withOpacity(0.14),
-        ),
+        border: Border.all(color: style.color.withValues(alpha: 0.14)),
       ),
       child: Row(
         children: [
@@ -2793,22 +2376,17 @@ class _CheckpointDirectionCard
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: style.color.withOpacity(0.11),
+              color: style.color.withValues(alpha: 0.11),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(
-              icon,
-              size: 17,
-              color: style.color,
-            ),
+            child: Icon(icon, size: 17, color: style.color),
           ),
 
           const SizedBox(width: 8),
 
           Expanded(
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
@@ -2835,10 +2413,7 @@ class _CheckpointDirectionCard
                 Text(
                   updatedAt == null
                       ? 'آخر تحديث غير متوفر'
-                      : 'آخر تحديث: ${_formatCheckpointTime(
-                          context,
-                          updatedAt!,
-                        )}',
+                      : 'آخر تحديث: ${_formatCheckpointTime(context, updatedAt!)}',
                   style: const TextStyle(
                     color: textSecondary,
                     fontSize: 8,
@@ -2849,9 +2424,7 @@ class _CheckpointDirectionCard
             ),
           ),
 
-          _CheckpointStatusIcon(
-            style: style,
-          ),
+          _CheckpointStatusIcon(style: style),
         ],
       ),
     );
@@ -2862,21 +2435,14 @@ class _CheckpointDirectionCard
 // CHECKPOINT STATUS ICON
 // ============================================================================
 
-class _CheckpointStatusIcon
-    extends StatelessWidget {
-  const _CheckpointStatusIcon({
-    required this.style,
-  });
+class _CheckpointStatusIcon extends StatelessWidget {
+  const _CheckpointStatusIcon({required this.style});
 
   final _CheckpointStatusStyle style;
 
   @override
   Widget build(BuildContext context) {
-    return Icon(
-      style.icon,
-      size: 20,
-      color: style.color,
-    );
+    return Icon(style.icon, size: 20, color: style.color);
   }
 }
 
@@ -2885,10 +2451,7 @@ class _CheckpointStatusIcon
 // ============================================================================
 
 class _CheckpointStatusStyle {
-  const _CheckpointStatusStyle({
-    required this.color,
-    required this.icon,
-  });
+  const _CheckpointStatusStyle({required this.color, required this.icon});
 
   final Color color;
   final IconData icon;
@@ -2938,9 +2501,7 @@ _CheckpointStatusStyle _checkpointStatusStyle(
 // CHECKPOINT STATUS HELPERS
 // ============================================================================
 
-String _checkpointStatusLabel(
-  String? status,
-) {
+String _checkpointStatusLabel(String? status) {
   final value = status?.trim();
 
   if (value == null || value.isEmpty) {
@@ -2950,32 +2511,23 @@ String _checkpointStatusLabel(
   return value;
 }
 
-bool _isCongested(
-  String? status,
-) {
+bool _isCongested(String? status) {
   final value = status?.trim();
 
-  return value == 'أزمة' ||
-      value == 'أزمة متوسطة';
+  return value == 'أزمة' || value == 'أزمة متوسطة';
 }
 
 // ============================================================================
 // CHECKPOINT TIME
 // ============================================================================
 
-String _formatCheckpointTime(
-  BuildContext context,
-  DateTime value,
-) {
-  final material =
-      MaterialLocalizations.of(context);
+String _formatCheckpointTime(BuildContext context, DateTime value) {
+  final material = MaterialLocalizations.of(context);
 
   final local = value.toLocal();
 
   return '${material.formatCompactDate(local)} '
-      '${material.formatTimeOfDay(
-        TimeOfDay.fromDateTime(local),
-      )}';
+      '${material.formatTimeOfDay(TimeOfDay.fromDateTime(local))}';
 }
 
 // ============================================================================

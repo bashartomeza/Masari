@@ -85,7 +85,10 @@ class _PassengerRouteRequestScreenState
     final l10n = AppLocalizations.of(context);
     if (_result != null) {
       return Scaffold(
-        appBar: AppBar(title: Text(l10n.canonicalPassengerRequest), leading: const MasariBackButton(fallback: '/passenger')),
+        appBar: AppBar(
+          title: Text(l10n.canonicalPassengerRequest),
+          leading: const MasariBackButton(fallback: '/passenger'),
+        ),
         body: SafeArea(
           child: ListView(
             padding: const EdgeInsets.all(AppTokens.spaceLarge),
@@ -106,7 +109,10 @@ class _PassengerRouteRequestScreenState
     }
     return CanonicalFeatureGate(
       child: Scaffold(
-        appBar: AppBar(title: Text(l10n.canonicalPassengerRequest), leading: const MasariBackButton(fallback: '/passenger')),
+        appBar: AppBar(
+          title: Text(l10n.canonicalPassengerRequest),
+          leading: const MasariBackButton(fallback: '/passenger'),
+        ),
         body: SafeArea(
           child: ref
               .watch(canonicalRouteCatalogProvider)

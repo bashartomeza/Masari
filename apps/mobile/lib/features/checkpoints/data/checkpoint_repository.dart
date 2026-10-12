@@ -26,15 +26,8 @@ class CheckpointRepository {
   Future<CheckpointSnapshot> checkpoints() async {
     final response = await http.get(
       Uri.parse('$_baseUrl/v1/partner/checkpoints'),
-      headers: {
-        'X-Api-Key': _apiKey,
-        'Accept': 'application/json',
-      },
+      headers: {'X-Api-Key': _apiKey, 'Accept': 'application/json'},
     );
-
-    print('AweenRayeh status: ${response.statusCode}');
-    print('AweenRayeh response: ${response.body}');
-
     if (response.statusCode != 200) {
       throw Exception(
         'AweenRayeh API error: '
@@ -45,9 +38,7 @@ class CheckpointRepository {
     final decoded = jsonDecode(response.body);
 
     if (decoded is! Map<String, dynamic>) {
-      throw const FormatException(
-        'Invalid AweenRayeh response',
-      );
+      throw const FormatException('Invalid AweenRayeh response');
     }
 
     return CheckpointSnapshot.fromJson(decoded);

@@ -42,166 +42,206 @@ class RequestDetailScreen extends ConsumerWidget {
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(AppTokens.spaceLarge),
             children: [
-              if (!ShellLanguageControl.isProvided(context)) Text(
-              l10n.requestDetails,
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            const SizedBox(height: AppTokens.spaceLarge),
-            detail.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (_, _) => FilledButton(
-                onPressed: () =>
-                    ref.invalidate(passengerRequestDetailProvider(requestId)),
-                child: Text(l10n.retry),
-              ),
-              data: (request) => MasariCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Align(alignment: AlignmentDirectional.centerStart,
-                      child: StatusChip(label: _statusLabel(l10n, request.status),
-                        tone: statusToneFor(request.status))),
-                    const SizedBox(height: 24),
-                    DetailRow(label: l10n.pickup, value: localizedCorridorPlace(context, request.pickupLabel)),
-                    const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Divider(height: 1)),
-                    DetailRow(label: l10n.destination, value: localizedCorridorPlace(context, request.destinationLabel)),
-                    const SizedBox(height: 20),
-                    DetailRow(label: l10n.preferredTime, value: _readableTime(context, request.preferredTime)),
-                    const SizedBox(height: 12),
-                    DetailRow(label: l10n.passengerCount, value: '${request.passengerCount}'),
-                    const SizedBox(height: 12),
-                    DetailRow(label: l10n.createdTime, value: _readableTime(context, request.createdAt)),
-                    const SizedBox(height: 24),
-                    Consumer(
-                      builder: (context, ref, _) {
-                        final trip = ref.watch(
-                          passengerTripForRequestProvider(request.id),
-                        );
-                        return trip.when(
-                          loading: () => const SizedBox.shrink(),
-                          error: (_, _) => const SizedBox.shrink(),
-                          data: (value) {
-                            if (value == null) return const SizedBox.shrink();
-                            return Padding(
-                              padding: const EdgeInsets.only(
-                                top: AppTokens.spaceSmall,
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    '${l10n.currentStatus}: '
-                                    '${_statusLabel(l10n, value.status)}',
-                                  ),
-                                  TextButton(
-                                    onPressed: () => context.go(
-                                      '/passenger/trip/${value.id}',
+              if (!ShellLanguageControl.isProvided(context))
+                Text(
+                  l10n.requestDetails,
+                  style: Theme.of(context).textTheme.headlineMedium,
+                ),
+              const SizedBox(height: AppTokens.spaceLarge),
+              detail.when(
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (_, _) => FilledButton(
+                  onPressed: () =>
+                      ref.invalidate(passengerRequestDetailProvider(requestId)),
+                  child: Text(l10n.retry),
+                ),
+                data: (request) => MasariCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Align(
+                        alignment: AlignmentDirectional.centerStart,
+                        child: StatusChip(
+                          label: _statusLabel(l10n, request.status),
+                          tone: statusToneFor(request.status),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      DetailRow(
+                        label: l10n.pickup,
+                        value: localizedCorridorPlace(
+                          context,
+                          request.pickupLabel,
+                        ),
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                        child: Divider(height: 1),
+                      ),
+                      DetailRow(
+                        label: l10n.destination,
+                        value: localizedCorridorPlace(
+                          context,
+                          request.destinationLabel,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      DetailRow(
+                        label: l10n.preferredTime,
+                        value: _readableTime(context, request.preferredTime),
+                      ),
+                      const SizedBox(height: 12),
+                      DetailRow(
+                        label: l10n.passengerCount,
+                        value: '${request.passengerCount}',
+                      ),
+                      const SizedBox(height: 12),
+                      DetailRow(
+                        label: l10n.createdTime,
+                        value: _readableTime(context, request.createdAt),
+                      ),
+                      const SizedBox(height: 24),
+                      Consumer(
+                        builder: (context, ref, _) {
+                          final trip = ref.watch(
+                            passengerTripForRequestProvider(request.id),
+                          );
+                          return trip.when(
+                            loading: () => const SizedBox.shrink(),
+                            error: (_, _) => const SizedBox.shrink(),
+                            data: (value) {
+                              if (value == null) return const SizedBox.shrink();
+                              return Padding(
+                                padding: const EdgeInsets.only(
+                                  top: AppTokens.spaceSmall,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '${l10n.currentStatus}: '
+                                      '${_statusLabel(l10n, value.status)}',
                                     ),
-                                    child: Text(l10n.tripTimeline),
+                                    TextButton(
+                                      onPressed: () => context.go(
+                                        '/passenger/trip/${value.id}',
+                                      ),
+                                      child: Text(l10n.tripTimeline),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+                      const SizedBox(height: AppTokens.spaceLarge),
+                      if (request.status == 'matched')
+                        FilledButton(
+                          onPressed: () async {
+                            try {
+                              final match = await ref
+                                  .read(matchingRepositoryProvider)
+                                  .latestForPassengerRequest(request.id);
+                              if (!context.mounted) return;
+                              if (match != null) {
+                                context.go('/passenger/match/${match.id}');
+                              } else {
+                                ref.invalidate(
+                                  passengerRequestDetailProvider(requestId),
+                                );
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(l10n.requestFailed)),
+                                );
+                              }
+                            } catch (error) {
+                              if (!context.mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    _matchingErrorLabel(l10n, error),
                                   ),
-                                ],
-                              ),
-                            );
+                                ),
+                              );
+                            }
                           },
-                        );
-                      },
-                    ),
-                    const SizedBox(height: AppTokens.spaceLarge),
-                    if (request.status == 'matched')
-                      FilledButton(
-                        onPressed: () async {
-                          try {
-                            final match = await ref
-                                .read(matchingRepositoryProvider)
-                                .latestForPassengerRequest(request.id);
-                            if (!context.mounted) return;
-                            if (match != null) {
-                              context.go('/passenger/match/${match.id}');
-                            } else {
+                          child: Text(l10n.findCompatibleRoute),
+                        ),
+                      if (request.canMatch)
+                        FilledButton(
+                          onPressed: () async {
+                            try {
+                              final match = await ref
+                                  .read(matchingRepositoryProvider)
+                                  .runForPassengerRequest(request.id);
+                              if (context.mounted) {
+                                context.go('/passenger/match/${match.id}');
+                              }
+                            } catch (error) {
+                              if (!context.mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    _matchingErrorLabel(l10n, error),
+                                  ),
+                                ),
+                              );
                               ref.invalidate(
                                 passengerRequestDetailProvider(requestId),
                               );
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text(l10n.requestFailed)),
+                            }
+                          },
+                          child: Text(l10n.findCompatibleRoute),
+                        ),
+                      if (request.canCancel)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 12),
+                          child: OutlinedButton(
+                            onPressed: () async {
+                              final confirmed = await confirmSecurityAction(
+                                context,
+                                title: l10n.cancelRequest,
+                                message:
+                                    Localizations.localeOf(
+                                          context,
+                                        ).languageCode ==
+                                        'ar'
+                                    ? 'هل تريد إلغاء هذا الطلب؟'
+                                    : 'Would you like to cancel this request?',
+                                confirmLabel: l10n.cancelRequest,
                               );
-                            }
-                          } catch (error) {
-                            if (!context.mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  _matchingErrorLabel(l10n, error),
-                                ),
-                              ),
-                            );
-                          }
-                        },
-                        child: Text(l10n.findCompatibleRoute),
-                      ),
-                    if (request.canMatch)
-                      FilledButton(
-                        onPressed: () async {
-                          try {
-                            final match = await ref
-                                .read(matchingRepositoryProvider)
-                                .runForPassengerRequest(request.id);
-                            if (context.mounted) {
-                              context.go('/passenger/match/${match.id}');
-                            }
-                          } catch (error) {
-                            if (!context.mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  _matchingErrorLabel(l10n, error),
-                                ),
-                              ),
-                            );
-                            ref.invalidate(
-                              passengerRequestDetailProvider(requestId),
-                            );
-                          }
-                        },
-                        child: Text(l10n.findCompatibleRoute),
-                      ),
-                    if (request.canCancel)
-                      Padding(padding: const EdgeInsets.only(top: 12), child:
-                      OutlinedButton(
-                        onPressed: () async {
-                          final confirmed = await confirmSecurityAction(context,
-                            title: l10n.cancelRequest,
-                            message: Localizations.localeOf(context).languageCode == 'ar'
-                              ? 'هل تريد إلغاء هذا الطلب؟' : 'Would you like to cancel this request?',
-                            confirmLabel: l10n.cancelRequest);
-                          if (!confirmed || !context.mounted) return;
-                          try {
-                            await ref
-                                .read(passengerRepositoryProvider)
-                                .cancelRequest(request.id);
-                            ref.invalidate(
-                              passengerRequestDetailProvider(requestId),
-                            );
-                          } catch (_) {
-                            ref.invalidate(
-                              passengerRequestDetailProvider(requestId),
-                            );
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(l10n.requestCannotBeCancelled),
-                                ),
-                              );
-                            }
-                          }
-                        },
-                        child: Text(l10n.cancelRequest),
-                      )),
-                  ],
+                              if (!confirmed || !context.mounted) return;
+                              try {
+                                await ref
+                                    .read(passengerRepositoryProvider)
+                                    .cancelRequest(request.id);
+                                ref.invalidate(
+                                  passengerRequestDetailProvider(requestId),
+                                );
+                              } catch (_) {
+                                ref.invalidate(
+                                  passengerRequestDetailProvider(requestId),
+                                );
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        l10n.requestCannotBeCancelled,
+                                      ),
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                            child: Text(l10n.cancelRequest),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
         ),
       ),
     );

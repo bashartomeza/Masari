@@ -13,9 +13,7 @@ import '../../features/checkpoints/domain/checkpoint_models.dart';
 /// checkpoint is immediately visible on the map.
 ///
 /// Tapping the marker shows both directions in the map callout.
-MasariMapMarker checkpointTrafficMarker(
-  Checkpoint checkpoint,
-) {
+MasariMapMarker checkpointTrafficMarker(Checkpoint checkpoint) {
   final status = _worstStatus(
     checkpoint.enteringStatus,
     checkpoint.leavingStatus,
@@ -39,15 +37,10 @@ MasariMapMarker checkpointTrafficMarker(
 /// 2. أزمة متوسطة
 /// 3. سالك
 /// 4. Unknown
-String? _worstStatus(
-  String? entering,
-  String? leaving,
-) {
+String? _worstStatus(String? entering, String? leaving) {
   final statuses = <String>[
-    if (entering != null && entering.trim().isNotEmpty)
-      entering.trim(),
-    if (leaving != null && leaving.trim().isNotEmpty)
-      leaving.trim(),
+    if (entering != null && entering.trim().isNotEmpty) entering.trim(),
+    if (leaving != null && leaving.trim().isNotEmpty) leaving.trim(),
   ];
 
   if (statuses.isEmpty) {
@@ -102,21 +95,17 @@ IconData _statusIcon(String? status) {
 }
 
 String _buildLabel(Checkpoint checkpoint) {
-  final entering =
-      checkpoint.enteringStatus?.trim().isNotEmpty == true
-          ? checkpoint.enteringStatus!.trim()
-          : 'الحالة غير متوفرة';
+  final entering = checkpoint.enteringStatus?.trim().isNotEmpty == true
+      ? checkpoint.enteringStatus!.trim()
+      : 'الحالة غير متوفرة';
 
-  final leaving =
-      checkpoint.leavingStatus?.trim().isNotEmpty == true
-          ? checkpoint.leavingStatus!.trim()
-          : 'الحالة غير متوفرة';
+  final leaving = checkpoint.leavingStatus?.trim().isNotEmpty == true
+      ? checkpoint.leavingStatus!.trim()
+      : 'الحالة غير متوفرة';
 
   final parts = <String>[
-    if (checkpoint.nameAr.trim().isNotEmpty)
-      checkpoint.nameAr.trim(),
-    if (checkpoint.city.trim().isNotEmpty)
-      checkpoint.city.trim(),
+    if (checkpoint.nameAr.trim().isNotEmpty) checkpoint.nameAr.trim(),
+    if (checkpoint.city.trim().isNotEmpty) checkpoint.city.trim(),
     'دخول: $entering',
     'خروج: $leaving',
   ];

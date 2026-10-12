@@ -36,9 +36,11 @@ class _CreateMerchantOrderScreenState
       // Arabic string as the passenger's `createRequest` CTA, so matching on
       // text cannot tell the two screens apart.
       key: const ValueKey('merchantCreateOrder'),
-      appBar: AppBar(title: Text(l10n.createOrder),
+      appBar: AppBar(
+        title: Text(l10n.createOrder),
         leading: const MasariBackButton(fallback: '/merchant'),
-        actions: const [LanguageSwitch()]),
+        actions: const [LanguageSwitch()],
+      ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(AppTokens.spaceLarge),

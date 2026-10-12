@@ -34,7 +34,7 @@ void main() {
       TextDirection.rtl,
     );
 
-    await tester.tap(find.text('English'));
+    await tester.tap(find.byTooltip('English'));
     await tester.pumpAndSettle();
     expect(find.text('Create a new shipment'), findsOneWidget);
     expect(

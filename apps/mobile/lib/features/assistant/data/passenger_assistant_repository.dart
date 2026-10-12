@@ -9,7 +9,9 @@ import '../domain/passenger_assistant_models.dart';
 final passengerAssistantRepositoryProvider =
     Provider<PassengerAssistantRepository>((ref) {
       // Pending bookings belong to this account and must not survive logout.
-      ref.watch(authControllerProvider.select((value) => value.value?.user?.id));
+      ref.watch(
+        authControllerProvider.select((value) => value.value?.user?.id),
+      );
       return ApiPassengerAssistantRepository(
         apiClient: ref.watch(authenticatedApiClientProvider),
       );

@@ -144,7 +144,10 @@ class _DriverAvailabilityFormScreenState
     final l10n = AppLocalizations.of(context);
     return CanonicalFeatureGate(
       child: Scaffold(
-        appBar: AppBar(title: Text(l10n.newAvailability), leading: const MasariBackButton(fallback: '/driver')),
+        appBar: AppBar(
+          title: Text(l10n.newAvailability),
+          leading: const MasariBackButton(fallback: '/driver'),
+        ),
         body: SafeArea(
           child: ref
               .watch(canonicalRouteCatalogProvider)

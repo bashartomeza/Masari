@@ -59,10 +59,10 @@ export async function legacyParcelUnits(
   tx: Prisma.TransactionClient,
   options: { parcelBatchId?: string | null; merchantOrderId?: string | null },
 ) {
-  const where = options.parcelBatchId
-    ? { batch_id: options.parcelBatchId, status: { notIn: ["cancelled", "failed", "expired"] as const } }
+  const where: Prisma.ParcelWhereInput | null = options.parcelBatchId
+    ? { batch_id: options.parcelBatchId, status: { notIn: ["cancelled", "failed", "expired"] } }
     : options.merchantOrderId
-      ? { order_id: options.merchantOrderId, status: { notIn: ["cancelled", "failed", "expired"] as const } }
+      ? { order_id: options.merchantOrderId, status: { notIn: ["cancelled", "failed", "expired"] } }
       : null;
   if (!where) return 0;
   return tx.parcel.count({ where });

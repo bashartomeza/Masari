@@ -20,7 +20,7 @@ const overview = (observed_at = "2026-09-08T00:00:01.000Z", accepted = 0): Obser
     pending_passenger_requests: 0,
     submitted_merchant_orders: 0,
     match_results_by_status: { proposed: 0, sent_to_driver: 0, accepted, rejected: 0, expired: 0, invalidated: 0 },
-    batches_by_status: { created: 0, proposed: 0, assigned: 0, picked_up: 0, in_transit: 0, delivered: 0 },
+    batches_by_status: { created: 0, proposed: 0, assigned: 0, picked_up: 0, in_transit: 0, delivered: 0, cancelled: 0, failed: 0, expired: 0 },
     active_batches: 0,
     capabilities: { canonical_monitoring: "unavailable", failed_attempt_history: "not_recorded", completed_batches: "not_supported" }
   }
