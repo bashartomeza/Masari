@@ -7,9 +7,19 @@ import '../../../core/api/api_error.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/language_switch.dart';
 import '../../../core/widgets/masari_card.dart';
+import '../../../core/widgets/masari_section.dart';
+import '../../../core/widgets/status_chip.dart';
+import '../../../core/presentation/localized_labels.dart';
+import '../../security/presentation/security_actions.dart';
 import '../../matching/data/matching_repository.dart';
 import '../application/passenger_controller.dart';
 import '../data/passenger_repository.dart';
+
+String _readableTime(BuildContext context, DateTime value) {
+  final local = value.toLocal();
+  final labels = MaterialLocalizations.of(context);
+  return '${labels.formatMediumDate(local)} · ${labels.formatTimeOfDay(TimeOfDay.fromDateTime(local))}';
+}
 
 class RequestDetailScreen extends ConsumerWidget {
   const RequestDetailScreen({required this.requestId, super.key});
@@ -32,11 +42,7 @@ class RequestDetailScreen extends ConsumerWidget {
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(AppTokens.spaceLarge),
             children: [
-              const Align(
-                alignment: AlignmentDirectional.centerEnd,
-                child: LanguageSwitch(),
-              ),
-              Text(
+              if (!ShellLanguageControl.isProvided(context)) Text(
               l10n.requestDetails,
               style: Theme.of(context).textTheme.headlineMedium,
             ),
@@ -50,20 +56,22 @@ class RequestDetailScreen extends ConsumerWidget {
               ),
               data: (request) => MasariCard(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Directionality(
-                      textDirection: TextDirection.ltr,
-                      child: SelectableText(request.id),
-                    ),
-                    Text('${l10n.pickup}: ${request.pickupLabel}'),
-                    Text('${l10n.destination}: ${request.destinationLabel}'),
-                    Text('${l10n.preferredTime}: ${request.preferredTime}'),
-                    Text('${l10n.passengerCount}: ${request.passengerCount}'),
-                    Text(
-                      '${l10n.currentStatus}: ${_statusLabel(l10n, request.status)}',
-                    ),
-                    Text('${l10n.createdTime}: ${request.createdAt}'),
+                    Align(alignment: AlignmentDirectional.centerStart,
+                      child: StatusChip(label: _statusLabel(l10n, request.status),
+                        tone: statusToneFor(request.status))),
+                    const SizedBox(height: 24),
+                    DetailRow(label: l10n.pickup, value: localizedCorridorPlace(context, request.pickupLabel)),
+                    const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Divider(height: 1)),
+                    DetailRow(label: l10n.destination, value: localizedCorridorPlace(context, request.destinationLabel)),
+                    const SizedBox(height: 20),
+                    DetailRow(label: l10n.preferredTime, value: _readableTime(context, request.preferredTime)),
+                    const SizedBox(height: 12),
+                    DetailRow(label: l10n.passengerCount, value: '${request.passengerCount}'),
+                    const SizedBox(height: 12),
+                    DetailRow(label: l10n.createdTime, value: _readableTime(context, request.createdAt)),
+                    const SizedBox(height: 24),
                     Consumer(
                       builder: (context, ref, _) {
                         final trip = ref.watch(
@@ -157,8 +165,15 @@ class RequestDetailScreen extends ConsumerWidget {
                         child: Text(l10n.findCompatibleRoute),
                       ),
                     if (request.canCancel)
+                      Padding(padding: const EdgeInsets.only(top: 12), child:
                       OutlinedButton(
                         onPressed: () async {
+                          final confirmed = await confirmSecurityAction(context,
+                            title: l10n.cancelRequest,
+                            message: Localizations.localeOf(context).languageCode == 'ar'
+                              ? 'هل تريد إلغاء هذا الطلب؟' : 'Would you like to cancel this request?',
+                            confirmLabel: l10n.cancelRequest);
+                          if (!confirmed || !context.mounted) return;
                           try {
                             await ref
                                 .read(passengerRepositoryProvider)
@@ -180,7 +195,7 @@ class RequestDetailScreen extends ConsumerWidget {
                           }
                         },
                         child: Text(l10n.cancelRequest),
-                      ),
+                      )),
                   ],
                 ),
               ),

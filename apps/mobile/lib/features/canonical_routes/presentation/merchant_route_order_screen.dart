@@ -1,3 +1,4 @@
+import '../../../core/widgets/masari_back_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -94,7 +95,7 @@ class _MerchantRouteOrderScreenState
     final l10n = AppLocalizations.of(context);
     if (_result != null) {
       return Scaffold(
-        appBar: AppBar(title: Text(l10n.canonicalMerchantOrder)),
+        appBar: AppBar(title: Text(l10n.canonicalMerchantOrder), leading: const MasariBackButton(fallback: '/merchant')),
         body: SafeArea(
           child: ListView(
             padding: const EdgeInsets.all(AppTokens.spaceLarge),
@@ -115,7 +116,7 @@ class _MerchantRouteOrderScreenState
     }
     return CanonicalFeatureGate(
       child: Scaffold(
-        appBar: AppBar(title: Text(l10n.canonicalMerchantOrder)),
+        appBar: AppBar(title: Text(l10n.canonicalMerchantOrder), leading: const MasariBackButton(fallback: '/merchant')),
         body: SafeArea(
           child: ref
               .watch(canonicalRouteCatalogProvider)

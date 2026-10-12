@@ -75,7 +75,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     return Scaffold(
       body: SafeArea(
-        child: ListView(
+        child: Center(child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: ListView(
           padding: const EdgeInsets.all(AppTokens.spaceMedium),
           children: [
             const Align(
@@ -318,7 +320,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
             ],
           ],
-        ),
+        ))),
       ),
     );
   }

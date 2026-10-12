@@ -405,7 +405,13 @@ export function createPassengerAssistantService(
               )
             : reviewed.preferred_time;
           if (new Date(preferredTime).getTime() <= currentTime.getTime()) {
-            throw new Error("request_time_not_in_future");
+            return {
+              status: "clarification",
+              message: input.locale === "ar"
+                ? "الوقت المطلوب مضى. هل تقصد هذا الموعد غداً، أم تريد اختيار وقت آخر؟"
+                : "That time has already passed. Do you mean that time tomorrow, or would you like to choose another time?",
+              suggestions: input.locale === "ar" ? ["غداً بنفس الوقت"] : ["Tomorrow at the same time"]
+            };
           }
           return {
             status: parsed.status,

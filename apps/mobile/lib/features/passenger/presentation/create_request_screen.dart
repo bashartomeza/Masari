@@ -6,6 +6,7 @@ import 'package:masari_mobile/l10n/app_localizations.dart';
 import '../../../core/api/api_error.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/language_switch.dart';
+import '../../../core/widgets/masari_back_button.dart';
 import '../../../core/widgets/masari_card.dart';
 import '../../../core/widgets/masari_map.dart';
 import '../../canonical_routes/domain/canonical_route_models.dart';
@@ -45,22 +46,15 @@ class _CreateRequestScreenState
         !_loading;
 
     return Scaffold(
+      appBar: AppBar(title: Text(l10n.createRequest),
+        leading: const MasariBackButton(fallback: '/passenger'),
+        actions: const [LanguageSwitch()]),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(
             AppTokens.spaceLarge,
           ),
           children: [
-            const Align(
-              alignment: AlignmentDirectional.centerEnd,
-              child: LanguageSwitch(),
-            ),
-
-            Text(
-              l10n.createRequest,
-              style: theme.textTheme.headlineMedium,
-            ),
-
             const SizedBox(
               height: AppTokens.spaceLarge,
             ),

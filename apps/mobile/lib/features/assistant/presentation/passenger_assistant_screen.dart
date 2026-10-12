@@ -10,6 +10,8 @@ import '../../../core/theme/semantic_colors.dart';
 import '../../../core/widgets/masari_button.dart';
 import '../../../core/widgets/masari_card.dart';
 import '../../../core/widgets/state_views.dart';
+import '../../../core/widgets/language_switch.dart';
+import '../../../core/widgets/masari_back_button.dart';
 import '../application/passenger_assistant_controller.dart';
 import '../domain/passenger_assistant_models.dart';
 import '../../passenger/data/passenger_models.dart';
@@ -99,7 +101,9 @@ class _PassengerAssistantScreenState
 
     return Scaffold(
       key: const ValueKey('passengerAssistantScreen'),
-      appBar: AppBar(title: Text(l10n.assistantTitle)),
+      appBar: ShellLanguageControl.isProvided(context) ? null : AppBar(
+        title: Text(l10n.assistantTitle),
+        leading: const MasariBackButton(fallback: '/passenger')),
       body: Column(
         children: [
           Expanded(

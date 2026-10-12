@@ -24,7 +24,7 @@ class DestinationSearchCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(AppTokens.spaceMedium),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceContainerLow,
+        color: AppTheme.surface,
         borderRadius: BorderRadius.circular(AppTokens.radiusMedium),
         border: Border.all(color: AppTheme.outlineVariant),
       ),
@@ -32,12 +32,30 @@ class DestinationSearchCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
+            Localizations.localeOf(context).languageCode == 'ar'
+                ? 'رحلة جديدة'
+                : 'NEW RIDE',
+            textAlign: TextAlign.center,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: AppTheme.tertiary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
             l10n.whereToGo,
             textAlign: TextAlign.center,
-            style: theme.textTheme.titleLarge?.copyWith(
+            style: theme.textTheme.headlineMedium?.copyWith(
               color: AppTheme.primary,
               fontWeight: FontWeight.w700,
             ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            Localizations.localeOf(context).languageCode == 'ar'
+                ? 'حدد نقطة الانطلاق والوجهة، لنساعدك في إيجاد الرحلة المناسبة.'
+                : 'Choose your pickup and destination to find a suitable ride.',
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodySmall,
           ),
           const SizedBox(height: AppTokens.spaceMedium),
           Material(
@@ -83,6 +101,13 @@ class DestinationSearchCard extends StatelessWidget {
                 ),
               ),
             ),
+          ),
+          const SizedBox(height: 16),
+          FilledButton.icon(
+            key: const ValueKey('searchForTripCta'),
+            onPressed: onTap,
+            icon: const Icon(Icons.search, size: 20),
+            label: Text(l10n.searchForTrip),
           ),
         ],
       ),

@@ -9,14 +9,12 @@ import '../../../core/widgets/masari_card.dart';
 import '../../../core/widgets/masari_section.dart';
 import '../../../core/widgets/route_chip.dart';
 import '../../../core/widgets/state_views.dart';
-import '../../auth/application/auth_controller.dart';
 import '../../security/presentation/security_actions.dart';
 import '../../security/presentation/session_status_banner.dart';
 import '../../trips/data/trip_models.dart';
 import '../application/passenger_controller.dart';
 import '../data/passenger_models.dart';
 import 'widgets/destination_search_card.dart';
-import 'widgets/passenger_top_bar.dart';
 
 class PassengerHomeScreen extends ConsumerWidget {
   const PassengerHomeScreen({super.key});
@@ -28,7 +26,6 @@ class PassengerHomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
-    final user = ref.watch(authControllerProvider).value?.user;
     final dashboard = ref.watch(passengerDashboardProvider);
 
     void openNewRequest() => context.go(_newRequestRoute);
@@ -53,15 +50,6 @@ class PassengerHomeScreen extends ConsumerWidget {
                   AppTokens.spaceLarge,
                 ),
                 children: [
-                  PassengerTopBar(title: l10n.appTitle, name: user?.name),
-                  const SizedBox(height: AppTokens.spaceMedium),
-                  PassengerGreeting(
-                    // The full name, not just the first: this is the only place
-                    // the passenger sees which account they are signed in as.
-                    name: _displayName(user?.name) ?? l10n.passenger,
-                    locationLabel: l10n.lockedCorridor,
-                  ),
-                  const SizedBox(height: AppTokens.spaceMedium),
                   const SessionStatusBanner(),
 
                   const SizedBox(height: AppTokens.spaceMedium),
@@ -75,14 +63,12 @@ class PassengerHomeScreen extends ConsumerWidget {
                   DestinationSearchCard(onTap: openNewRequest),
 
                   const SizedBox(height: AppTokens.spaceLarge),
-                  const Divider(),
                   const RoleSecurityActions(),
                 ],
               ),
             ),
           ),
         ),
-        _PinnedSearchCta(onPressed: openNewRequest),
       ],
     );
   }
@@ -134,7 +120,7 @@ class _AssistantEntryCard extends StatelessWidget {
     return MasariCard(
       key: const ValueKey('openPassengerAssistant'),
       onTap: () => context.go('/passenger/assistant'),
-      background: AppTheme.surfaceContainerLow,
+      background: AppTheme.surface,
       border: const BorderSide(color: AppTheme.primary),
       child: Row(
         children: [
@@ -172,16 +158,11 @@ class _AssistantEntryCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: AppTokens.spaceSmall),
-          const Icon(Icons.arrow_forward, color: AppTheme.primary),
+          const Icon(Icons.chevron_right, color: AppTheme.primary),
         ],
       ),
     );
   }
-}
-
-String? _displayName(String? name) {
-  final trimmed = name?.trim();
-  return (trimmed == null || trimmed.isEmpty) ? null : trimmed;
 }
 
 /// The passenger's own open request.
@@ -237,40 +218,6 @@ class _ConnectedTripCard extends StatelessWidget {
       primaryAction: CardAction(
         label: l10n.openTrip,
         onPressed: () => context.go('/passenger/trip/${trip.id}'),
-      ),
-    );
-  }
-}
-
-/// The screen's main call to action, pinned above the navigation bar.
-///
-/// Sits outside the scroll view so it is always reachable, and inside the
-/// shell's body so the navigation bar stays below it.
-class _PinnedSearchCta extends StatelessWidget {
-  const _PinnedSearchCta({required this.onPressed});
-
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppTheme.background,
-        border: Border(top: BorderSide(color: AppTheme.outlineVariant)),
-      ),
-      padding: const EdgeInsets.fromLTRB(
-        AppTokens.marginMobile,
-        AppTokens.gutterMobile,
-        AppTokens.marginMobile,
-        AppTokens.gutterMobile,
-      ),
-      child: FilledButton.icon(
-        key: const ValueKey('searchForTripCta'),
-        onPressed: onPressed,
-        icon: const Icon(Icons.search),
-        label: Text(l10n.searchForTrip),
       ),
     );
   }

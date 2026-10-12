@@ -1,11 +1,15 @@
+import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../auth/data/authenticated_api_client.dart';
+import '../../auth/application/auth_controller.dart';
 import '../../passenger/data/passenger_models.dart';
 import '../domain/passenger_assistant_models.dart';
 
 final passengerAssistantRepositoryProvider =
     Provider<PassengerAssistantRepository>((ref) {
+      // Pending bookings belong to this account and must not survive logout.
+      ref.watch(authControllerProvider.select((value) => value.value?.user?.id));
       return ApiPassengerAssistantRepository(
         apiClient: ref.watch(authenticatedApiClientProvider),
       );
@@ -30,9 +34,10 @@ abstract interface class PassengerAssistantRepository {
 }
 
 class ApiPassengerAssistantRepository implements PassengerAssistantRepository {
-  const ApiPassengerAssistantRepository({required this.apiClient});
+  ApiPassengerAssistantRepository({required this.apiClient});
 
   final AuthenticatedApiClient apiClient;
+  final Map<String, Future<String>> _createdRequests = {};
 
   @override
   Future<PassengerAssistantReply> ask({
@@ -95,24 +100,42 @@ class ApiPassengerAssistantRepository implements PassengerAssistantRepository {
   }) async {
     final pickup = _validatedPickup(draft);
 
-    final created = await apiClient.postJson(
-      '/passenger/requests',
-      body: _requestBody(draft, pickup),
-    );
-    final request = created['request'];
-    if (request is! Map || request['id'] is! String) {
-      throw const FormatException('Missing created request');
-    }
+    final body = _requestBody(draft, pickup);
+    final requestId = await _requestForDraft(body);
 
     final matched = await apiClient.postJson(
       '/matches/run',
-      body: {'passengerRequestId': request['id'], 'driverRouteId': option.id},
+      body: {'passengerRequestId': requestId, 'driverRouteId': option.id},
     );
     final match = matched['match'];
     if (match is! Map || match['id'] is! String) {
       throw const FormatException('Missing match result');
     }
     return match['id'] as String;
+  }
+
+  Future<String> _requestForDraft(Map<String, dynamic> body) async {
+    final key = jsonEncode(body);
+    final existing = _createdRequests[key];
+    if (existing != null) return existing;
+
+    final creation = _createRequest(body);
+    _createdRequests[key] = creation;
+    try {
+      return await creation;
+    } catch (_) {
+      _createdRequests.remove(key);
+      rethrow;
+    }
+  }
+
+  Future<String> _createRequest(Map<String, dynamic> body) async {
+    final created = await apiClient.postJson('/passenger/requests', body: body);
+    final request = created['request'];
+    if (request is! Map || request['id'] is! String) {
+      throw const FormatException('Missing created request');
+    }
+    return request['id'] as String;
   }
 
   PickupPreset _validatedPickup(PassengerAssistantTripDraft draft) {

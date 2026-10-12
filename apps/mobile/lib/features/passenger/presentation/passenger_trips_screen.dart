@@ -10,8 +10,8 @@ import 'package:masari_mobile/l10n/app_localizations.dart';
 import '../../../core/presentation/localized_labels.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/state_views.dart';
+import '../../../core/widgets/language_switch.dart';
 import '../../canonical_routes/application/canonical_route_controller.dart';
-import '../../trips/data/trip_models.dart';
 import '../application/passenger_history_controller.dart';
 import '../data/passenger_models.dart';
 import 'passenger_home_screen.dart' show passengerStatusLabel;
@@ -28,8 +28,7 @@ class PassengerTripsScreen extends ConsumerStatefulWidget {
       _PassengerTripsScreenState();
 }
 
-class _PassengerTripsScreenState
-    extends ConsumerState<PassengerTripsScreen> {
+class _PassengerTripsScreenState extends ConsumerState<PassengerTripsScreen> {
   _TripFilter _selectedFilter = _TripFilter.all;
 
   @override
@@ -73,21 +72,16 @@ class _PassengerTripsScreenState
                   padding: _pagePadding,
                   children: [
                     _TopHeader(
-                      onLanguageTap: () =>
-                          _showLanguagePicker(context),
+                      onLanguageTap: () => _showLanguagePicker(context),
                     ),
                     const SizedBox(height: AppTokens.spaceLarge),
                     _GlassCard(
-                      padding: const EdgeInsets.all(
-                        AppTokens.spaceMedium,
-                      ),
+                      padding: const EdgeInsets.all(AppTokens.spaceMedium),
                       child: ErrorStateView(
                         title: l10n.tripHistoryFailed,
                         retryLabel: l10n.retry,
                         onRetry: () => ref
-                            .read(
-                              passengerHistoryProvider.notifier,
-                            )
+                            .read(passengerHistoryProvider.notifier)
                             .refresh(),
                       ),
                     ),
@@ -95,34 +89,28 @@ class _PassengerTripsScreenState
                 ),
 
                 data: (state) {
-                  final filteredRequests =
-                      _filteredRequests(state);
+                  final filteredRequests = _filteredRequests(state);
 
                   return ListView(
                     key: const ValueKey('passengerTripsList'),
-                    physics:
-                        const AlwaysScrollableScrollPhysics(),
+                    physics: const AlwaysScrollableScrollPhysics(),
                     padding: _pagePadding,
                     children: [
                       // ------------------------------------------------------
                       // HEADER
                       // ------------------------------------------------------
-
                       _TopHeader(
-                        onLanguageTap: () =>
-                            _showLanguagePicker(context),
+                        onLanguageTap: () => _showLanguagePicker(context),
                       ),
 
-                      const SizedBox(
-                        height: AppTokens.spaceMedium,
-                      ),
+                      const SizedBox(height: AppTokens.spaceMedium),
 
                       // ------------------------------------------------------
                       // STATS
                       // ------------------------------------------------------
-
                       _TripStats(
-                        total: state.active.length +
+                        total:
+                            state.active.length +
                             state.upcoming.length +
                             state.past.length +
                             state.cancelled.length,
@@ -132,14 +120,11 @@ class _PassengerTripsScreenState
                         cancelled: state.cancelled.length,
                       ),
 
-                      const SizedBox(
-                        height: AppTokens.spaceMedium,
-                      ),
+                      const SizedBox(height: AppTokens.spaceMedium),
 
                       // ------------------------------------------------------
                       // FILTERS
                       // ------------------------------------------------------
-
                       _FilterBar(
                         selectedFilter: _selectedFilter,
                         onChanged: (filter) {
@@ -150,62 +135,47 @@ class _PassengerTripsScreenState
                         activeCount: state.active.length,
                         upcomingCount: state.upcoming.length,
                         pastCount: state.past.length,
-                        cancelledCount:
-                            state.cancelled.length,
+                        cancelledCount: state.cancelled.length,
                       ),
 
-                      const SizedBox(
-                        height: AppTokens.spaceLarge,
-                      ),
+                      const SizedBox(height: AppTokens.spaceLarge),
 
                       // ------------------------------------------------------
                       // EMPTY
                       // ------------------------------------------------------
-
                       if (state.isEmpty)
                         _ModernEmptyState(
                           title: l10n.noTripsYet,
                           message: l10n.noTripsYetBody,
                           actionLabel: l10n.createRequest,
-                          onAction: () => context.go(
-                            '/passenger/request/new',
-                          ),
+                          onAction: () => context.go('/passenger/request/new'),
                         )
-
                       // ------------------------------------------------------
                       // FILTER EMPTY
                       // ------------------------------------------------------
-
                       else if (filteredRequests.isEmpty)
                         _FilterEmptyState(
                           onReset: () {
                             setState(() {
-                              _selectedFilter =
-                                  _TripFilter.all;
+                              _selectedFilter = _TripFilter.all;
                             });
                           },
                         )
-
                       // ------------------------------------------------------
                       // TRIPS
                       // ------------------------------------------------------
-
                       else ...[
                         _TripsTitle(
                           filter: _selectedFilter,
                           count: filteredRequests.length,
                         ),
 
-                        const SizedBox(
-                          height: AppTokens.spaceSmall,
-                        ),
+                        const SizedBox(height: AppTokens.spaceSmall),
 
                         for (final (index, item)
                             in filteredRequests.indexed) ...[
                           if (index > 0)
-                            const SizedBox(
-                              height: AppTokens.spaceSmall,
-                            ),
+                            const SizedBox(height: AppTokens.spaceSmall),
 
                           _TripCard(
                             request: item.request,
@@ -218,23 +188,17 @@ class _PassengerTripsScreenState
                       // ------------------------------------------------------
                       // CANONICAL ASSIGNMENTS
                       // ------------------------------------------------------
-
                       if (canonicalStatus) ...[
-                        const SizedBox(
-                          height: AppTokens.spaceLarge,
-                        ),
+                        const SizedBox(height: AppTokens.spaceLarge),
                         _CanonicalCard(
                           title: l10n.canonicalAssignments,
                           sectionTitle: l10n.canonicalRoutes,
-                          onPressed: () => context.go(
-                            '/passenger/canonical-assignments',
-                          ),
+                          onPressed: () =>
+                              context.go('/passenger/canonical-assignments'),
                         ),
                       ],
 
-                      const SizedBox(
-                        height: AppTokens.spaceLarge,
-                      ),
+                      const SizedBox(height: AppTokens.spaceLarge),
                     ],
                   );
                 },
@@ -259,8 +223,7 @@ class _PassengerTripsScreenState
           state.active.map<_TripItem>(
             (PassengerRequest request) => _TripItem(
               request: request,
-              tripId:
-                  state.tripForRequest(request.id)?.id,
+              tripId: state.tripForRequest(request.id)?.id,
               isActive: true,
             ),
           ),
@@ -270,8 +233,7 @@ class _PassengerTripsScreenState
           state.upcoming.map<_TripItem>(
             (PassengerRequest request) => _TripItem(
               request: request,
-              tripId:
-                  state.tripForRequest(request.id)?.id,
+              tripId: state.tripForRequest(request.id)?.id,
               isActive: false,
             ),
           ),
@@ -281,8 +243,7 @@ class _PassengerTripsScreenState
           state.past.map<_TripItem>(
             (PassengerRequest request) => _TripItem(
               request: request,
-              tripId:
-                  state.tripForRequest(request.id)?.id,
+              tripId: state.tripForRequest(request.id)?.id,
               isActive: false,
             ),
           ),
@@ -292,8 +253,7 @@ class _PassengerTripsScreenState
           state.cancelled.map<_TripItem>(
             (PassengerRequest request) => _TripItem(
               request: request,
-              tripId:
-                  state.tripForRequest(request.id)?.id,
+              tripId: state.tripForRequest(request.id)?.id,
               isActive: false,
             ),
           ),
@@ -306,8 +266,7 @@ class _PassengerTripsScreenState
           state.active.map<_TripItem>(
             (PassengerRequest request) => _TripItem(
               request: request,
-              tripId:
-                  state.tripForRequest(request.id)?.id,
+              tripId: state.tripForRequest(request.id)?.id,
               isActive: true,
             ),
           ),
@@ -319,8 +278,7 @@ class _PassengerTripsScreenState
           state.upcoming.map<_TripItem>(
             (PassengerRequest request) => _TripItem(
               request: request,
-              tripId:
-                  state.tripForRequest(request.id)?.id,
+              tripId: state.tripForRequest(request.id)?.id,
               isActive: false,
             ),
           ),
@@ -332,8 +290,7 @@ class _PassengerTripsScreenState
           state.past.map<_TripItem>(
             (PassengerRequest request) => _TripItem(
               request: request,
-              tripId:
-                  state.tripForRequest(request.id)?.id,
+              tripId: state.tripForRequest(request.id)?.id,
               isActive: false,
             ),
           ),
@@ -345,8 +302,7 @@ class _PassengerTripsScreenState
           state.cancelled.map<_TripItem>(
             (PassengerRequest request) => _TripItem(
               request: request,
-              tripId:
-                  state.tripForRequest(request.id)?.id,
+              tripId: state.tripForRequest(request.id)?.id,
               isActive: false,
             ),
           ),
@@ -361,9 +317,7 @@ class _PassengerTripsScreenState
   // LANGUAGE PICKER
   // --------------------------------------------------------------------------
 
-  Future<void> _showLanguagePicker(
-    BuildContext context,
-  ) async {
+  Future<void> _showLanguagePicker(BuildContext context) async {
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
@@ -374,22 +328,15 @@ class _PassengerTripsScreenState
         final scheme = theme.colorScheme;
 
         return ClipRRect(
-          borderRadius: const BorderRadius.vertical(
-            top: Radius.circular(30),
-          ),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
           child: BackdropFilter(
-            filter: ImageFilter.blur(
-              sigmaX: 22,
-              sigmaY: 22,
-            ),
+            filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
             child: Container(
               decoration: BoxDecoration(
                 color: scheme.surface.withValues(alpha: 0.78),
                 border: Border(
                   top: BorderSide(
-                    color: scheme.onSurface.withValues(
-                      alpha: 0.10,
-                    ),
+                    color: scheme.onSurface.withValues(alpha: 0.10),
                   ),
                 ),
               ),
@@ -405,19 +352,15 @@ class _PassengerTripsScreenState
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Align(
-                        alignment:
-                            AlignmentDirectional.centerStart,
+                        alignment: AlignmentDirectional.centerStart,
                         child: Row(
                           children: [
                             Container(
                               width: 38,
                               height: 38,
                               decoration: BoxDecoration(
-                                color: scheme.primary.withValues(
-                                  alpha: 0.10,
-                                ),
-                                borderRadius:
-                                    BorderRadius.circular(12),
+                                color: scheme.primary.withValues(alpha: 0.10),
+                                borderRadius: BorderRadius.circular(12),
                               ),
                               child: Icon(
                                 Icons.language_rounded,
@@ -428,8 +371,7 @@ class _PassengerTripsScreenState
                             const SizedBox(width: 10),
                             Text(
                               'Language',
-                              style: theme.textTheme.titleLarge
-                                  ?.copyWith(
+                              style: theme.textTheme.titleLarge?.copyWith(
                                 fontWeight: FontWeight.w900,
                               ),
                             ),
@@ -437,31 +379,25 @@ class _PassengerTripsScreenState
                         ),
                       ),
 
-                      const SizedBox(
-                        height: AppTokens.spaceMedium,
-                      ),
+                      const SizedBox(height: AppTokens.spaceMedium),
 
                       _LanguageOption(
                         title: 'العربية',
                         selected:
-                            Localizations.localeOf(context)
-                                    .languageCode ==
-                                'ar',
+                            Localizations.localeOf(context).languageCode ==
+                            'ar',
                         onTap: () {
                           Navigator.pop(context);
                         },
                       ),
 
-                      const SizedBox(
-                        height: AppTokens.spaceSmall,
-                      ),
+                      const SizedBox(height: AppTokens.spaceSmall),
 
                       _LanguageOption(
                         title: 'English',
                         selected:
-                            Localizations.localeOf(context)
-                                    .languageCode ==
-                                'en',
+                            Localizations.localeOf(context).languageCode ==
+                            'en',
                         onTap: () {
                           Navigator.pop(context);
                         },
@@ -491,83 +427,15 @@ class _PassengerTripsScreenState
 
 class _GlassBackground extends StatelessWidget {
   const _GlassBackground();
-
   @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
-    return IgnorePointer(
-      child: Stack(
-        children: [
-          Positioned(
-            top: -90,
-            left: -90,
-            child: _GlowOrb(
-              size: 240,
-              color: scheme.primary.withValues(alpha: 0.13),
-            ),
-          ),
-          Positioned(
-            top: 240,
-            right: -100,
-            child: _GlowOrb(
-              size: 260,
-              color: scheme.tertiary.withValues(alpha: 0.10),
-            ),
-          ),
-          Positioned(
-            bottom: 80,
-            left: -110,
-            child: _GlowOrb(
-              size: 230,
-              color: scheme.secondary.withValues(alpha: 0.08),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => const SizedBox.expand();
 }
-
-class _GlowOrb extends StatelessWidget {
-  const _GlowOrb({
-    required this.size,
-    required this.color,
-  });
-
-  final double size;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return ImageFiltered(
-      imageFilter: ImageFilter.blur(
-        sigmaX: 45,
-        sigmaY: 45,
-      ),
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: color,
-        ),
-      ),
-    );
-  }
-}
-
-// =============================================================================
-// GLASS CARD
-// =============================================================================
 
 class _GlassCard extends StatelessWidget {
   const _GlassCard({
     required this.child,
     this.padding = EdgeInsets.zero,
-    this.borderRadius = const BorderRadius.all(
-      Radius.circular(24),
-    ),
+    this.borderRadius = const BorderRadius.all(Radius.circular(24)),
     this.highlighted = false,
     this.onTap,
   });
@@ -587,30 +455,9 @@ class _GlassCard extends StatelessWidget {
         : scheme.onSurface.withValues(alpha: 0.08);
 
     final decoration = BoxDecoration(
-      gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          scheme.surface.withValues(
-            alpha: highlighted ? 0.66 : 0.60,
-          ),
-          scheme.surfaceContainerHighest.withValues(
-            alpha: highlighted ? 0.24 : 0.15,
-          ),
-        ],
-      ),
+      color: scheme.surface,
       borderRadius: borderRadius,
-      border: Border.all(
-        color: borderColor,
-        width: highlighted ? 1.2 : 1,
-      ),
-      boxShadow: [
-        BoxShadow(
-          color: scheme.shadow.withValues(alpha: 0.08),
-          blurRadius: highlighted ? 24 : 18,
-          offset: const Offset(0, 10),
-        ),
-      ],
+      border: Border.all(color: borderColor),
     );
 
     Widget content = Container(
@@ -633,10 +480,7 @@ class _GlassCard extends StatelessWidget {
     return ClipRRect(
       borderRadius: borderRadius,
       child: BackdropFilter(
-        filter: ImageFilter.blur(
-          sigmaX: 18,
-          sigmaY: 18,
-        ),
+        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
         child: content,
       ),
     );
@@ -647,13 +491,7 @@ class _GlassCard extends StatelessWidget {
 // FILTER ENUM
 // =============================================================================
 
-enum _TripFilter {
-  all,
-  active,
-  upcoming,
-  past,
-  cancelled,
-}
+enum _TripFilter { all, active, upcoming, past, cancelled }
 
 // =============================================================================
 // TRIP ITEM
@@ -676,9 +514,7 @@ class _TripItem {
 // =============================================================================
 
 class _TopHeader extends StatelessWidget {
-  const _TopHeader({
-    required this.onLanguageTap,
-  });
+  const _TopHeader({required this.onLanguageTap});
 
   final VoidCallback onLanguageTap;
 
@@ -696,35 +532,29 @@ class _TopHeader extends StatelessWidget {
           decoration: BoxDecoration(
             color: scheme.primary.withValues(alpha: 0.10),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: scheme.primary.withValues(alpha: 0.12),
-            ),
+            border: Border.all(color: scheme.primary.withValues(alpha: 0.12)),
           ),
-          child: Icon(
-            Icons.route_rounded,
-            color: scheme.primary,
-            size: 23,
-          ),
+          child: Icon(Icons.route_rounded, color: scheme.primary, size: 23),
         ),
 
         const SizedBox(width: 12),
 
         Expanded(
           child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 AppLocalizations.of(context).myTrips,
-                style:
-                    theme.textTheme.headlineSmall?.copyWith(
+                style: theme.textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.w900,
                   letterSpacing: -0.7,
                 ),
               ),
               const SizedBox(height: 3),
               Text(
-                'Your journeys in one place',
+                Localizations.localeOf(context).languageCode == 'ar'
+                    ? 'كل رحلاتك في مكان واحد'
+                    : 'Your journeys in one place',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: scheme.onSurfaceVariant,
                   fontWeight: FontWeight.w600,
@@ -736,13 +566,11 @@ class _TopHeader extends StatelessWidget {
 
         const SizedBox(width: 8),
 
-        _GlassIconButton(
+        if (!ShellLanguageControl.isProvided(context)) _GlassIconButton(
           icon: Icons.language_rounded,
-          label:
-              Localizations.localeOf(context).languageCode ==
-                      'ar'
-                  ? 'عربي'
-                  : 'EN',
+          label: Localizations.localeOf(context).languageCode == 'ar'
+              ? 'عربي'
+              : 'EN',
           onTap: onLanguageTap,
         ),
       ],
@@ -768,35 +596,23 @@ class _GlassIconButton extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(15),
       child: BackdropFilter(
-        filter: ImageFilter.blur(
-          sigmaX: 12,
-          sigmaY: 12,
-        ),
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
         child: Material(
           color: scheme.surface.withValues(alpha: 0.52),
           child: InkWell(
             onTap: onTap,
             child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 9,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(15),
                 border: Border.all(
-                  color: scheme.onSurface.withValues(
-                    alpha: 0.08,
-                  ),
+                  color: scheme.onSurface.withValues(alpha: 0.08),
                 ),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    icon,
-                    size: 16,
-                    color: scheme.onSurfaceVariant,
-                  ),
+                  Icon(icon, size: 16, color: scheme.onSurfaceVariant),
                   const SizedBox(width: 5),
                   Text(
                     label,
@@ -902,10 +718,7 @@ class _StatItem extends StatelessWidget {
     final scheme = theme.colorScheme;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        vertical: 7,
-        horizontal: 1,
-      ),
+      padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 1),
       child: Column(
         children: [
           Container(
@@ -915,11 +728,7 @@ class _StatItem extends StatelessWidget {
               color: scheme.primary.withValues(alpha: 0.09),
               shape: BoxShape.circle,
             ),
-            child: Icon(
-              icon,
-              size: 15,
-              color: scheme.primary,
-            ),
+            child: Icon(icon, size: 15, color: scheme.primary),
           ),
 
           const SizedBox(height: 5),
@@ -956,10 +765,7 @@ class _StatDivider extends StatelessWidget {
     return Container(
       width: 1,
       height: 45,
-      color: Theme.of(context)
-          .colorScheme
-          .onSurface
-          .withValues(alpha: 0.07),
+      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.07),
     );
   }
 }
@@ -994,52 +800,37 @@ class _FilterBar extends StatelessWidget {
         children: [
           _FilterChip(
             label: 'All',
-            count: activeCount +
-                upcomingCount +
-                pastCount +
-                cancelledCount,
+            count: activeCount + upcomingCount + pastCount + cancelledCount,
             selected: selectedFilter == _TripFilter.all,
             onTap: () => onChanged(_TripFilter.all),
           ),
           const SizedBox(width: 7),
           _FilterChip(
-            label: AppLocalizations.of(context)
-                .tripsActiveSection,
+            label: AppLocalizations.of(context).tripsActiveSection,
             count: activeCount,
-            selected:
-                selectedFilter == _TripFilter.active,
-            onTap: () =>
-                onChanged(_TripFilter.active),
+            selected: selectedFilter == _TripFilter.active,
+            onTap: () => onChanged(_TripFilter.active),
           ),
           const SizedBox(width: 7),
           _FilterChip(
-            label: AppLocalizations.of(context)
-                .tripsUpcomingSection,
+            label: AppLocalizations.of(context).tripsUpcomingSection,
             count: upcomingCount,
-            selected:
-                selectedFilter == _TripFilter.upcoming,
-            onTap: () =>
-                onChanged(_TripFilter.upcoming),
+            selected: selectedFilter == _TripFilter.upcoming,
+            onTap: () => onChanged(_TripFilter.upcoming),
           ),
           const SizedBox(width: 7),
           _FilterChip(
-            label:
-                AppLocalizations.of(context).tripsPastSection,
+            label: AppLocalizations.of(context).tripsPastSection,
             count: pastCount,
-            selected:
-                selectedFilter == _TripFilter.past,
-            onTap: () =>
-                onChanged(_TripFilter.past),
+            selected: selectedFilter == _TripFilter.past,
+            onTap: () => onChanged(_TripFilter.past),
           ),
           const SizedBox(width: 7),
           _FilterChip(
-            label: AppLocalizations.of(context)
-                .tripsCancelledSection,
+            label: AppLocalizations.of(context).tripsCancelledSection,
             count: cancelledCount,
-            selected:
-                selectedFilter == _TripFilter.cancelled,
-            onTap: () =>
-                onChanged(_TripFilter.cancelled),
+            selected: selectedFilter == _TripFilter.cancelled,
+            onTap: () => onChanged(_TripFilter.cancelled),
           ),
         ],
       ),
@@ -1067,10 +858,7 @@ class _FilterChip extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(999),
       child: BackdropFilter(
-        filter: ImageFilter.blur(
-          sigmaX: 10,
-          sigmaY: 10,
-        ),
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Material(
           color: selected
               ? scheme.primary.withValues(alpha: 0.88)
@@ -1079,18 +867,13 @@ class _FilterChip extends StatelessWidget {
             onTap: onTap,
             borderRadius: BorderRadius.circular(999),
             child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 9,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(999),
                 border: Border.all(
                   color: selected
                       ? scheme.primary.withValues(alpha: 0.38)
-                      : scheme.onSurface.withValues(
-                          alpha: 0.07,
-                        ),
+                      : scheme.onSurface.withValues(alpha: 0.07),
                 ),
               ),
               child: Row(
@@ -1101,31 +884,23 @@ class _FilterChip extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w800,
-                      color: selected
-                          ? scheme.onPrimary
-                          : scheme.onSurface,
+                      color: selected ? scheme.onPrimary : scheme.onSurface,
                     ),
                   ),
 
                   const SizedBox(width: 6),
 
                   Container(
-                    constraints:
-                        const BoxConstraints(minWidth: 19),
+                    constraints: const BoxConstraints(minWidth: 19),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 5,
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
                       color: selected
-                          ? scheme.onPrimary.withValues(
-                              alpha: 0.18,
-                            )
-                          : scheme.onSurface.withValues(
-                              alpha: 0.07,
-                            ),
-                      borderRadius:
-                          BorderRadius.circular(999),
+                          ? scheme.onPrimary.withValues(alpha: 0.18)
+                          : scheme.onSurface.withValues(alpha: 0.07),
+                      borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(
                       '$count',
@@ -1154,10 +929,7 @@ class _FilterChip extends StatelessWidget {
 // =============================================================================
 
 class _TripsTitle extends StatelessWidget {
-  const _TripsTitle({
-    required this.filter,
-    required this.count,
-  });
+  const _TripsTitle({required this.filter, required this.count});
 
   final _TripFilter filter;
   final int count;
@@ -1172,8 +944,7 @@ class _TripsTitle extends StatelessWidget {
       _TripFilter.active => l10n.tripsActiveSection,
       _TripFilter.upcoming => l10n.tripsUpcomingSection,
       _TripFilter.past => l10n.tripsPastSection,
-      _TripFilter.cancelled =>
-        l10n.tripsCancelledSection,
+      _TripFilter.cancelled => l10n.tripsCancelledSection,
     };
 
     return Row(
@@ -1186,41 +957,30 @@ class _TripsTitle extends StatelessWidget {
                 height: 21,
                 decoration: BoxDecoration(
                   color: scheme.primary,
-                  borderRadius:
-                      BorderRadius.circular(99),
+                  borderRadius: BorderRadius.circular(99),
                 ),
               ),
               const SizedBox(width: 8),
               Text(
                 title,
-                style:
-                    Theme.of(context).textTheme.titleMedium
-                        ?.copyWith(
-                  fontWeight: FontWeight.w900,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
               ),
             ],
           ),
         ),
 
         Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 9,
-            vertical: 5,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
           decoration: BoxDecoration(
             color: scheme.surface.withValues(alpha: 0.50),
             borderRadius: BorderRadius.circular(999),
-            border: Border.all(
-              color: scheme.onSurface.withValues(
-                alpha: 0.07,
-              ),
-            ),
+            border: Border.all(color: scheme.onSurface.withValues(alpha: 0.07)),
           ),
           child: Text(
             '$count',
-            style:
-                Theme.of(context).textTheme.labelMedium?.copyWith(
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
               color: scheme.onSurfaceVariant,
               fontWeight: FontWeight.w800,
             ),
@@ -1253,16 +1013,11 @@ class _TripCard extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
 
-    final statusColor = _statusColor(
-      context,
-      request.status,
-    );
+    final statusColor = _statusColor(context, request.status);
 
     return _GlassCard(
       highlighted: active,
-      padding: const EdgeInsets.all(
-        AppTokens.spaceMedium,
-      ),
+      padding: const EdgeInsets.all(AppTokens.spaceMedium),
       borderRadius: BorderRadius.circular(24),
       onTap: () => _openTrip(context),
       child: Column(
@@ -1271,7 +1026,6 @@ class _TripCard extends StatelessWidget {
           // ------------------------------------------------------------------
           // TOP ROW
           // ------------------------------------------------------------------
-
           Row(
             children: [
               Container(
@@ -1283,30 +1037,20 @@ class _TripCard extends StatelessWidget {
                     end: Alignment.bottomRight,
                     colors: [
                       active
-                          ? scheme.primary.withValues(
-                              alpha: 0.18,
-                            )
-                          : scheme.surfaceContainerHighest
-                              .withValues(alpha: 0.65),
-                      active
-                          ? scheme.primary.withValues(
-                              alpha: 0.07,
-                            )
-                          : scheme.surface.withValues(
-                              alpha: 0.35,
+                          ? scheme.primary.withValues(alpha: 0.18)
+                          : scheme.surfaceContainerHighest.withValues(
+                              alpha: 0.65,
                             ),
+                      active
+                          ? scheme.primary.withValues(alpha: 0.07)
+                          : scheme.surface.withValues(alpha: 0.35),
                     ],
                   ),
-                  borderRadius:
-                      BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(14),
                   border: Border.all(
                     color: active
-                        ? scheme.primary.withValues(
-                            alpha: 0.15,
-                          )
-                        : scheme.onSurface.withValues(
-                            alpha: 0.06,
-                          ),
+                        ? scheme.primary.withValues(alpha: 0.15)
+                        : scheme.onSurface.withValues(alpha: 0.06),
                   ),
                 ),
                 child: Icon(
@@ -1314,30 +1058,21 @@ class _TripCard extends StatelessWidget {
                       ? Icons.directions_car_filled_rounded
                       : Icons.route_rounded,
                   size: 21,
-                  color: active
-                      ? scheme.primary
-                      : scheme.onSurfaceVariant,
+                  color: active ? scheme.primary : scheme.onSurfaceVariant,
                 ),
               ),
 
-              const SizedBox(
-                width: AppTokens.spaceSmall,
-              ),
+              const SizedBox(width: AppTokens.spaceSmall),
 
               Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      localizedCorridorPlace(
-                        context,
-                        request.destinationLabel,
-                      ),
+                      localizedCorridorPlace(context, request.destinationLabel),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style:
-                          theme.textTheme.titleSmall?.copyWith(
+                      style: theme.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w900,
                       ),
                     ),
@@ -1353,8 +1088,7 @@ class _TripCard extends StatelessWidget {
                             ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style:
-                          theme.textTheme.bodySmall?.copyWith(
+                      style: theme.textTheme.bodySmall?.copyWith(
                         color: scheme.onSurfaceVariant,
                         fontWeight: FontWeight.w600,
                       ),
@@ -1366,43 +1100,28 @@ class _TripCard extends StatelessWidget {
               const SizedBox(width: 8),
 
               _StatusPill(
-                label: passengerStatusLabel(
-                  l10n,
-                  request.status,
-                ),
+                label: passengerStatusLabel(l10n, request.status),
                 color: statusColor,
               ),
             ],
           ),
 
-          const SizedBox(
-            height: AppTokens.spaceMedium,
-          ),
+          const SizedBox(height: AppTokens.spaceMedium),
 
           // ------------------------------------------------------------------
           // ROUTE
           // ------------------------------------------------------------------
-
           _RoutePreview(
-            from: localizedCorridorPlace(
-              context,
-              request.pickupLabel,
-            ),
-            to: localizedCorridorPlace(
-              context,
-              request.destinationLabel,
-            ),
+            from: localizedCorridorPlace(context, request.pickupLabel),
+            to: localizedCorridorPlace(context, request.destinationLabel),
             active: active,
           ),
 
-          const SizedBox(
-            height: AppTokens.spaceMedium,
-          ),
+          const SizedBox(height: AppTokens.spaceMedium),
 
           // ------------------------------------------------------------------
           // BOTTOM INFORMATION
           // ------------------------------------------------------------------
-
           Row(
             children: [
               Expanded(
@@ -1412,16 +1131,12 @@ class _TripCard extends StatelessWidget {
                     children: [
                       _SmallInfo(
                         icon: Icons.schedule_rounded,
-                        text: material.formatCompactDate(
-                          request.preferredTime,
-                        ),
+                        text: material.formatCompactDate(request.preferredTime),
                       ),
                       const SizedBox(width: 7),
                       _SmallInfo(
-                        icon:
-                            Icons.people_outline_rounded,
-                        text:
-                            '${request.passengerCount}',
+                        icon: Icons.people_outline_rounded,
+                        text: '${request.passengerCount}',
                       ),
                     ],
                   ),
@@ -1438,24 +1153,17 @@ class _TripCard extends StatelessWidget {
                     vertical: 7,
                   ),
                   minimumSize: Size.zero,
-                  tapTargetSize:
-                      MaterialTapTargetSize.shrinkWrap,
-                  backgroundColor:
-                      scheme.primary.withValues(
-                    alpha: 0.07,
-                  ),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  backgroundColor: scheme.primary.withValues(alpha: 0.07),
                   shape: RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.circular(11),
+                    borderRadius: BorderRadius.circular(11),
                   ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      tripId == null
-                          ? l10n.requestDetails
-                          : l10n.openTrip,
+                      tripId == null ? l10n.requestDetails : l10n.openTrip,
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w900,
@@ -1486,10 +1194,7 @@ class _TripCard extends StatelessWidget {
     );
   }
 
-  Color _statusColor(
-    BuildContext context,
-    dynamic status,
-  ) {
+  Color _statusColor(BuildContext context, dynamic status) {
     final tone = statusToneFor(status);
     final scheme = Theme.of(context).colorScheme;
 
@@ -1527,22 +1232,14 @@ class _RoutePreview extends StatelessWidget {
     final scheme = theme.colorScheme;
 
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: 12,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
         color: scheme.surface.withValues(alpha: 0.27),
         borderRadius: BorderRadius.circular(17),
-        border: Border.all(
-          color: scheme.onSurface.withValues(
-            alpha: 0.055,
-          ),
-        ),
+        border: Border.all(color: scheme.onSurface.withValues(alpha: 0.055)),
       ),
       child: Row(
-        crossAxisAlignment:
-            CrossAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           SizedBox(
             width: 22,
@@ -1553,14 +1250,11 @@ class _RoutePreview extends StatelessWidget {
                   height: 9,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: active
-                        ? scheme.primary
-                        : scheme.onSurfaceVariant,
+                    color: active ? scheme.primary : scheme.onSurfaceVariant,
                     boxShadow: active
                         ? [
                             BoxShadow(
-                              color: scheme.primary
-                                  .withValues(alpha: 0.25),
+                              color: scheme.primary.withValues(alpha: 0.25),
                               blurRadius: 7,
                             ),
                           ]
@@ -1571,11 +1265,8 @@ class _RoutePreview extends StatelessWidget {
                 Container(
                   width: 1.5,
                   height: 25,
-                  margin: const EdgeInsets.symmetric(
-                    vertical: 2,
-                  ),
-                  color: scheme.outlineVariant
-                      .withValues(alpha: 0.7),
+                  margin: const EdgeInsets.symmetric(vertical: 2),
+                  color: scheme.outlineVariant.withValues(alpha: 0.7),
                 ),
 
                 Container(
@@ -1594,15 +1285,13 @@ class _RoutePreview extends StatelessWidget {
 
           Expanded(
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   from,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style:
-                      theme.textTheme.bodySmall?.copyWith(
+                  style: theme.textTheme.bodySmall?.copyWith(
                     color: scheme.onSurfaceVariant,
                     fontWeight: FontWeight.w600,
                   ),
@@ -1614,8 +1303,7 @@ class _RoutePreview extends StatelessWidget {
                   to,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style:
-                      theme.textTheme.bodyMedium?.copyWith(
+                  style: theme.textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -1633,10 +1321,7 @@ class _RoutePreview extends StatelessWidget {
 // =============================================================================
 
 class _StatusPill extends StatelessWidget {
-  const _StatusPill({
-    required this.label,
-    required this.color,
-  });
+  const _StatusPill({required this.label, required this.color});
 
   final String label;
   final Color color;
@@ -1644,16 +1329,11 @@ class _StatusPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 9,
-        vertical: 6,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: color.withValues(alpha: 0.16),
-        ),
+        border: Border.all(color: color.withValues(alpha: 0.16)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1665,10 +1345,7 @@ class _StatusPill extends StatelessWidget {
               shape: BoxShape.circle,
               color: color,
               boxShadow: [
-                BoxShadow(
-                  color: color.withValues(alpha: 0.30),
-                  blurRadius: 5,
-                ),
+                BoxShadow(color: color.withValues(alpha: 0.30), blurRadius: 5),
               ],
             ),
           ),
@@ -1694,10 +1371,7 @@ class _StatusPill extends StatelessWidget {
 // =============================================================================
 
 class _SmallInfo extends StatelessWidget {
-  const _SmallInfo({
-    required this.icon,
-    required this.text,
-  });
+  const _SmallInfo({required this.icon, required this.text});
 
   final IconData icon;
   final String text;
@@ -1707,27 +1381,16 @@ class _SmallInfo extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
 
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 8,
-        vertical: 6,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         color: scheme.surface.withValues(alpha: 0.38),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: scheme.onSurface.withValues(
-            alpha: 0.06,
-          ),
-        ),
+        border: Border.all(color: scheme.onSurface.withValues(alpha: 0.06)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            size: 14,
-            color: scheme.onSurfaceVariant,
-          ),
+          Icon(icon, size: 14, color: scheme.onSurfaceVariant),
           const SizedBox(width: 5),
           Text(
             text,
@@ -1764,8 +1427,7 @@ class _CanonicalCard extends StatelessWidget {
     final scheme = theme.colorScheme;
 
     return Column(
-      crossAxisAlignment:
-          CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
@@ -1773,15 +1435,10 @@ class _CanonicalCard extends StatelessWidget {
               width: 34,
               height: 34,
               decoration: BoxDecoration(
-                color: scheme.primary.withValues(
-                  alpha: 0.09,
-                ),
-                borderRadius:
-                    BorderRadius.circular(11),
+                color: scheme.primary.withValues(alpha: 0.09),
+                borderRadius: BorderRadius.circular(11),
                 border: Border.all(
-                  color: scheme.primary.withValues(
-                    alpha: 0.10,
-                  ),
+                  color: scheme.primary.withValues(alpha: 0.10),
                 ),
               ),
               child: Icon(
@@ -1795,22 +1452,17 @@ class _CanonicalCard extends StatelessWidget {
 
             Text(
               sectionTitle,
-              style:
-                  theme.textTheme.titleSmall?.copyWith(
+              style: theme.textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w900,
               ),
             ),
           ],
         ),
 
-        const SizedBox(
-          height: AppTokens.spaceSmall,
-        ),
+        const SizedBox(height: AppTokens.spaceSmall),
 
         _GlassCard(
-          padding: const EdgeInsets.all(
-            AppTokens.spaceMedium,
-          ),
+          padding: const EdgeInsets.all(AppTokens.spaceMedium),
           borderRadius: BorderRadius.circular(21),
           onTap: onPressed,
           child: Row(
@@ -1823,21 +1475,13 @@ class _CanonicalCard extends StatelessWidget {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      scheme.primary.withValues(
-                        alpha: 0.16,
-                      ),
-                      scheme.primary.withValues(
-                        alpha: 0.06,
-                      ),
+                      scheme.primary.withValues(alpha: 0.16),
+                      scheme.primary.withValues(alpha: 0.06),
                     ],
                   ),
-                  borderRadius:
-                      BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(14),
                 ),
-                child: Icon(
-                  Icons.alt_route_rounded,
-                  color: scheme.primary,
-                ),
+                child: Icon(Icons.alt_route_rounded, color: scheme.primary),
               ),
 
               const SizedBox(width: 12),
@@ -1845,8 +1489,7 @@ class _CanonicalCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   title,
-                  style:
-                      theme.textTheme.bodyMedium?.copyWith(
+                  style: theme.textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -1856,9 +1499,7 @@ class _CanonicalCard extends StatelessWidget {
                 width: 31,
                 height: 31,
                 decoration: BoxDecoration(
-                  color: scheme.surface.withValues(
-                    alpha: 0.45,
-                  ),
+                  color: scheme.surface.withValues(alpha: 0.45),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -1897,10 +1538,7 @@ class _LanguageOption extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
       child: BackdropFilter(
-        filter: ImageFilter.blur(
-          sigmaX: 10,
-          sigmaY: 10,
-        ),
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Material(
           color: selected
               ? scheme.primary.withValues(alpha: 0.10)
@@ -1909,21 +1547,13 @@ class _LanguageOption extends StatelessWidget {
             onTap: onTap,
             borderRadius: BorderRadius.circular(16),
             child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 14,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
               decoration: BoxDecoration(
-                borderRadius:
-                    BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: selected
-                      ? scheme.primary.withValues(
-                          alpha: 0.20,
-                        )
-                      : scheme.onSurface.withValues(
-                          alpha: 0.07,
-                        ),
+                      ? scheme.primary.withValues(alpha: 0.20)
+                      : scheme.onSurface.withValues(alpha: 0.07),
                 ),
               ),
               child: Row(
@@ -1933,13 +1563,11 @@ class _LanguageOption extends StatelessWidget {
                     height: 35,
                     decoration: BoxDecoration(
                       color: selected
-                          ? scheme.primary.withValues(
-                              alpha: 0.12,
-                            )
-                          : scheme.surfaceContainerHighest
-                              .withValues(alpha: 0.45),
-                      borderRadius:
-                          BorderRadius.circular(11),
+                          ? scheme.primary.withValues(alpha: 0.12)
+                          : scheme.surfaceContainerHighest.withValues(
+                              alpha: 0.45,
+                            ),
+                      borderRadius: BorderRadius.circular(11),
                     ),
                     child: Icon(
                       title == 'العربية'
@@ -2003,9 +1631,7 @@ class _ModernEmptyState extends StatelessWidget {
     final scheme = theme.colorScheme;
 
     return _GlassCard(
-      padding: const EdgeInsets.all(
-        AppTokens.spaceLarge,
-      ),
+      padding: const EdgeInsets.all(AppTokens.spaceLarge),
       borderRadius: BorderRadius.circular(27),
       highlighted: true,
       child: Column(
@@ -2023,28 +1649,17 @@ class _ModernEmptyState extends StatelessWidget {
                 ],
               ),
               shape: BoxShape.circle,
-              border: Border.all(
-                color: scheme.primary.withValues(
-                  alpha: 0.12,
-                ),
-              ),
+              border: Border.all(color: scheme.primary.withValues(alpha: 0.12)),
             ),
-            child: Icon(
-              Icons.route_rounded,
-              size: 34,
-              color: scheme.primary,
-            ),
+            child: Icon(Icons.route_rounded, size: 34, color: scheme.primary),
           ),
 
-          const SizedBox(
-            height: AppTokens.spaceMedium,
-          ),
+          const SizedBox(height: AppTokens.spaceMedium),
 
           Text(
             title,
             textAlign: TextAlign.center,
-            style:
-                theme.textTheme.titleLarge?.copyWith(
+            style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -2054,16 +1669,13 @@ class _ModernEmptyState extends StatelessWidget {
           Text(
             message,
             textAlign: TextAlign.center,
-            style:
-                theme.textTheme.bodyMedium?.copyWith(
+            style: theme.textTheme.bodyMedium?.copyWith(
               color: scheme.onSurfaceVariant,
               height: 1.45,
             ),
           ),
 
-          const SizedBox(
-            height: AppTokens.spaceLarge,
-          ),
+          const SizedBox(height: AppTokens.spaceLarge),
 
           SizedBox(
             width: double.infinity,
@@ -2074,8 +1686,7 @@ class _ModernEmptyState extends StatelessWidget {
               label: Text(actionLabel),
               style: FilledButton.styleFrom(
                 shape: RoundedRectangleBorder(
-                  borderRadius:
-                      BorderRadius.circular(15),
+                  borderRadius: BorderRadius.circular(15),
                 ),
               ),
             ),
@@ -2091,9 +1702,7 @@ class _ModernEmptyState extends StatelessWidget {
 // =============================================================================
 
 class _FilterEmptyState extends StatelessWidget {
-  const _FilterEmptyState({
-    required this.onReset,
-  });
+  const _FilterEmptyState({required this.onReset});
 
   final VoidCallback onReset;
 
@@ -2103,10 +1712,7 @@ class _FilterEmptyState extends StatelessWidget {
     final scheme = theme.colorScheme;
 
     return _GlassCard(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 20,
-        vertical: 32,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
       borderRadius: BorderRadius.circular(24),
       child: Column(
         children: [
@@ -2114,14 +1720,10 @@ class _FilterEmptyState extends StatelessWidget {
             width: 62,
             height: 62,
             decoration: BoxDecoration(
-              color: scheme.surface.withValues(
-                alpha: 0.40,
-              ),
+              color: scheme.surface.withValues(alpha: 0.40),
               shape: BoxShape.circle,
               border: Border.all(
-                color: scheme.onSurface.withValues(
-                  alpha: 0.07,
-                ),
+                color: scheme.onSurface.withValues(alpha: 0.07),
               ),
             ),
             child: Icon(
@@ -2135,8 +1737,7 @@ class _FilterEmptyState extends StatelessWidget {
 
           Text(
             'No trips here',
-            style:
-                theme.textTheme.titleMedium?.copyWith(
+            style: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -2146,8 +1747,7 @@ class _FilterEmptyState extends StatelessWidget {
           Text(
             'There are no trips in this category yet.',
             textAlign: TextAlign.center,
-            style:
-                theme.textTheme.bodySmall?.copyWith(
+            style: theme.textTheme.bodySmall?.copyWith(
               color: scheme.onSurfaceVariant,
             ),
           ),
@@ -2157,11 +1757,9 @@ class _FilterEmptyState extends StatelessWidget {
           TextButton(
             onPressed: onReset,
             style: TextButton.styleFrom(
-              backgroundColor:
-                  scheme.primary.withValues(alpha: 0.07),
+              backgroundColor: scheme.primary.withValues(alpha: 0.07),
               shape: RoundedRectangleBorder(
-                borderRadius:
-                    BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(12),
               ),
             ),
             child: Text(
@@ -2187,10 +1785,7 @@ class _HeaderSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _GlassSkeleton(
-      height: 62,
-      borderRadius: 19,
-    );
+    return _GlassSkeleton(height: 62, borderRadius: 19);
   }
 }
 
@@ -2199,10 +1794,7 @@ class _StatsSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _GlassSkeleton(
-      height: 90,
-      borderRadius: 23,
-    );
+    return _GlassSkeleton(height: 90, borderRadius: 23);
   }
 }
 
@@ -2214,11 +1806,7 @@ class _TripSkeleton extends StatelessWidget {
     return _GlassSkeleton(
       height: 235,
       borderRadius: 24,
-      child: const Center(
-        child: CircularProgressIndicator(
-          strokeWidth: 2.5,
-        ),
-      ),
+      child: const Center(child: CircularProgressIndicator(strokeWidth: 2.5)),
     );
   }
 }
@@ -2239,13 +1827,9 @@ class _GlassSkeleton extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
 
     return ClipRRect(
-      borderRadius:
-          BorderRadius.circular(borderRadius),
+      borderRadius: BorderRadius.circular(borderRadius),
       child: BackdropFilter(
-        filter: ImageFilter.blur(
-          sigmaX: 14,
-          sigmaY: 14,
-        ),
+        filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
         child: Container(
           height: height,
           decoration: BoxDecoration(
@@ -2254,17 +1838,11 @@ class _GlassSkeleton extends StatelessWidget {
               end: Alignment.bottomRight,
               colors: [
                 scheme.surface.withValues(alpha: 0.55),
-                scheme.surfaceContainerHighest
-                    .withValues(alpha: 0.25),
+                scheme.surfaceContainerHighest.withValues(alpha: 0.25),
               ],
             ),
-            borderRadius:
-                BorderRadius.circular(borderRadius),
-            border: Border.all(
-              color: scheme.onSurface.withValues(
-                alpha: 0.07,
-              ),
-            ),
+            borderRadius: BorderRadius.circular(borderRadius),
+            border: Border.all(color: scheme.onSurface.withValues(alpha: 0.07)),
           ),
           child: child,
         ),

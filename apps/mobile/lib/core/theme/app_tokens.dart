@@ -50,10 +50,10 @@ class AppTokens {
   static const radiusSmall = 4.0;
 
   /// 8px — `sm`. Fields, banners, skeletons, OTP boxes.
-  static const radiusDefault = 8.0;
+  static const radiusDefault = 12.0;
 
   /// 12px — `md`. Cards and dialogs.
-  static const radiusMedium = 12.0;
+  static const radiusMedium = 18.0;
 
   /// 16px — chat bubble corners (`.ms-bubble`), given directly by the chat
   /// component's CSS rather than the named sm/md/lg/full scale.
