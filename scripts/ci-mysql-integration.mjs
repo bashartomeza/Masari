@@ -6,9 +6,19 @@ import { executable } from "./lib/process.mjs";
 if (process.env.APP_ENV !== "demo") throw new Error("CI MySQL integration requires APP_ENV=demo");
 const database = new URL(process.env.DATABASE_URL).pathname.slice(1);
 if (!database.endsWith("_ci")) throw new Error("CI MySQL integration refuses a database not ending in _ci");
+const resetAllowedDatabases = (process.env.DEMO_RESET_ALLOWED_DATABASES ?? "").split(",").map((value) => value.trim()).filter(Boolean);
+if (database.toLowerCase() === "masari" || !resetAllowedDatabases.includes(database)) {
+  throw new Error("CI MySQL integration requires an explicitly reset-safe database");
+}
 const root = resolve(new URL("../", import.meta.url).pathname.replace(/^\/(\w:)/, "$1"));
 const apiOrigin = (process.env.API_BASE_URL ?? "http://127.0.0.1:3000").replace(/\/$/, "");
-const child = spawn(process.execPath, ["apps/api/dist/server.js"], { cwd: root, env: process.env, stdio: "inherit" });
+const child = spawn(process.execPath, ["apps/api/dist/server.js"], { cwd: root, env: {
+  ...process.env,
+  MULTI_ROUTE_ENTRY_ENABLED: "false",
+  MULTI_ROUTE_MATCHING_ENABLED: "false",
+  CANONICAL_TRIP_CREATION_ENABLED: "false",
+  CANONICAL_SHARED_TRIPS_ENABLED: "false"
+}, stdio: "inherit" });
 try {
   let ready = false;
   for (let attempt = 0; attempt < 30; attempt++) {
@@ -24,12 +34,19 @@ try {
     ["demo:smoke", "deterministic smoke"],
     ["test:integration:sessions", "trusted-session smoke"],
     ["test:integration:onboarding", "onboarding foundation concurrency smoke"],
+    ["test:integration:consents", "consent publication lifecycle and concurrency smoke"],
     ["test:integration:public-onboarding", "public onboarding race and privacy smoke", {
       PUBLIC_ONBOARDING_ENABLED: "true",
       ONBOARDING_TEST_LEGAL_FIXTURES_ENABLED: "true",
       IDEMPOTENCY_PAYLOAD_PEPPER: "ci-only-payload-pepper-at-least-thirty-two-characters"
     }],
     ["test:integration:routes", "route lifecycle and concurrency smoke"],
+    ["test:integration:monitoring", "read-only matching and batching monitoring smoke", {
+      MULTI_ROUTE_ENTRY_ENABLED: "false",
+      MULTI_ROUTE_MATCHING_ENABLED: "false",
+      CANONICAL_TRIP_CREATION_ENABLED: "false",
+      CANONICAL_SHARED_TRIPS_ENABLED: "false"
+    }],
     ["test:integration:multi-route", "multi-route operational concurrency smoke", {
       MULTI_ROUTE_ENTRY_ENABLED: "true",
       MULTI_ROUTE_MATCHING_ENABLED: "false"

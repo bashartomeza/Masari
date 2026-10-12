@@ -18,6 +18,41 @@ function environment(overrides: Record<string, string | undefined> = {}) {
 }
 
 describe("fail-closed application configuration", () => {
+  it.each(["staging", "production"])("blocks %s Google signup until approved delivery providers are integrated", (appEnv) => {
+    expect(() => createConfig(environment({ APP_ENV: appEnv, GOOGLE_PASSENGER_SIGNUP_MODE: "open",
+      GOOGLE_MOBILE_SERVER_CLIENT_ID: "mobile-client", AUTH_ACTION_TOKEN_PEPPER: "separate-auth-action-secret-with-over-thirty-two-characters" })))
+      .toThrow(/google_signup_prerequisite_missing/);
+  });
+  it("requires a nonempty allowlist before enabling allowlist signup", () => {
+    expect(() => createConfig(environment({ APP_ENV: "local", GOOGLE_PASSENGER_SIGNUP_MODE: "allowlist",
+      GOOGLE_MOBILE_SERVER_CLIENT_ID: "mobile-client", AUTH_ACTION_TOKEN_PEPPER: "separate-auth-action-secret-with-over-thirty-two-characters" })))
+      .toThrow(/requires nonempty HMAC allowlist/);
+  });
+  it("defaults Google signup disabled and separates mobile/admin audiences", () => {
+    expect(createConfig(environment()).googleAuth.passengerSignupMode).toBe("disabled");
+    expect(() => createConfig(environment({ GOOGLE_MOBILE_SERVER_CLIENT_ID: "same-client", GOOGLE_ADMIN_WEB_CLIENT_ID: "same-client" }))).toThrow(/audiences must be distinct/);
+    expect(() => createConfig(environment({ GOOGLE_PASSENGER_SIGNUP_MODE: "open" }))).toThrow(/requires mobile audiences/);
+    expect(() => createConfig(environment({ GOOGLE_PASSENGER_ALLOWLIST_HMACS: "email@example.com" }))).toThrow(/HMAC digests/);
+  });
+  it("keeps xAI optional but validates configured credentials", () => {
+    expect(createConfig(environment()).assistant).toEqual({
+      provider: "groq",
+      apiKey: undefined,
+      model: "openai/gpt-oss-20b",
+      timeoutMs: 15_000
+    });
+    expect(createConfig(environment({ XAI_API_KEY: "" })).assistant.apiKey).toBeUndefined();
+    expect(() => createConfig(environment({ XAI_API_KEY: "replace-with-xai-api-key-value" }))).toThrow(
+      /XAI_API_KEY uses a known placeholder/
+    );
+    expect(() => createConfig(environment({ GEMINI_API_KEY: "replace-with-gemini-api-key" }))).toThrow(
+      /GEMINI_API_KEY uses a known placeholder/
+    );
+    expect(() => createConfig(environment({ GROQ_API_KEY: "replace-with-groq-api-key" }))).toThrow(
+      /GROQ_API_KEY uses a known placeholder/
+    );
+  });
+
   it("rejects staging without DATABASE_URL", () => {
     expect(() => createConfig(environment({ APP_ENV: "staging", DATABASE_URL: undefined }))).toThrow(ConfigurationError);
   });
@@ -84,6 +119,29 @@ describe("fail-closed application configuration", () => {
       CANONICAL_TRIP_CREATION_ENABLED: "true"
     }))).toThrow(/forbidden in staging and production/);
     expect(() => createConfig(environment({ ROUTE_MANAGEMENT_ENABLED: "yes" }))).toThrow(/true or false/);
+  });
+
+  it("keeps route providers disabled by default and validates explicit provider selection", () => {
+    expect(createConfig(environment()).routeMaps).toEqual(expect.objectContaining({ enabled: false, provider: "disabled", secret: undefined }));
+    expect(() => createConfig(environment({ ROUTE_MAPS_ENABLED: "true", ROUTE_PROVIDER: "mapbox", ROUTE_PROVIDER_SECRET: "server-secret" }))).toThrow(/requires ROUTE_MANAGEMENT_ENABLED/);
+    expect(() => createConfig(environment({ ROUTE_MANAGEMENT_ENABLED: "true", ROUTE_MAPS_ENABLED: "true", ROUTE_PROVIDER: "mapbox" }))).toThrow(/ROUTE_PROVIDER_SECRET/);
+    expect(() => createConfig(environment({ ROUTE_PROVIDER: "mapbox" }))).toThrow(/must be disabled/);
+    expect(() => createConfig(environment({ ROUTE_MANAGEMENT_ENABLED: "true", ROUTE_MAPS_ENABLED: "true", ROUTE_PROVIDER: "fake" }))).toThrow(/forbidden/);
+    const local = createConfig(environment({ APP_ENV: "local", ROUTE_MANAGEMENT_ENABLED: "true", ROUTE_MAPS_ENABLED: "true", ROUTE_PROVIDER: "fake" }));
+    expect(local.routeMaps).toEqual(expect.objectContaining({ enabled: true, provider: "fake", secret: undefined }));
+  });
+
+  it("rejects unknown, malformed, and inconsistent route-provider configuration without echoing secrets", () => {
+    expect(() => createConfig(environment({ ROUTE_PROVIDER: "unknown" }))).toThrow(/ROUTE_PROVIDER/);
+    expect(() => createConfig(environment({ ROUTE_MAPS_ENABLED: "yes" }))).toThrow(/true or false/);
+    expect(() => createConfig(environment({ ROUTE_PROVIDER_REQUEST_TIMEOUT_MS: "999", ROUTE_PROVIDER_CONNECT_TIMEOUT_MS: "1000" }))).toThrow(/at least the connect timeout/);
+    expect(() => createConfig(environment({ APP_ENV: "local", ROUTE_MANAGEMENT_ENABLED: "true", ROUTE_MAPS_ENABLED: "true", ROUTE_PROVIDER: "mapbox", ROUTE_PROVIDER_SECRET: "replace-with-provider-secret" }))).toThrow(/known placeholder/);
+    expect(() => createConfig(environment({ APP_ENV: "local", ROUTE_MANAGEMENT_ENABLED: "true", ROUTE_MAPS_ENABLED: "true", ROUTE_PROVIDER: "mapbox", ROUTE_PROVIDER_SECRET: "        " }))).toThrow(/ROUTE_PROVIDER_SECRET/);
+    expect(() => createConfig(environment({ APP_ENV: "local", ROUTE_MANAGEMENT_ENABLED: "true", ROUTE_MAPS_ENABLED: "true", ROUTE_PROVIDER: "mapbox", ROUTE_PROVIDER_SECRET: "changeme-provider-key" }))).toThrow(/known placeholder/);
+    expect(() => createConfig(environment({ ROUTE_PROVIDER_MAX_RETRIES: "2" }))).toThrow(/ROUTE_PROVIDER_MAX_RETRIES/);
+    expect(() => createConfig(environment({ ROUTE_PROVIDER_CACHE_TTL_SECONDS: "1" }))).toThrow(/cache rights are approved/);
+    const secret = "provider-secret-that-must-not-leak";
+    expect(() => createConfig(environment({ ROUTE_MANAGEMENT_ENABLED: "true", ROUTE_MAPS_ENABLED: "true", ROUTE_PROVIDER: "mapbox", ROUTE_PROVIDER_SECRET: secret, ROUTE_PROVIDER_REQUEST_TIMEOUT_MS: "500", ROUTE_PROVIDER_CONNECT_TIMEOUT_MS: "1000" }))).toThrowError(expect.not.objectContaining({ message: expect.stringContaining(secret) }));
   });
 
   it("accepts only exact lowercase M7C1 gate booleans", () => {
@@ -170,5 +228,27 @@ describe("fail-closed application configuration", () => {
       DEMO_ADMIN_PASSWORD: "admin-test-secret"
     });
     expect(parsed.demoFeaturesEnabled).toBe(true);
+  });
+
+  it("parses only exact reset database allow-list entries", () => {
+    const parsed = createConfig({
+      ...process.env,
+      APP_ENV: "demo",
+      ENABLE_DEMO_FEATURES: "true",
+      DEMO_RESET_ALLOWED_DATABASES: "masari_demo,masari_demo_ci"
+    });
+    expect(parsed.demoResetAllowedDatabases).toEqual(["masari_demo", "masari_demo_ci"]);
+    expect(() => createConfig({
+      ...process.env,
+      APP_ENV: "demo",
+      ENABLE_DEMO_FEATURES: "true",
+      DEMO_RESET_ALLOWED_DATABASES: "masari_*_ci"
+    })).toThrow(/exact comma-separated database names/);
+    expect(() => createConfig({
+      ...process.env,
+      APP_ENV: "demo",
+      ENABLE_DEMO_FEATURES: "true",
+      DEMO_RESET_ALLOWED_DATABASES: "masari_demo,masari_demo"
+    })).toThrow(/must not contain duplicate/);
   });
 });

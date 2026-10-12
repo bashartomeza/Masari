@@ -74,7 +74,6 @@ class OnboardingRepository {
         'invitation_code': invitationCode.trim(),
         'role': role.apiValue,
         'phone': phone.trim(),
-        'region': 'PS',
         'locale': locale,
       },
       idempotencyKey: idempotencyKey,
@@ -190,7 +189,7 @@ class OnboardingRepository {
   }) async {
     final json = await _post(
       '/onboarding/status-sessions',
-      body: {'phone': phone.trim(), 'region': 'PS', 'password': password},
+      body: {'phone': phone.trim(), 'password': password},
     );
     try {
       return PendingStatusResult.fromJson(json);

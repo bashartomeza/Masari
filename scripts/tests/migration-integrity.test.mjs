@@ -24,7 +24,15 @@ const expected = {
   "20260726170000_enforce_match_trip_availability_mode": "189a0ff189c52fcc84f343f0e535d1f84696c9e6f62271597cc52f0915e7a59a",
   "20260727110000_harden_canonical_assignment_integrity": "1ee6e63b4ba698fd122fe2680e88d7612c2fb27940e74501002ca449f69d3bbf",
   "20260728130000_canonical_shared_trip_aggregation": "5ea77b6a40bfcbd2be1ba1076eb30951b85f5e6dd34f6037b3265a835f847c90",
-  "20260729120000_harden_canonical_shared_trip_integrity": "b27a28b17c6c090fad8520b97bde8c02463fb02f0195f2cb6736117f64af167c"
+  "20260729120000_harden_canonical_shared_trip_integrity": "b27a28b17c6c090fad8520b97bde8c02463fb02f0195f2cb6736117f64af167c",
+  "20260819150000_driver_verification_approval": "2f381773237f840cf896ee144d28ae0e77a8525b841a7f89bf45eb1bef874010",
+  "20260820120000_global_e164_phone_constraints": "7822831a007d451c689fd8a2260567cf8c4728cacea847ae47b43e887ba67539",
+  "20260821120000_consent_management_workflow": "675d82606bba96680dcb31d6bcf3bea85d01b50e445cd136f3670f528d483362",
+  "20260910120000_email_google_self_service_auth": "dc8cf559995ff227aad3f604581e6f7253f09bb89f280d9c5da4c13d39241e94",
+  "20260915130000_external_identity_profile_state": "f6b3712bb229fa5cc5e2e9fb39a9c9ac0de64f23506abdb00bf250faa9ae14a5",
+  "20260915130100_backfill_legacy_google_external_identities": "45e06a478346579c680cbc787599e29d4e3c79b5e8c62d9596f42455820e6193",
+  "20261006110000_complete_passenger_trip_lifecycle": "d7633c03f7d1cd3443413d00cb99b6212d2ba30027d1aba21c07e5a12a587537",
+  "20261008190000_complete_capacity_batching_failure_states": "e76db39a4220df2abe2ba160ac32de05f95e0394513c27b23da733e345bb0efb"
 };
 
 function normalizedChecksum(path) {

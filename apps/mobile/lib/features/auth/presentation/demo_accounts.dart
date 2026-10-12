@@ -3,12 +3,12 @@ import '../../../core/config/app_config.dart';
 class DemoAccount {
   const DemoAccount({
     required this.labelKey,
-    required this.phone,
+    required this.email,
     required this.password,
   });
 
   final String labelKey;
-  final String phone;
+  final String email;
   final String password;
 }
 
@@ -18,17 +18,17 @@ List<DemoAccount> demoAccountsFor(AppConfig config) {
   return [
     DemoAccount(
       labelKey: 'passenger',
-      phone: credentials.passengerPhone,
+      email: credentials.passengerEmail,
       password: credentials.passengerPassword,
     ),
     DemoAccount(
       labelKey: 'driver',
-      phone: credentials.driverPhone,
+      email: credentials.driverEmail,
       password: credentials.driverPassword,
     ),
     DemoAccount(
       labelKey: 'merchant',
-      phone: credentials.merchantPhone,
+      email: credentials.merchantEmail,
       password: credentials.merchantPassword,
     ),
   ];

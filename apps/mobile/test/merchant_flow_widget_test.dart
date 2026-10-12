@@ -26,15 +26,23 @@ void main() {
       find.byKey(const ValueKey('merchantDashboardTitle')),
       findsOneWidget,
     );
-    expect(find.text('لوحة التاجر'), findsOneWidget);
+    expect(find.byKey(const ValueKey('merchantHome')), findsOneWidget);
     expect(
-      Directionality.of(tester.element(find.text('لوحة التاجر'))),
+      Directionality.of(
+        tester.element(find.byKey(const ValueKey('merchantHome'))),
+      ),
       TextDirection.rtl,
     );
 
-    await tester.tap(find.text('English'));
+    await tester.tap(find.byTooltip('English'));
     await tester.pumpAndSettle();
-    expect(find.text('Merchant dashboard'), findsOneWidget);
+    expect(find.text('Create a new shipment'), findsOneWidget);
+    expect(
+      Directionality.of(
+        tester.element(find.byKey(const ValueKey('merchantHome'))),
+      ),
+      TextDirection.ltr,
+    );
     final preferences = await SharedPreferences.getInstance();
     expect(preferences.getString(DomainLabels.localeStorageKey), 'en');
   });
@@ -45,7 +53,7 @@ void main() {
     final handler = _MerchantHandler(hasOrder: false);
     await _pumpMerchant(tester, handler);
     GoRouter.of(
-      tester.element(find.text('لوحة التاجر')),
+      tester.element(find.byKey(const ValueKey('merchantHome'))),
     ).go('/merchant/order/new');
     await tester.pumpAndSettle();
 
@@ -73,7 +81,7 @@ void main() {
     final handler = _MerchantHandler();
     await _pumpMerchant(tester, handler);
     GoRouter.of(
-      tester.element(find.text('لوحة التاجر')),
+      tester.element(find.byKey(const ValueKey('merchantHome'))),
     ).go('/merchant/order/order_1');
     await tester.pumpAndSettle();
 
@@ -107,7 +115,7 @@ void main() {
     final handler = _MerchantHandler(withTrip: true, initiallyBatched: true);
     await _pumpMerchant(tester, handler);
     GoRouter.of(
-      tester.element(find.text('لوحة التاجر')),
+      tester.element(find.byKey(const ValueKey('merchantHome'))),
     ).go('/merchant/trip/trip_1');
     await tester.pumpAndSettle();
 
@@ -129,15 +137,17 @@ void main() {
     tester,
   ) async {
     await _pumpMerchant(tester, _MerchantHandler());
-    final router = GoRouter.of(tester.element(find.text('لوحة التاجر')));
+    final router = GoRouter.of(
+      tester.element(find.byKey(const ValueKey('merchantHome'))),
+    );
     router.go('/driver/route');
     await tester.pumpAndSettle();
-    expect(find.text('لوحة التاجر'), findsOneWidget);
+    expect(find.byKey(const ValueKey('merchantHome')), findsOneWidget);
     expect(find.text('تفاصيل المسار'), findsNothing);
 
     router.go('/passenger/request/new');
     await tester.pumpAndSettle();
-    expect(find.text('لوحة التاجر'), findsOneWidget);
+    expect(find.byKey(const ValueKey('merchantHome')), findsOneWidget);
     expect(find.text('إنشاء طلب رحلة'), findsNothing);
   });
 

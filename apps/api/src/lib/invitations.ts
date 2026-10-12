@@ -32,7 +32,7 @@ export async function createInvitation(
     createdById: string;
     intendedRole: OnboardingRole;
     intendedPhone?: string;
-    phoneRegion?: "PS";
+    phoneRegion?: string;
     campaign?: string;
     source?: string;
     expiresAt: Date;

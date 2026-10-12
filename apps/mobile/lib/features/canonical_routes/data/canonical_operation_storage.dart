@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../auth/data/token_storage.dart';
+import 'operation_fingerprint_io.dart'
+    if (dart.library.js_interop) 'operation_fingerprint_web.dart';
 
 final canonicalOperationStorageProvider = Provider<CanonicalOperationStorage>((
   ref,
@@ -59,7 +61,7 @@ class CanonicalOperationBundle {
       actorId: actorId,
       idempotencyKey: newCanonicalIdempotencyKey(),
       payload: normalized,
-      fingerprint: _fingerprint(jsonEncode(normalized)),
+      fingerprint: operationFingerprint(jsonEncode(normalized)),
       createdAt: createdAt,
       routeVersionId: routeVersionId,
     );
@@ -117,7 +119,7 @@ class CanonicalOperationBundle {
         (json['route_version_id'] as String).isEmpty ||
         payload['route_version_id'] != json['route_version_id'] ||
         createdAt == null ||
-        _fingerprint(jsonEncode(payload)) != json['fingerprint']) {
+        operationFingerprint(jsonEncode(payload)) != json['fingerprint']) {
       throw const FormatException('Invalid canonical operation bundle');
     }
     return CanonicalOperationBundle(
@@ -207,13 +209,4 @@ Map<String, dynamic> _normalize(Map<String, dynamic> input) {
         final value => value,
       },
   };
-}
-
-String _fingerprint(String value) {
-  var hash = 0xcbf29ce484222325;
-  for (final unit in utf8.encode(value)) {
-    hash ^= unit;
-    hash = (hash * 0x100000001b3) & 0x7fffffffffffffff;
-  }
-  return hash.toRadixString(16).padLeft(16, '0');
 }

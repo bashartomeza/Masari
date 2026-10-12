@@ -82,6 +82,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get phone => 'Phone';
 
   @override
+  String get email => 'Email';
+
+  @override
+  String get fullName => 'Full name';
+
+  @override
   String get password => 'Password';
 
   @override
@@ -89,6 +95,53 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get hidePassword => 'Hide password';
+
+  @override
+  String get signUp => 'Sign up';
+
+  @override
+  String get createAccount => 'Create account';
+
+  @override
+  String get createAccountSubtitle => 'Sign up as a passenger to get started.';
+
+  @override
+  String get newToMasari => 'New to Masari? Create an account';
+
+  @override
+  String get alreadyHaveAccount => 'Already have an account? Sign in';
+
+  @override
+  String get continueWithGoogle => 'Continue with Google';
+
+  @override
+  String get orSeparator => 'or';
+
+  @override
+  String get emailRequired => 'Enter your email.';
+
+  @override
+  String get emailInvalid => 'Enter a valid email address.';
+
+  @override
+  String get nameRequired => 'Enter your name.';
+
+  @override
+  String get passwordRequired => 'Enter your password.';
+
+  @override
+  String get passwordTooShort => 'Password must be at least 8 characters.';
+
+  @override
+  String get emailAlreadyRegistered =>
+      'That email is already registered. Try signing in.';
+
+  @override
+  String get googleSignInFailed => 'Google sign-in failed. Please try again.';
+
+  @override
+  String get googleSignInUnavailable =>
+      'Google sign-in is not available right now.';
 
   @override
   String get demoAccounts => 'Demo accounts';
@@ -116,7 +169,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Your session has expired. Please sign in again.';
 
   @override
-  String get invalidCredentials => 'Invalid phone or password.';
+  String get invalidCredentials => 'Invalid email or password.';
 
   @override
   String get networkUnavailable =>
@@ -773,9 +826,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get acceptAndContinue => 'Accept and continue';
 
   @override
-  String get createAccount => 'Create account';
-
-  @override
   String get accountCreated => 'Account created';
 
   @override
@@ -984,6 +1034,34 @@ class AppLocalizationsEn extends AppLocalizations {
       'Choose a valid future departure window.';
 
   @override
+  String get availabilityDepartureTooSoon =>
+      'Departure is too soon. Choose a time at least 10 minutes from now.';
+
+  @override
+  String get availabilityDepartureTooFar =>
+      'Departure is too far out. Choose a time within the next 30 days.';
+
+  @override
+  String get availabilityInvalidWindow =>
+      'The availability window can end at most 2 hours after departure.';
+
+  @override
+  String get availabilityExceedsVehicleCapacity =>
+      'The seats or parcels you selected exceed your registered vehicle\'s capacity.';
+
+  @override
+  String get availabilityDriverNotApproved =>
+      'Your driver account isn\'t approved yet. Contact support to complete verification.';
+
+  @override
+  String get availabilityRouteNoLongerEligible =>
+      'This route is no longer available. Choose a different route.';
+
+  @override
+  String get availabilityDuplicate =>
+      'You already have a matching availability for this route and time.';
+
+  @override
   String get invalidStopOrder => 'Choose an approved downstream stop.';
 
   @override
@@ -1132,4 +1210,649 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get routeStops => 'Route stops';
+
+  @override
+  String get navNewRequest => 'New request';
+
+  @override
+  String get navHome => 'Home';
+
+  @override
+  String get navAccount => 'Account';
+
+  @override
+  String get navTrips => 'My trips';
+
+  @override
+  String greetingMorning(String name) {
+    return 'Good morning, $name';
+  }
+
+  @override
+  String greetingAfternoon(String name) {
+    return 'Good afternoon, $name';
+  }
+
+  @override
+  String greetingEvening(String name) {
+    return 'Good evening, $name';
+  }
+
+  @override
+  String get whereToGo => 'Where do you want to go?';
+
+  @override
+  String get smartSearch => 'Smart search';
+
+  @override
+  String get destinationSearchHint => 'e.g. from PPU to Bethlehem';
+
+  @override
+  String get quickDestinations => 'Quick destinations';
+
+  @override
+  String availableTripsTo(String destination) {
+    return 'Available trips to $destination';
+  }
+
+  @override
+  String get searchForTrip => 'Search for a trip';
+
+  @override
+  String get perPassenger => 'per passenger';
+
+  @override
+  String get departure => 'Departure';
+
+  @override
+  String get bookSeat => 'Book';
+
+  @override
+  String get noAvailableTrips => 'No available trips right now';
+
+  @override
+  String get noAvailableTripsBody =>
+      'Create a request and Masari will match you with a driver on the corridor.';
+
+  @override
+  String seatsRemaining(int count) {
+    return '$count seats available';
+  }
+
+  @override
+  String completedTripsCount(int count) {
+    return '$count trips';
+  }
+
+  @override
+  String get notifications => 'Notifications';
+
+  @override
+  String get noNotifications => 'No notifications yet.';
+
+  @override
+  String get sampleDataNotice =>
+      'Sample data for demonstration only, not from the server.';
+
+  @override
+  String get driverOnline => 'Online';
+
+  @override
+  String get driverOffline => 'Offline';
+
+  @override
+  String get trustPoints => 'Trust points';
+
+  @override
+  String get trustExcellent => 'Excellent';
+
+  @override
+  String get trustGood => 'Good';
+
+  @override
+  String get trustFair => 'Fair';
+
+  @override
+  String get trustWeak => 'Weak';
+
+  @override
+  String get trustScoreUnavailable => 'Not available yet';
+
+  @override
+  String get todayEarnings => 'Today\'s earnings';
+
+  @override
+  String get earningsUnavailable => 'Not available';
+
+  @override
+  String completedTripsToday(int count) {
+    return '$count completed trips';
+  }
+
+  @override
+  String get activateYourRoute => 'Activate your route';
+
+  @override
+  String get activateRouteHint =>
+      'Set your destination to receive requests along your way';
+
+  @override
+  String get mapNoLocation => 'No location data yet.';
+
+  @override
+  String get batchSavings => 'Consolidation savings';
+
+  @override
+  String get batchSavingsCaption => 'Saved by consolidating shipments';
+
+  @override
+  String distanceSavedKm(String km) {
+    return '$km km';
+  }
+
+  @override
+  String get noSavingsYet => 'No savings yet';
+
+  @override
+  String get inDelivery => 'In delivery';
+
+  @override
+  String activeShipmentsCount(int count) {
+    return '$count active shipments';
+  }
+
+  @override
+  String get createShipment => 'Create a new shipment';
+
+  @override
+  String get smartBatchingTitle => 'Smart consolidation suggestions';
+
+  @override
+  String batchSuggestionTitle(int count, String destination) {
+    return '$count parcels to $destination';
+  }
+
+  @override
+  String get batchSuggestionBody =>
+      'These can be consolidated into one batch on the corridor.';
+
+  @override
+  String get mergeAndSend => 'Consolidate and send';
+
+  @override
+  String get noBatchSuggestions => 'No orders are ready to consolidate.';
+
+  @override
+  String get liveTracking => 'Live tracking';
+
+  @override
+  String get recentOrders => 'Recent orders';
+
+  @override
+  String orderReference(String reference) {
+    return 'Order #$reference';
+  }
+
+  @override
+  String get navRequests => 'Requests';
+
+  @override
+  String get navMyTrip => 'My trip';
+
+  @override
+  String get navPerformance => 'Earnings';
+
+  @override
+  String get navNotifications => 'Alerts';
+
+  @override
+  String get navMapAlerts => 'Map';
+
+  @override
+  String get navShipments => 'Shipments';
+
+  @override
+  String get navReports => 'Reports';
+
+  @override
+  String get myTrips => 'My trips';
+
+  @override
+  String get tripsActiveSection => 'Active trip';
+
+  @override
+  String get tripsUpcomingSection => 'Upcoming trips';
+
+  @override
+  String get tripsPastSection => 'Past trips';
+
+  @override
+  String get tripsCancelledSection => 'Cancelled trips';
+
+  @override
+  String get noTripsYet => 'No trips yet';
+
+  @override
+  String get noTripsYetBody =>
+      'Your trips will appear here once you create your first request.';
+
+  @override
+  String get tripHistoryFailed => 'Could not load your trip history.';
+
+  @override
+  String get mapsUnavailable => 'Map unavailable';
+
+  @override
+  String get mapsUnavailableBody =>
+      'Map services are not enabled in this build, so no live position can be shown.';
+
+  @override
+  String get incidentReports => 'Reports';
+
+  @override
+  String get incidentReportingUnavailable => 'Incident reporting unavailable';
+
+  @override
+  String get incidentReportingUnavailableBody =>
+      'There is no backend to receive incident reports yet, so nothing would be submitted from here.';
+
+  @override
+  String get notificationsUnavailableBody =>
+      'There is no notification service in this build. Updates appear inside the trip screen.';
+
+  @override
+  String get performanceTitle => 'Earnings and performance';
+
+  @override
+  String get earningsNotTracked => 'Earnings are not tracked';
+
+  @override
+  String get earningsNotTrackedBody =>
+      'The database holds no fare or pricing data, so no real earnings figure can be shown.';
+
+  @override
+  String get completedTripsTotal => 'Completed trips in total';
+
+  @override
+  String get acceptanceRateUnavailable => 'Acceptance rate unavailable';
+
+  @override
+  String destinationCount(int count) {
+    return '$count destinations';
+  }
+
+  @override
+  String get shipmentsTitle => 'Shipments';
+
+  @override
+  String get noShipments => 'No shipments';
+
+  @override
+  String get noShipmentsBody => 'Create a shipment and it will appear here.';
+
+  @override
+  String get shipmentsFailed => 'Could not load your shipments.';
+
+  @override
+  String get reportsUnavailable => 'Reports unavailable';
+
+  @override
+  String get reportsUnavailableBody =>
+      'There is no backend for generating or exporting PDF or Excel reports.';
+
+  @override
+  String get accountProfile => 'Profile';
+
+  @override
+  String get accountSupport => 'Support';
+
+  @override
+  String get supportUnavailable => 'In-app support unavailable';
+
+  @override
+  String get supportUnavailableBody =>
+      'No support channel is connected to the backend in this build.';
+
+  @override
+  String get accountSettings => 'Settings';
+
+  @override
+  String get featureNotBackedNotice =>
+      'This section is not backed by the API yet.';
+
+  @override
+  String get offers => 'Offers';
+
+  @override
+  String get individualOffers => 'Individual offers';
+
+  @override
+  String get sharedOffers => 'Shared-trip offers';
+
+  @override
+  String get sharedOffersBody =>
+      'Review grouped route offers. Status changes only when you refresh.';
+
+  @override
+  String get noSharedOffers => 'No shared-trip offers are available.';
+
+  @override
+  String get sharedTrip => 'Shared trip';
+
+  @override
+  String get sharedOfferDetails => 'Shared offer details';
+
+  @override
+  String get compositionPassengerOnly => 'Passenger-only';
+
+  @override
+  String get compositionMerchantOnly => 'Merchant-only';
+
+  @override
+  String get compositionMixed => 'Mixed trip';
+
+  @override
+  String get passengerRequests => 'Passenger requests';
+
+  @override
+  String get passengerSeats => 'Passenger seats';
+
+  @override
+  String get merchantOrders => 'Merchant orders';
+
+  @override
+  String get parcels => 'Parcels';
+
+  @override
+  String get entireGroup => 'Entire group';
+
+  @override
+  String get acceptEntireSharedTrip => 'Accept entire shared trip';
+
+  @override
+  String get rejectEntireSharedTrip => 'Reject entire shared trip';
+
+  @override
+  String get confirmAcceptSharedTrip =>
+      'Accept all grouped requests and orders together as one shared trip?';
+
+  @override
+  String get confirmRejectSharedTrip =>
+      'Reject this entire group and release all grouped requests and orders?';
+
+  @override
+  String get sharedGroupDecisionNotice =>
+      'Accept or reject applies to the entire group.';
+
+  @override
+  String get sharedAcceptedNotice =>
+      'One shared trip was assigned. The trip has not started.';
+
+  @override
+  String get sharedRejectedNotice => 'The complete shared offer was rejected.';
+
+  @override
+  String get sharedInvalidatedNotice =>
+      'This shared offer is no longer valid. Refresh for current status.';
+
+  @override
+  String get sharedCapacityNotice =>
+      'These totals are reserved for the complete route. Remaining capacity is not offered again for this departure, and segment-level reuse is not enabled.';
+
+  @override
+  String get stopEventTimeline => 'Shared stop events';
+
+  @override
+  String get passengerPickups => 'Passengers board';
+
+  @override
+  String get passengerDropoffs => 'Passengers exit';
+
+  @override
+  String get parcelPickups => 'Parcels picked up';
+
+  @override
+  String get parcelDestinations => 'Parcel destinations';
+
+  @override
+  String get sharedAssignmentIndicator => 'Assigned to a shared trip';
+
+  @override
+  String get sharedAssignmentPrivacyNotice =>
+      'Only your own request or order is shown. Other trip members are private.';
+
+  @override
+  String get statusUnsupported => 'Status unavailable';
+
+  @override
+  String get unsupportedDataNotice =>
+      'This status is not supported by this app version. Refresh or contact support.';
+
+  @override
+  String get vehicleSedan => 'Sedan';
+
+  @override
+  String get vehicleVan => 'Van';
+
+  @override
+  String get vehicleUnavailable => 'Vehicle type unavailable';
+
+  @override
+  String get actionDisabledExpired =>
+      'Action unavailable because this offer has expired.';
+
+  @override
+  String get actionDisabledUncertain =>
+      'Action unavailable until the previous operation is reconciled.';
+
+  @override
+  String get sharedFeatureUnavailable =>
+      'Shared-trip offers are not available in this environment.';
+
+  @override
+  String get sharedAssignmentUnavailable =>
+      'Shared-trip assignment details are not available in this environment.';
+
+  @override
+  String get notLiveNotice =>
+      'This screen is not live. Use Refresh to check for updates.';
+
+  @override
+  String get assistantTitle => 'Masari assistant';
+
+  @override
+  String get assistantHomeTitle => 'Ask Masari';
+
+  @override
+  String get assistantHomeBody => 'Ask about your trips and available routes.';
+
+  @override
+  String get assistantWelcomeTitle => 'How can I help?';
+
+  @override
+  String get assistantWelcomeBody =>
+      'Ask about your Masari trip data or available routes. If details are missing, I’ll ask you to clarify.';
+
+  @override
+  String get assistantTryAsking => 'Try asking';
+
+  @override
+  String get assistantExampleTripTime => 'When is my next trip?';
+
+  @override
+  String get assistantExampleAvailableTrip => 'Is there a trip to Bethlehem?';
+
+  @override
+  String get assistantInputHint => 'Type your question';
+
+  @override
+  String get assistantSend => 'Send';
+
+  @override
+  String get assistantProcessing => 'Checking Masari data…';
+
+  @override
+  String get assistantErrorTitle => 'Couldn’t complete the request';
+
+  @override
+  String get assistantErrorBody =>
+      'The assistant couldn’t complete your request. Try again.';
+
+  @override
+  String get assistantUnavailable =>
+      'The assistant service is not available in this build. No result was created.';
+
+  @override
+  String get assistantClarificationLabel =>
+      'Masari assistant needs clarification';
+
+  @override
+  String get assistantResultLabel => 'Masari assistant reply';
+
+  @override
+  String get assistantPassengerMessage => 'Your message';
+
+  @override
+  String get assistantExampleFindTrip =>
+      'Find me a ride from Bab Al-Zawiya to Bethlehem at 3 PM for one passenger';
+
+  @override
+  String get assistantReviewTitle => 'Review trip information';
+
+  @override
+  String get assistantReviewBody =>
+      'Check and edit the information before starting the real search.';
+
+  @override
+  String get assistantConfirmSearch => 'Confirm and search';
+
+  @override
+  String get assistantSearching => 'Searching for a ride…';
+
+  @override
+  String get assistantSearchError =>
+      'The request could not be created or no compatible route was found. No result was fabricated.';
+
+  @override
+  String get assistantFutureTimeRequired =>
+      'Choose a future time before searching.';
+
+  @override
+  String get mapAttribution => '© OpenStreetMap contributors';
+
+  @override
+  String get mapLoading => 'Loading map...';
+
+  @override
+  String get mapLoadFailed => 'Map could not load';
+
+  @override
+  String get mapLoadFailedBody =>
+      'Route data could not be fetched. Check your connection and retry.';
+
+  @override
+  String get mapYourLocation => 'Your location';
+
+  @override
+  String get mapRequestedRoute => 'Requested route';
+
+  @override
+  String get mapDriverRoute => 'Available driver route';
+
+  @override
+  String mapOriginLabel(String name) {
+    return 'Origin: $name';
+  }
+
+  @override
+  String mapDestinationLabel(String name) {
+    return 'Destination: $name';
+  }
+
+  @override
+  String mapStopLabel(String name) {
+    return 'Stop: $name';
+  }
+
+  @override
+  String get mapLegend => 'Legend';
+
+  @override
+  String get locationServiceDisabled =>
+      'Location services are off on this device. Turn them on to show your position.';
+
+  @override
+  String get locationPermissionDenied =>
+      'Location access was not granted. Allow access to show your position.';
+
+  @override
+  String get locationPermanentlyDenied =>
+      'Location access is permanently denied. Enable it in system settings.';
+
+  @override
+  String get locationUnavailable =>
+      'Your position could not be determined right now.';
+
+  @override
+  String get locationEnable => 'Enable location';
+
+  @override
+  String get checkpoints => 'Barriers';
+
+  @override
+  String get checkpointsUnavailable => 'Barrier data unavailable';
+
+  @override
+  String get checkpointsUnavailableBody =>
+      'Barrier status could not be fetched. The route is shown without it.';
+
+  @override
+  String get checkpointsDisabled =>
+      'Barrier data is not enabled in this build.';
+
+  @override
+  String get checkpointsStale =>
+      'These are the last confirmed barrier states and may be out of date.';
+
+  @override
+  String get checkpointsEmpty => 'No barriers recorded on this route.';
+
+  @override
+  String checkpointCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count barriers',
+      one: '1 barrier',
+      zero: 'No barriers',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get checkpointOpen => 'Open';
+
+  @override
+  String get checkpointCongested => 'Congested';
+
+  @override
+  String get checkpointClosed => 'Closed';
+
+  @override
+  String get checkpointUnknown => 'Status unknown';
+
+  @override
+  String checkpointLabel(String name, String status) {
+    return '$name — $status';
+  }
+
+  @override
+  String get checkpointUnnamed => 'Barrier';
+
+  @override
+  String get mapRouteMissingCoordinates =>
+      'This route has no coordinates, so it cannot be drawn on the map.';
+
+  @override
+  String get mapSelectRoute => 'Choose a route to show it on the map.';
 }

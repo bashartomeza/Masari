@@ -5,7 +5,9 @@ import 'package:masari_mobile/l10n/app_localizations.dart';
 
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/language_switch.dart';
-import '../../../core/widgets/masari_card.dart';
+import '../../../core/widgets/masari_section.dart';
+import '../../../core/widgets/match_widgets.dart';
+import '../../../core/widgets/state_views.dart';
 import '../application/driver_controller.dart';
 import '../data/driver_models.dart';
 import 'driver_ui.dart';
@@ -21,28 +23,37 @@ class _DriverMatchInboxScreenState
     extends ConsumerState<DriverMatchInboxScreen> {
   String? _status;
 
+  void _refresh() =>
+      ref.read(driverMatchInboxProvider.notifier).refresh(status: _status);
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final inbox = ref.watch(driverMatchInboxProvider);
+
     return Scaffold(
+      appBar: AppBar(
+        title: Text(l10n.matchInbox),
+        actions: const [
+          LanguageSwitch(),
+          SizedBox(width: AppTokens.spaceSmall),
+        ],
+      ),
       body: SafeArea(
+        top: false,
+        bottom: false,
         child: RefreshIndicator(
-          onRefresh: () => ref
-              .read(driverMatchInboxProvider.notifier)
-              .refresh(status: _status),
+          onRefresh: () async => _refresh(),
           child: ListView(
-            padding: const EdgeInsets.all(AppTokens.spaceLarge),
+            padding: const EdgeInsets.fromLTRB(
+              AppTokens.marginMobile,
+              AppTokens.spaceMedium,
+              AppTokens.marginMobile,
+              AppTokens.spaceExtraLarge,
+            ),
             children: [
-              const Align(
-                alignment: AlignmentDirectional.centerEnd,
-                child: LanguageSwitch(),
-              ),
-              Text(
-                l10n.matchInbox,
-                style: Theme.of(context).textTheme.headlineMedium,
-              ),
-              const SizedBox(height: AppTokens.spaceMedium),
+              // A filter belongs above the results it filters, full width, so
+              // the active scope is always visible while scanning the list.
               SegmentedButton<String?>(
                 segments: [
                   ButtonSegment(value: null, label: Text(l10n.allMatches)),
@@ -52,54 +63,40 @@ class _DriverMatchInboxScreenState
                   ),
                 ],
                 selected: {_status},
+                showSelectedIcon: false,
                 onSelectionChanged: (selection) {
                   setState(() => _status = selection.first);
-                  ref
-                      .read(driverMatchInboxProvider.notifier)
-                      .refresh(status: _status);
+                  _refresh();
                 },
               ),
               const SizedBox(height: AppTokens.spaceLarge),
               inbox.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (error, _) => MasariCard(
-                  child: Column(
-                    children: [
-                      Text(driverErrorLabel(l10n, error)),
-                      FilledButton(
-                        onPressed: () => ref
-                            .read(driverMatchInboxProvider.notifier)
-                            .refresh(status: _status),
-                        child: Text(l10n.retry),
-                      ),
-                    ],
-                  ),
+                loading: () => const Column(
+                  children: [
+                    LoadingSkeleton.card(),
+                    SizedBox(height: AppTokens.spaceMedium),
+                    LoadingSkeleton.card(),
+                  ],
+                ),
+                error: (error, _) => ErrorStateView(
+                  title: driverErrorLabel(l10n, error),
+                  retryLabel: l10n.retry,
+                  onRetry: _refresh,
                 ),
                 data: (matches) => matches.isEmpty
-                    ? MasariCard(
-                        child: Column(
-                          children: [
-                            Text(l10n.noAvailableMatches),
-                            FilledButton(
-                              onPressed: () => ref
-                                  .read(driverMatchInboxProvider.notifier)
-                                  .refresh(status: _status),
-                              child: Text(l10n.refresh),
-                            ),
-                          ],
-                        ),
+                    ? EmptyState(
+                        title: l10n.noAvailableMatches,
+                        icon: Icons.inbox_outlined,
+                        actionLabel: l10n.refresh,
+                        onAction: _refresh,
                       )
                     : Column(
-                        children: matches
-                            .map(
-                              (match) => Padding(
-                                padding: const EdgeInsets.only(
-                                  bottom: AppTokens.spaceMedium,
-                                ),
-                                child: _MatchCard(match: match),
-                              ),
-                            )
-                            .toList(),
+                        children: [
+                          for (final match in matches) ...[
+                            _MatchCard(match: match),
+                            const SizedBox(height: AppTokens.spaceMedium),
+                          ],
+                        ],
                       ),
               ),
             ],
@@ -112,50 +109,51 @@ class _DriverMatchInboxScreenState
 
 class _MatchCard extends StatelessWidget {
   const _MatchCard({required this.match});
+
   final DriverMatch match;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    return MasariCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            matchTypeLabel(l10n, match),
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          Text('${l10n.pickup}: ${match.pickupLabel}'),
-          Text('${l10n.destination}: ${match.destinationLabel}'),
-          if (match.passengerRequest != null)
-            Text(
-              '${l10n.passengerCount}: ${match.passengerRequest!.passengerCount}',
-            ),
-          if (match.merchantOrder != null)
-            Text('${l10n.parcelCount}: ${match.merchantOrder!.parcelCount}'),
-          if (match.parcelBatch != null)
-            Text(
-              '${l10n.estimatedDistanceSaved}: ${match.parcelBatch!.estimatedDistanceSaved.toStringAsFixed(2)} km',
-            ),
-          Text('${l10n.matchScore}: ${percent(match.score)}'),
-          Text(
-            '${l10n.currentStatus}: ${driverStatusLabel(l10n, match.status)}',
-          ),
-          Text('${l10n.createdTime}: ${match.createdAt}'),
-          const SizedBox(height: AppTokens.spaceSmall),
-          Text(
-            l10n.routeMatchExplanation,
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: AppTokens.spaceMedium),
-          FilledButton(
-            key: ValueKey('openMatch-${match.id}'),
-            onPressed: () => context.go('/driver/match/${match.id}'),
-            child: Text(l10n.viewDetails),
-          ),
-        ],
-      ),
+
+    // Only the load figures that apply to this match type are listed. The old
+    // card printed every field with an empty value where it did not apply,
+    // which made a passenger ride and a parcel run look identical at a glance.
+    final details = <({String label, String value, IconData icon})>[
+      if (match.passengerRequest != null)
+        (
+          label: l10n.passengerCount,
+          value: '${match.passengerRequest!.passengerCount}',
+          icon: Icons.person_outline,
+        ),
+      if (match.merchantOrder != null)
+        (
+          label: l10n.parcelCount,
+          value: '${match.merchantOrder!.parcelCount}',
+          icon: Icons.widgets_outlined,
+        ),
+      if (match.parcelBatch != null)
+        (
+          label: l10n.estimatedDistanceSaved,
+          value:
+              '${match.parcelBatch!.estimatedDistanceSaved.toStringAsFixed(2)} km',
+          icon: Icons.eco_outlined,
+        ),
+    ];
+
+    return MatchResultCard(
+      title: matchTypeLabel(l10n, match),
+      statusLabel: driverStatusLabel(l10n, match.status),
+      statusTone: statusToneFor(match.status),
+      score: match.score,
+      scoreLabel: l10n.matchScore,
+      from: match.pickupLabel,
+      to: match.destinationLabel,
+      details: details,
+      actionKey: ValueKey('openMatch-${match.id}'),
+      actionLabel: l10n.viewDetails,
+      onAction: () => context.push('/driver/match/${match.id}'),
+      onTap: () => context.push('/driver/match/${match.id}'),
     );
   }
 }

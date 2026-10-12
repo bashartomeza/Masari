@@ -216,6 +216,46 @@ void main() {
     },
   );
 
+  test('post-refresh hook runs before the authenticated retry', () async {
+    final events = <String>[];
+    final harness = TestAuthenticatedClient(
+      now: () => fixedNow,
+      bundle: _bundle(fixedNow, accessExpiresIn: const Duration(minutes: 10)),
+      handler: (request) async {
+        expect(request.url.path, endsWith('/auth/refresh'));
+        events.add('refresh');
+        return http.Response(
+          _refreshResponse('new-access', 'new-refresh'),
+          200,
+        );
+      },
+    );
+    var calls = 0;
+
+    final result = await harness.coordinator.sendAuthenticated((
+      accessToken,
+    ) async {
+      calls += 1;
+      events.add('request:$accessToken');
+      if (calls == 1) {
+        throw const ApiException(
+          ApiErrorType.unauthorized,
+          'access_token_expired',
+          statusCode: 401,
+        );
+      }
+      return {'ok': true};
+    }, beforeRetry: () async => events.add('preflight'));
+
+    expect(result, {'ok': true});
+    expect(events, [
+      'request:old-access',
+      'refresh',
+      'preflight',
+      'request:new-access',
+    ]);
+  });
+
   test(
     'stale terminal response cannot clear a newly installed session',
     () async {

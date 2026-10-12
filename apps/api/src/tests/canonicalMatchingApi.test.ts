@@ -43,6 +43,7 @@ function auth(id: string, role: Role) {
 
 const offer = {
   id: "offer_1",
+  canonical_match_version: "canonical_route_match_v1",
   status: "sent_to_driver",
   route_version_id: "version_1",
   attempt_number: 1,
@@ -123,7 +124,7 @@ describe("M7C3A canonical matching APIs", () => {
       return {
         id: where.id,
         user_id: id,
-        user: { id, role, account_status: "active", security_version: 1 },
+        user: { email_verified_at: new Date(), id, role, account_status: "active", security_version: 1 },
         security_version_at_issue: 1,
         expires_at: new Date(Date.now() + 60_000),
         revoked_at: null
@@ -303,6 +304,58 @@ describe("M7C3A canonical matching APIs", () => {
     await request(app).get("/api/v1/merchant/route-orders").set(auth("passenger_1", "passenger")).expect(403);
   });
 
+  it("associates each passenger request only with its exact single or shared assigned Trip", () => {
+    const resource = (id: string, trip: Record<string, unknown> | null) => ({
+      id,
+      status: trip ? "matched" : "pending",
+      route_version_id: "version_1",
+      pickup_stop_id: "stop_1",
+      dropoff_stop_id: "stop_3",
+      requested_departure_from: new Date("2026-08-06T10:00:00.000Z"),
+      requested_departure_until: new Date("2026-08-06T11:00:00.000Z"),
+      canonical_created_at: new Date("2026-08-06T09:00:00.000Z"),
+      canonical_dispatch: {
+        status: trip ? "assigned" : "pending",
+        updated_at: new Date("2026-08-06T12:00:00.000Z"),
+        assigned_trip: trip
+      }
+    });
+    const trip = (id: string, version: string) => ({
+      id,
+      status: "accepted",
+      canonical_trip_version: version,
+      route_version_id: "version_1",
+      created_at: new Date("2026-08-06T12:00:00.000Z"),
+      driver_route: {
+        departure_at: new Date("2026-08-06T13:00:00.000Z"),
+        driver: { vehicle_type: "sedan", phone: "must-not-leak" }
+      }
+    });
+
+    const requestA = canonicalMatchingSerializers.statusResponse(
+      resource("request_a", trip("trip_a", "canonical_route_trip_v1"))
+    );
+    const requestB = canonicalMatchingSerializers.statusResponse(
+      resource("request_b", trip("trip_b", "canonical_route_trip_v1"))
+    );
+    const shared = canonicalMatchingSerializers.statusResponse(
+      resource("request_shared", trip("trip_shared", "canonical_shared_trip_v1")),
+      true
+    );
+    const unassigned = canonicalMatchingSerializers.statusResponse(resource("request_unassigned", null));
+
+    expect(requestA.trip).toEqual(expect.objectContaining({ id: "trip_a" }));
+    expect(requestB.trip).toEqual(expect.objectContaining({ id: "trip_b" }));
+    expect(shared.trip).toEqual(expect.objectContaining({
+      id: "trip_shared",
+      trip_version: "canonical_shared_trip_v1",
+      shared_trip: true
+    }));
+    expect(unassigned.trip).toBeNull();
+    expect(JSON.stringify({ requestA, requestB, shared, unassigned }))
+      .not.toMatch(/must-not-leak|phone|manifest|member|reservation|fingerprint/i);
+  });
+
   it("scores deterministically and applies documented component weights", () => {
     const input = {
       departureAt: new Date("2026-07-26T10:30:00.000Z"),
@@ -324,8 +377,20 @@ describe("M7C3A canonical matching APIs", () => {
 
   it("serializers remain explicit allowlists", () => {
     const summary = canonicalMatchingSerializers.offerResponse(offer);
+    expect(summary.offer_version).toBe("canonical_route_match_v1");
     expect(summary).not.toHaveProperty("reservation_id");
     expect(summary).not.toHaveProperty("scoring_breakdown");
+  });
+
+  it("rejects shared and unknown versions in the single-offer serializer", () => {
+    expect(() => canonicalMatchingSerializers.offerResponse({
+      ...offer,
+      canonical_match_version: "canonical_shared_trip_match_v1"
+    })).toThrow("canonical_offer_version_mismatch");
+    expect(() => canonicalMatchingSerializers.offerResponse({
+      ...offer,
+      canonical_match_version: "future_match_v2"
+    })).toThrow("canonical_offer_version_mismatch");
   });
 
   it("does not expose database integrity keys through driver offer serializers", () => {

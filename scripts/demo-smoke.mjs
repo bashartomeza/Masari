@@ -12,12 +12,22 @@ const apiBaseUrl = `${apiOrigin.replace(/\/$/, "")}/api/v1`;
 const resetKey = process.env.DEMO_RESET_KEY;
 const startedAt = Date.now();
 
+function assertResetSafeDatabase() {
+  const databaseUrl = process.env.DATABASE_URL;
+  const allowed = (process.env.DEMO_RESET_ALLOWED_DATABASES ?? "").split(",").map((value) => value.trim()).filter(Boolean);
+  let name = "";
+  try { name = new URL(databaseUrl).pathname.replace(/^\//, ""); } catch {}
+  if (name.toLowerCase() === "masari" || !/^[A-Za-z0-9_]+$/.test(name) || !allowed.includes(name)) {
+    throw new Error("Demo smoke refuses a database that is not explicitly reset-safe");
+  }
+}
+
 const accounts = {
-  passenger: ["+970590000001", process.env.DEMO_PASSENGER_PASSWORD],
-  driver1: ["+970590000002", process.env.DEMO_DRIVER_PASSWORD],
-  driver2: ["+970590000003", process.env.DEMO_DRIVER_PASSWORD],
-  merchant: ["+970590000004", process.env.DEMO_MERCHANT_PASSWORD],
-  admin: ["+970590000005", process.env.DEMO_ADMIN_PASSWORD]
+  passenger: ["demo.passenger@masari.app", process.env.DEMO_PASSENGER_PASSWORD],
+  driver1: ["demo.driver@masari.app", process.env.DEMO_DRIVER_PASSWORD],
+  driver2: ["demo.driver2@masari.app", process.env.DEMO_DRIVER_PASSWORD],
+  merchant: ["demo.merchant@masari.app", process.env.DEMO_MERCHANT_PASSWORD],
+  admin: ["demo.admin@masari.app", process.env.DEMO_ADMIN_PASSWORD]
 };
 
 function argument(name) {
@@ -47,11 +57,11 @@ async function request(path, { token, method = "GET", body, headers = {}, expect
 }
 
 async function login(role) {
-  const [phone, password] = accounts[role];
+  const [email, password] = accounts[role];
   return (
     await request("/auth/login", {
       method: "POST",
-      body: { phone, password }
+      body: { email, password }
     })
   ).token;
 }
@@ -65,6 +75,7 @@ async function reset() {
 }
 
 async function primaryStory() {
+  assertResetSafeDatabase();
   const health = await request("/health");
   assert(health.ok === true, "API health response is not ready");
   assert(typeof health.request_id === "string", "API health response has no request ID");
@@ -72,7 +83,7 @@ async function primaryStory() {
   await request("/demo/reset", { method: "POST", body: {}, expected: 403 });
   await request("/auth/login", {
     method: "POST",
-    body: { phone: accounts.passenger[0], password: "invalid-demo-password" },
+    body: { email: accounts.passenger[0], password: "invalid-demo-password" },
     expected: 401
   });
 

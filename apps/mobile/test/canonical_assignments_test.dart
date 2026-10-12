@@ -119,7 +119,10 @@ void main() {
         final passenger = await repository.passengerAssignment('request_1');
         final merchant = await repository.merchantAssignment('order_1');
         expect(passenger.assignment.status, CanonicalAssignmentStatus.assigned);
-        expect(passenger.assignment.trip?.vehicleType, 'sedan');
+        expect(
+          passenger.assignment.trip?.vehicleType,
+          CanonicalVehicleType.sedan,
+        );
         expect(merchant.assignment.parcelCount, 2);
         expect(merchant.assignment.destinationStopIds, ['stop_2']);
       },
@@ -133,6 +136,26 @@ void main() {
       final invalid = assignmentJson()..['dispatch_status'] = 'searching';
       expect(
         () => CanonicalAssignment.fromJson(invalid),
+        throwsFormatException,
+      );
+    });
+
+    test('single offers require the exact single-demand version', () {
+      final shared = offerJson()
+        ..['offer_version'] = 'canonical_shared_trip_match_v1';
+      final unknown = offerJson()..['offer_version'] = 'future_match_v2';
+      final missing = offerJson()..remove('offer_version');
+
+      expect(
+        () => CanonicalDriverOffer.fromJson(shared),
+        throwsFormatException,
+      );
+      expect(
+        () => CanonicalDriverOffer.fromJson(unknown),
+        throwsFormatException,
+      );
+      expect(
+        () => CanonicalDriverOffer.fromJson(missing),
         throwsFormatException,
       );
     });
@@ -431,6 +454,7 @@ Map<String, dynamic> offerJson({
   String? rejectReason,
 }) => {
   'id': 'offer_1',
+  'offer_version': canonicalRouteMatchVersion,
   'status': status,
   'demand_type': 'passenger',
   'route_version_id': 'version_1',
@@ -457,6 +481,7 @@ Map<String, dynamic> offerJson({
 Map<String, dynamic> assignmentJson({
   String id = 'request_1',
   bool merchant = false,
+  bool shared = false,
 }) => {
   'id': id,
   'status': 'matched',
@@ -469,8 +494,11 @@ Map<String, dynamic> assignmentJson({
   'dispatch_status': 'assigned',
   'offer_pending': false,
   'assigned': true,
+  'assignment_trip_version': shared
+      ? 'canonical_shared_trip_v1'
+      : 'canonical_route_trip_v1',
   'passenger_count': merchant ? null : 2,
-  'trip': tripJson(),
+  'trip': tripJson(shared: shared),
   'created_at': '2026-07-27T09:50:00.000Z',
   'updated_at': '2026-07-27T10:00:00.000Z',
   if (merchant) ...{
@@ -499,8 +527,12 @@ Map<String, dynamic> routeSummaryJson() => {
   ],
 };
 
-Map<String, dynamic> tripJson() => {
+Map<String, dynamic> tripJson({bool shared = false}) => {
   'id': 'trip_1',
+  'trip_version': shared
+      ? 'canonical_shared_trip_v1'
+      : 'canonical_route_trip_v1',
+  'shared_trip': shared,
   'status': 'accepted',
   'route_version_id': 'version_1',
   'departure_at': '2026-07-27T11:00:00.000Z',

@@ -19,6 +19,27 @@ enum CanonicalRejectReason {
   final String apiValue;
 }
 
+const canonicalRouteMatchVersion = 'canonical_route_match_v1';
+
+enum CanonicalTripVersion { single, shared }
+
+enum CanonicalTripStatus { accepted, unsupported }
+
+enum CanonicalVehicleType { sedan, van, unsupported }
+
+CanonicalTripStatus canonicalTripStatusFromApi(String value) => switch (value) {
+  'accepted' => CanonicalTripStatus.accepted,
+  _ => CanonicalTripStatus.unsupported,
+};
+
+CanonicalVehicleType? canonicalVehicleTypeFromApi(String? value) =>
+    switch (value) {
+      null => null,
+      'sedan' => CanonicalVehicleType.sedan,
+      'van' => CanonicalVehicleType.van,
+      _ => CanonicalVehicleType.unsupported,
+    };
+
 class CanonicalRouteStopSummary {
   const CanonicalRouteStopSummary({
     required this.id,
@@ -81,6 +102,7 @@ class CanonicalRouteSummary {
 class CanonicalTripSummary {
   const CanonicalTripSummary({
     required this.id,
+    required this.version,
     required this.status,
     required this.routeVersionId,
     required this.departureAt,
@@ -89,19 +111,32 @@ class CanonicalTripSummary {
   });
 
   final String id;
-  final String status;
+  final CanonicalTripVersion version;
+  final CanonicalTripStatus status;
   final String routeVersionId;
   final DateTime? departureAt;
-  final String? vehicleType;
+  final CanonicalVehicleType? vehicleType;
   final DateTime? createdAt;
 
   factory CanonicalTripSummary.fromJson(Map<String, dynamic> json) {
+    final version = switch (_string(json, 'trip_version')) {
+      'canonical_route_trip_v1' => CanonicalTripVersion.single,
+      'canonical_shared_trip_v1' => CanonicalTripVersion.shared,
+      _ => throw const FormatException('Unsupported canonical Trip version'),
+    };
+    final shared = json['shared_trip'];
+    if (shared is! bool || shared != (version == CanonicalTripVersion.shared)) {
+      throw const FormatException('Invalid canonical Trip discriminator');
+    }
     return CanonicalTripSummary(
       id: _string(json, 'id'),
-      status: _string(json, 'status'),
+      version: version,
+      status: canonicalTripStatusFromApi(_string(json, 'status')),
       routeVersionId: _string(json, 'route_version_id'),
       departureAt: _optionalDate(json, 'departure_at'),
-      vehicleType: _optionalString(json, 'vehicle_type'),
+      vehicleType: canonicalVehicleTypeFromApi(
+        _optionalString(json, 'vehicle_type'),
+      ),
       createdAt: _optionalDate(json, 'created_at'),
     );
   }
@@ -190,6 +225,9 @@ class CanonicalDriverOffer {
   bool get actionable => status == CanonicalOfferStatus.offered;
 
   factory CanonicalDriverOffer.fromJson(Map<String, dynamic> json) {
+    if (_string(json, 'offer_version') != canonicalRouteMatchVersion) {
+      throw const FormatException('Unsupported canonical offer version');
+    }
     final status = CanonicalOfferStatus.values
         .where((value) => value.name == _string(json, 'status'))
         .firstOrNull;
@@ -256,6 +294,7 @@ class CanonicalAssignment {
     required this.departureFrom,
     required this.departureUntil,
     required this.status,
+    required this.tripVersion,
     required this.trip,
     required this.passengerCount,
     required this.parcelCount,
@@ -272,6 +311,7 @@ class CanonicalAssignment {
   final DateTime departureFrom;
   final DateTime departureUntil;
   final CanonicalAssignmentStatus status;
+  final CanonicalTripVersion? tripVersion;
   final CanonicalTripSummary? trip;
   final int? passengerCount;
   final int? parcelCount;
@@ -286,6 +326,15 @@ class CanonicalAssignment {
     if (status == null) {
       throw const FormatException('Invalid canonical assignment status');
     }
+    final tripVersion = switch (_optionalString(
+      json,
+      'assignment_trip_version',
+    )) {
+      null => null,
+      'canonical_route_trip_v1' => CanonicalTripVersion.single,
+      'canonical_shared_trip_v1' => CanonicalTripVersion.shared,
+      _ => throw const FormatException('Unsupported assignment Trip version'),
+    };
     final rawDestinations = json['destination_stop_ids'];
     return CanonicalAssignment(
       id: _string(json, 'id'),
@@ -296,6 +345,7 @@ class CanonicalAssignment {
       departureFrom: _date(json, 'requested_departure_from'),
       departureUntil: _date(json, 'requested_departure_until'),
       status: status,
+      tripVersion: tripVersion,
       trip: _trip(json),
       passengerCount: _optionalInteger(json, 'passenger_count'),
       parcelCount: _optionalInteger(json, 'parcel_count'),

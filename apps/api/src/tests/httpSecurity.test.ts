@@ -39,6 +39,7 @@ function productionConfig() {
     APP_RELEASE: "http-security-test",
     CORS_ORIGINS: "https://admin.masari.example",
     REFRESH_TOKEN_PEPPER: "http-security-refresh-pepper-with-thirty-two-characters",
+    AUTH_ACTION_TOKEN_PEPPER: "http-security-action-pepper-with-thirty-two-characters",
     TRUST_PROXY: "none"
   });
 }
@@ -115,7 +116,7 @@ describe("production HTTP security baseline", () => {
       .post("/api/v1/auth/login?token=query-secret")
       .set("Authorization", "Bearer header-secret")
       .send({
-        phone: "+970590001234",
+        email: "logged-in-secret@example.com",
         password: "body-password-secret",
         latitude: 31.53261234,
         longitude: 35.09981234,
@@ -141,7 +142,7 @@ describe("production HTTP security baseline", () => {
     for (const forbidden of [
       "query-secret",
       "header-secret",
-      "+970590001234",
+      "logged-in-secret@example.com",
       "body-password-secret",
       "31.53261234",
       "35.09981234",
@@ -184,10 +185,46 @@ describe("production HTTP security baseline", () => {
     for (const marker of markers) expect(output).not.toContain(marker);
   });
 
+  it("redacts auth-action credentials, tokens, and profile contact fields", async () => {
+    const { logger, lines } = capturedLogger();
+    const markers = [
+      "id-token-marker",
+      "credential-marker",
+      "credentials-marker",
+      "nested-id-token-marker",
+      "nested-credential-marker",
+      "deep-raw-token-marker",
+      "action-token-marker",
+      "profile-email-marker"
+    ];
+    logger.info({
+      id_token: markers[0],
+      credential: markers[1],
+      credentials: markers[2],
+      raw_action_token: markers[6],
+      rawToken: "returned-raw-action-token-marker",
+      auth_action: {
+        rawToken: "nested-raw-action-token-marker",
+        idToken: markers[0],
+        id_token: markers[3],
+        credential: markers[4]
+      },
+      action: { result: { proof: { rawToken: markers[5] } } },
+      profile: { email: markers[7], phone: "+970590001234" }
+    }, "auth action redaction verification");
+    await settleLogs();
+    const output = lines.join("");
+    for (const marker of markers) expect(output).not.toContain(marker);
+    expect(output).not.toContain("returned-raw-action-token-marker");
+    expect(output).not.toContain("nested-raw-action-token-marker");
+    expect(output).not.toContain("+970590001234");
+  });
+
   it("adds authenticated actor identity without logging authorization material", async () => {
     const { logger, lines } = capturedLogger();
     const appConfig = testConfig();
     const user = {
+  email_verified_at: new Date(),
       id: "driver_actor",
       role: "driver",
       account_status: "active",
@@ -299,13 +336,13 @@ describe("production HTTP security baseline", () => {
     for (let attempt = 0; attempt < 2; attempt += 1) {
       const response = await request(app)
         .post("/api/v1/auth/login")
-        .send({ phone: "+970590009999", password: "not-a-password" })
+        .send({ email: "nobody-9999@example.com", password: "not-a-password" })
         .expect(401);
       expect(response.body.error).toBe("invalid_credentials");
     }
     const limited = await request(app)
       .post("/api/v1/auth/login")
-      .send({ phone: "+970590009999", password: "not-a-password" })
+      .send({ email: "nobody-9999@example.com", password: "not-a-password" })
       .expect(429);
     expect(limited.body.error).toBe("rate_limited");
     expect(limited.headers["retry-after"]).toBeDefined();
@@ -345,6 +382,38 @@ describe("production HTTP security baseline", () => {
     expect(response.headers["access-control-allow-headers"]).toContain("X-Request-Id");
     expect(response.headers["access-control-allow-headers"]).toContain("Idempotency-Key");
     expect(response.headers["access-control-expose-headers"]).toContain("Retry-After");
+  });
+
+  it("allows unlisted loopback ports outside staging and production", async () => {
+    const response = await request(createApp(testConfig()))
+      .options("/api/v1/auth/register")
+      .set("Origin", "http://localhost:54681")
+      .set("Access-Control-Request-Method", "POST")
+      .expect(204);
+    expect(response.headers["access-control-allow-origin"]).toBe("http://localhost:54681");
+  });
+
+  it("rejects unlisted loopback and non-loopback origins in production", async () => {
+    const app = createApp(productionConfig());
+    const loopback = await request(app)
+      .options("/api/v1/auth/register")
+      .set("Origin", "http://localhost:54681")
+      .expect(204);
+    expect(loopback.headers["access-control-allow-origin"]).toBeUndefined();
+
+    const foreign = await request(app)
+      .options("/api/v1/auth/register")
+      .set("Origin", "https://evil.masari.example")
+      .expect(204);
+    expect(foreign.headers["access-control-allow-origin"]).toBeUndefined();
+  });
+
+  it("does not treat lookalike hostnames as loopback", async () => {
+    const response = await request(createApp(testConfig()))
+      .options("/api/v1/auth/register")
+      .set("Origin", "http://localhost.evil.example")
+      .expect(204);
+    expect(response.headers["access-control-allow-origin"]).toBeUndefined();
   });
 
   it("returns a controlled 413 without echoing oversized content", async () => {

@@ -3,37 +3,69 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:masari_mobile/l10n/app_localizations.dart';
 
+import '../../../core/routing/app_router.dart';
+import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/masari_card.dart';
 import '../../auth/application/auth_controller.dart';
 
+/// Quick account actions at the foot of a role dashboard.
+///
+/// Deliberately low-emphasis: session management has its own tab now, so these
+/// are shortcuts rather than the dashboard's purpose. They were previously an
+/// outlined button stacked on a *filled* one, which made "log out" compete with
+/// the screen's real actions for attention.
 class RoleSecurityActions extends ConsumerWidget {
   const RoleSecurityActions({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+
+    return Row(
       children: [
-        OutlinedButton.icon(
-          key: const ValueKey('securitySessionsButton'),
-          onPressed: () => context.go('/security/sessions'),
-          icon: const Icon(Icons.security_outlined),
-          label: Text(l10n.securityAndSessions),
+        Expanded(
+          child: MasariCard(
+            padding: const EdgeInsets.all(8),
+            child: TextButton.icon(
+              key: const ValueKey('securitySessionsButton'),
+              onPressed: () => context.go(securitySessionsPath),
+              icon: const Icon(Icons.security_outlined, size: 18),
+              label: Text(
+                l10n.securityAndSessions,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
         ),
-        FilledButton(
-          key: const ValueKey('logoutButton'),
-          onPressed: () async {
-            final confirmed = await confirmSecurityAction(
-              context,
-              title: l10n.confirmLogout,
-              message: l10n.confirmLogoutMessage,
-              confirmLabel: l10n.logout,
-            );
-            if (confirmed && context.mounted) {
-              await ref.read(authControllerProvider.notifier).logout();
-            }
-          },
-          child: Text(l10n.logout),
+        const SizedBox(width: AppTokens.spaceSmall),
+        Expanded(
+          child: MasariCard(
+            padding: const EdgeInsets.all(8),
+            child: TextButton.icon(
+              key: const ValueKey('logoutButton'),
+              onPressed: () async {
+                final confirmed = await confirmSecurityAction(
+                  context,
+                  title: l10n.confirmLogout,
+                  message: l10n.confirmLogoutMessage,
+                  confirmLabel: l10n.logout,
+                );
+                if (confirmed && context.mounted) {
+                  await ref.read(authControllerProvider.notifier).logout();
+                }
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.error,
+              ),
+              icon: const Icon(Icons.logout, size: 18),
+              label: Text(
+                l10n.logout,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
         ),
       ],
     );

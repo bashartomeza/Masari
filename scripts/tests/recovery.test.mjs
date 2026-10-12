@@ -90,7 +90,16 @@ test("release metadata is reproducible with SOURCE_DATE_EPOCH and excludes secre
       "20260726170000_enforce_match_trip_availability_mode",
       "20260727110000_harden_canonical_assignment_integrity",
       "20260728130000_canonical_shared_trip_aggregation",
-      "20260729120000_harden_canonical_shared_trip_integrity"
+      "20260729120000_harden_canonical_shared_trip_integrity",
+      "20260819150000_driver_verification_approval",
+      "20260820120000_global_e164_phone_constraints",
+      "20260821120000_consent_management_workflow",
+      "20260910120000_email_google_self_service_auth",
+      "20260915130000_external_identity_profile_state",
+      "20260915130100_backfill_legacy_google_external_identities",
+      "20261006110000_complete_passenger_trip_lifecycle",
+      "20261008190000_complete_capacity_batching_failure_states",
+      "20261012165000_allow_legacy_offer_lifecycle_timestamps"
     ]
   );
   rmSync(directory, { recursive: true, force: true });

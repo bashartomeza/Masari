@@ -83,6 +83,12 @@ class AppLocalizationsAr extends AppLocalizations {
   String get phone => 'رقم الهاتف';
 
   @override
+  String get email => 'البريد الإلكتروني';
+
+  @override
+  String get fullName => 'الاسم الكامل';
+
+  @override
   String get password => 'كلمة المرور';
 
   @override
@@ -90,6 +96,55 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get hidePassword => 'إخفاء كلمة المرور';
+
+  @override
+  String get signUp => 'إنشاء الحساب';
+
+  @override
+  String get createAccount => 'إنشاء الحساب';
+
+  @override
+  String get createAccountSubtitle => 'أنشئ حساب مسافر للبدء.';
+
+  @override
+  String get newToMasari => 'جديد في مساري؟ أنشئ حساباً';
+
+  @override
+  String get alreadyHaveAccount => 'لديك حساب؟ سجّل الدخول';
+
+  @override
+  String get continueWithGoogle => 'المتابعة عبر Google';
+
+  @override
+  String get orSeparator => 'أو';
+
+  @override
+  String get emailRequired => 'أدخل بريدك الإلكتروني.';
+
+  @override
+  String get emailInvalid => 'أدخل بريداً إلكترونياً صحيحاً.';
+
+  @override
+  String get nameRequired => 'أدخل اسمك.';
+
+  @override
+  String get passwordRequired => 'أدخل كلمة المرور.';
+
+  @override
+  String get passwordTooShort =>
+      'يجب أن تتكون كلمة المرور من 8 أحرف على الأقل.';
+
+  @override
+  String get emailAlreadyRegistered =>
+      'هذا البريد الإلكتروني مسجّل بالفعل. حاول تسجيل الدخول.';
+
+  @override
+  String get googleSignInFailed =>
+      'فشل تسجيل الدخول عبر Google. حاول مرة أخرى.';
+
+  @override
+  String get googleSignInUnavailable =>
+      'تسجيل الدخول عبر Google غير متاح حالياً.';
 
   @override
   String get demoAccounts => 'حسابات تجريبية';
@@ -116,7 +171,8 @@ class AppLocalizationsAr extends AppLocalizations {
   String get sessionExpired => 'انتهت جلستك، يرجى تسجيل الدخول مرة أخرى';
 
   @override
-  String get invalidCredentials => 'رقم الهاتف أو كلمة المرور غير صحيحة.';
+  String get invalidCredentials =>
+      'البريد الإلكتروني أو كلمة المرور غير صحيحة.';
 
   @override
   String get networkUnavailable =>
@@ -371,7 +427,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get activateRoute => 'تفعيل المسار';
 
   @override
-  String get deactivateRoute => 'إلغاء تفعيل المسار';
+  String get deactivateRoute => 'إيقاف المسار';
 
   @override
   String get routeActivated => 'تم تفعيل المسار';
@@ -773,9 +829,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get acceptAndContinue => 'قبول ومتابعة';
 
   @override
-  String get createAccount => 'إنشاء الحساب';
-
-  @override
   String get accountCreated => 'تم إنشاء الحساب';
 
   @override
@@ -980,6 +1033,34 @@ class AppLocalizationsAr extends AppLocalizations {
   String get invalidDepartureWindow => 'اختر نافذة انطلاق مستقبلية وصحيحة.';
 
   @override
+  String get availabilityDepartureTooSoon =>
+      'وقت الانطلاق قريب جداً. اختر وقتاً بعد 10 دقائق على الأقل من الآن.';
+
+  @override
+  String get availabilityDepartureTooFar =>
+      'وقت الانطلاق بعيد جداً. اختر وقتاً خلال الـ30 يوماً القادمة.';
+
+  @override
+  String get availabilityInvalidWindow =>
+      'نهاية نافذة الإتاحة يجب أن تكون بعد الانطلاق بساعتين كحد أقصى.';
+
+  @override
+  String get availabilityExceedsVehicleCapacity =>
+      'سعة المقاعد أو الطرود التي اخترتها تتجاوز سعة مركبتك المسجلة.';
+
+  @override
+  String get availabilityDriverNotApproved =>
+      'حسابك كسائق لم يُعتمد بعد. تواصل مع الدعم لإتمام التحقق.';
+
+  @override
+  String get availabilityRouteNoLongerEligible =>
+      'لم يعد هذا المسار متاحاً. اختر مساراً آخر.';
+
+  @override
+  String get availabilityDuplicate =>
+      'لديك بالفعل إتاحة مطابقة لهذا المسار والوقت.';
+
+  @override
   String get invalidStopOrder => 'اختر محطة معتمدة لاحقة في المسار.';
 
   @override
@@ -1124,4 +1205,644 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get routeStops => 'محطات المسار';
+
+  @override
+  String get navNewRequest => 'طلب جديد';
+
+  @override
+  String get navHome => 'الرئيسية';
+
+  @override
+  String get navAccount => 'الحساب';
+
+  @override
+  String get navTrips => 'رحلاتي';
+
+  @override
+  String greetingMorning(String name) {
+    return 'صباح الخير، $name';
+  }
+
+  @override
+  String greetingAfternoon(String name) {
+    return 'مساء الخير، $name';
+  }
+
+  @override
+  String greetingEvening(String name) {
+    return 'مساء الخير، $name';
+  }
+
+  @override
+  String get whereToGo => 'إلى أين تريد الذهاب؟';
+
+  @override
+  String get smartSearch => 'بحث ذكي';
+
+  @override
+  String get destinationSearchHint => 'مثال: من البوليتكنك إلى بيت لحم';
+
+  @override
+  String get quickDestinations => 'الوجهات السريعة';
+
+  @override
+  String availableTripsTo(String destination) {
+    return 'رحلات متاحة إلى $destination';
+  }
+
+  @override
+  String get searchForTrip => 'ابحث عن رحلة';
+
+  @override
+  String get perPassenger => 'للراكب';
+
+  @override
+  String get departure => 'المغادرة';
+
+  @override
+  String get bookSeat => 'احجز';
+
+  @override
+  String get noAvailableTrips => 'لا توجد رحلات متاحة حالياً';
+
+  @override
+  String get noAvailableTripsBody =>
+      'أنشئ طلباً وسيقوم مساري بمطابقتك مع سائق على المسار.';
+
+  @override
+  String seatsRemaining(int count) {
+    return '$count مقاعد متاحة';
+  }
+
+  @override
+  String completedTripsCount(int count) {
+    return '$count رحلة';
+  }
+
+  @override
+  String get notifications => 'الإشعارات';
+
+  @override
+  String get noNotifications => 'لا توجد إشعارات بعد.';
+
+  @override
+  String get sampleDataNotice =>
+      'بيانات تجريبية للعرض فقط، غير مرتبطة بالخادم.';
+
+  @override
+  String get driverOnline => 'متصل';
+
+  @override
+  String get driverOffline => 'غير متصل';
+
+  @override
+  String get trustPoints => 'نقاط الثقة';
+
+  @override
+  String get trustExcellent => 'ممتاز';
+
+  @override
+  String get trustGood => 'جيد';
+
+  @override
+  String get trustFair => 'مقبول';
+
+  @override
+  String get trustWeak => 'ضعيف';
+
+  @override
+  String get trustScoreUnavailable => 'غير متاح بعد';
+
+  @override
+  String get todayEarnings => 'أرباح اليوم';
+
+  @override
+  String get earningsUnavailable => 'غير متاحة';
+
+  @override
+  String completedTripsToday(int count) {
+    return '$count رحلات مكتملة';
+  }
+
+  @override
+  String get activateYourRoute => 'فعّل مسارك';
+
+  @override
+  String get activateRouteHint => 'قم بتحديد وجهتك لاستقبال الطلبات على طريقك';
+
+  @override
+  String get mapNoLocation => 'لا توجد بيانات موقع بعد.';
+
+  @override
+  String get batchSavings => 'توفير التجميع';
+
+  @override
+  String get batchSavingsCaption => 'تم توفيرها عبر دمج الشحنات';
+
+  @override
+  String distanceSavedKm(String km) {
+    return '$km كم';
+  }
+
+  @override
+  String get noSavingsYet => 'لا يوجد توفير بعد';
+
+  @override
+  String get inDelivery => 'قيد التوصيل';
+
+  @override
+  String activeShipmentsCount(int count) {
+    return '$count شحنات نشطة';
+  }
+
+  @override
+  String get createShipment => 'إنشاء شحنة جديدة';
+
+  @override
+  String get smartBatchingTitle => 'توصيات التجميع الذكية';
+
+  @override
+  String batchSuggestionTitle(int count, String destination) {
+    return '$count طرود إلى $destination';
+  }
+
+  @override
+  String get batchSuggestionBody => 'يمكن دمجها في دفعة واحدة على المسار.';
+
+  @override
+  String get mergeAndSend => 'دمج وإرسال';
+
+  @override
+  String get noBatchSuggestions => 'لا توجد طلبات جاهزة للتجميع.';
+
+  @override
+  String get liveTracking => 'التتبع المباشر';
+
+  @override
+  String get recentOrders => 'الطلبات الأخيرة';
+
+  @override
+  String orderReference(String reference) {
+    return 'طلب #$reference';
+  }
+
+  @override
+  String get navRequests => 'الطلبات';
+
+  @override
+  String get navMyTrip => 'رحلتي';
+
+  @override
+  String get navPerformance => 'الأرباح والأداء';
+
+  @override
+  String get navNotifications => 'الإشعارات';
+
+  @override
+  String get navMapAlerts => 'الخرائط والبلاغات';
+
+  @override
+  String get navShipments => 'الشحنات';
+
+  @override
+  String get navReports => 'التقارير';
+
+  @override
+  String get myTrips => 'رحلاتي';
+
+  @override
+  String get tripsActiveSection => 'الرحلة النشطة';
+
+  @override
+  String get tripsUpcomingSection => 'الرحلات القادمة';
+
+  @override
+  String get tripsPastSection => 'الرحلات السابقة';
+
+  @override
+  String get tripsCancelledSection => 'الرحلات الملغاة';
+
+  @override
+  String get noTripsYet => 'لا توجد رحلات بعد';
+
+  @override
+  String get noTripsYetBody => 'ستظهر رحلاتك هنا بعد إنشاء أول طلب.';
+
+  @override
+  String get tripHistoryFailed => 'تعذّر تحميل سجل الرحلات.';
+
+  @override
+  String get mapsUnavailable => 'الخريطة غير متاحة';
+
+  @override
+  String get mapsUnavailableBody =>
+      'لم يتم تفعيل خدمة الخرائط في هذه النسخة، لذلك لا يمكن عرض موقع مباشر.';
+
+  @override
+  String get incidentReports => 'البلاغات';
+
+  @override
+  String get incidentReportingUnavailable => 'الإبلاغ عن حادث غير متاح';
+
+  @override
+  String get incidentReportingUnavailableBody =>
+      'لا يوجد حتى الآن نظام خلفي لاستقبال البلاغات، ولن يتم إرسال أي بلاغ من هنا.';
+
+  @override
+  String get notificationsUnavailableBody =>
+      'لا يوجد نظام إشعارات في هذه النسخة. ستصلك التحديثات داخل شاشة الرحلة.';
+
+  @override
+  String get performanceTitle => 'الأرباح والأداء';
+
+  @override
+  String get earningsNotTracked => 'لا يتم احتساب الأرباح';
+
+  @override
+  String get earningsNotTrackedBody =>
+      'لا تحتوي قاعدة البيانات على أي بيانات أسعار أو أجرة، لذلك لا يمكن عرض رقم أرباح حقيقي.';
+
+  @override
+  String get completedTripsTotal => 'إجمالي الرحلات المكتملة';
+
+  @override
+  String get acceptanceRateUnavailable => 'نسبة القبول غير متاحة';
+
+  @override
+  String destinationCount(int count) {
+    return '$count وجهات';
+  }
+
+  @override
+  String get shipmentsTitle => 'الشحنات';
+
+  @override
+  String get noShipments => 'لا توجد شحنات';
+
+  @override
+  String get noShipmentsBody => 'أنشئ شحنة جديدة لتظهر هنا.';
+
+  @override
+  String get shipmentsFailed => 'تعذّر تحميل الشحنات.';
+
+  @override
+  String get reportsUnavailable => 'التقارير غير متاحة';
+
+  @override
+  String get reportsUnavailableBody =>
+      'لا يوجد نظام خلفي لتوليد التقارير أو تصديرها بصيغة PDF أو Excel.';
+
+  @override
+  String get accountProfile => 'الملف الشخصي';
+
+  @override
+  String get accountSupport => 'الدعم';
+
+  @override
+  String get supportUnavailable => 'الدعم داخل التطبيق غير متاح';
+
+  @override
+  String get supportUnavailableBody =>
+      'لا توجد قناة دعم متصلة بالنظام الخلفي في هذه النسخة.';
+
+  @override
+  String get accountSettings => 'الإعدادات';
+
+  @override
+  String get featureNotBackedNotice =>
+      'هذا القسم غير مدعوم من النظام الخلفي بعد.';
+
+  @override
+  String get offers => 'العروض';
+
+  @override
+  String get individualOffers => 'العروض الفردية';
+
+  @override
+  String get sharedOffers => 'عروض الرحلات المشتركة';
+
+  @override
+  String get sharedOffersBody =>
+      'راجع عروض المسار المجمّعة. تتغير الحالة فقط عند التحديث.';
+
+  @override
+  String get noSharedOffers => 'لا توجد عروض رحلات مشتركة حالياً.';
+
+  @override
+  String get sharedTrip => 'رحلة مشتركة';
+
+  @override
+  String get sharedOfferDetails => 'تفاصيل العرض المشترك';
+
+  @override
+  String get compositionPassengerOnly => 'ركاب فقط';
+
+  @override
+  String get compositionMerchantOnly => 'طرود فقط';
+
+  @override
+  String get compositionMixed => 'رحلة مختلطة';
+
+  @override
+  String get passengerRequests => 'طلبات الركاب';
+
+  @override
+  String get passengerSeats => 'مقاعد الركاب';
+
+  @override
+  String get merchantOrders => 'طلبات التجار';
+
+  @override
+  String get parcels => 'الطرود';
+
+  @override
+  String get entireGroup => 'المجموعة كاملة';
+
+  @override
+  String get acceptEntireSharedTrip => 'قبول الرحلة المشتركة كاملة';
+
+  @override
+  String get rejectEntireSharedTrip => 'رفض الرحلة المشتركة كاملة';
+
+  @override
+  String get confirmAcceptSharedTrip =>
+      'هل تريد قبول جميع طلبات الركاب والتجار المجمّعة معاً في رحلة مشتركة واحدة؟';
+
+  @override
+  String get confirmRejectSharedTrip =>
+      'هل تريد رفض المجموعة كاملة وتحرير جميع الطلبات المجمّعة؟';
+
+  @override
+  String get sharedGroupDecisionNotice =>
+      'ينطبق القبول أو الرفض على المجموعة كاملة.';
+
+  @override
+  String get sharedAcceptedNotice =>
+      'تم إسناد رحلة مشتركة واحدة. لم تبدأ الرحلة.';
+
+  @override
+  String get sharedRejectedNotice => 'تم رفض العرض المشترك كاملاً.';
+
+  @override
+  String get sharedInvalidatedNotice =>
+      'لم يعد هذا العرض المشترك صالحاً. حدّث الشاشة لمعرفة الحالة الحالية.';
+
+  @override
+  String get sharedCapacityNotice =>
+      'هذه المجاميع محجوزة للمسار كاملاً. لا تُعرض السعة المتبقية مجدداً لهذا الانطلاق، وإعادة استخدام السعة بين المحطات غير مفعلة.';
+
+  @override
+  String get stopEventTimeline => 'أحداث المحطات المشتركة';
+
+  @override
+  String get passengerPickups => 'ركاب يصعدون';
+
+  @override
+  String get passengerDropoffs => 'ركاب ينزلون';
+
+  @override
+  String get parcelPickups => 'طرود تُستلم';
+
+  @override
+  String get parcelDestinations => 'وجهات الطرود';
+
+  @override
+  String get sharedAssignmentIndicator => 'مُسند إلى رحلة مشتركة';
+
+  @override
+  String get sharedAssignmentPrivacyNotice =>
+      'يظهر طلبك فقط. معلومات أعضاء الرحلة الآخرين خاصة.';
+
+  @override
+  String get statusUnsupported => 'الحالة غير متاحة';
+
+  @override
+  String get unsupportedDataNotice =>
+      'هذه الحالة غير مدعومة في إصدار التطبيق الحالي. حدّث الشاشة أو تواصل مع الدعم.';
+
+  @override
+  String get vehicleSedan => 'سيارة سيدان';
+
+  @override
+  String get vehicleVan => 'مركبة فان';
+
+  @override
+  String get vehicleUnavailable => 'نوع المركبة غير متاح';
+
+  @override
+  String get actionDisabledExpired =>
+      'الإجراء غير متاح لأن صلاحية العرض انتهت.';
+
+  @override
+  String get actionDisabledUncertain =>
+      'الإجراء غير متاح حتى تتم مطابقة نتيجة العملية السابقة.';
+
+  @override
+  String get sharedFeatureUnavailable =>
+      'عروض الرحلات المشتركة غير متاحة في هذه البيئة.';
+
+  @override
+  String get sharedAssignmentUnavailable =>
+      'تفاصيل إسناد الرحلة المشتركة غير متاحة في هذه البيئة.';
+
+  @override
+  String get notLiveNotice =>
+      'هذه الشاشة ليست مباشرة. استخدم التحديث للتحقق من المستجدات.';
+
+  @override
+  String get assistantTitle => 'مساعد مساري';
+
+  @override
+  String get assistantHomeTitle => 'اسأل مساعد مساري';
+
+  @override
+  String get assistantHomeBody => 'استفسر عن رحلاتك والمسارات المتاحة.';
+
+  @override
+  String get assistantWelcomeTitle => 'كيف يمكنني مساعدتك؟';
+
+  @override
+  String get assistantWelcomeBody =>
+      'اسأل عن بيانات رحلاتك أو المسارات المتاحة في مساري. إذا كانت التفاصيل ناقصة، سأطلب منك توضيحها.';
+
+  @override
+  String get assistantTryAsking => 'جرّب أن تسأل';
+
+  @override
+  String get assistantExampleTripTime => 'متى موعد رحلتي القادمة؟';
+
+  @override
+  String get assistantExampleAvailableTrip => 'هل توجد رحلة إلى بيت لحم؟';
+
+  @override
+  String get assistantInputHint => 'اكتب سؤالك هنا';
+
+  @override
+  String get assistantSend => 'إرسال';
+
+  @override
+  String get assistantProcessing => 'جارٍ التحقق من بيانات مساري…';
+
+  @override
+  String get assistantErrorTitle => 'تعذّر إكمال الطلب';
+
+  @override
+  String get assistantErrorBody =>
+      'لم يتمكن المساعد من إكمال طلبك. حاول مرة أخرى.';
+
+  @override
+  String get assistantUnavailable =>
+      'خدمة المساعد غير متاحة في هذا الإصدار. لم يتم إنشاء أي نتيجة.';
+
+  @override
+  String get assistantClarificationLabel => 'يحتاج مساعد مساري إلى توضيح';
+
+  @override
+  String get assistantResultLabel => 'رد مساعد مساري';
+
+  @override
+  String get assistantPassengerMessage => 'رسالتك';
+
+  @override
+  String get assistantExampleFindTrip =>
+      'ابحث لي عن رحلة من باب الزاوية إلى بيت لحم الساعة 3 لشخص واحد';
+
+  @override
+  String get assistantReviewTitle => 'راجع معلومات الرحلة';
+
+  @override
+  String get assistantReviewBody =>
+      'تأكد من المعلومات وعدّلها قبل بدء البحث الحقيقي.';
+
+  @override
+  String get assistantConfirmSearch => 'تأكيد وبدء البحث';
+
+  @override
+  String get assistantSearching => 'جارٍ البحث عن رحلة…';
+
+  @override
+  String get assistantSearchError =>
+      'تعذّر إنشاء الطلب أو العثور على مسار مناسب. لم يتم إنشاء نتيجة وهمية.';
+
+  @override
+  String get assistantFutureTimeRequired => 'اختر وقتاً قادماً قبل بدء البحث.';
+
+  @override
+  String get mapAttribution => '© مساهمو OpenStreetMap';
+
+  @override
+  String get mapLoading => 'جارٍ تحميل الخريطة...';
+
+  @override
+  String get mapLoadFailed => 'تعذّر تحميل الخريطة';
+
+  @override
+  String get mapLoadFailedBody =>
+      'تعذّر جلب بيانات المسار. تحقق من اتصالك ثم أعد المحاولة.';
+
+  @override
+  String get mapYourLocation => 'موقعك الحالي';
+
+  @override
+  String get mapRequestedRoute => 'المسار المطلوب';
+
+  @override
+  String get mapDriverRoute => 'مسار السائق المتاح';
+
+  @override
+  String mapOriginLabel(String name) {
+    return 'نقطة الانطلاق: $name';
+  }
+
+  @override
+  String mapDestinationLabel(String name) {
+    return 'الوجهة: $name';
+  }
+
+  @override
+  String mapStopLabel(String name) {
+    return 'محطة: $name';
+  }
+
+  @override
+  String get mapLegend => 'دليل الرموز';
+
+  @override
+  String get locationServiceDisabled =>
+      'خدمة الموقع متوقفة على الجهاز. فعّلها لعرض موقعك على الخريطة.';
+
+  @override
+  String get locationPermissionDenied =>
+      'لم يُسمح بالوصول إلى الموقع. اسمح بالوصول لعرض موقعك.';
+
+  @override
+  String get locationPermanentlyDenied =>
+      'الوصول إلى الموقع مرفوض نهائياً. فعّله من إعدادات النظام.';
+
+  @override
+  String get locationUnavailable => 'تعذّر تحديد موقعك الآن.';
+
+  @override
+  String get locationEnable => 'تفعيل الموقع';
+
+  @override
+  String get checkpoints => 'الحواجز';
+
+  @override
+  String get checkpointsUnavailable => 'بيانات الحواجز غير متاحة';
+
+  @override
+  String get checkpointsUnavailableBody =>
+      'تعذّر جلب حالة الحواجز. المسار معروض بدونها.';
+
+  @override
+  String get checkpointsDisabled => 'خدمة الحواجز غير مفعّلة في هذا الإصدار.';
+
+  @override
+  String get checkpointsStale =>
+      'هذه آخر حالة مؤكدة للحواجز، وقد لا تكون محدّثة الآن.';
+
+  @override
+  String get checkpointsEmpty => 'لا توجد حواجز مسجّلة على هذا المسار.';
+
+  @override
+  String checkpointCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count حاجزاً',
+      few: '$count حواجز',
+      two: 'حاجزان',
+      one: 'حاجز واحد',
+      zero: 'لا حواجز',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get checkpointOpen => 'مفتوح';
+
+  @override
+  String get checkpointCongested => 'ازدحام';
+
+  @override
+  String get checkpointClosed => 'مغلق';
+
+  @override
+  String get checkpointUnknown => 'الحالة غير معروفة';
+
+  @override
+  String checkpointLabel(String name, String status) {
+    return '$name — $status';
+  }
+
+  @override
+  String get checkpointUnnamed => 'حاجز';
+
+  @override
+  String get mapRouteMissingCoordinates =>
+      'لا توجد إحداثيات لهذا المسار، لذلك لا يمكن رسمه على الخريطة.';
+
+  @override
+  String get mapSelectRoute => 'اختر مساراً لعرضه على الخريطة.';
 }

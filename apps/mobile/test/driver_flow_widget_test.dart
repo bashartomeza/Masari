@@ -21,18 +21,24 @@ void main() {
   ) async {
     await _pumpApp(tester, handler: _DriverHandler().call);
 
-    expect(find.text('لوحة السائق'), findsOneWidget);
+    expect(find.byKey(const ValueKey('driverHome')), findsOneWidget);
     expect(find.textContaining('Demo Driver'), findsOneWidget);
+    // This driver has an active route, so the main action reads "view".
+    expect(find.text('عرض المسار'), findsOneWidget);
     expect(
-      Directionality.of(tester.element(find.text('لوحة السائق'))),
+      Directionality.of(
+        tester.element(find.byKey(const ValueKey('driverHome'))),
+      ),
       TextDirection.rtl,
     );
 
-    await tester.tap(find.text('English'));
+    await tester.tap(find.byTooltip('English'));
     await tester.pumpAndSettle();
-    expect(find.text('Driver dashboard'), findsOneWidget);
+    expect(find.text('View route'), findsOneWidget);
     expect(
-      Directionality.of(tester.element(find.text('Driver dashboard'))),
+      Directionality.of(
+        tester.element(find.byKey(const ValueKey('driverHome'))),
+      ),
       TextDirection.ltr,
     );
   });
@@ -41,7 +47,9 @@ void main() {
     tester,
   ) async {
     await _pumpApp(tester, handler: _DriverHandler(routesEmpty: true).call);
-    GoRouter.of(tester.element(find.text('لوحة السائق'))).go('/driver/route');
+    GoRouter.of(
+      tester.element(find.byKey(const ValueKey('driverHome'))),
+    ).go('/driver/route');
     await tester.pumpAndSettle();
 
     expect(
@@ -59,11 +67,13 @@ void main() {
     tester,
   ) async {
     await _pumpApp(tester, handler: _DriverHandler().call);
-    GoRouter.of(tester.element(find.text('لوحة السائق'))).go('/driver/matches');
+    GoRouter.of(
+      tester.element(find.byKey(const ValueKey('driverHome'))),
+    ).go('/driver/matches');
     await tester.pumpAndSettle();
 
     expect(find.text('طلب مسافر'), findsOneWidget);
-    expect(find.textContaining('PPU Main Gate'), findsOneWidget);
+    expect(find.textContaining('بوابة البوليتكنك'), findsOneWidget);
     expect(find.textContaining('93.2%'), findsOneWidget);
     expect(find.textContaining('password'), findsNothing);
 
@@ -85,7 +95,7 @@ void main() {
       handler: _DriverHandler(acceptResponse: accept).call,
     );
     GoRouter.of(
-      tester.element(find.text('لوحة السائق')),
+      tester.element(find.byKey(const ValueKey('driverHome'))),
     ).go('/driver/match/match_1');
     await tester.pumpAndSettle();
 
@@ -114,16 +124,16 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('رحلة السائق'), findsOneWidget);
+    expect(find.byKey(const ValueKey('driverTrip')), findsOneWidget);
   });
 
-  testWidgets('trip shows only valid next action and updates simulation', (
+  testWidgets('trip shows only valid next action without simulation', (
     tester,
   ) async {
     final handler = _DriverHandler();
     await _pumpApp(tester, handler: handler.call);
     GoRouter.of(
-      tester.element(find.text('لوحة السائق')),
+      tester.element(find.byKey(const ValueKey('driverHome'))),
     ).go('/driver/trip/trip_1');
     await tester.pumpAndSettle();
 
@@ -132,15 +142,11 @@ void main() {
       findsOneWidget,
     );
     expect(find.byKey(const ValueKey('tripAction-picked_up')), findsNothing);
-    expect(find.textContaining('31.5326'), findsWidgets);
-    expect(find.byKey(const ValueKey('routeProgress')), findsOneWidget);
+    expect(find.byKey(const ValueKey('driverTrip')), findsOneWidget);
+    expect(find.byKey(const ValueKey('driverTrip')), findsOneWidget);
 
-    await tester.ensureVisible(
-      find.byKey(const ValueKey('simulateStepButton')),
-    );
-    await tester.tap(find.byKey(const ValueKey('simulateStepButton')));
-    await tester.pumpAndSettle();
-    expect(find.textContaining('التسلسل: 1'), findsOneWidget);
+    expect(find.byKey(const ValueKey('simulateStepButton')), findsNothing);
+    expect(find.byKey(const ValueKey('resetSimulationButton')), findsNothing);
   });
 
   testWidgets('production driver trip hides tracking simulation controls', (
@@ -152,19 +158,21 @@ void main() {
       config: productionTestAppConfig,
     );
     GoRouter.of(
-      tester.element(find.text('لوحة السائق')),
+      tester.element(find.byKey(const ValueKey('driverHome'))),
     ).go('/driver/trip/trip_1');
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('simulateStepButton')), findsNothing);
     expect(find.byKey(const ValueKey('resetSimulationButton')), findsNothing);
-    expect(find.textContaining('31.5326'), findsWidgets);
+    expect(find.byKey(const ValueKey('driverTrip')), findsOneWidget);
   });
 
   testWidgets('passenger cannot access driver routes', (tester) async {
     await _pumpApp(tester, handler: _roleHandler('passenger'));
-    GoRouter.of(tester.element(find.text('لوحة المسافر'))).go('/driver/route');
+    GoRouter.of(
+      tester.element(find.byKey(const ValueKey('passengerHome'))),
+    ).go('/driver/route');
     await tester.pumpAndSettle();
-    expect(find.text('لوحة المسافر'), findsOneWidget);
+    expect(find.byKey(const ValueKey('passengerHome')), findsOneWidget);
     expect(find.text('تفاصيل المسار'), findsNothing);
   });
 
@@ -199,7 +207,7 @@ Future<void> _pumpApp(
   bool authenticated = true,
   AppConfig config = demoTestAppConfig,
 }) async {
-  tester.view.physicalSize = const Size(900, 2000);
+  tester.view.physicalSize = const Size(900, 2200);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);

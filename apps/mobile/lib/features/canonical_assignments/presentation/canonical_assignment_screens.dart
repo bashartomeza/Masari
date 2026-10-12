@@ -72,6 +72,30 @@ class _DriverCanonicalOfferListScreenState
               child: ListView(
                 padding: const EdgeInsets.all(AppTokens.spaceLarge),
                 children: [
+                  if (capabilities
+                          .value
+                          ?.canonicalSharedDriverOffersAvailable ==
+                      true) ...[
+                    SegmentedButton<String>(
+                      segments: [
+                        ButtonSegment(
+                          value: 'individual',
+                          label: Text(l10n.individualOffers),
+                        ),
+                        ButtonSegment(
+                          value: 'shared',
+                          label: Text(l10n.sharedOffers),
+                        ),
+                      ],
+                      selected: const {'individual'},
+                      onSelectionChanged: (selection) {
+                        if (selection.contains('shared')) {
+                          context.go('/driver/shared-offers');
+                        }
+                      },
+                    ),
+                    const SizedBox(height: AppTokens.spaceMedium),
+                  ],
                   Text(l10n.canonicalDriverOffersBody),
                   Text(
                     l10n.manualRefreshNotice,
@@ -495,6 +519,26 @@ class _CanonicalAssignmentListScreenState
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final capabilities = ref.watch(mobileCapabilitiesProvider);
+    if (capabilities.isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    if (capabilities.hasError) {
+      return Scaffold(
+        appBar: AppBar(title: Text(l10n.canonicalAssignments)),
+        body: _ErrorPanel(
+          error: capabilities.error!,
+          onRetry: () =>
+              ref.read(mobileCapabilitiesProvider.notifier).refresh(),
+        ),
+      );
+    }
+    if (capabilities.value?.canonicalAssignmentStatusAvailable != true) {
+      return Scaffold(
+        appBar: AppBar(title: Text(l10n.canonicalAssignments)),
+        body: _UnavailablePanel(message: l10n.featureUnavailable),
+      );
+    }
     final assignments = widget.role == 'passenger'
         ? ref.watch(passengerCanonicalAssignmentsProvider)
         : ref.watch(merchantCanonicalAssignmentsProvider);
@@ -516,6 +560,11 @@ class _CanonicalAssignmentListScreenState
                 for (final item in items) ...[
                   _AssignmentCard(
                     assignment: item,
+                    sharedPresentationAvailable:
+                        capabilities
+                            .value
+                            ?.canonicalSharedAssignmentStatusAvailable ==
+                        true,
                     onTap: () => context.go(
                       '/${widget.role}/canonical-assignments/${item.id}',
                     ),
@@ -535,14 +584,30 @@ class _CanonicalAssignmentListScreenState
 }
 
 class _AssignmentCard extends StatelessWidget {
-  const _AssignmentCard({required this.assignment, required this.onTap});
+  const _AssignmentCard({
+    required this.assignment,
+    required this.sharedPresentationAvailable,
+    required this.onTap,
+  });
 
   final CanonicalAssignment assignment;
+  final bool sharedPresentationAvailable;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    if (assignment.tripVersion == CanonicalTripVersion.shared &&
+        !sharedPresentationAvailable) {
+      return Semantics(
+        button: true,
+        label: l10n.sharedAssignmentUnavailable,
+        child: MasariCard(
+          onTap: onTap,
+          child: Text(l10n.sharedAssignmentUnavailable),
+        ),
+      );
+    }
     final status = canonicalAssignmentStatusLabel(l10n, assignment.status);
     return Semantics(
       button: true,
@@ -639,24 +704,31 @@ class _CanonicalAssignmentDetailScreenState
               .read(canonicalAssignmentDetailProvider(_target).notifier)
               .refresh(),
         ),
-        data: (envelope) => RefreshIndicator(
-          onRefresh: () => ref
-              .read(canonicalAssignmentDetailProvider(_target).notifier)
-              .refresh(),
-          child: ListView(
-            padding: const EdgeInsets.all(AppTokens.spaceLarge),
-            children: [
-              _AssignmentSummary(assignment: envelope.assignment),
-              const SizedBox(height: AppTokens.spaceMedium),
-              OutlinedButton(
-                onPressed: () => ref
+        data: (envelope) =>
+            envelope.assignment.tripVersion == CanonicalTripVersion.shared &&
+                capabilities.value?.canonicalSharedAssignmentStatusAvailable !=
+                    true
+            ? _UnavailablePanel(message: l10n.sharedAssignmentUnavailable)
+            : RefreshIndicator(
+                onRefresh: () => ref
                     .read(canonicalAssignmentDetailProvider(_target).notifier)
                     .refresh(),
-                child: Text(l10n.refresh),
+                child: ListView(
+                  padding: const EdgeInsets.all(AppTokens.spaceLarge),
+                  children: [
+                    _AssignmentSummary(assignment: envelope.assignment),
+                    const SizedBox(height: AppTokens.spaceMedium),
+                    OutlinedButton(
+                      onPressed: () => ref
+                          .read(
+                            canonicalAssignmentDetailProvider(_target).notifier,
+                          )
+                          .refresh(),
+                      child: Text(l10n.refresh),
+                    ),
+                  ],
+                ),
               ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -712,6 +784,21 @@ class _AssignmentSummary extends StatelessWidget {
           if (assignment.trip case final trip?) ...[
             const SizedBox(height: AppTokens.spaceMedium),
             _TripSummaryCard(trip: trip),
+            if (trip.version == CanonicalTripVersion.shared) ...[
+              const SizedBox(height: AppTokens.spaceMedium),
+              MasariCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      l10n.sharedAssignmentIndicator,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    Text(l10n.sharedAssignmentPrivacyNotice),
+                  ],
+                ),
+              ),
+            ],
           ],
           const SizedBox(height: AppTokens.spaceMedium),
           MasariCard(child: Text(l10n.trackingNotAvailable)),
@@ -736,11 +823,14 @@ class _TripSummaryCard extends StatelessWidget {
             l10n.canonicalTrip,
             style: Theme.of(context).textTheme.titleMedium,
           ),
-          Text('${l10n.currentStatus}: ${trip.status}'),
+          Text('${l10n.currentStatus}: ${_tripStatusLabel(l10n, trip.status)}'),
           if (trip.departureAt case final departure?)
             Text('${l10n.departureTime}: ${dateTimeLabel(context, departure)}'),
           if (trip.vehicleType case final vehicle?)
-            Text('${l10n.vehicleType}: $vehicle'),
+            Text('${l10n.vehicleType}: ${_vehicleLabel(l10n, vehicle)}'),
+          if (trip.status == CanonicalTripStatus.unsupported ||
+              trip.vehicleType == CanonicalVehicleType.unsupported)
+            Text(l10n.unsupportedDataNotice),
         ],
       ),
     );
@@ -830,6 +920,19 @@ String _assignmentBody(
   CanonicalAssignmentStatus.unavailable => l10n.assignmentUnavailableBody,
   CanonicalAssignmentStatus.cancelled => l10n.assignmentCancelledBody,
 };
+
+String _tripStatusLabel(AppLocalizations l10n, CanonicalTripStatus status) =>
+    switch (status) {
+      CanonicalTripStatus.accepted => l10n.statusAccepted,
+      CanonicalTripStatus.unsupported => l10n.statusUnsupported,
+    };
+
+String _vehicleLabel(AppLocalizations l10n, CanonicalVehicleType vehicle) =>
+    switch (vehicle) {
+      CanonicalVehicleType.sedan => l10n.vehicleSedan,
+      CanonicalVehicleType.van => l10n.vehicleVan,
+      CanonicalVehicleType.unsupported => l10n.vehicleUnavailable,
+    };
 
 String _rejectReasonLabel(
   AppLocalizations l10n,

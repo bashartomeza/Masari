@@ -23,9 +23,26 @@
   "signInWelcome": "سجل الدخول للمتابعة إلى مساحة عمل دورك.",
   "signIn": "تسجيل الدخول",
   "phone": "رقم الهاتف",
+  "email": "البريد الإلكتروني",
+  "fullName": "الاسم الكامل",
   "password": "كلمة المرور",
   "showPassword": "إظهار كلمة المرور",
   "hidePassword": "إخفاء كلمة المرور",
+  "signUp": "إنشاء الحساب",
+  "createAccount": "إنشاء حساب",
+  "createAccountSubtitle": "أنشئ حساب مسافر للبدء.",
+  "newToMasari": "جديد في مساري؟ أنشئ حساباً",
+  "alreadyHaveAccount": "لديك حساب؟ سجّل الدخول",
+  "continueWithGoogle": "المتابعة عبر Google",
+  "orSeparator": "أو",
+  "emailRequired": "أدخل بريدك الإلكتروني.",
+  "emailInvalid": "أدخل بريداً إلكترونياً صحيحاً.",
+  "nameRequired": "أدخل اسمك.",
+  "passwordRequired": "أدخل كلمة المرور.",
+  "passwordTooShort": "يجب أن تتكون كلمة المرور من 8 أحرف على الأقل.",
+  "emailAlreadyRegistered": "هذا البريد الإلكتروني مسجّل بالفعل. حاول تسجيل الدخول.",
+  "googleSignInFailed": "فشل تسجيل الدخول عبر Google. حاول مرة أخرى.",
+  "googleSignInUnavailable": "تسجيل الدخول عبر Google غير متاح حالياً.",
   "demoAccounts": "حسابات تجريبية",
   "passenger": "مسافر",
   "driver": "سائق",
@@ -34,7 +51,7 @@
   "unsupportedRole": "دور غير مدعوم",
   "logout": "تسجيل الخروج",
   "sessionExpired": "انتهت جلستك، يرجى تسجيل الدخول مرة أخرى",
-  "invalidCredentials": "رقم الهاتف أو كلمة المرور غير صحيحة.",
+  "invalidCredentials": "البريد الإلكتروني أو كلمة المرور غير صحيحة.",
   "networkUnavailable": "الشبكة غير متاحة. تحقق من اتصال واجهة API ثم أعد المحاولة.",
   "requestTimedOut": "انتهت مهلة الطلب. يرجى إعادة المحاولة.",
   "validationError": "يرجى التحقق من البيانات المدخلة.",
@@ -330,6 +347,13 @@
   "submitAvailability": "إرسال الإتاحة",
   "selectDateTime": "اختر التاريخ والوقت",
   "invalidDepartureWindow": "اختر نافذة انطلاق مستقبلية وصحيحة.",
+  "availabilityDepartureTooSoon": "وقت الانطلاق قريب جداً. اختر وقتاً بعد 10 دقائق على الأقل من الآن.",
+  "availabilityDepartureTooFar": "وقت الانطلاق بعيد جداً. اختر وقتاً خلال الـ30 يوماً القادمة.",
+  "availabilityInvalidWindow": "نهاية نافذة الإتاحة يجب أن تكون بعد الانطلاق بساعتين كحد أقصى.",
+  "availabilityExceedsVehicleCapacity": "سعة المقاعد أو الطرود التي اخترتها تتجاوز سعة مركبتك المسجلة.",
+  "availabilityDriverNotApproved": "حسابك كسائق لم يُعتمد بعد. تواصل مع الدعم لإتمام التحقق.",
+  "availabilityRouteNoLongerEligible": "لم يعد هذا المسار متاحاً. اختر مساراً آخر.",
+  "availabilityDuplicate": "لديك بالفعل إتاحة مطابقة لهذا المسار والوقت.",
   "invalidStopOrder": "اختر محطة معتمدة لاحقة في المسار.",
   "operationTemporaryFailure": "نتيجة العملية غير مؤكدة. أعد محاولة العملية نفسها عند توفر الاتصال.",
   "canonicalRecoveryRequired": "توجد عملية سابقة غير محسومة. سجّل الدخول بالحساب الأصلي وأعد العملية نفسها، أو تواصل مع الدعم إذا انتهت مهلة الاسترداد.",
@@ -377,5 +401,304 @@
   "assignmentUnavailableBody": "لا يوجد إسناد نشط لسائق.",
   "assignmentCancelledBody": "تم إلغاء هذا الطلب.",
   "leaveRejectionWarning": "لم يتم إرسال سبب الرفض المحدد. هل تريد مغادرة الشاشة؟",
-  "routeStops": "محطات المسار"
+  "routeStops": "محطات المسار",
+  "navNewRequest": "طلب جديد",
+  "navHome": "الرئيسية",
+  "navAccount": "الحساب",
+  "navTrips": "رحلاتي",
+  "greetingMorning": "صباح الخير، {name}",
+  "@greetingMorning": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "greetingAfternoon": "مساء الخير، {name}",
+  "@greetingAfternoon": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "greetingEvening": "مساء الخير، {name}",
+  "@greetingEvening": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "whereToGo": "إلى أين تريد الذهاب؟",
+  "smartSearch": "بحث ذكي",
+  "destinationSearchHint": "مثال: من البوليتكنك إلى بيت لحم",
+  "quickDestinations": "الوجهات السريعة",
+  "availableTripsTo": "رحلات متاحة إلى {destination}",
+  "@availableTripsTo": {
+    "placeholders": {
+      "destination": {
+        "type": "String"
+      }
+    }
+  },
+  "searchForTrip": "ابحث عن رحلة",
+  "perPassenger": "للراكب",
+  "departure": "المغادرة",
+  "bookSeat": "احجز",
+  "noAvailableTrips": "لا توجد رحلات متاحة حالياً",
+  "noAvailableTripsBody": "أنشئ طلباً وسيقوم مساري بمطابقتك مع سائق على المسار.",
+  "seatsRemaining": "{count} مقاعد متاحة",
+  "@seatsRemaining": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "completedTripsCount": "{count} رحلة",
+  "@completedTripsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "notifications": "الإشعارات",
+  "noNotifications": "لا توجد إشعارات بعد.",
+  "sampleDataNotice": "بيانات تجريبية للعرض فقط، غير مرتبطة بالخادم.",
+  "driverOnline": "متصل",
+  "driverOffline": "غير متصل",
+  "trustPoints": "نقاط الثقة",
+  "trustExcellent": "ممتاز",
+  "trustGood": "جيد",
+  "trustFair": "مقبول",
+  "trustWeak": "ضعيف",
+  "trustScoreUnavailable": "غير متاح بعد",
+  "todayEarnings": "أرباح اليوم",
+  "earningsUnavailable": "غير متاحة",
+  "completedTripsToday": "{count} رحلات مكتملة",
+  "@completedTripsToday": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "activateYourRoute": "فعّل مسارك",
+  "activateRouteHint": "قم بتحديد وجهتك لاستقبال الطلبات على طريقك",
+  "deactivateRoute": "إيقاف المسار",
+  "mapNoLocation": "لا توجد بيانات موقع بعد.",
+  "batchSavings": "توفير التجميع",
+  "batchSavingsCaption": "تم توفيرها عبر دمج الشحنات",
+  "distanceSavedKm": "{km} كم",
+  "@distanceSavedKm": {
+    "placeholders": {
+      "km": {
+        "type": "String"
+      }
+    }
+  },
+  "noSavingsYet": "لا يوجد توفير بعد",
+  "inDelivery": "قيد التوصيل",
+  "activeShipmentsCount": "{count} شحنات نشطة",
+  "@activeShipmentsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "createShipment": "إنشاء شحنة جديدة",
+  "smartBatchingTitle": "توصيات التجميع الذكية",
+  "batchSuggestionTitle": "{count} طرود إلى {destination}",
+  "@batchSuggestionTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "destination": {
+        "type": "String"
+      }
+    }
+  },
+  "batchSuggestionBody": "يمكن دمجها في دفعة واحدة على المسار.",
+  "mergeAndSend": "دمج وإرسال",
+  "noBatchSuggestions": "لا توجد طلبات جاهزة للتجميع.",
+  "liveTracking": "التتبع المباشر",
+  "recentOrders": "الطلبات الأخيرة",
+  "orderReference": "طلب #{reference}",
+  "@orderReference": {
+    "placeholders": {
+      "reference": {
+        "type": "String"
+      }
+    }
+  },
+
+  "navRequests": "الطلبات",
+  "navMyTrip": "رحلتي",
+  "navPerformance": "الأرباح والأداء",
+  "navNotifications": "الإشعارات",
+  "navMapAlerts": "الخرائط والبلاغات",
+  "navShipments": "الشحنات",
+  "navReports": "التقارير",
+
+  "myTrips": "رحلاتي",
+  "tripsActiveSection": "الرحلة النشطة",
+  "tripsUpcomingSection": "الرحلات القادمة",
+  "tripsPastSection": "الرحلات السابقة",
+  "tripsCancelledSection": "الرحلات الملغاة",
+  "noTripsYet": "لا توجد رحلات بعد",
+  "noTripsYetBody": "ستظهر رحلاتك هنا بعد إنشاء أول طلب.",
+  "tripHistoryFailed": "تعذّر تحميل سجل الرحلات.",
+
+  "mapsUnavailable": "الخريطة غير متاحة",
+  "mapsUnavailableBody": "لم يتم تفعيل خدمة الخرائط في هذه النسخة، لذلك لا يمكن عرض موقع مباشر.",
+  "incidentReports": "البلاغات",
+  "incidentReportingUnavailable": "الإبلاغ عن حادث غير متاح",
+  "incidentReportingUnavailableBody": "لا يوجد حتى الآن نظام خلفي لاستقبال البلاغات، ولن يتم إرسال أي بلاغ من هنا.",
+  "notificationsUnavailableBody": "لا يوجد نظام إشعارات في هذه النسخة. ستصلك التحديثات داخل شاشة الرحلة.",
+
+  "performanceTitle": "الأرباح والأداء",
+  "earningsNotTracked": "لا يتم احتساب الأرباح",
+  "earningsNotTrackedBody": "لا تحتوي قاعدة البيانات على أي بيانات أسعار أو أجرة، لذلك لا يمكن عرض رقم أرباح حقيقي.",
+  "completedTripsTotal": "إجمالي الرحلات المكتملة",
+  "acceptanceRateUnavailable": "نسبة القبول غير متاحة",
+
+  "destinationCount": "{count} وجهات",
+  "@destinationCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "shipmentsTitle": "الشحنات",
+  "noShipments": "لا توجد شحنات",
+  "noShipmentsBody": "أنشئ شحنة جديدة لتظهر هنا.",
+  "shipmentsFailed": "تعذّر تحميل الشحنات.",
+  "reportsUnavailable": "التقارير غير متاحة",
+  "reportsUnavailableBody": "لا يوجد نظام خلفي لتوليد التقارير أو تصديرها بصيغة PDF أو Excel.",
+
+  "accountProfile": "الملف الشخصي",
+  "accountSupport": "الدعم",
+  "supportUnavailable": "الدعم داخل التطبيق غير متاح",
+  "supportUnavailableBody": "لا توجد قناة دعم متصلة بالنظام الخلفي في هذه النسخة.",
+  "accountSettings": "الإعدادات",
+  "featureNotBackedNotice": "هذا القسم غير مدعوم من النظام الخلفي بعد.",
+  "offers": "العروض",
+  "individualOffers": "العروض الفردية",
+  "sharedOffers": "عروض الرحلات المشتركة",
+  "sharedOffersBody": "راجع عروض المسار المجمّعة. تتغير الحالة فقط عند التحديث.",
+  "noSharedOffers": "لا توجد عروض رحلات مشتركة حالياً.",
+  "sharedTrip": "رحلة مشتركة",
+  "sharedOfferDetails": "تفاصيل العرض المشترك",
+  "compositionPassengerOnly": "ركاب فقط",
+  "compositionMerchantOnly": "طرود فقط",
+  "compositionMixed": "رحلة مختلطة",
+  "passengerRequests": "طلبات الركاب",
+  "passengerSeats": "مقاعد الركاب",
+  "merchantOrders": "طلبات التجار",
+  "parcels": "الطرود",
+  "entireGroup": "المجموعة كاملة",
+  "acceptEntireSharedTrip": "قبول الرحلة المشتركة كاملة",
+  "rejectEntireSharedTrip": "رفض الرحلة المشتركة كاملة",
+  "confirmAcceptSharedTrip": "هل تريد قبول جميع طلبات الركاب والتجار المجمّعة معاً في رحلة مشتركة واحدة؟",
+  "confirmRejectSharedTrip": "هل تريد رفض المجموعة كاملة وتحرير جميع الطلبات المجمّعة؟",
+  "sharedGroupDecisionNotice": "ينطبق القبول أو الرفض على المجموعة كاملة.",
+  "sharedAcceptedNotice": "تم إسناد رحلة مشتركة واحدة. لم تبدأ الرحلة.",
+  "sharedRejectedNotice": "تم رفض العرض المشترك كاملاً.",
+  "sharedInvalidatedNotice": "لم يعد هذا العرض المشترك صالحاً. حدّث الشاشة لمعرفة الحالة الحالية.",
+  "sharedCapacityNotice": "هذه المجاميع محجوزة للمسار كاملاً. لا تُعرض السعة المتبقية مجدداً لهذا الانطلاق، وإعادة استخدام السعة بين المحطات غير مفعلة.",
+  "stopEventTimeline": "أحداث المحطات المشتركة",
+  "passengerPickups": "ركاب يصعدون",
+  "passengerDropoffs": "ركاب ينزلون",
+  "parcelPickups": "طرود تُستلم",
+  "parcelDestinations": "وجهات الطرود",
+  "sharedAssignmentIndicator": "مُسند إلى رحلة مشتركة",
+  "sharedAssignmentPrivacyNotice": "يظهر طلبك فقط. معلومات أعضاء الرحلة الآخرين خاصة.",
+  "statusUnsupported": "الحالة غير متاحة",
+  "unsupportedDataNotice": "هذه الحالة غير مدعومة في إصدار التطبيق الحالي. حدّث الشاشة أو تواصل مع الدعم.",
+  "vehicleSedan": "سيارة سيدان",
+  "vehicleVan": "مركبة فان",
+  "vehicleUnavailable": "نوع المركبة غير متاح",
+  "actionDisabledExpired": "الإجراء غير متاح لأن صلاحية العرض انتهت.",
+  "actionDisabledUncertain": "الإجراء غير متاح حتى تتم مطابقة نتيجة العملية السابقة.",
+  "sharedFeatureUnavailable": "عروض الرحلات المشتركة غير متاحة في هذه البيئة.",
+  "sharedAssignmentUnavailable": "تفاصيل إسناد الرحلة المشتركة غير متاحة في هذه البيئة.",
+  "notLiveNotice": "هذه الشاشة ليست مباشرة. استخدم التحديث للتحقق من المستجدات.",
+  "assistantTitle": "مساعد مساري",
+  "assistantHomeTitle": "اسأل مساعد مساري",
+  "assistantHomeBody": "استفسر عن رحلاتك والمسارات المتاحة.",
+  "assistantWelcomeTitle": "كيف يمكنني مساعدتك؟",
+  "assistantWelcomeBody": "اسأل عن بيانات رحلاتك أو المسارات المتاحة في مساري. إذا كانت التفاصيل ناقصة، سأطلب منك توضيحها.",
+  "assistantTryAsking": "جرّب أن تسأل",
+  "assistantExampleTripTime": "متى موعد رحلتي القادمة؟",
+  "assistantExampleAvailableTrip": "هل توجد رحلة إلى بيت لحم؟",
+  "assistantInputHint": "اكتب سؤالك هنا",
+  "assistantSend": "إرسال",
+  "assistantProcessing": "جارٍ التحقق من بيانات مساري…",
+  "assistantErrorTitle": "تعذّر إكمال الطلب",
+  "assistantErrorBody": "لم يتمكن المساعد من إكمال طلبك. حاول مرة أخرى.",
+  "assistantUnavailable": "خدمة المساعد غير متاحة في هذا الإصدار. لم يتم إنشاء أي نتيجة.",
+  "assistantClarificationLabel": "يحتاج مساعد مساري إلى توضيح",
+  "assistantResultLabel": "رد مساعد مساري",
+  "assistantPassengerMessage": "رسالتك",
+  "assistantExampleFindTrip": "ابحث لي عن رحلة من باب الزاوية إلى بيت لحم الساعة 3 لشخص واحد",
+  "assistantReviewTitle": "راجع معلومات الرحلة",
+  "assistantReviewBody": "تأكد من المعلومات وعدّلها قبل بدء البحث الحقيقي.",
+  "assistantConfirmSearch": "تأكيد وبدء البحث",
+  "assistantSearching": "جارٍ البحث عن رحلة…",
+  "assistantSearchError": "تعذّر إنشاء الطلب أو العثور على مسار مناسب. لم يتم إنشاء نتيجة وهمية.",
+  "assistantFutureTimeRequired": "اختر وقتاً قادماً قبل بدء البحث.",
+  "mapAttribution": "© مساهمو OpenStreetMap",
+  "mapLoading": "جارٍ تحميل الخريطة...",
+  "mapLoadFailed": "تعذّر تحميل الخريطة",
+  "mapLoadFailedBody": "تعذّر جلب بيانات المسار. تحقق من اتصالك ثم أعد المحاولة.",
+  "mapYourLocation": "موقعك الحالي",
+  "mapRequestedRoute": "المسار المطلوب",
+  "mapDriverRoute": "مسار السائق المتاح",
+  "mapOriginLabel": "نقطة الانطلاق: {name}",
+  "@mapOriginLabel": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "mapDestinationLabel": "الوجهة: {name}",
+  "@mapDestinationLabel": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "mapStopLabel": "محطة: {name}",
+  "@mapStopLabel": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "mapLegend": "دليل الرموز",
+  "locationServiceDisabled": "خدمة الموقع متوقفة على الجهاز. فعّلها لعرض موقعك على الخريطة.",
+  "locationPermissionDenied": "لم يُسمح بالوصول إلى الموقع. اسمح بالوصول لعرض موقعك.",
+  "locationPermanentlyDenied": "الوصول إلى الموقع مرفوض نهائياً. فعّله من إعدادات النظام.",
+  "locationUnavailable": "تعذّر تحديد موقعك الآن.",
+  "locationEnable": "تفعيل الموقع",
+  "checkpoints": "الحواجز",
+  "checkpointsUnavailable": "بيانات الحواجز غير متاحة",
+  "checkpointsUnavailableBody": "تعذّر جلب حالة الحواجز. المسار معروض بدونها.",
+  "checkpointsDisabled": "خدمة الحواجز غير مفعّلة في هذا الإصدار.",
+  "checkpointsStale": "هذه آخر حالة مؤكدة للحواجز، وقد لا تكون محدّثة الآن.",
+  "checkpointsEmpty": "لا توجد حواجز مسجّلة على هذا المسار.",
+  "checkpointCount": "{count, plural, =0{لا حواجز} =1{حاجز واحد} =2{حاجزان} few{{count} حواجز} other{{count} حاجزاً}}",
+  "@checkpointCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "checkpointOpen": "مفتوح",
+  "checkpointCongested": "ازدحام",
+  "checkpointClosed": "مغلق",
+  "checkpointUnknown": "الحالة غير معروفة",
+  "checkpointLabel": "{name} — {status}",
+  "@checkpointLabel": {
+    "placeholders": {
+      "name": { "type": "String" },
+      "status": { "type": "String" }
+    }
+  },
+  "checkpointUnnamed": "حاجز",
+  "mapRouteMissingCoordinates": "لا توجد إحداثيات لهذا المسار، لذلك لا يمكن رسمه على الخريطة.",
+  "mapSelectRoute": "اختر مساراً لعرضه على الخريطة."
 }

@@ -1,0 +1,189 @@
+/*
+ * Masari admin design tokens.
+ *
+ * Values are taken verbatim from the Stitch desktop admin screens
+ * (project 9242277153579104348, the five DESKTOP screens). Those screens use a
+ * burnt-orange primary rather than the teal in the project-level design system
+ * that apps/mobile follows. To move the console onto the mobile identity,
+ * replace the six values in the "brand ramp" block below with the teal set
+ * commented beside them; nothing else in the codebase hard-codes a brand colour.
+ */
+
+@font-face {
+  font-family: "IBM Plex Sans Arabic";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/IBMPlexSansArabic-Regular.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "IBM Plex Sans Arabic";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/IBMPlexSansArabic-Medium.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "IBM Plex Sans Arabic";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/fonts/IBMPlexSansArabic-SemiBold.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "IBM Plex Sans Arabic";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/IBMPlexSansArabic-Bold.ttf") format("truetype");
+}
+
+:root {
+  /* --- brand ramp (swap this block for teal; see file header) --- */
+  --primary: #9a4100;                 /* teal identity: #004b4c */
+  --primary-container: #c25300;       /* teal identity: #116466 */
+  --on-primary: #ffffff;
+  --on-primary-container: #fffbff;
+  --tertiary: #9d3e00;                /* teal identity: #5f3a00 */
+  --tertiary-container: #c15312;      /* teal identity: #7f4f00 */
+  --on-tertiary: #ffffff;
+  --on-tertiary-container: #fffbff;
+  --surface-tint: #9e4200;
+
+  /* --- neutrals / surfaces --- */
+  --background: #f5fbf6;
+  --on-background: #171d1a;
+  --surface: #f5fbf6;
+  --surface-bright: #f5fbf6;
+  --surface-dim: #d6dbd6;
+  --surface-container-lowest: #ffffff;
+  --surface-container-low: #eff5f0;
+  --surface-container: #eaefea;
+  --surface-container-high: #e4eae4;
+  --surface-container-highest: #dee4df;
+  --surface-variant: #dee4df;
+  --on-surface: #171d1a;
+  --on-surface-variant: #584237;
+  --inverse-surface: #2c322f;
+  --inverse-on-surface: #edf2ed;
+  --inverse-primary: #ffb691;
+  --outline: #8c7265;
+  --outline-variant: #dfc0b2;
+
+  /* --- secondary --- */
+  --secondary: #5b5f5d;
+  --on-secondary: #ffffff;
+  --secondary-container: #dde0dd;
+  --on-secondary-container: #606361;
+  --secondary-fixed: #e0e3e0;
+  --on-secondary-fixed: #181c1b;
+
+  /* --- functional --- */
+  --error: #ba1a1a;
+  --on-error: #ffffff;
+  --error-container: #ffdad6;
+  --on-error-container: #93000a;
+  --success: #4caf50;
+
+  /* --- typography scale --- */
+  --font-sans: "IBM Plex Sans Arabic", "Segoe UI", Tahoma, Arial, ui-sans-serif, system-ui, sans-serif;
+
+  --display-lg-size: 32px;
+  --display-lg-line: 40px;
+  --headline-lg-size: 28px;
+  --headline-lg-line: 36px;
+  --headline-md-size: 24px;
+  --headline-md-line: 32px;
+  --headline-sm-size: 20px;
+  --headline-sm-line: 28px;
+  --body-lg-size: 18px;
+  --body-lg-line: 28px;
+  --body-md-size: 16px;
+  --body-md-line: 24px;
+  --body-sm-size: 14px;
+  --body-sm-line: 20px;
+  --label-lg-size: 14px;
+  --label-lg-line: 20px;
+  --label-md-size: 12px;
+  --label-md-line: 16px;
+  --label-sm-size: 10px;
+  --label-sm-line: 14px;
+
+  /* --- 8pt spacing scale (Stitch desktop values) --- */
+  --space-xs: 4px;
+  --space-sm: 12px;
+  --space-base: 8px;
+  --space-md: 24px;
+  --space-gutter: 24px;
+  --space-lg: 40px;
+  --space-xl: 64px;
+  --margin-desktop: 48px;
+
+  /* --- radii --- */
+  --radius-sm: 4px;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
+
+  /* --- elevation --- */
+  --elevation-1: 0 1px 2px rgba(23, 29, 26, 0.06), 0 1px 3px rgba(23, 29, 26, 0.04);
+  --elevation-2: 0 4px 12px rgba(23, 29, 26, 0.08);
+  --elevation-3: 0 8px 24px rgba(23, 29, 26, 0.12);
+
+  /* --- layout --- */
+  --sidenav-width: 256px;
+  --topbar-height: 64px;
+
+  color: var(--on-background);
+  background: var(--background);
+  font-family: var(--font-sans);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  font-size: var(--body-md-size);
+  line-height: var(--body-md-line);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  margin: 0;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+:where(button, [href], input, select, textarea, summary):focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/*
+ * RTL is handled with logical properties throughout, so `dir` on the document
+ * flips the whole console without per-rule duplication.
+ */

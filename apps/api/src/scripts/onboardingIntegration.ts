@@ -10,6 +10,7 @@ import { consumeOnboardingSession, createOnboardingSession, revokeOnboardingSess
 import { createOnboardingAttempt } from "../lib/onboardingAttempts.js";
 import { normalizePhoneToE164 } from "../lib/phone.js";
 import { prisma } from "../lib/prisma.js";
+import { DEMO_ACCOUNTS } from "../modules/demoReset.js";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -26,16 +27,16 @@ async function main() {
   const schemaTables = await prisma.$queryRaw<Array<{ n: bigint }>>`
     SELECT COUNT(*) AS n FROM information_schema.tables
     WHERE table_schema = DATABASE() AND table_name IN
-      ('invitations','invitation_redemptions','onboarding_attempts','otp_challenges','onboarding_sessions','consent_documents','user_consents','abuse_counters','idempotency_records')
+      ('invitations','invitation_redemptions','onboarding_attempts','otp_challenges','onboarding_sessions','consent_releases','consent_documents','user_consents','abuse_counters','idempotency_records')
   `;
-  assert(Number(schemaTables[0].n) === 9, "Onboarding foundation tables are incomplete");
+  assert(Number(schemaTables[0].n) === 10, "Onboarding foundation tables are incomplete");
   const utf8Tables = await prisma.$queryRaw<Array<{ n: bigint }>>`
     SELECT COUNT(*) AS n FROM information_schema.tables
     WHERE table_schema = DATABASE() AND table_name IN
-      ('invitations','invitation_redemptions','onboarding_attempts','otp_challenges','onboarding_sessions','consent_documents','user_consents','abuse_counters','idempotency_records')
+      ('invitations','invitation_redemptions','onboarding_attempts','otp_challenges','onboarding_sessions','consent_releases','consent_documents','user_consents','abuse_counters','idempotency_records')
       AND table_collation LIKE 'utf8mb4%'
   `;
-  assert(Number(utf8Tables[0].n) === 9, "Onboarding foundation character set is not utf8mb4");
+  assert(Number(utf8Tables[0].n) === 10, "Onboarding foundation character set is not utf8mb4");
   const binaryDigestColumns = await prisma.$queryRaw<Array<{ n: bigint }>>`
     SELECT COUNT(*) AS n FROM information_schema.columns
     WHERE table_schema = DATABASE() AND collation_name = 'ascii_bin' AND (
@@ -503,14 +504,14 @@ async function main() {
   const loginResponse = await fetch(`${api}/api/v1/auth/login`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ phone: admin.phone, password: config.demo!.adminPassword, client_type: "admin" })
+    body: JSON.stringify({ email: DEMO_ACCOUNTS.admin.email, password: config.demo!.adminPassword })
   });
   assert(loginResponse.ok, "Admin login failed for invitation integration");
   const token = (await json(loginResponse)).access_token;
   const passenger = await prisma.user.findFirstOrThrow({ where: { role: "passenger", demo_account: true } });
   const passengerLogin = await fetch(`${api}/api/v1/auth/login`, {
     method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({ phone: passenger.phone, password: config.demo!.passengerPassword, client_type: "mobile" })
+    body: JSON.stringify({ email: DEMO_ACCOUNTS.passenger.email, password: config.demo!.passengerPassword })
   });
   const passengerToken = (await json(passengerLogin)).access_token;
   const forbidden = await fetch(`${api}/api/v1/admin/invitations`, { headers: { authorization: `Bearer ${passengerToken}` } });
@@ -609,6 +610,7 @@ async function main() {
     prisma.abuseCounter.count(),
     prisma.idempotencyRecord.count(),
     prisma.consentDocument.count(),
+    prisma.consentRelease.count(),
     prisma.authSession.count(),
     prisma.refreshToken.count()
   ]);
