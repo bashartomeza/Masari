@@ -36,15 +36,10 @@ class _PassengerLocationPickerScreenState
     final initial = widget.initialLocation;
 
     if (initial != null) {
-      _selectedPoint = LatLng(
-        initial.latitude,
-        initial.longitude,
-      );
+      _selectedPoint = LatLng(initial.latitude, initial.longitude);
     }
 
-    _labelController = TextEditingController(
-      text: initial?.label ?? '',
-    );
+    _labelController = TextEditingController(text: initial?.label ?? '');
   }
 
   @override
@@ -59,31 +54,24 @@ class _PassengerLocationPickerScreenState
     final point = _selectedPoint;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
-      ),
+      appBar: AppBar(title: Text(widget.title)),
       body: SafeArea(
         child: Column(
           children: [
             // ============================================================
             // MAP
             // ============================================================
-
             SizedBox(
               height: 430,
               width: double.infinity,
               child: MasariMap(
                 height: 430,
                 emptyLabel: 'اختاري موقعًا من الخريطة',
-                attributionLabel:
-                    '© OpenStreetMap contributors',
+                attributionLabel: '© OpenStreetMap contributors',
                 markers: [
                   if (point != null)
                     MasariMapMarker(
-                      position: GeoPoint(
-                        point.latitude,
-                        point.longitude,
-                      ),
+                      position: GeoPoint(point.latitude, point.longitude),
                       icon: Icons.location_on_rounded,
                       color: theme.colorScheme.primary,
                       label: _labelController.text.isEmpty
@@ -98,14 +86,11 @@ class _PassengerLocationPickerScreenState
             // ============================================================
             // BOTTOM PANEL
             // ============================================================
-
             Expanded(
               child: SingleChildScrollView(
                 child: Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(
-                    AppTokens.spaceLarge,
-                  ),
+                  padding: const EdgeInsets.all(AppTokens.spaceLarge),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.surface,
                     borderRadius: const BorderRadius.vertical(
@@ -115,56 +100,45 @@ class _PassengerLocationPickerScreenState
                       BoxShadow(
                         blurRadius: 20,
                         offset: const Offset(0, -5),
-                        color: Colors.black.withValues(
-                          alpha: 0.08,
-                        ),
+                        color: Colors.black.withValues(alpha: 0.08),
                       ),
                     ],
                   ),
                   child: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.stretch,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       // ==================================================
                       // INSTRUCTION
                       // ==================================================
-
                       Row(
                         children: [
                           Container(
                             width: 40,
                             height: 40,
                             decoration: BoxDecoration(
-                              color: theme.colorScheme.primary
-                                  .withValues(alpha: 0.10),
+                              color: theme.colorScheme.primary.withValues(
+                                alpha: 0.10,
+                              ),
                               shape: BoxShape.circle,
                             ),
                             child: Icon(
                               Icons.touch_app_rounded,
-                              color:
-                                  theme.colorScheme.primary,
+                              color: theme.colorScheme.primary,
                             ),
                           ),
 
-                          const SizedBox(
-                            width: AppTokens.spaceSmall,
-                          ),
+                          const SizedBox(width: AppTokens.spaceSmall),
 
                           Expanded(
                             child: Column(
-                              crossAxisAlignment:
-                                  CrossAxisAlignment.start,
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
                                   point == null
                                       ? 'حددي الموقع على الخريطة'
                                       : 'تم تحديد الموقع',
-                                  style: theme
-                                      .textTheme
-                                      .titleSmall
-                                      ?.copyWith(
-                                    fontWeight:
-                                        FontWeight.w700,
+                                  style: theme.textTheme.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.w700,
                                   ),
                                 ),
                                 const SizedBox(height: 2),
@@ -172,13 +146,8 @@ class _PassengerLocationPickerScreenState
                                   point == null
                                       ? 'اضغطي على أي نقطة لاختيارها'
                                       : 'يمكنك تعديل الاسم قبل التأكيد',
-                                  style: theme
-                                      .textTheme
-                                      .bodySmall
-                                      ?.copyWith(
-                                    color: theme
-                                        .colorScheme
-                                        .onSurfaceVariant,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
                                   ),
                                 ),
                               ],
@@ -190,11 +159,8 @@ class _PassengerLocationPickerScreenState
                       // ==================================================
                       // SELECTED LOCATION DETAILS
                       // ==================================================
-
                       if (point != null) ...[
-                        const SizedBox(
-                          height: AppTokens.spaceMedium,
-                        ),
+                        const SizedBox(height: AppTokens.spaceMedium),
 
                         TextField(
                           controller: _labelController,
@@ -203,50 +169,35 @@ class _PassengerLocationPickerScreenState
                           },
                           decoration: InputDecoration(
                             labelText: 'اسم الموقع',
-                            hintText:
-                                'مثال: الجامعة، البيت، مكان العمل...',
-                            prefixIcon: const Icon(
-                              Icons.place_outlined,
-                            ),
+                            hintText: 'مثال: الجامعة، البيت، مكان العمل...',
+                            prefixIcon: const Icon(Icons.place_outlined),
                             border: OutlineInputBorder(
-                              borderRadius:
-                                  BorderRadius.circular(14),
+                              borderRadius: BorderRadius.circular(14),
                             ),
                           ),
                         ),
 
-                        const SizedBox(
-                          height: AppTokens.spaceSmall,
-                        ),
+                        const SizedBox(height: AppTokens.spaceSmall),
 
                         Container(
-                          padding: const EdgeInsets.all(
-                            AppTokens.spaceSmall,
-                          ),
+                          padding: const EdgeInsets.all(AppTokens.spaceSmall),
                           decoration: BoxDecoration(
-                            color: theme
-                                .colorScheme
-                                .surfaceContainerHighest,
-                            borderRadius:
-                                BorderRadius.circular(12),
+                            color: theme.colorScheme.surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(12),
                           ),
                           child: Row(
                             children: [
                               Icon(
                                 Icons.my_location_rounded,
                                 size: 18,
-                                color: theme.colorScheme
-                                    .onSurfaceVariant,
+                                color: theme.colorScheme.onSurfaceVariant,
                               ),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
                                   '${point.latitude.toStringAsFixed(6)}, '
                                   '${point.longitude.toStringAsFixed(6)}',
-                                  style: theme
-                                      .textTheme
-                                      .bodySmall
-                                      ?.copyWith(
+                                  style: theme.textTheme.bodySmall?.copyWith(
                                     fontFamily: 'monospace',
                                   ),
                                 ),
@@ -259,38 +210,26 @@ class _PassengerLocationPickerScreenState
                       // ==================================================
                       // ERROR
                       // ==================================================
-
                       if (_error != null) ...[
-                        const SizedBox(
-                          height: AppTokens.spaceSmall,
-                        ),
+                        const SizedBox(height: AppTokens.spaceSmall),
                         Text(
                           _error!,
                           style: TextStyle(
-                            color:
-                                theme.colorScheme.error,
+                            color: theme.colorScheme.error,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
                       ],
 
-                      const SizedBox(
-                        height: AppTokens.spaceMedium,
-                      ),
+                      const SizedBox(height: AppTokens.spaceMedium),
 
                       // ==================================================
                       // CONFIRM
                       // ==================================================
-
                       FilledButton.icon(
-                        onPressed:
-                            point == null ? null : _confirm,
-                        icon: const Icon(
-                          Icons.check_rounded,
-                        ),
-                        label: const Text(
-                          'تأكيد الموقع',
-                        ),
+                        onPressed: point == null ? null : _confirm,
+                        icon: const Icon(Icons.check_rounded),
+                        label: const Text('تأكيد الموقع'),
                       ),
                     ],
                   ),

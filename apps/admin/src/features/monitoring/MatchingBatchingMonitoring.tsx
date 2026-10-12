@@ -10,7 +10,7 @@ import { LegacyBatches } from "./LegacyBatches";
 type Tab = "overview" | "matching" | "batches";
 const tabs: Tab[] = ["overview", "matching", "batches"];
 const matchStatuses = ["proposed", "sent_to_driver", "accepted", "rejected", "expired", "invalidated"] as const;
-const batchStatuses = ["created", "proposed", "assigned", "picked_up", "in_transit", "delivered"] as const;
+const batchStatuses = ["created", "proposed", "assigned", "picked_up", "in_transit", "delivered", "cancelled", "failed", "expired"] as const;
 
 function terminalStatus(error: unknown) {
   const status = (error as ApiError | undefined)?.status;

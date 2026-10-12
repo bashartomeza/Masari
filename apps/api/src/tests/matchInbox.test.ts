@@ -55,6 +55,7 @@ function matchRecord(id: string, createdAt: string) {
       status: "active",
       driver: {
         user_id: "driver_1",
+        user: { name: "Driver 1" },
         vehicle_type: "sedan",
         verified: true,
         trust_score: 86,
@@ -169,7 +170,7 @@ describe("role-filtered match inbox", () => {
     const serialized = JSON.stringify(summary);
 
     expect(summary.scoring_breakdown.finalScore).toBe(0.9317);
-    expect(summary.driver_route.driver).toEqual({ vehicle_type: "sedan", verified: true, trust_score: 86 });
+    expect(summary.driver_route.driver).toEqual({ name: "Driver 1", vehicle_type: "sedan", verified: true, trust_score: 86 });
     expect(summary.passenger_request).toEqual(
       expect.objectContaining({ id: "request_1", pickup_label: "PPU Main Gate", passenger_count: 1 })
     );

@@ -160,7 +160,7 @@ export async function advanceLegacyTrip(
     throw new HttpError(409, "invalid_trip_status_transition");
   }
 
-  const completedAt = [TripStatus.completed, TripStatus.failed].includes(nextStatus) ? new Date() : undefined;
+  const completedAt = nextStatus === TripStatus.completed || nextStatus === TripStatus.failed ? new Date() : undefined;
   let updated;
   try {
     updated = await tx.trip.update({

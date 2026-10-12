@@ -12,7 +12,8 @@ const prismaMock = vi.hoisted(() => ({
   parcelBatch: { findUnique: vi.fn(), update: vi.fn() },
   parcelBatchOrder: { findMany: vi.fn(), updateMany: vi.fn() },
   merchantOrder: { create: vi.fn(), findMany: vi.fn(), findFirst: vi.fn(), findUniqueOrThrow: vi.fn(), count: vi.fn(), updateMany: vi.fn(), update: vi.fn() },
-  parcel: { count: vi.fn() },
+  parcel: { count: vi.fn(), updateMany: vi.fn() },
+  trip: { findFirst: vi.fn() },
   driverProfile: { findUnique: vi.fn(), findMany: vi.fn(), count: vi.fn() },
   driverRoute: { create: vi.fn(), findMany: vi.fn(), findFirst: vi.fn(), update: vi.fn(), updateMany: vi.fn(), count: vi.fn() },
 }));
@@ -91,7 +92,8 @@ describe("manual role APIs", () => {
     prismaMock.passengerRequest.updateMany.mockResolvedValue({ count: 1 });
     prismaMock.passengerRequest.findUniqueOrThrow.mockImplementation(({ where }: { where: { id: string } }) => ({ id: where.id, status: "cancelled", passenger_id: "passenger_1" }));
     prismaMock.match.findMany.mockResolvedValue([]);
-    prismaMock.match.updateMany.mockResolvedValue({ count: 0 });
+    prismaMock.match.updateMany.mockResolvedValue({ count: 1 });
+    prismaMock.trip.findFirst.mockResolvedValue(null);
     prismaMock.parcel.count.mockResolvedValue(0);
     prismaMock.parcelBatch.findUnique.mockResolvedValue(null);
     prismaMock.parcelBatchOrder.findMany.mockResolvedValue([]);
@@ -178,11 +180,7 @@ describe("manual role APIs", () => {
     expect(prismaMock.passengerRequest.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({ data: { status: "cancelled" } })
     );
-    expect(prismaMock.match.updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: { status: "invalidated", legacy_demand_key: null }
-      })
-    );
+    expect(prismaMock.match.updateMany).not.toHaveBeenCalled();
   });
 
   it("combined passenger cancellation releases parcel capacity and reopens merchant batching", async () => {

@@ -189,9 +189,8 @@ class _PassengerMatchLifecycleActions extends ConsumerWidget {
       return trip.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (_, _) => OutlinedButton(
-          onPressed: () => ref.invalidate(
-            passengerTripForRequestProvider(requestId),
-          ),
+          onPressed: () =>
+              ref.invalidate(passengerTripForRequestProvider(requestId)),
           child: Text(l10n.retry),
         ),
         data: (value) => value == null

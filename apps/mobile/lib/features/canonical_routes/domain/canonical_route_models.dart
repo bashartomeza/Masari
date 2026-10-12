@@ -386,7 +386,9 @@ List<CanonicalStop> _validatedStops(List<CanonicalStop> stops) {
       throw const FormatException('Invalid ordered stops');
     }
   }
-  return List.unmodifiable(stops);
+  return List.unmodifiable(
+    [...stops]..sort((a, b) => a.sequence.compareTo(b.sequence)),
+  );
 }
 
 class DriverAvailability {

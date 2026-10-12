@@ -51,10 +51,7 @@ class Checkpoint {
   /// Last time the leaving status was updated.
   final DateTime? leavingStatusLastUpdated;
 
-  factory Checkpoint.fromJson(
-    Map<String, dynamic> json, {
-    GeoPoint? position,
-  }) {
+  factory Checkpoint.fromJson(Map<String, dynamic> json, {GeoPoint? position}) {
     final id = json['id'];
 
     if (id is! String || id.isEmpty) {
@@ -101,18 +98,13 @@ class Checkpoint {
 
 /// Snapshot returned by the checkpoint feed.
 class CheckpointSnapshot {
-  const CheckpointSnapshot({
-    required this.checkpoints,
-    this.fetchedAt,
-  });
+  const CheckpointSnapshot({required this.checkpoints, this.fetchedAt});
 
   final List<Checkpoint> checkpoints;
 
   final DateTime? fetchedAt;
 
-  static const empty = CheckpointSnapshot(
-    checkpoints: <Checkpoint>[],
-  );
+  static const empty = CheckpointSnapshot(checkpoints: <Checkpoint>[]);
 
   factory CheckpointSnapshot.fromJson(Map<String, dynamic> json) {
     final raw = json['checkpoints'];

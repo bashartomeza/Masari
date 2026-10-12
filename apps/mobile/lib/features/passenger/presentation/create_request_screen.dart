@@ -23,13 +23,11 @@ class CreateRequestScreen extends ConsumerStatefulWidget {
       _CreateRequestScreenState();
 }
 
-class _CreateRequestScreenState
-    extends ConsumerState<CreateRequestScreen> {
+class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen> {
   PassengerLocation? _pickup;
   PassengerLocation? _destination;
 
-  DateTime _preferredTime =
-      DateTime.now().add(const Duration(hours: 1));
+  DateTime _preferredTime = DateTime.now().add(const Duration(hours: 1));
 
   int _count = 1;
   bool _loading = false;
@@ -40,92 +38,69 @@ class _CreateRequestScreenState
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
 
-    final canSubmit =
-        _pickup != null &&
-        _destination != null &&
-        !_loading;
+    final canSubmit = _pickup != null && _destination != null && !_loading;
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.createRequest),
+      appBar: AppBar(
+        title: Text(l10n.createRequest),
         leading: const MasariBackButton(fallback: '/passenger'),
-        actions: const [LanguageSwitch()]),
+        actions: const [LanguageSwitch()],
+      ),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.all(
-            AppTokens.spaceLarge,
-          ),
+          padding: const EdgeInsets.all(AppTokens.spaceLarge),
           children: [
-            const SizedBox(
-              height: AppTokens.spaceLarge,
-            ),
+            const SizedBox(height: AppTokens.spaceLarge),
 
             // ----------------------------------------------------------
             // PICKUP + DESTINATION
             // ----------------------------------------------------------
-
             MasariCard(
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.stretch,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
                     l10n.pickup,
-                    style:
-                        theme.textTheme.titleMedium?.copyWith(
+                    style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w700,
                     ),
                   ),
 
-                  const SizedBox(
-                    height: AppTokens.spaceSmall,
-                  ),
+                  const SizedBox(height: AppTokens.spaceSmall),
 
                   _LocationButton(
                     icon: Icons.trip_origin_rounded,
-                    title: _pickup?.label ??
-                        'اختاري موقع الانطلاق',
+                    title: _pickup?.label ?? 'اختاري موقع الانطلاق',
                     subtitle: _pickup == null
                         ? 'اضغطي لاختيار الموقع من الخريطة'
                         : _coordinatesText(_pickup!),
                     selected: _pickup != null,
                     onTap: _loading
                         ? null
-                        : () => _chooseLocation(
-                              isPickup: true,
-                            ),
+                        : () => _chooseLocation(isPickup: true),
                   ),
 
-                  const SizedBox(
-                    height: AppTokens.spaceMedium,
-                  ),
+                  const SizedBox(height: AppTokens.spaceMedium),
 
                   Text(
                     l10n.destination,
-                    style:
-                        theme.textTheme.titleMedium?.copyWith(
+                    style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w700,
                     ),
                   ),
 
-                  const SizedBox(
-                    height: AppTokens.spaceSmall,
-                  ),
+                  const SizedBox(height: AppTokens.spaceSmall),
 
                   _LocationButton(
                     icon: Icons.location_on_rounded,
-                    title: _destination?.label ??
-                        'اختاري الوجهة',
+                    title: _destination?.label ?? 'اختاري الوجهة',
                     subtitle: _destination == null
                         ? 'اضغطي لاختيار الوجهة من الخريطة'
-                        : _coordinatesText(
-                            _destination!,
-                          ),
+                        : _coordinatesText(_destination!),
                     selected: _destination != null,
                     onTap: _loading
                         ? null
-                        : () => _chooseLocation(
-                              isPickup: false,
-                            ),
+                        : () => _chooseLocation(isPickup: false),
                   ),
                 ],
               ),
@@ -134,23 +109,17 @@ class _CreateRequestScreenState
             // ----------------------------------------------------------
             // MAP PREVIEW
             // ----------------------------------------------------------
-
-            if (_pickup != null ||
-                _destination != null) ...[
-              const SizedBox(
-                height: AppTokens.spaceMedium,
-              ),
+            if (_pickup != null || _destination != null) ...[
+              const SizedBox(height: AppTokens.spaceMedium),
 
               MasariCard(
                 padding: EdgeInsets.zero,
                 child: ClipRRect(
-                  borderRadius:
-                      BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(20),
                   child: MasariMap(
                     height: 300,
                     emptyLabel: '',
-                    attributionLabel:
-                        '© OpenStreetMap contributors',
+                    attributionLabel: '© OpenStreetMap contributors',
                     markers: [
                       if (_pickup != null)
                         MasariMapMarker(
@@ -158,10 +127,8 @@ class _CreateRequestScreenState
                             _pickup!.latitude,
                             _pickup!.longitude,
                           ),
-                          icon:
-                              Icons.trip_origin_rounded,
-                          color:
-                              theme.colorScheme.primary,
+                          icon: Icons.trip_origin_rounded,
+                          color: theme.colorScheme.primary,
                           label: _pickup!.label,
                         ),
 
@@ -171,12 +138,9 @@ class _CreateRequestScreenState
                             _destination!.latitude,
                             _destination!.longitude,
                           ),
-                          icon:
-                              Icons.location_on_rounded,
-                          color:
-                              theme.colorScheme.error,
-                          label:
-                              _destination!.label,
+                          icon: Icons.location_on_rounded,
+                          color: theme.colorScheme.error,
+                          label: _destination!.label,
                         ),
                     ],
                   ),
@@ -184,48 +148,35 @@ class _CreateRequestScreenState
               ),
             ],
 
-            const SizedBox(
-              height: AppTokens.spaceMedium,
-            ),
+            const SizedBox(height: AppTokens.spaceMedium),
 
             // ----------------------------------------------------------
             // TIME + PASSENGERS
             // ----------------------------------------------------------
-
             MasariCard(
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.stretch,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   OutlinedButton.icon(
-                    onPressed:
-                        _loading ? null : _pickTime,
-                    icon: const Icon(
-                      Icons.schedule_rounded,
-                    ),
+                    onPressed: _loading ? null : _pickTime,
+                    icon: const Icon(Icons.schedule_rounded),
                     label: Text(
                       '${l10n.preferredTime}: '
                       '${_preferredTime.toLocal()}',
                     ),
                   ),
 
-                  const SizedBox(
-                    height: AppTokens.spaceMedium,
-                  ),
+                  const SizedBox(height: AppTokens.spaceMedium),
 
                   DropdownButtonFormField<int>(
                     initialValue: _count,
                     decoration: InputDecoration(
-                      labelText:
-                          l10n.passengerCount,
-                      prefixIcon: const Icon(
-                        Icons.people_alt_outlined,
-                      ),
+                      labelText: l10n.passengerCount,
+                      prefixIcon: const Icon(Icons.people_alt_outlined),
                     ),
                     items: [1, 2, 3, 4]
                         .map(
-                          (count) =>
-                              DropdownMenuItem(
+                          (count) => DropdownMenuItem(
                             value: count,
                             child: Text('$count'),
                           ),
@@ -241,40 +192,25 @@ class _CreateRequestScreenState
                   ),
 
                   if (_error != null) ...[
-                    const SizedBox(
-                      height: AppTokens.spaceMedium,
-                    ),
+                    const SizedBox(height: AppTokens.spaceMedium),
                     Text(
                       _error!,
-                      style: TextStyle(
-                        color:
-                            theme.colorScheme.error,
-                      ),
+                      style: TextStyle(color: theme.colorScheme.error),
                     ),
                   ],
 
-                  const SizedBox(
-                    height: AppTokens.spaceLarge,
-                  ),
+                  const SizedBox(height: AppTokens.spaceLarge),
 
                   FilledButton.icon(
-                    onPressed:
-                        canSubmit ? _submit : null,
+                    onPressed: canSubmit ? _submit : null,
                     icon: _loading
                         ? const SizedBox(
                             width: 18,
                             height: 18,
-                            child:
-                                CircularProgressIndicator(
-                              strokeWidth: 2,
-                            ),
+                            child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Icon(
-                            Icons.send_rounded,
-                          ),
-                    label: Text(
-                      l10n.submitRequest,
-                    ),
+                        : const Icon(Icons.send_rounded),
+                    label: Text(l10n.submitRequest),
                   ),
                 ],
               ),
@@ -289,21 +225,13 @@ class _CreateRequestScreenState
   // LOCATION PICKER
   // ----------------------------------------------------------------------
 
-  Future<void> _chooseLocation({
-    required bool isPickup,
-  }) async {
-    final current =
-        isPickup ? _pickup : _destination;
+  Future<void> _chooseLocation({required bool isPickup}) async {
+    final current = isPickup ? _pickup : _destination;
 
-    final result =
-        await Navigator.of(context)
-            .push<PassengerLocation>(
+    final result = await Navigator.of(context).push<PassengerLocation>(
       MaterialPageRoute(
-        builder: (_) =>
-            PassengerLocationPickerScreen(
-          title: isPickup
-              ? 'اختيار موقع الانطلاق'
-              : 'اختيار الوجهة',
+        builder: (_) => PassengerLocationPickerScreen(
+          title: isPickup ? 'اختيار موقع الانطلاق' : 'اختيار الوجهة',
           initialLocation: current,
         ),
       ),
@@ -330,9 +258,7 @@ class _CreateRequestScreenState
     final date = await showDatePicker(
       context: context,
       firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(
-        const Duration(days: 14),
-      ),
+      lastDate: DateTime.now().add(const Duration(days: 14)),
       initialDate: _preferredTime,
     );
 
@@ -340,9 +266,7 @@ class _CreateRequestScreenState
 
     final time = await showTimePicker(
       context: context,
-      initialTime: TimeOfDay.fromDateTime(
-        _preferredTime,
-      ),
+      initialTime: TimeOfDay.fromDateTime(_preferredTime),
     );
 
     if (time == null) return;
@@ -363,11 +287,9 @@ class _CreateRequestScreenState
   // ----------------------------------------------------------------------
 
   Future<void> _submit() async {
-    if (_pickup == null ||
-        _destination == null) {
+    if (_pickup == null || _destination == null) {
       setState(() {
-        _error =
-            'اختاري موقع الانطلاق والوجهة أولاً';
+        _error = 'اختاري موقع الانطلاق والوجهة أولاً';
       });
       return;
     }
@@ -409,9 +331,7 @@ class _CreateRequestScreenState
     } catch (_) {
       if (mounted) {
         setState(() {
-          _error =
-              AppLocalizations.of(context)
-                  .validationError;
+          _error = AppLocalizations.of(context).validationError;
         });
       }
     } finally {
@@ -427,9 +347,7 @@ class _CreateRequestScreenState
   // HELPERS
   // ----------------------------------------------------------------------
 
-  String _coordinatesText(
-    PassengerLocation location,
-  ) {
+  String _coordinatesText(PassengerLocation location) {
     return '${location.latitude.toStringAsFixed(6)}, '
         '${location.longitude.toStringAsFixed(6)}';
   }
@@ -469,20 +387,15 @@ class _LocationButton extends StatelessWidget {
 
     return InkWell(
       onTap: onTap,
-      borderRadius:
-          BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(16),
       child: Container(
-        padding: const EdgeInsets.all(
-          AppTokens.spaceMedium,
-        ),
+        padding: const EdgeInsets.all(AppTokens.spaceMedium),
         decoration: BoxDecoration(
-          borderRadius:
-              BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: selected
                 ? theme.colorScheme.primary
-                : theme.colorScheme
-                    .outlineVariant,
+                : theme.colorScheme.outlineVariant,
           ),
         ),
         child: Row(
@@ -493,52 +406,38 @@ class _LocationButton extends StatelessWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: selected
-                    ? theme.colorScheme.primary
-                        .withValues(alpha: 0.12)
-                    : theme.colorScheme
-                        .surfaceContainerHighest,
+                    ? theme.colorScheme.primary.withValues(alpha: 0.12)
+                    : theme.colorScheme.surfaceContainerHighest,
               ),
               child: Icon(
                 icon,
                 color: selected
                     ? theme.colorScheme.primary
-                    : theme.colorScheme
-                        .onSurfaceVariant,
+                    : theme.colorScheme.onSurfaceVariant,
               ),
             ),
 
-            const SizedBox(
-              width: AppTokens.spaceMedium,
-            ),
+            const SizedBox(width: AppTokens.spaceMedium),
 
             Expanded(
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     title,
                     maxLines: 1,
-                    overflow:
-                        TextOverflow.ellipsis,
-                    style: theme
-                        .textTheme.titleSmall
-                        ?.copyWith(
-                      fontWeight:
-                          FontWeight.w700,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     subtitle,
                     maxLines: 2,
-                    overflow:
-                        TextOverflow.ellipsis,
-                    style: theme
-                        .textTheme.bodySmall
-                        ?.copyWith(
-                      color: theme.colorScheme
-                          .onSurfaceVariant,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -549,8 +448,7 @@ class _LocationButton extends StatelessWidget {
 
             Icon(
               Icons.chevron_right_rounded,
-              color: theme.colorScheme
-                  .onSurfaceVariant,
+              color: theme.colorScheme.onSurfaceVariant,
             ),
           ],
         ),

@@ -50,18 +50,31 @@ class RoleShellScaffold extends StatelessWidget {
     final arabic = Localizations.localeOf(context).languageCode == 'ar';
     final wide = MediaQuery.sizeOf(context).width >= 1024;
     final path = GoRouterState.of(context).uri.path;
-    final roleHome = '/${path.split('/').where((part) => part.isNotEmpty).first}';
+    final roleHome =
+        '/${path.split('/').where((part) => part.isNotEmpty).first}';
     const tabRoots = {
-      '/passenger', '/passenger/trips', '/passenger/map', '/passenger/notifications',
-      '/driver', '/driver/matches', '/driver/my-trip', '/driver/performance',
-      '/merchant', '/merchant/shipments', '/merchant/reports', '/merchant/notifications',
+      '/passenger',
+      '/passenger/trips',
+      '/passenger/map',
+      '/passenger/notifications',
+      '/driver',
+      '/driver/matches',
+      '/driver/my-trip',
+      '/driver/performance',
+      '/merchant',
+      '/merchant/shipments',
+      '/merchant/reports',
+      '/merchant/notifications',
     };
     final isDetail = !tabRoots.contains(path) && !path.endsWith('/account');
     final l10n = AppLocalizations.of(context);
-    final title = path.endsWith('/assistant') ? l10n.assistantTitle
-      : path.contains('/request/') ? l10n.requestDetails
-      : path.contains('/match/') ? l10n.navRequests
-      : destinations[navigationShell.currentIndex].item.label;
+    final title = path.endsWith('/assistant')
+        ? l10n.assistantTitle
+        : path.contains('/request/')
+        ? l10n.requestDetails
+        : path.contains('/match/')
+        ? l10n.navRequests
+        : destinations[navigationShell.currentIndex].item.label;
     final panel = Scaffold(
       appBar: AppBar(
         title: Text(title),
@@ -69,11 +82,14 @@ class RoleShellScaffold extends StatelessWidget {
         automaticallyImplyLeading: false,
         leading: isDetail ? MasariBackButton(fallback: roleHome) : null,
         actions: [
-          if (!wide) Builder(builder: (context) => IconButton(
-            tooltip: MaterialLocalizations.of(context).openAppDrawerTooltip,
-            icon: const Icon(Icons.menu_rounded),
-            onPressed: () => Scaffold.of(context).openDrawer(),
-          )),
+          if (!wide)
+            Builder(
+              builder: (context) => IconButton(
+                tooltip: MaterialLocalizations.of(context).openAppDrawerTooltip,
+                icon: const Icon(Icons.menu_rounded),
+                onPressed: () => Scaffold.of(context).openDrawer(),
+              ),
+            ),
           const LanguageSwitch(),
           const SizedBox(width: 12),
         ],
@@ -82,9 +98,17 @@ class RoleShellScaffold extends StatelessWidget {
           child: Divider(height: 1),
         ),
       ),
-      body: ShellLanguageControl(child: Center(child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 840), child: navigationShell))),
-      drawer: wide ? null : Drawer(child: _sidebar(context, arabic, closeDrawer: true)),
+      body: ShellLanguageControl(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 840),
+            child: navigationShell,
+          ),
+        ),
+      ),
+      drawer: wide
+          ? null
+          : Drawer(child: _sidebar(context, arabic, closeDrawer: true)),
     );
     return ColoredBox(
       color: const Color(0xFFEAE5D9),
@@ -164,6 +188,8 @@ class RoleShellScaffold extends StatelessWidget {
                       Padding(
                         padding: const EdgeInsets.only(bottom: 6),
                         child: ListTile(
+                          key: ValueKey('roleNavigation-$i'),
+                          selected: i == navigationShell.currentIndex,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),

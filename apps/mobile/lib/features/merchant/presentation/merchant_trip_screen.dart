@@ -50,9 +50,14 @@ class _MerchantTripScreenState extends ConsumerState<MerchantTripScreen>
     final l10n = AppLocalizations.of(context);
     final trip = ref.watch(merchantTripProvider(widget.tripId));
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.merchantTrip, key: const ValueKey('merchantTripTitle')),
+      appBar: AppBar(
+        title: Text(
+          l10n.merchantTrip,
+          key: const ValueKey('merchantTripTitle'),
+        ),
         leading: const MasariBackButton(fallback: '/merchant/shipments'),
-        actions: const [LanguageSwitch()]),
+        actions: const [LanguageSwitch()],
+      ),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () =>

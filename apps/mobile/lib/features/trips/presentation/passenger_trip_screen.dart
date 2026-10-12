@@ -17,10 +17,7 @@ import '../../checkpoints/application/checkpoint_controller.dart';
 import '../application/passenger_trip_controller.dart';
 
 class PassengerTripScreen extends ConsumerStatefulWidget {
-  const PassengerTripScreen({
-    required this.tripId,
-    super.key,
-  });
+  const PassengerTripScreen({required this.tripId, super.key});
 
   final String tripId;
 
@@ -29,8 +26,7 @@ class PassengerTripScreen extends ConsumerStatefulWidget {
       _PassengerTripScreenState();
 }
 
-class _PassengerTripScreenState
-    extends ConsumerState<PassengerTripScreen>
+class _PassengerTripScreenState extends ConsumerState<PassengerTripScreen>
     with WidgetsBindingObserver {
   Future<OsrmRouteResult>? _routeFuture;
   String? _routeKey;
@@ -74,9 +70,7 @@ class _PassengerTripScreenState
   }
 
   @override
-  void didChangeAppLifecycleState(
-    AppLifecycleState state,
-  ) {
+  void didChangeAppLifecycleState(AppLifecycleState state) {
     final controller = ref.read(
       passengerTripControllerProvider(widget.tripId).notifier,
     );
@@ -103,14 +97,8 @@ class _PassengerTripScreenState
   ) async {
     try {
       final result = await const OsrmRouteService().getRoute(
-        start: LatLng(
-          originLat,
-          originLng,
-        ),
-        end: LatLng(
-          destinationLat,
-          destinationLng,
-        ),
+        start: LatLng(originLat, originLng),
+        end: LatLng(destinationLat, destinationLng),
       );
 
       if (result.points.length >= 2) {
@@ -127,9 +115,7 @@ class _PassengerTripScreenState
     );
   }
 
-  Future<OsrmRouteResult> _getRouteFuture(
-    PassengerTripState data,
-  ) {
+  Future<OsrmRouteResult> _getRouteFuture(PassengerTripState data) {
     final trip = data.trip;
 
     if (!trip.hasRouteCoordinates) {
@@ -142,16 +128,13 @@ class _PassengerTripScreenState
       );
     }
 
-    final startLat =
-        data.location?.lat ?? trip.originLat!;
-    final startLng =
-        data.location?.lng ?? trip.originLng!;
+    final startLat = data.location?.lat ?? trip.originLat!;
+    final startLng = data.location?.lng ?? trip.originLng!;
 
     final destinationLat = trip.destinationLat!;
     final destinationLng = trip.destinationLng!;
 
-    final key =
-        '$startLat,$startLng|$destinationLat,$destinationLng';
+    final key = '$startLat,$startLng|$destinationLat,$destinationLng';
 
     if (_routeFuture == null || _routeKey != key) {
       _routeKey = key;
@@ -167,29 +150,19 @@ class _PassengerTripScreenState
     return _routeFuture!;
   }
 
-  List<GeoPoint> _fallbackRoutePoints(
-    PassengerTripState data,
-  ) {
+  List<GeoPoint> _fallbackRoutePoints(PassengerTripState data) {
     final trip = data.trip;
 
     if (!trip.hasRouteCoordinates) {
       return const [];
     }
 
-    final startLat =
-        data.location?.lat ?? trip.originLat!;
-    final startLng =
-        data.location?.lng ?? trip.originLng!;
+    final startLat = data.location?.lat ?? trip.originLat!;
+    final startLng = data.location?.lng ?? trip.originLng!;
 
     return [
-      GeoPoint(
-        startLat,
-        startLng,
-      ),
-      GeoPoint(
-        trip.destinationLat!,
-        trip.destinationLng!,
-      ),
+      GeoPoint(startLat, startLng),
+      GeoPoint(trip.destinationLat!, trip.destinationLng!),
     ];
   }
 
@@ -197,52 +170,39 @@ class _PassengerTripScreenState
   // LOCALIZATION
   // ============================================================
 
-  String _originCity(
-    PassengerTripState data,
-  ) {
+  String _originCity(PassengerTripState data) {
     final route = data.trip.routeLabel.trim();
 
     if (route.isEmpty) {
       return 'Origin';
     }
 
-    final parts = route.split(
-      RegExp(r'\s*(?:→|->|-)\s*'),
-    );
+    final parts = route.split(RegExp(r'\s*(?:→|->|-)\s*'));
 
-    if (parts.length >= 2 &&
-        parts.first.trim().isNotEmpty) {
+    if (parts.length >= 2 && parts.first.trim().isNotEmpty) {
       return parts.first.trim();
     }
 
     return route;
   }
 
-  String _destinationCity(
-    PassengerTripState data,
-  ) {
+  String _destinationCity(PassengerTripState data) {
     final route = data.trip.routeLabel.trim();
 
     if (route.isEmpty) {
       return 'Destination';
     }
 
-    final parts = route.split(
-      RegExp(r'\s*(?:→|->|-)\s*'),
-    );
+    final parts = route.split(RegExp(r'\s*(?:→|->|-)\s*'));
 
-    if (parts.length >= 2 &&
-        parts.last.trim().isNotEmpty) {
+    if (parts.length >= 2 && parts.last.trim().isNotEmpty) {
       return parts.last.trim();
     }
 
     return route;
   }
 
-  String _localizedPlace(
-    String value,
-    String languageCode,
-  ) {
+  String _localizedPlace(String value, String languageCode) {
     if (languageCode != 'ar') {
       return value;
     }
@@ -266,30 +226,16 @@ class _PassengerTripScreenState
     return translations[normalized] ?? normalized;
   }
 
-  String _displayOrigin(
-    BuildContext context,
-    PassengerTripState data,
-  ) {
-    final language =
-        Localizations.localeOf(context).languageCode;
+  String _displayOrigin(BuildContext context, PassengerTripState data) {
+    final language = Localizations.localeOf(context).languageCode;
 
-    return _localizedPlace(
-      _originCity(data),
-      language,
-    );
+    return _localizedPlace(_originCity(data), language);
   }
 
-  String _displayDestination(
-    BuildContext context,
-    PassengerTripState data,
-  ) {
-    final language =
-        Localizations.localeOf(context).languageCode;
+  String _displayDestination(BuildContext context, PassengerTripState data) {
+    final language = Localizations.localeOf(context).languageCode;
 
-    return _localizedPlace(
-      _destinationCity(data),
-      language,
-    );
+    return _localizedPlace(_destinationCity(data), language);
   }
 
   // ============================================================
@@ -300,9 +246,7 @@ class _PassengerTripScreenState
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
 
-    final state = ref.watch(
-      passengerTripControllerProvider(widget.tripId),
-    );
+    final state = ref.watch(passengerTripControllerProvider(widget.tripId));
 
     // ==========================================================
     // CHECKPOINTS
@@ -310,28 +254,17 @@ class _PassengerTripScreenState
 
     final checkpoints = ref.watch(checkpointsProvider);
 
-    final checkpointSnapshot =
-        checkpoints.value ?? CheckpointSnapshot.empty;
+    final checkpointSnapshot = checkpoints.value ?? CheckpointSnapshot.empty;
 
     return Scaffold(
       backgroundColor: _background,
       body: state.when(
         loading: () => const Center(
-          child: CircularProgressIndicator(
-            color: _orange,
-            strokeWidth: 2.5,
-          ),
+          child: CircularProgressIndicator(color: _orange, strokeWidth: 2.5),
         ),
-        error: (_, __) => _buildErrorState(
-          context,
-          l10n,
-        ),
-        data: (data) => _buildImmersiveContent(
-          context,
-          l10n,
-          data,
-          checkpointSnapshot,
-        ),
+        error: (_, _) => _buildErrorState(context, l10n),
+        data: (data) =>
+            _buildImmersiveContent(context, l10n, data, checkpointSnapshot),
       ),
     );
   }
@@ -346,8 +279,7 @@ class _PassengerTripScreenState
     PassengerTripState data,
     CheckpointSnapshot checkpointSnapshot,
   ) {
-    final isArabic =
-        Localizations.localeOf(context).languageCode == 'ar';
+    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
 
     return Stack(
       fit: StackFit.expand,
@@ -355,28 +287,19 @@ class _PassengerTripScreenState
         // ======================================================
         // FULL SCREEN MAP
         // ======================================================
-
         Positioned.fill(
-          child: _buildMap(
-            context,
-            l10n,
-            data,
-            checkpointSnapshot,
-          ),
+          child: _buildMap(context, l10n, data, checkpointSnapshot),
         ),
 
         // ======================================================
         // TOP CONTROLS
         // ======================================================
-
         Positioned(
           top: MediaQuery.of(context).padding.top + 10,
           left: 14,
           right: 14,
           child: Row(
-            textDirection: isArabic
-                ? TextDirection.rtl
-                : TextDirection.ltr,
+            textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
             children: [
               _buildFloatingButton(
                 icon: Icons.arrow_back_rounded,
@@ -403,9 +326,7 @@ class _PassengerTripScreenState
                 onPressed: () {
                   ref
                       .read(
-                        passengerTripControllerProvider(
-                          widget.tripId,
-                        ).notifier,
+                        passengerTripControllerProvider(widget.tripId).notifier,
                       )
                       .refresh();
 
@@ -419,33 +340,20 @@ class _PassengerTripScreenState
         // ======================================================
         // LIVE BADGE
         // ======================================================
-
         Positioned(
           top: MediaQuery.of(context).padding.top + 68,
           left: 14,
           right: 14,
           child: Row(
-            children: [
-              _buildLiveBadge(
-                context,
-                data,
-              ),
-              const Spacer(),
-            ],
+            children: [_buildLiveBadge(context, data), const Spacer()],
           ),
         ),
 
         // ======================================================
         // BOTTOM DRAGGABLE SHEET
         // ======================================================
-
         Positioned.fill(
-          child: _buildBottomSheet(
-            context,
-            l10n,
-            data,
-            isArabic,
-          ),
+          child: _buildBottomSheet(context, l10n, data, isArabic),
         ),
       ],
     );
@@ -468,21 +376,17 @@ class _PassengerTripScreenState
           width: 46,
           height: 46,
           decoration: BoxDecoration(
-            color: _white.withOpacity(0.96),
+            color: _white.withValues(alpha: 0.96),
             borderRadius: BorderRadius.circular(15),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.12),
+                color: Colors.black.withValues(alpha: 0.12),
                 blurRadius: 18,
                 offset: const Offset(0, 6),
               ),
             ],
           ),
-          child: Icon(
-            icon,
-            color: _text,
-            size: 21,
-          ),
+          child: Icon(icon, color: _text, size: 21),
         ),
       ),
     );
@@ -495,23 +399,19 @@ class _PassengerTripScreenState
   Widget _buildLanguageButton() {
     return Container(
       height: 46,
-      padding: const EdgeInsets.symmetric(
-        horizontal: 10,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
-        color: _white.withOpacity(0.96),
+        color: _white.withValues(alpha: 0.96),
         borderRadius: BorderRadius.circular(15),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.12),
+            color: Colors.black.withValues(alpha: 0.12),
             blurRadius: 18,
             offset: const Offset(0, 6),
           ),
         ],
       ),
-      child: const Center(
-        child: LanguageSwitch(),
-      ),
+      child: const Center(child: LanguageSwitch()),
     );
   }
 
@@ -519,10 +419,7 @@ class _PassengerTripScreenState
   // LIVE BADGE
   // ============================================================
 
-  Widget _buildLiveBadge(
-    BuildContext context,
-    PassengerTripState data,
-  ) {
+  Widget _buildLiveBadge(BuildContext context, PassengerTripState data) {
     final status = data.trip.status.toLowerCase();
 
     final isActive =
@@ -533,20 +430,16 @@ class _PassengerTripScreenState
         status == 'picked_up' ||
         status == 'delivered';
 
-    final isArabic =
-        Localizations.localeOf(context).languageCode == 'ar';
+    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
 
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: 8,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: _white.withOpacity(0.95),
+        color: _white.withValues(alpha: 0.95),
         borderRadius: BorderRadius.circular(30),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.10),
+            color: Colors.black.withValues(alpha: 0.10),
             blurRadius: 16,
             offset: const Offset(0, 5),
           ),
@@ -554,9 +447,7 @@ class _PassengerTripScreenState
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
-        textDirection: isArabic
-            ? TextDirection.rtl
-            : TextDirection.ltr,
+        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
         children: [
           Container(
             width: 8,
@@ -569,16 +460,10 @@ class _PassengerTripScreenState
           const SizedBox(width: 7),
           Text(
             isActive
-                ? (isArabic
-                    ? 'الرحلة جارية'
-                    : 'TRIP IN PROGRESS')
-                : _statusLabel(
-                    AppLocalizations.of(context),
-                    data.trip.status,
-                  ),
+                ? (isArabic ? 'الرحلة جارية' : 'TRIP IN PROGRESS')
+                : _statusLabel(AppLocalizations.of(context), data.trip.status),
             style: TextStyle(
-              color:
-                  isActive ? _success : _orangeDark,
+              color: isActive ? _success : _orangeDark,
               fontSize: 11,
               fontWeight: FontWeight.w900,
               letterSpacing: 0.3,
@@ -604,22 +489,13 @@ class _PassengerTripScreenState
       minChildSize: 0.14,
       maxChildSize: 0.68,
       snap: true,
-      snapSizes: const [
-        0.29,
-        0.50,
-        0.68,
-      ],
+      snapSizes: const [0.29, 0.50, 0.68],
       expand: false,
-      builder: (
-        BuildContext context,
-        ScrollController scrollController,
-      ) {
+      builder: (BuildContext context, ScrollController scrollController) {
         return Container(
           decoration: const BoxDecoration(
             color: _white,
-            borderRadius: BorderRadius.vertical(
-              top: Radius.circular(28),
-            ),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
             boxShadow: [
               BoxShadow(
                 color: Colors.black12,
@@ -633,12 +509,7 @@ class _PassengerTripScreenState
             child: ListView(
               controller: scrollController,
               physics: const ClampingScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(
-                16,
-                9,
-                16,
-                18,
-              ),
+              padding: const EdgeInsets.fromLTRB(16, 9, 16, 18),
               children: [
                 const _BottomSheetHandle(),
 
@@ -647,46 +518,38 @@ class _PassengerTripScreenState
                 // ==================================================
                 // ROUTE HEADER
                 // ==================================================
-
                 Row(
                   textDirection: isArabic
                       ? TextDirection.rtl
                       : TextDirection.ltr,
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
                       child: Column(
-                        crossAxisAlignment:
-                            isArabic
-                                ? CrossAxisAlignment.end
-                                : CrossAxisAlignment.start,
+                        crossAxisAlignment: isArabic
+                            ? CrossAxisAlignment.end
+                            : CrossAxisAlignment.start,
                         children: [
                           Text(
                             '${_displayOrigin(context, data)}  →  ${_displayDestination(context, data)}',
                             maxLines: 1,
-                            overflow:
-                                TextOverflow.ellipsis,
+                            overflow: TextOverflow.ellipsis,
                             textAlign: isArabic
                                 ? TextAlign.right
                                 : TextAlign.left,
-                            style:
-                                const TextStyle(
+                            style: const TextStyle(
                               color: _text,
                               fontSize: 18,
-                              fontWeight:
-                                  FontWeight.w900,
+                              fontWeight: FontWeight.w900,
                               letterSpacing: -0.4,
                             ),
                           ),
                           const SizedBox(height: 4),
                           Row(
-                            mainAxisSize:
-                                MainAxisSize.min,
-                            textDirection:
-                                isArabic
-                                    ? TextDirection.rtl
-                                    : TextDirection.ltr,
+                            mainAxisSize: MainAxisSize.min,
+                            textDirection: isArabic
+                                ? TextDirection.rtl
+                                : TextDirection.ltr,
                             children: [
                               const Icon(
                                 Icons.circle,
@@ -697,20 +560,17 @@ class _PassengerTripScreenState
                               Text(
                                 data.location != null
                                     ? (isArabic
-                                        ? 'تتبع مباشر'
-                                        : 'Live tracking')
+                                          ? 'تتبع مباشر'
+                                          : 'Live tracking')
                                     : (isArabic
-                                        ? 'بانتظار الموقع'
-                                        : 'Waiting for location'),
+                                          ? 'بانتظار الموقع'
+                                          : 'Waiting for location'),
                                 style: TextStyle(
-                                  color:
-                                      data.location !=
-                                              null
-                                          ? _success
-                                          : _orange,
+                                  color: data.location != null
+                                      ? _success
+                                      : _orange,
                                   fontSize: 10,
-                                  fontWeight:
-                                      FontWeight.w800,
+                                  fontWeight: FontWeight.w800,
                                 ),
                               ),
                             ],
@@ -719,10 +579,7 @@ class _PassengerTripScreenState
                       ),
                     ),
                     const SizedBox(width: 10),
-                    _buildStatusPill(
-                      context,
-                      data.trip.status,
-                    ),
+                    _buildStatusPill(context, data.trip.status),
                   ],
                 ),
 
@@ -731,51 +588,32 @@ class _PassengerTripScreenState
                 // ==================================================
                 // QUICK INFO
                 // ==================================================
-
                 Row(
                   children: [
                     Expanded(
-                      child: _QuickInfoItem(
+                      child: _quickInfoItem(
                         icon: Icons.route_rounded,
-                        value: _displayOrigin(
-                          context,
-                          data,
-                        ),
-                        label: isArabic
-                            ? 'البداية'
-                            : 'Origin',
+                        value: _displayOrigin(context, data),
+                        label: isArabic ? 'البداية' : 'Origin',
                       ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: _QuickInfoItem(
+                      child: _quickInfoItem(
                         icon: Icons.flag_rounded,
-                        value: _displayDestination(
-                          context,
-                          data,
-                        ),
-                        label: isArabic
-                            ? 'الوصول'
-                            : 'Destination',
+                        value: _displayDestination(context, data),
+                        label: isArabic ? 'الوصول' : 'Destination',
                       ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: _QuickInfoItem(
-                        icon:
-                            Icons.location_on_rounded,
+                      child: _quickInfoItem(
+                        icon: Icons.location_on_rounded,
                         value: data.location != null
-                            ? (isArabic
-                                ? 'مباشر'
-                                : 'Live')
+                            ? (isArabic ? 'مباشر' : 'Live')
                             : '--',
-                        label: isArabic
-                            ? 'الموقع'
-                            : 'Location',
-                        iconColor:
-                            data.location != null
-                                ? _success
-                                : _muted,
+                        label: isArabic ? 'الموقع' : 'Location',
+                        iconColor: data.location != null ? _success : _muted,
                       ),
                     ),
                   ],
@@ -786,35 +624,21 @@ class _PassengerTripScreenState
                 // ==================================================
                 // ETA
                 // ==================================================
-
-                _buildEtaCard(
-                  context,
-                  l10n,
-                  data,
-                ),
+                _buildEtaCard(context, l10n, data),
 
                 const SizedBox(height: 9),
 
                 // ==================================================
                 // CURRENT LOCATION
                 // ==================================================
-
-                _buildCurrentLocationCard(
-                  context,
-                  l10n,
-                  data,
-                ),
+                _buildCurrentLocationCard(context, l10n, data),
 
                 const SizedBox(height: 9),
 
                 // ==================================================
                 // REFRESH
                 // ==================================================
-
-                _buildRefreshButton(
-                  context,
-                  l10n,
-                ),
+                _buildRefreshButton(context, l10n),
               ],
             ),
           ),
@@ -827,7 +651,7 @@ class _PassengerTripScreenState
   // QUICK INFO ITEM
   // ============================================================
 
-  Widget _QuickInfoItem({
+  Widget _quickInfoItem({
     required IconData icon,
     required String value,
     required String label,
@@ -835,32 +659,21 @@ class _PassengerTripScreenState
   }) {
     return Container(
       height: 66,
-      padding: const EdgeInsets.symmetric(
-        horizontal: 8,
-        vertical: 8,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
         color: _background,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: _line,
-        ),
+        border: Border.all(color: _line),
       ),
       child: Column(
-        mainAxisAlignment:
-            MainAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            icon,
-            size: 19,
-            color: iconColor ?? _orange,
-          ),
+          Icon(icon, size: 19, color: iconColor ?? _orange),
           const SizedBox(height: 3),
           Text(
             value,
             maxLines: 1,
-            overflow:
-                TextOverflow.ellipsis,
+            overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: _text,
@@ -873,8 +686,7 @@ class _PassengerTripScreenState
           Text(
             label,
             maxLines: 1,
-            overflow:
-                TextOverflow.ellipsis,
+            overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: _secondary,
@@ -892,27 +704,17 @@ class _PassengerTripScreenState
   // STATUS PILL
   // ============================================================
 
-  Widget _buildStatusPill(
-    BuildContext context,
-    String status,
-  ) {
+  Widget _buildStatusPill(BuildContext context, String status) {
     final color = _statusColor(status);
 
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 6,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.09),
-        borderRadius:
-            BorderRadius.circular(20),
+        color: color.withValues(alpha: 0.09),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
-        _statusLabel(
-          AppLocalizations.of(context),
-          status,
-        ),
+        _statusLabel(AppLocalizations.of(context), status),
         style: TextStyle(
           color: color,
           fontSize: 9,
@@ -937,45 +739,27 @@ class _PassengerTripScreenState
       builder: (context, snapshot) {
         final route = snapshot.data;
 
-        final isArabic =
-            Localizations.localeOf(context)
-                .languageCode ==
-                'ar';
+        final isArabic = Localizations.localeOf(context).languageCode == 'ar';
 
-        if (route == null ||
-            route.durationSeconds <= 0) {
-          return _buildLoadingEta(
-            context,
-            isArabic,
-          );
+        if (route == null || route.durationSeconds <= 0) {
+          return _buildLoadingEta(context, isArabic);
         }
 
         return Container(
           width: double.infinity,
-          padding:
-              const EdgeInsets.symmetric(
-            horizontal: 11,
-            vertical: 9,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
           decoration: BoxDecoration(
             color: _orangeSoft,
-            borderRadius:
-                BorderRadius.circular(15),
-            border: Border.all(
-              color:
-                  _orange.withOpacity(0.12),
-            ),
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(color: _orange.withValues(alpha: 0.12)),
           ),
           child: Row(
-            textDirection: isArabic
-                ? TextDirection.rtl
-                : TextDirection.ltr,
+            textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
             children: [
               Container(
                 width: 35,
                 height: 35,
-                decoration:
-                    const BoxDecoration(
+                decoration: const BoxDecoration(
                   color: _white,
                   shape: BoxShape.circle,
                 ),
@@ -988,32 +772,25 @@ class _PassengerTripScreenState
               const SizedBox(width: 9),
               Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                      isArabic
-                          ? CrossAxisAlignment.end
-                          : CrossAxisAlignment.start,
+                  crossAxisAlignment: isArabic
+                      ? CrossAxisAlignment.end
+                      : CrossAxisAlignment.start,
                   children: [
                     Text(
-                      isArabic
-                          ? 'الوصول المتوقع'
-                          : 'Estimated arrival',
-                      style:
-                          const TextStyle(
+                      isArabic ? 'الوصول المتوقع' : 'Estimated arrival',
+                      style: const TextStyle(
                         color: _secondary,
                         fontSize: 8,
-                        fontWeight:
-                            FontWeight.w700,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       route.formattedDuration,
-                      style:
-                          const TextStyle(
+                      style: const TextStyle(
                         color: _text,
                         fontSize: 14,
-                        fontWeight:
-                            FontWeight.w900,
+                        fontWeight: FontWeight.w900,
                       ),
                     ),
                   ],
@@ -1022,37 +799,29 @@ class _PassengerTripScreenState
               Container(
                 width: 1,
                 height: 28,
-                color:
-                    _orange.withOpacity(0.16),
+                color: _orange.withValues(alpha: 0.16),
               ),
               const SizedBox(width: 10),
               Column(
-                crossAxisAlignment:
-                    isArabic
-                        ? CrossAxisAlignment.start
-                        : CrossAxisAlignment.end,
+                crossAxisAlignment: isArabic
+                    ? CrossAxisAlignment.start
+                    : CrossAxisAlignment.end,
                 children: [
                   Text(
-                    isArabic
-                        ? 'المسافة'
-                        : 'Distance',
-                    style:
-                        const TextStyle(
+                    isArabic ? 'المسافة' : 'Distance',
+                    style: const TextStyle(
                       color: _secondary,
                       fontSize: 8,
-                      fontWeight:
-                          FontWeight.w700,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     '${route.distanceKilometers.toStringAsFixed(1)} km',
-                    style:
-                        const TextStyle(
+                    style: const TextStyle(
                       color: _text,
                       fontSize: 12,
-                      fontWeight:
-                          FontWeight.w900,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
                 ],
@@ -1068,45 +837,27 @@ class _PassengerTripScreenState
   // ETA LOADING
   // ============================================================
 
-  Widget _buildLoadingEta(
-    BuildContext context,
-    bool isArabic,
-  ) {
+  Widget _buildLoadingEta(BuildContext context, bool isArabic) {
     return Container(
       width: double.infinity,
       height: 56,
-      padding:
-          const EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: 9,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
         color: _background,
-        borderRadius:
-            BorderRadius.circular(15),
-        border: Border.all(
-          color: _line,
-        ),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: _line),
       ),
       child: Row(
-        textDirection: isArabic
-            ? TextDirection.rtl
-            : TextDirection.ltr,
+        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
         children: [
           const SizedBox(
             width: 18,
             height: 18,
-            child:
-                CircularProgressIndicator(
-              strokeWidth: 2,
-              color: _orange,
-            ),
+            child: CircularProgressIndicator(strokeWidth: 2, color: _orange),
           ),
           const SizedBox(width: 10),
           Text(
-            isArabic
-                ? 'جاري حساب المسار...'
-                : 'Calculating route...',
+            isArabic ? 'جاري حساب المسار...' : 'Calculating route...',
             style: const TextStyle(
               color: _secondary,
               fontSize: 10,
@@ -1129,62 +880,43 @@ class _PassengerTripScreenState
   ) {
     final location = data.location;
 
-    final isArabic =
-        Localizations.localeOf(context)
-            .languageCode ==
-            'ar';
+    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
 
     return Container(
       width: double.infinity,
-      padding:
-          const EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: 9,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
         color: _background,
-        borderRadius:
-            BorderRadius.circular(15),
-        border: Border.all(
-          color: _line,
-        ),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: _line),
       ),
       child: Row(
-        textDirection: isArabic
-            ? TextDirection.rtl
-            : TextDirection.ltr,
+        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
         children: [
           Container(
             width: 35,
             height: 35,
             decoration: BoxDecoration(
-              color: location == null
-                  ? _white
-                  : _successSoft,
+              color: location == null ? _white : _successSoft,
               shape: BoxShape.circle,
             ),
             child: Icon(
               location == null
                   ? Icons.location_searching_rounded
                   : Icons.location_on_rounded,
-              color: location == null
-                  ? _muted
-                  : _success,
+              color: location == null ? _muted : _success,
               size: 18,
             ),
           ),
           const SizedBox(width: 9),
           Expanded(
             child: Column(
-              crossAxisAlignment:
-                  isArabic
-                      ? CrossAxisAlignment.end
-                      : CrossAxisAlignment.start,
+              crossAxisAlignment: isArabic
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.start,
               children: [
                 Text(
-                  isArabic
-                      ? 'موقع المركبة'
-                      : 'Vehicle location',
+                  isArabic ? 'موقع المركبة' : 'Vehicle location',
                   style: const TextStyle(
                     color: _secondary,
                     fontSize: 8,
@@ -1195,13 +927,9 @@ class _PassengerTripScreenState
                 Text(
                   location == null
                       ? l10n.noLocationYet
-                      : localizedLocationSource(
-                          l10n,
-                          location.source,
-                        ),
+                      : localizedLocationSource(l10n, location.source),
                   maxLines: 1,
-                  overflow:
-                      TextOverflow.ellipsis,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: _text,
                     fontSize: 11,
@@ -1213,15 +941,10 @@ class _PassengerTripScreenState
           ),
           if (location != null)
             Container(
-              padding:
-                  const EdgeInsets.symmetric(
-                horizontal: 7,
-                vertical: 4,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
               decoration: BoxDecoration(
                 color: _successSoft,
-                borderRadius:
-                    BorderRadius.circular(9),
+                borderRadius: BorderRadius.circular(9),
               ),
               child: Text(
                 isArabic ? 'مباشر' : 'LIVE',
@@ -1241,14 +964,8 @@ class _PassengerTripScreenState
   // REFRESH
   // ============================================================
 
-  Widget _buildRefreshButton(
-    BuildContext context,
-    AppLocalizations l10n,
-  ) {
-    final isArabic =
-        Localizations.localeOf(context)
-            .languageCode ==
-            'ar';
+  Widget _buildRefreshButton(BuildContext context, AppLocalizations l10n) {
+    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
 
     return SizedBox(
       width: double.infinity,
@@ -1256,38 +973,21 @@ class _PassengerTripScreenState
       child: OutlinedButton.icon(
         onPressed: () {
           ref
-              .read(
-                passengerTripControllerProvider(
-                  widget.tripId,
-                ).notifier,
-              )
+              .read(passengerTripControllerProvider(widget.tripId).notifier)
               .refresh();
 
           ref.invalidate(checkpointsProvider);
         },
-        icon: const Icon(
-          Icons.refresh_rounded,
-          size: 16,
-        ),
+        icon: const Icon(Icons.refresh_rounded, size: 16),
         label: Text(
-          isArabic
-              ? 'تحديث الموقع'
-              : l10n.refresh,
-          style: const TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.w800,
-          ),
+          isArabic ? 'تحديث الموقع' : l10n.refresh,
+          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800),
         ),
-        style:
-            OutlinedButton.styleFrom(
+        style: OutlinedButton.styleFrom(
           foregroundColor: _text,
-          side: const BorderSide(
-            color: _line,
-          ),
-          shape:
-              RoundedRectangleBorder(
-            borderRadius:
-                BorderRadius.circular(13),
+          side: const BorderSide(color: _line),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(13),
           ),
         ),
       ),
@@ -1310,59 +1010,36 @@ class _PassengerTripScreenState
         final routeResult = snapshot.data;
 
         final routedPoints = routeResult?.points
-            .map(
-              (p) => GeoPoint(
-                p.latitude,
-                p.longitude,
-              ),
-            )
+            .map((p) => GeoPoint(p.latitude, p.longitude))
             .toList(growable: false);
 
-        final fallbackPoints =
-            _fallbackRoutePoints(data);
+        final fallbackPoints = _fallbackRoutePoints(data);
 
-        final pathPoints =
-            routedPoints != null &&
-                    routedPoints.length >= 2
-                ? routedPoints
-                : fallbackPoints;
+        final pathPoints = routedPoints != null && routedPoints.length >= 2
+            ? routedPoints
+            : fallbackPoints;
 
         final trip = data.trip;
 
         final origin = trip.hasRouteCoordinates
-            ? GeoPoint(
-                trip.originLat!,
-                trip.originLng!,
-              )
+            ? GeoPoint(trip.originLat!, trip.originLng!)
             : null;
 
-        final destination =
-            trip.hasRouteCoordinates
-                ? GeoPoint(
-                    trip.destinationLat!,
-                    trip.destinationLng!,
-                  )
-                : null;
+        final destination = trip.hasRouteCoordinates
+            ? GeoPoint(trip.destinationLat!, trip.destinationLng!)
+            : null;
 
         return MasariMap(
           emptyLabel: l10n.noLocationYet,
-          attributionLabel:
-              l10n.mapAttribution,
+          attributionLabel: l10n.mapAttribution,
 
           banner: data.locationIsStale
-              ? OfflineBanner(
-                  message:
-                      l10n.locationIsStale,
-                )
+              ? OfflineBanner(message: l10n.locationIsStale)
               : null,
 
           paths: [
             if (pathPoints.length >= 2)
-              MasariMapPath(
-                points: pathPoints,
-                color: _orange,
-                width: 7,
-              ),
+              MasariMapPath(points: pathPoints, color: _orange, width: 7),
           ],
 
           markers: [
@@ -1374,73 +1051,46 @@ class _PassengerTripScreenState
             // origin/destination/current location stay
             // visually on top when markers overlap.
             //
-            for (final checkpoint
-                in checkpointSnapshot.checkpoints)
-              if (_hasValidCheckpointPosition(
-                checkpoint,
-              ))
-                checkpointTrafficMarker(
-                  checkpoint,
-                ),
+            for (final checkpoint in checkpointSnapshot.checkpoints)
+              if (_hasValidCheckpointPosition(checkpoint))
+                checkpointTrafficMarker(checkpoint),
 
             // ==========================================================
             // ORIGIN
             // ==========================================================
-
             if (origin != null)
               MasariMapMarker(
                 position: origin,
-                icon:
-                    Icons.trip_origin_rounded,
+                icon: Icons.trip_origin_rounded,
                 color: _orange,
-                label:
-                    l10n.mapOriginLabel(
-                  _originCity(data),
-                ),
+                label: l10n.mapOriginLabel(_originCity(data)),
                 size: 42,
               ),
 
             // ==========================================================
             // DESTINATION
             // ==========================================================
-
             if (destination != null)
               MasariMapMarker(
                 position: destination,
                 icon: Icons.flag_rounded,
                 color: _orangeDark,
-                label:
-                    l10n.mapDestinationLabel(
-                  _destinationCity(data),
-                ),
+                label: l10n.mapDestinationLabel(_destinationCity(data)),
                 size: 42,
-                type:
-                    MasariMapMarkerType
-                        .destination,
+                type: MasariMapMarkerType.destination,
               ),
 
             // ==========================================================
             // CURRENT LOCATION
             // ==========================================================
-
             if (data.location != null)
               MasariMapMarker(
-                position: GeoPoint(
-                  data.location!.lat,
-                  data.location!.lng,
-                ),
-                icon:
-                    Icons.local_shipping_rounded,
+                position: GeoPoint(data.location!.lat, data.location!.lng),
+                icon: Icons.local_shipping_rounded,
                 color: _orange,
-                label:
-                    localizedLocationSource(
-                  l10n,
-                  data.location!.source,
-                ),
+                label: localizedLocationSource(l10n, data.location!.source),
                 size: 50,
-                type:
-                    MasariMapMarkerType
-                        .driver,
+                type: MasariMapMarkerType.driver,
               ),
           ],
         );
@@ -1452,9 +1102,7 @@ class _PassengerTripScreenState
   // CHECKPOINT POSITION VALIDATION
   // ============================================================
 
-  bool _hasValidCheckpointPosition(
-    Checkpoint checkpoint,
-  ) {
+  bool _hasValidCheckpointPosition(Checkpoint checkpoint) {
     final lat = checkpoint.position.latitude;
     final lng = checkpoint.position.longitude;
 
@@ -1483,25 +1131,19 @@ class _PassengerTripScreenState
   // ERROR STATE
   // ============================================================
 
-  Widget _buildErrorState(
-    BuildContext context,
-    AppLocalizations l10n,
-  ) {
+  Widget _buildErrorState(BuildContext context, AppLocalizations l10n) {
     return Container(
       color: _background,
       child: Center(
         child: Padding(
-          padding:
-              const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(24),
           child: Column(
-            mainAxisSize:
-                MainAxisSize.min,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Container(
                 width: 76,
                 height: 76,
-                decoration:
-                    const BoxDecoration(
+                decoration: const BoxDecoration(
                   color: _orangeSoft,
                   shape: BoxShape.circle,
                 ),
@@ -1514,21 +1156,18 @@ class _PassengerTripScreenState
               const SizedBox(height: 20),
               Text(
                 l10n.retry,
-                textAlign:
-                    TextAlign.center,
+                textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: _text,
                   fontSize: 20,
-                  fontWeight:
-                      FontWeight.w900,
+                  fontWeight: FontWeight.w900,
                 ),
               ),
               const SizedBox(height: 20),
               SizedBox(
                 width: 180,
                 height: 46,
-                child:
-                    ElevatedButton(
+                child: ElevatedButton(
                   onPressed: () {
                     ref
                         .read(
@@ -1538,32 +1177,19 @@ class _PassengerTripScreenState
                         )
                         .refresh();
 
-                    ref.invalidate(
-                      checkpointsProvider,
-                    );
+                    ref.invalidate(checkpointsProvider);
                   },
-                  style:
-                      ElevatedButton.styleFrom(
-                    backgroundColor:
-                        _text,
-                    foregroundColor:
-                        _white,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _text,
+                    foregroundColor: _white,
                     elevation: 0,
-                    shape:
-                        RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(
-                        14,
-                      ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
                     ),
                   ),
                   child: Text(
                     l10n.retry,
-                    style:
-                        const TextStyle(
-                      fontWeight:
-                          FontWeight.w800,
-                    ),
+                    style: const TextStyle(fontWeight: FontWeight.w800),
                   ),
                 ),
               ),
@@ -1594,10 +1220,7 @@ class _PassengerTripScreenState
     }
   }
 
-  String _statusLabel(
-    AppLocalizations l10n,
-    String status,
-  ) {
+  String _statusLabel(AppLocalizations l10n, String status) {
     return status.toUpperCase();
   }
 }
@@ -1606,8 +1229,7 @@ class _PassengerTripScreenState
 // BOTTOM SHEET HANDLE
 // ============================================================================
 
-class _BottomSheetHandle
-    extends StatelessWidget {
+class _BottomSheetHandle extends StatelessWidget {
   const _BottomSheetHandle();
 
   @override
@@ -1617,10 +1239,8 @@ class _BottomSheetHandle
         width: 38,
         height: 4,
         decoration: BoxDecoration(
-          color:
-              _PassengerTripScreenState._line,
-          borderRadius:
-              BorderRadius.circular(10),
+          color: _PassengerTripScreenState._line,
+          borderRadius: BorderRadius.circular(10),
         ),
       ),
     );

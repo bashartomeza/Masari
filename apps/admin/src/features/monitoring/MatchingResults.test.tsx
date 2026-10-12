@@ -307,7 +307,7 @@ describe("MatchingResults", () => {
       ...combined,
       status: "completed" as MatchRow["status"],
       driver_route: { ...combined.driver_route, status: "delivered" as MatchRow["driver_route"]["status"] },
-      passenger_request: { ...combined.passenger_request!, status: "completed" as NonNullable<MatchRow["passenger_request"]>["status"] },
+      passenger_request: { ...combined.passenger_request!, status: "assigned" as NonNullable<MatchRow["passenger_request"]>["status"] },
       merchant_order: { ...combined.merchant_order!, status: "accepted" as NonNullable<MatchRow["merchant_order"]>["status"] },
       parcel_batch: { ...combined.parcel_batch!, status: "completed" as NonNullable<MatchRow["parcel_batch"]>["status"] }
     };

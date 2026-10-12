@@ -21,13 +21,9 @@ void main() {
         apiClient: _client((request) async {
           if (request.url.path.endsWith('/passenger/requests') &&
               request.method == 'POST') {
-            createBody =
-                jsonDecode(request.body) as Map<String, dynamic>;
+            createBody = jsonDecode(request.body) as Map<String, dynamic>;
 
-            return http.Response(
-              '{"request":${_requestJson('created')}}',
-              201,
-            );
+            return http.Response('{"request":${_requestJson('created')}}', 201);
           }
 
           if (request.url.path.endsWith('/cancel')) {
@@ -45,10 +41,7 @@ void main() {
           }
 
           if (request.url.path.endsWith('/request_1')) {
-            return http.Response(
-              '{"request":${_requestJson('pending')}}',
-              200,
-            );
+            return http.Response('{"request":${_requestJson('pending')}}', 200);
           }
 
           return http.Response(
@@ -62,19 +55,13 @@ void main() {
       // LIST
       // ------------------------------------------------------------------
 
-      expect(
-        (await repo.listRequests()).single.id,
-        'request_1',
-      );
+      expect((await repo.listRequests()).single.id, 'request_1');
 
       // ------------------------------------------------------------------
       // ACTIVE
       // ------------------------------------------------------------------
 
-      expect(
-        (await repo.activeRequests()).single.status,
-        'pending',
-      );
+      expect((await repo.activeRequests()).single.status, 'pending');
 
       // ------------------------------------------------------------------
       // DETAIL
@@ -100,171 +87,91 @@ void main() {
           latitude: 31.705400,
           longitude: 35.202400,
         ),
-        preferredTime: DateTime.utc(
-          2026,
-          7,
-          2,
-          10,
-        ),
+        preferredTime: DateTime.utc(2026, 7, 2, 10),
         passengerCount: 2,
       );
 
-      expect(
-        createBody?['pickup_label'],
-        'PPU Main Gate',
-      );
+      expect(createBody?['pickup_label'], 'PPU Main Gate');
 
-      expect(
-        createBody?['pickup_lat'],
-        31.55,
-      );
+      expect(createBody?['pickup_lat'], 31.55);
 
-      expect(
-        createBody?['pickup_lng'],
-        35.1,
-      );
+      expect(createBody?['pickup_lng'], 35.1);
 
-      expect(
-        createBody?['destination_label'],
-        'Bethlehem Center',
-      );
+      expect(createBody?['destination_label'], 'Bethlehem Center');
 
-      expect(
-        createBody?['destination_lat'],
-        31.7054,
-      );
+      expect(createBody?['destination_lat'], 31.7054);
 
-      expect(
-        createBody?['destination_lng'],
-        35.2024,
-      );
+      expect(createBody?['destination_lng'], 35.2024);
 
-      expect(
-        createBody?['passenger_count'],
-        2,
-      );
+      expect(createBody?['passenger_count'], 2);
 
       // ------------------------------------------------------------------
       // CANCEL
       // ------------------------------------------------------------------
 
-      expect(
-        (await repo.cancelRequest('request_1')).status,
-        'cancelled',
-      );
+      expect((await repo.cancelRequest('request_1')).status, 'cancelled');
     },
   );
 
-  test(
-    'match run and scoring breakdown parsing',
-    () async {
-      final repo = MatchingRepository(
-        apiClient: _client(
-          (request) async => http.Response(
-            _matchResponse,
-            201,
-          ),
+  test('match run and scoring breakdown parsing', () async {
+    final repo = MatchingRepository(
+      apiClient: _client((request) async => http.Response(_matchResponse, 201)),
+    );
+
+    final match = await repo.runForPassengerRequest('request_1');
+
+    expect(match.id, 'match_1');
+
+    expect(match.breakdown.corridorOverlap, 0.95);
+
+    expect(match.score, 0.9317);
+
+    expect(match.passengerRequestId, 'request_1');
+  });
+
+  test('persisted passenger match can be recovered after reopening', () async {
+    final repo = MatchingRepository(
+      apiClient: _client(
+        (request) async => http.Response(
+          '{"matches":[${_matchSummaryJson("accepted")}]}',
+          200,
         ),
-      );
+      ),
+    );
 
-      final match =
-          await repo.runForPassengerRequest('request_1');
+    final match = await repo.latestForPassengerRequest('request_1');
+    expect(match?.id, 'match_1');
+    expect(match?.status, 'accepted');
+    expect(match?.passengerRequestId, 'request_1');
+  });
 
-      expect(
-        match.id,
-        'match_1',
-      );
+  test('trip list, detail, location, and backend error mapping', () async {
+    final repo = TripRepository(
+      apiClient: _client((request) async {
+        if (request.url.path.endsWith('/location')) {
+          return http.Response('{"location":$_locationJson}', 200);
+        }
 
-      expect(
-        match.breakdown.corridorOverlap,
-        0.95,
-      );
+        if (request.url.path.endsWith('/missing')) {
+          return http.Response('{"error":"trip_not_found"}', 404);
+        }
 
-      expect(
-        match.score,
-        0.9317,
-      );
+        if (request.url.path.endsWith('/trips')) {
+          return http.Response('{"trips":[$_tripJson]}', 200);
+        }
 
-      expect(
-        match.passengerRequestId,
-        'request_1',
-      );
-    },
-  );
+        return http.Response('{"trip":$_tripJson}', 200);
+      }),
+    );
 
-  test(
-    'persisted passenger match can be recovered after reopening',
-    () async {
-      final repo = MatchingRepository(
-        apiClient: _client(
-          (request) async => http.Response(
-            '{"matches":[${_matchSummaryJson("accepted")}]}',
-            200,
-          ),
-        ),
-      );
+    expect((await repo.listTrips()).single.status, 'accepted');
 
-      final match = await repo.latestForPassengerRequest('request_1');
-      expect(match?.id, 'match_1');
-      expect(match?.status, 'accepted');
-      expect(match?.passengerRequestId, 'request_1');
-    },
-  );
+    expect((await repo.tripDetail('trip_1')).routeLabel, contains('Hebron'));
 
-  test(
-    'trip list, detail, location, and backend error mapping',
-    () async {
-      final repo = TripRepository(
-        apiClient: _client((request) async {
-          if (request.url.path.endsWith('/location')) {
-            return http.Response(
-              '{"location":$_locationJson}',
-              200,
-            );
-          }
+    expect((await repo.latestLocation('trip_1'))?.sequence, 0);
 
-          if (request.url.path.endsWith('/missing')) {
-            return http.Response(
-              '{"error":"trip_not_found"}',
-              404,
-            );
-          }
-
-          if (request.url.path.endsWith('/trips')) {
-            return http.Response(
-              '{"trips":[$_tripJson]}',
-              200,
-            );
-          }
-
-          return http.Response(
-            '{"trip":$_tripJson}',
-            200,
-          );
-        }),
-      );
-
-      expect(
-        (await repo.listTrips()).single.status,
-        'accepted',
-      );
-
-      expect(
-        (await repo.tripDetail('trip_1')).routeLabel,
-        contains('Hebron'),
-      );
-
-      expect(
-        (await repo.latestLocation('trip_1'))?.sequence,
-        0,
-      );
-
-      await expectLater(
-        repo.tripDetail('missing'),
-        throwsA(isA<ApiException>()),
-      );
-    },
-  );
+    await expectLater(repo.tripDetail('missing'), throwsA(isA<ApiException>()));
+  });
 }
 
 // ==========================================================================
@@ -274,9 +181,7 @@ void main() {
 AuthenticatedApiClient _client(
   Future<http.Response> Function(http.Request request) handler,
 ) {
-  return TestAuthenticatedClient(
-    handler: handler,
-  ).client;
+  return TestAuthenticatedClient(handler: handler).client;
 }
 
 // ==========================================================================

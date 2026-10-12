@@ -178,6 +178,7 @@ class _PassengerTripsScreenState extends ConsumerState<PassengerTripsScreen> {
                             const SizedBox(height: AppTokens.spaceSmall),
 
                           _TripCard(
+                            key: ValueKey('passengerTrip-${item.request.id}'),
                             request: item.request,
                             tripId: item.tripId,
                             active: item.isActive,
@@ -566,13 +567,14 @@ class _TopHeader extends StatelessWidget {
 
         const SizedBox(width: 8),
 
-        if (!ShellLanguageControl.isProvided(context)) _GlassIconButton(
-          icon: Icons.language_rounded,
-          label: Localizations.localeOf(context).languageCode == 'ar'
-              ? 'عربي'
-              : 'EN',
-          onTap: onLanguageTap,
-        ),
+        if (!ShellLanguageControl.isProvided(context))
+          _GlassIconButton(
+            icon: Icons.language_rounded,
+            label: Localizations.localeOf(context).languageCode == 'ar'
+                ? 'عربي'
+                : 'EN',
+            onTap: onLanguageTap,
+          ),
       ],
     );
   }
@@ -1000,6 +1002,7 @@ class _TripCard extends StatelessWidget {
     required this.request,
     required this.tripId,
     required this.active,
+    super.key,
   });
 
   final PassengerRequest request;

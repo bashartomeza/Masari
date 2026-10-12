@@ -51,8 +51,7 @@ class PassengerHistoryState {
 
   List<PassengerRequest> get past => _sorted(
     requests.where(
-      (request) =>
-          request.status == 'completed' || request.status == 'expired',
+      (request) => request.status == 'completed' || request.status == 'expired',
     ),
   );
 
