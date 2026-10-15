@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:masari_mobile/features/canonical_routes/domain/canonical_route_models.dart';
+import 'package:masari_mobile/features/driver/presentation/driver_trip_screen.dart';
 import 'package:masari_mobile/l10n/app_localizations.dart';
 
 import '../../../core/location/location_service.dart';
@@ -24,11 +25,8 @@ import '../application/passenger_map_controller.dart';
 
 /// Passenger's main Map + Alerts screen.
 ///
-/// The page keeps the Map Alerts path and top AppBar, while the trip
-/// content follows the same visual language, labels, route logic and
-/// location presentation used by PassengerTripScreen.
-///
-/// Checkpoints and warnings remain below the trip content.
+/// Passenger map and alerts screen with a custom orange header, route-first
+/// layout, and an interactive checkpoint browser.
 class PassengerMapAlertsScreen extends ConsumerWidget {
   const PassengerMapAlertsScreen({super.key});
 
@@ -38,7 +36,7 @@ class PassengerMapAlertsScreen extends ConsumerWidget {
     final view = ref.watch(passengerMapViewProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F7FA),
+      backgroundColor: const Color(0xFFFFF8F4),
       appBar: _buildAppBar(context, l10n),
       body: SafeArea(
         child: view.when(
@@ -61,7 +59,6 @@ class PassengerMapAlertsScreen extends ConsumerWidget {
     BuildContext context,
     AppLocalizations l10n,
   ) {
-    const navy = Color(0xFF102A43);
     const orange = Color(0xFFF97316);
 
     return AppBar(
@@ -72,7 +69,10 @@ class PassengerMapAlertsScreen extends ConsumerWidget {
       toolbarHeight: 76,
       leading: IconButton(
         tooltip: 'Back',
-        icon: const Icon(Icons.arrow_back_rounded, size: 26),
+        icon: const Icon(
+          Icons.arrow_back_rounded,
+          size: 26,
+        ),
         onPressed: () => context.go('/passenger'),
       ),
       title: Column(
@@ -99,7 +99,9 @@ class PassengerMapAlertsScreen extends ConsumerWidget {
       ),
       actions: const [
         Padding(
-          padding: EdgeInsetsDirectional.only(end: 8),
+          padding: EdgeInsetsDirectional.only(
+            end: 8,
+          ),
           child: LanguageSwitch(),
         ),
       ],
@@ -118,9 +120,10 @@ class _MapBody extends ConsumerStatefulWidget {
 }
 
 class _MapBodyState extends ConsumerState<_MapBody> {
-  static const Color _navy = Color(0xFF102A43);
-  static const Color _navyLight = Color(0xFF1D4260);
+  static const Color _navy = Color(0xFF292524);
+  static const Color _navyLight = Color(0xFFF97316);
   static const Color _orange = Color(0xFFF97316);
+  static const Color _pageBackground = Color(0xFFF4F7FA);
   static const Color _mutedText = Color(0xFF64748B);
   static const Color _border = Color(0xFFE2E8F0);
 
@@ -427,7 +430,12 @@ class _MapBodyState extends ConsumerState<_MapBody> {
       },
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
+        padding: const EdgeInsets.fromLTRB(
+          16,
+          18,
+          16,
+          28,
+        ),
         children: [
           // ==================================================================
           // TRIP SUMMARY
@@ -534,7 +542,10 @@ class _MapBodyState extends ConsumerState<_MapBody> {
           // ==================================================================
           // CHECKPOINTS / ALERTS
           // ==================================================================
-          const SizedBox(height: AppTokens.spaceMedium),
+
+          const SizedBox(
+            height: AppTokens.spaceMedium,
+          ),
 
           MasariSection(
             title: l10n.checkpoints,
@@ -762,9 +773,14 @@ class _MapBodyState extends ConsumerState<_MapBody> {
                         if (origin != null)
                           MasariMapMarker(
                             position: origin,
-                            icon: Icons.trip_origin_rounded,
-                            color: SemanticColors.upcomingRoute,
-                            label: l10n.mapOriginLabel('Hebron'),
+                            icon:
+                                Icons.trip_origin_rounded,
+                            color: SemanticColors
+                                .upcomingRoute,
+                            label:
+                                l10n.mapOriginLabel(
+                              'Hebron',
+                            ),
                             size: 42,
                           ),
 
@@ -775,8 +791,12 @@ class _MapBodyState extends ConsumerState<_MapBody> {
                           MasariMapMarker(
                             position: destination,
                             icon: Icons.flag_rounded,
-                            color: SemanticColors.completedRoute,
-                            label: l10n.mapDestinationLabel('Bethlehem'),
+                            color: SemanticColors
+                                .completedRoute,
+                            label:
+                                l10n.mapDestinationLabel(
+                              'Bethlehem',
+                            ),
                             size: 42,
                           ),
 
@@ -789,9 +809,12 @@ class _MapBodyState extends ConsumerState<_MapBody> {
                               position.value!.latitude,
                               position.value!.longitude,
                             ),
-                            icon: Icons.my_location_rounded,
-                            color: SemanticColors.passenger,
-                            label: l10n.mapYourLocation,
+                            icon:
+                                Icons.my_location_rounded,
+                            color:
+                                SemanticColors.passenger,
+                            label:
+                                l10n.mapYourLocation,
                             size: 40,
                           ),
 
@@ -850,7 +873,8 @@ class _MapBodyState extends ConsumerState<_MapBody> {
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
                           color: _navy,
-                          borderRadius: BorderRadius.circular(18),
+                          borderRadius:
+                              BorderRadius.circular(18),
                         ),
                         child: Row(
                           children: [
@@ -863,17 +887,21 @@ class _MapBodyState extends ConsumerState<_MapBody> {
                               child: Text(
                                 'الوقت المتبقي: '
                                 '${routeResult.formattedDuration}',
-                                style: const TextStyle(
+                                style:
+                                    const TextStyle(
                                   color: Colors.white,
-                                  fontWeight: FontWeight.w800,
+                                  fontWeight:
+                                      FontWeight.w800,
                                 ),
                               ),
                             ),
                             Text(
                               '${routeResult.distanceKilometers.toStringAsFixed(1)} km',
-                              style: const TextStyle(
+                              style:
+                                  const TextStyle(
                                 color: Colors.white70,
-                                fontWeight: FontWeight.w700,
+                                fontWeight:
+                                    FontWeight.w700,
                               ),
                             ),
                           ],
@@ -1130,12 +1158,16 @@ class _DriverArrivalCard extends StatelessWidget {
                 width: 50,
                 height: 50,
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(16),
+                  color:
+                      theme.colorScheme.primaryContainer,
+                  borderRadius:
+                      BorderRadius.circular(16),
                 ),
                 child: Icon(
                   Icons.local_shipping_rounded,
-                  color: theme.colorScheme.onPrimaryContainer,
+                  color: theme
+                      .colorScheme
+                      .onPrimaryContainer,
                   size: 28,
                 ),
               ),
@@ -1226,8 +1258,14 @@ class _DriverArrivalMetric extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Icon(icon, color: theme.colorScheme.primary, size: 25),
-          const SizedBox(height: AppTokens.spaceExtraSmall),
+          Icon(
+            icon,
+            color: theme.colorScheme.primary,
+            size: 25,
+          ),
+          const SizedBox(
+            height: AppTokens.spaceExtraSmall,
+          ),
           Text(
             value,
             style: theme.textTheme.titleLarge?.copyWith(
@@ -1288,7 +1326,8 @@ class _PassengerRouteSummary extends StatelessWidget {
           if (view.pickup != null)
             _PassengerRoutePoint(
               icon: Icons.location_on_rounded,
-              color: SemanticColors.upcomingRoute,
+              color:
+                  SemanticColors.upcomingRoute,
               title: 'نقطة الالتقاء',
               value: stopName(view.pickup!),
             ),
@@ -1306,7 +1345,8 @@ class _PassengerRouteSummary extends StatelessWidget {
           if (view.dropoff != null)
             _PassengerRoutePoint(
               icon: Icons.flag_rounded,
-              color: SemanticColors.completedRoute,
+              color:
+                  SemanticColors.completedRoute,
               title: 'الوجهة',
               value: stopName(view.dropoff!),
             ),
@@ -1360,6 +1400,471 @@ class _PassengerRoutePoint extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ============================================================================
+// ROAD REPORTS
+// ============================================================================
+
+class _RoadReport {
+  const _RoadReport({
+    required this.category,
+    required this.issue,
+    required this.location,
+    required this.details,
+    required this.createdAt,
+  });
+
+  final String category;
+  final String issue;
+  final String location;
+  final String details;
+  final DateTime createdAt;
+}
+
+/// Reports UI. The current project screen has no report submission provider/API,
+/// so newly created reports are kept in this widget's state only. Connect this
+/// panel to the reports repository/provider when the backend endpoint exists.
+class _ReportsPanel extends StatefulWidget {
+  const _ReportsPanel();
+
+  @override
+  State<_ReportsPanel> createState() => _ReportsPanelState();
+}
+
+class _ReportsPanelState extends State<_ReportsPanel> {
+  static const _orange = Color(0xFFF97316);
+  static const _ink = Color(0xFF292524);
+  static const _muted = Color(0xFF78716C);
+  static const _border = Color(0xFFF0E4DB);
+  final List<_RoadReport> _reports = [];
+
+  Future<void> _createReport() async {
+    final report = await showModalBottomSheet<_RoadReport>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const _CreateRoadReportSheet(),
+    );
+
+    if (!mounted || report == null) return;
+    setState(() => _reports.insert(0, report));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('تمت إضافة البلاغ للعرض في هذه الجلسة.'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: _border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x08000000),
+            blurRadius: 16,
+            offset: Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF0E5),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Icon(
+                  Icons.campaign_rounded,
+                  color: _orange,
+                  size: 25,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'ساهم في تحديث حالة الطريق',
+                      style: TextStyle(
+                        color: _ink,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'أبلغ الركاب عن مشكلة قد تؤثر على رحلتهم',
+                      style: TextStyle(
+                        color: _muted,
+                        fontSize: 11.5,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 48,
+            child: FilledButton.icon(
+              onPressed: _createReport,
+              style: FilledButton.styleFrom(
+                backgroundColor: _orange,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                textStyle: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 13,
+                ),
+              ),
+              icon: const Icon(Icons.add_rounded, size: 21),
+              label: const Text('إضافة بلاغ جديد'),
+            ),
+          ),
+          const SizedBox(height: 15),
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'البلاغات الأخيرة',
+                  style: TextStyle(
+                    color: _ink,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF0E5),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '${_reports.length} بلاغ',
+                  style: const TextStyle(
+                    color: _orange,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (_reports.isEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFFAF7),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: _border),
+              ),
+              child: const Column(
+                children: [
+                  Icon(Icons.mark_chat_unread_outlined, color: Color(0xFFB8A69A), size: 28),
+                  SizedBox(height: 8),
+                  Text(
+                    'ما في بلاغات مضافة لحد الآن',
+                    style: TextStyle(
+                      color: _ink,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'إذا لاحظت مشكلة بالطريق، أضف بلاغًا ليساعد الركاب الآخرين.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: _muted,
+                      fontSize: 11,
+                      height: 1.5,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            ..._reports.take(5).map((report) => Padding(
+              padding: const EdgeInsets.only(bottom: 9),
+              child: _RoadReportTile(report: report),
+            )),
+          const SizedBox(height: 4),
+          const Text(
+            'ملاحظة: البلاغات المضافة هنا تجريبية ومحفوظة مؤقتًا على الشاشة فقط.',
+            style: TextStyle(
+              color: _muted,
+              fontSize: 10,
+              height: 1.4,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RoadReportTile extends StatelessWidget {
+  const _RoadReportTile({required this.report});
+
+  final _RoadReport report;
+
+  @override
+  Widget build(BuildContext context) {
+    const orange = Color(0xFFF97316);
+    const ink = Color(0xFF292524);
+    const muted = Color(0xFF78716C);
+    final icon = switch (report.category) {
+      'الحواجز' => Icons.shield_outlined,
+      'الرحلة والمواصلات' => Icons.directions_bus_rounded,
+      'السلامة' => Icons.warning_amber_rounded,
+      _ => Icons.traffic_rounded,
+    };
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: const Color(0xFFF0E4DB)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF0E5),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: orange, size: 20),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(report.issue, style: const TextStyle(color: ink, fontSize: 12.5, fontWeight: FontWeight.w900)),
+                if (report.location.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(Icons.location_on_outlined, size: 13, color: muted),
+                      const SizedBox(width: 3),
+                      Expanded(child: Text(report.location, style: const TextStyle(color: muted, fontSize: 11))),
+                    ],
+                  ),
+                ],
+                if (report.details.isNotEmpty) ...[
+                  const SizedBox(height: 5),
+                  Text(report.details, style: const TextStyle(color: muted, fontSize: 11.5, height: 1.4)),
+                ],
+                const SizedBox(height: 7),
+                Row(
+                  children: [
+                    Text(report.category, style: const TextStyle(color: orange, fontSize: 10.5, fontWeight: FontWeight.w800)),
+                    const SizedBox(width: 8),
+                    const Text('• بانتظار التحقق', style: TextStyle(color: muted, fontSize: 10.5)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CreateRoadReportSheet extends StatefulWidget {
+  const _CreateRoadReportSheet();
+
+  @override
+  State<_CreateRoadReportSheet> createState() => _CreateRoadReportSheetState();
+}
+
+class _CreateRoadReportSheetState extends State<_CreateRoadReportSheet> {
+  static const _orange = Color(0xFFF97316);
+  static const _ink = Color(0xFF292524);
+  static const _muted = Color(0xFF78716C);
+  static const _categories = <String>[
+    'الطريق',
+    'الحواجز',
+    'الرحلة والمواصلات',
+    'السلامة',
+  ];
+  static const Map<String, List<String>> _issues = {
+    'الطريق': ['ازدحام شديد', 'حادث على الطريق', 'إغلاق طريق', 'أعمال صيانة', 'عائق على الطريق'],
+    'الحواجز': ['تغيّر حالة الحاجز', 'انتظار طويل', 'الحاجز مغلق', 'معلومات الحاجز غير دقيقة'],
+    'الرحلة والمواصلات': ['تأخر المركبة', 'السائق لم يصل', 'مشكلة في نقطة الالتقاء', 'اختلاف مسار الرحلة'],
+    'السلامة': ['خطر على الطريق', 'عائق يهدد السلامة', 'حالة طارئة أثناء الرحلة'],
+  };
+
+  final _locationController = TextEditingController();
+  final _detailsController = TextEditingController();
+  String _category = _categories.first;
+  String _issue = _issues[_categories.first]!.first;
+
+  @override
+  void dispose() {
+    _locationController.dispose();
+    _detailsController.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    Navigator.of(context).pop(
+      _RoadReport(
+        category: _category,
+        issue: _issue,
+        location: _locationController.text.trim(),
+        details: _detailsController.text.trim(),
+        createdAt: DateTime.now(),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    return Padding(
+      padding: EdgeInsets.only(bottom: bottomInset),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(20, 10, 20, 22),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Center(
+                child: Container(
+                  width: 42,
+                  height: 4,
+                  decoration: BoxDecoration(color: const Color(0xFFE7DDD6), borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+              const SizedBox(height: 18),
+              const Text('إضافة بلاغ جديد', style: TextStyle(color: _ink, fontSize: 20, fontWeight: FontWeight.w900)),
+              const SizedBox(height: 5),
+              const Text('اختاري نوع المشكلة وأضيفي التفاصيل المتوفرة.', style: TextStyle(color: _muted, fontSize: 12, height: 1.5)),
+              const SizedBox(height: 20),
+              const Text('تصنيف البلاغ', style: TextStyle(color: _ink, fontSize: 12, fontWeight: FontWeight.w800)),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _categories.map((category) {
+                  final selected = _category == category;
+                  return ChoiceChip(
+                    label: Text(category),
+                    selected: selected,
+                    showCheckmark: false,
+                    selectedColor: const Color(0xFFFFE8D8),
+                    backgroundColor: const Color(0xFFFFFAF7),
+                    side: BorderSide(color: selected ? _orange : const Color(0xFFEDE2DA)),
+                    labelStyle: TextStyle(color: selected ? _orange : _ink, fontSize: 11.5, fontWeight: FontWeight.w700),
+                    onSelected: (_) => setState(() {
+                      _category = category;
+                      _issue = _issues[category]!.first;
+                    }),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 17),
+              const Text('ما المشكلة؟', style: TextStyle(color: _ink, fontSize: 12, fontWeight: FontWeight.w800)),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                value: _issue,
+                isExpanded: true,
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: const Color(0xFFFFFAF7),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 13, vertical: 13),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFEDE2DA))),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFEDE2DA))),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: _orange, width: 1.5)),
+                ),
+                items: _issues[_category]!.map((issue) => DropdownMenuItem(value: issue, child: Text(issue, style: const TextStyle(fontSize: 12)))).toList(),
+                onChanged: (value) { if (value != null) setState(() => _issue = value); },
+              ),
+              const SizedBox(height: 17),
+              const Text('الموقع أو اسم المنطقة (اختياري)', style: TextStyle(color: _ink, fontSize: 12, fontWeight: FontWeight.w800)),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _locationController,
+                textInputAction: TextInputAction.next,
+                decoration: InputDecoration(
+                  hintText: 'مثال: مدخل الخليل أو شارع الجامعة',
+                  hintStyle: const TextStyle(fontSize: 11.5, color: Color(0xFFB2A39A)),
+                  prefixIcon: const Icon(Icons.location_on_outlined, color: _orange, size: 20),
+                  filled: true,
+                  fillColor: const Color(0xFFFFFAF7),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFEDE2DA))),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFEDE2DA))),
+                ),
+              ),
+              const SizedBox(height: 17),
+              const Text('تفاصيل إضافية (اختياري)', style: TextStyle(color: _ink, fontSize: 12, fontWeight: FontWeight.w800)),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _detailsController,
+                minLines: 2,
+                maxLines: 4,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: InputDecoration(
+                  hintText: 'اكتبي وصفًا مختصرًا يساعد الآخرين على فهم الحالة...',
+                  hintStyle: const TextStyle(fontSize: 11.5, color: Color(0xFFB2A39A)),
+                  alignLabelWithHint: true,
+                  filled: true,
+                  fillColor: const Color(0xFFFFFAF7),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFEDE2DA))),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFEDE2DA))),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: _orange, width: 1.5)),
+                ),
+              ),
+              const SizedBox(height: 21),
+              SizedBox(
+                height: 49,
+                child: FilledButton.icon(
+                  onPressed: _submit,
+                  style: FilledButton.styleFrom(backgroundColor: _orange, foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
+                  icon: const Icon(Icons.send_rounded, size: 18),
+                  label: const Text('إضافة البلاغ', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text('لا تضيفي معلومات شخصية أو تفاصيل حساسة.', textAlign: TextAlign.center, style: TextStyle(color: _muted, fontSize: 10.5)),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -1423,13 +1928,19 @@ class _CheckpointsPanel extends ConsumerWidget {
         }
         final cities = grouped.keys.toList()..sort();
 
+        final congestedCount = snapshot.checkpoints.where((checkpoint) =>
+            _isCheckpointCongested(checkpoint.enteringStatus) ||
+            _isCheckpointCongested(checkpoint.leavingStatus)).length;
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Summary card opens the complete list of cities.
+            // One clear action: open the checkpoint browser instead of
+            // duplicating every city as a long static list on this screen.
             Material(
               color: _navy,
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(22),
+              clipBehavior: Clip.antiAlias,
               child: InkWell(
                 onTap: () => _showCitiesSheet(
                   context: context,
@@ -1437,94 +1948,146 @@ class _CheckpointsPanel extends ConsumerWidget {
                   snapshot: snapshot,
                   grouped: grouped,
                 ),
-                borderRadius: BorderRadius.circular(18),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 46,
-                        height: 46,
+                child: Stack(
+                  children: [
+                    PositionedDirectional(
+                      end: -18,
+                      top: -24,
+                      child: Container(
+                        width: 112,
+                        height: 112,
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: const Icon(
-                          Icons.fact_check_rounded,
-                          color: Colors.white,
-                          size: 25,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.08),
+                            width: 18,
+                          ),
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              l10n.checkpointCount(snapshot.checkpoints.length),
-                              style: const TextStyle(
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(18),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                width: 50,
+                                height: 50,
+                                decoration: BoxDecoration(
+                                  color: _orange,
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: const Icon(
+                                  Icons.route_rounded,
+                                  color: Colors.white,
+                                  size: 26,
+                                ),
+                              ),
+                              const SizedBox(width: 13),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'الحواجز على الطريق',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 5),
+                                    Text(
+                                      '${snapshot.checkpoints.length} حاجز · ${cities.length} مدينة',
+                                      style: TextStyle(
+                                        color: Colors.white.withValues(alpha: 0.72),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Icon(
+                                Icons.arrow_forward_ios_rounded,
                                 color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
+                                size: 17,
                               ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '${cities.length} مدينة · اضغط لعرض الحواجز حسب المدينة',
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.78),
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
+                            ],
+                          ),
+                          const SizedBox(height: 17),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _CheckpointMiniMetric(
+                                  label: 'المدن',
+                                  value: '${cities.length}',
+                                  icon: Icons.location_city_rounded,
+                                ),
                               ),
+                              const SizedBox(width: 9),
+                              Expanded(
+                                child: _CheckpointMiniMetric(
+                                  label: 'حواجز عليها ازدحام',
+                                  value: '$congestedCount',
+                                  icon: Icons.traffic_rounded,
+                                  accent: congestedCount > 0,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 15),
+                          Container(
+                            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(14),
                             ),
-                          ],
-                        ),
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.visibility_rounded, color: _navy, size: 18),
+                                SizedBox(width: 8),
+                                Text(
+                                  'عرض تفاصيل الحواجز وحالتها',
+                                  style: TextStyle(
+                                    color: _navy,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                      const Icon(
-                        Icons.arrow_forward_ios_rounded,
-                        color: Colors.white,
-                        size: 17,
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
-            const SizedBox(height: 12),
-            for (final city in cities)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 9),
-                child: _CheckpointCityTile(
-                  city: city,
-                  checkpoints: grouped[city]!,
-                  onTap: () => _showCityCheckpointsSheet(
-                    context: context,
-                    city: city,
-                    checkpoints: grouped[city]!,
-                  ),
-                ),
-              ),
             if (snapshot.fetchedAt != null) ...[
-              const SizedBox(height: 3),
+              const SizedBox(height: 10),
               Text(
                 'آخر تحديث للبيانات: ${_formatCheckpointTime(snapshot.fetchedAt)}',
                 textAlign: TextAlign.end,
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: AppTheme.onSurfaceVariant,
-                ),
+                      color: AppTheme.onSurfaceVariant,
+                    ),
               ),
             ],
             const SizedBox(height: 8),
-            OutlinedButton.icon(
-              onPressed: () => ref.read(checkpointsProvider.notifier).refresh(),
-              icon: const Icon(Icons.refresh_rounded, size: 18),
-              label: const Text('تحديث بيانات الحواجز'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: _navy,
-                side: const BorderSide(color: _border),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(13),
+            Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: TextButton.icon(
+                onPressed: () => ref.read(checkpointsProvider.notifier).refresh(),
+                icon: const Icon(Icons.refresh_rounded, size: 17),
+                label: const Text('تحديث بيانات الحواجز'),
+                style: TextButton.styleFrom(
+                  foregroundColor: _navy,
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 ),
               ),
             ),
@@ -1700,6 +2263,53 @@ class _CheckpointsPanel extends ConsumerWidget {
   }
 }
 
+class _CheckpointMiniMetric extends StatelessWidget {
+  const _CheckpointMiniMetric({
+    required this.label,
+    required this.value,
+    required this.icon,
+    this.accent = false,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+  final bool accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 11),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.09),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.09)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: accent ? const Color(0xFFFFB37A) : Colors.white70, size: 19),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(value, style: TextStyle(
+                  color: accent ? const Color(0xFFFFB37A) : Colors.white,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w900,
+                )),
+                const SizedBox(height: 2),
+                Text(label, maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _CheckpointCityTile extends StatelessWidget {
   const _CheckpointCityTile({
     required this.city,
@@ -1734,7 +2344,7 @@ class _CheckpointCityTile extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            border: Border.all(color: const Color(0xFFE5EAF0)),
+            border: Border.all(color: const Color(0xFFE9E2DE)),
             borderRadius: BorderRadius.circular(16),
           ),
           child: Row(
@@ -1830,7 +2440,7 @@ class _CheckpointDetailCard extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: const Color(0xFFE5EAF0)),
+        border: Border.all(color: const Color(0xFFE9E2DE)),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/maps/checkpoint_map_markers.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:masari_mobile/core/widgets/masari_section.dart';
 import 'package:masari_mobile/core/widgets/state_views.dart';
@@ -487,7 +488,7 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
                 Row(
                   children: [
                     Expanded(
-                      child: _quickInfoItem(
+                      child: _QuickInfoItem(
                         icon: Icons.people_alt_rounded,
                         value: '${trip.passengerRequest?.passengerCount ?? 0}',
                         label: l10n.passengerCount,
@@ -499,7 +500,7 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
                     if ((trip.merchantOrder?.parcelCount ?? 0) > 0) ...[
                       const SizedBox(width: 8),
                       Expanded(
-                        child: _quickInfoItem(
+                        child: _QuickInfoItem(
                           icon: Icons.inventory_2_rounded,
                           value: '${trip.merchantOrder?.parcelCount ?? 0}',
                           label: l10n.parcelCount,
@@ -510,7 +511,7 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
                     const SizedBox(width: 8),
 
                     Expanded(
-                      child: _quickInfoItem(
+                      child: _QuickInfoItem(
                         icon: Icons.traffic_rounded,
                         value: '${checkpointSnapshot.checkpoints.length}',
                         label: 'الحواجز',
@@ -582,54 +583,65 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
   // ============================================================
   // QUICK INFO ITEM
   // ============================================================
-  Widget _quickInfoItem({
-    required IconData icon,
-    required String value,
-    required String label,
-    VoidCallback? onTap,
-  }) {
-    final content = Container(
-      height: 76,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-      decoration: BoxDecoration(
-        color: onTap != null ? orangeSoft.withValues(alpha: 0.45) : background,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: onTap != null ? orange.withValues(alpha: 0.15) : border,
+Widget _QuickInfoItem({
+  required IconData icon,
+  required String value,
+  required String label,
+  VoidCallback? onTap,
+}) {
+  final content = Container(
+    height: 66,
+    padding: const EdgeInsets.symmetric(
+      horizontal: 10,
+      vertical: 9,
+    ),
+    decoration: BoxDecoration(
+      color: onTap != null
+          ? orangeSoft.withOpacity(0.45)
+          : background,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(
+        color: onTap != null
+            ? orange.withOpacity(0.15)
+            : border,
+      ),
+    ),
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(
+          icon,
+          size: 20,
+          color: orange,
         ),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, size: 20, color: orange),
-          const SizedBox(height: 3),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: textDark,
-              fontSize: 17,
-              height: 1,
-              fontWeight: FontWeight.w900,
-            ),
+        const SizedBox(height: 3),
+        Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: textDark,
+            fontSize: 17,
+            height: 1,
+            fontWeight: FontWeight.w900,
           ),
-          const SizedBox(height: 3),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: textSecondary,
-              fontSize: 9,
-              height: 1,
-              fontWeight: FontWeight.w800,
-            ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: textSecondary,
+            fontSize: 9,
+            height: 1,
+            fontWeight: FontWeight.w800,
           ),
-        ],
-      ),
-    );
+        ),
+      ],
+    ),
+  );
 
     // إذا ما في onTap، رجّعي الـcontent مباشرة
     if (onTap == null) {
@@ -1468,7 +1480,6 @@ class _DriverMapSectionState extends State<_DriverMapSection> {
   @override
   void initState() {
     super.initState();
-
     _routeFuture = _loadRoute();
     _remainingRouteFuture = _loadRemainingRoute();
   }
@@ -1502,9 +1513,26 @@ class _DriverMapSectionState extends State<_DriverMapSection> {
     }
   }
 
-  // --------------------------------------------------------------------------
+  // ----------------------------------------------------------
+  // VALIDATE CHECKPOINT COORDINATES
+  // ----------------------------------------------------------
+
+  bool _hasValidCheckpointPosition(Checkpoint checkpoint) {
+    final lat = checkpoint.position.latitude;
+    final lng = checkpoint.position.longitude;
+
+    return lat.isFinite &&
+        lng.isFinite &&
+        lat >= -90 &&
+        lat <= 90 &&
+        lng >= -180 &&
+        lng <= 180 &&
+        !(lat == 0 && lng == 0);
+  }
+
+  // ----------------------------------------------------------
   // FULL ROUTE
-  // --------------------------------------------------------------------------
+  // ----------------------------------------------------------
 
   Future<OsrmRouteResult> _loadRoute() async {
     final route = widget.trip.route;
@@ -1525,9 +1553,15 @@ class _DriverMapSectionState extends State<_DriverMapSection> {
         ? route.destinationLng
         : lockedDriverDestinationLng;
 
-    final start = LatLng(originLat, originLng);
+    final start = LatLng(
+      originLat,
+      originLng,
+    );
 
-    final end = LatLng(destinationLat, destinationLng);
+    final end = LatLng(
+      destinationLat,
+      destinationLng,
+    );
 
     try {
       final result = await const OsrmRouteService().getRoute(
@@ -1547,9 +1581,9 @@ class _DriverMapSectionState extends State<_DriverMapSection> {
     );
   }
 
-  // --------------------------------------------------------------------------
+  // ----------------------------------------------------------
   // REMAINING ROUTE
-  // --------------------------------------------------------------------------
+  // ----------------------------------------------------------
 
   Future<OsrmRouteResult>? _loadRemainingRoute() {
     final location = widget.location;
@@ -1596,9 +1630,9 @@ class _DriverMapSectionState extends State<_DriverMapSection> {
     );
   }
 
-  // --------------------------------------------------------------------------
-  // BUILD
-  // --------------------------------------------------------------------------
+  // ----------------------------------------------------------
+  // BUILD MAP
+  // ----------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
@@ -1620,14 +1654,29 @@ class _DriverMapSectionState extends State<_DriverMapSection> {
         ? route.destinationLng
         : lockedDriverDestinationLng;
 
-    final origin = GeoPoint(originLat, originLng);
+    final origin = GeoPoint(
+      originLat,
+      originLng,
+    );
 
-    final destination = GeoPoint(destinationLat, destinationLng);
+    final destination = GeoPoint(
+      destinationLat,
+      destinationLng,
+    );
 
     final markers = <MasariMapMarker>[
-      // ----------------------------------------------------------
+      // --------------------------------------------------------
+      // CHECKPOINTS
+      // --------------------------------------------------------
+
+      for (final checkpoint in widget.snapshot.checkpoints)
+        if (_hasValidCheckpointPosition(checkpoint))
+          checkpointTrafficMarker(checkpoint),
+
+      // --------------------------------------------------------
       // ORIGIN
       // ----------------------------------------------------------
+
       MasariMapMarker(
         position: origin,
         icon: Icons.trip_origin_rounded,
@@ -1643,9 +1692,10 @@ class _DriverMapSectionState extends State<_DriverMapSection> {
         size: 42,
       ),
 
-      // ----------------------------------------------------------
+      // --------------------------------------------------------
       // DESTINATION
       // ----------------------------------------------------------
+
       MasariMapMarker(
         position: destination,
         icon: Icons.flag_rounded,
@@ -1654,9 +1704,10 @@ class _DriverMapSectionState extends State<_DriverMapSection> {
         size: 42,
       ),
 
-      // ----------------------------------------------------------
+      // --------------------------------------------------------
       // DRIVER / VEHICLE
       // ----------------------------------------------------------
+
       if (widget.location != null)
         MasariMapMarker(
           position: GeoPoint(widget.location!.lat, widget.location!.lng),
@@ -1674,9 +1725,14 @@ class _DriverMapSectionState extends State<_DriverMapSection> {
             .map((point) => GeoPoint(point.latitude, point.longitude))
             .toList(growable: false);
 
-        final pathPoints = routedPoints != null && routedPoints.length >= 2
-            ? routedPoints
-            : <GeoPoint>[origin, destination];
+        final pathPoints =
+            routedPoints != null &&
+                    routedPoints.length >= 2
+                ? routedPoints
+                : <GeoPoint>[
+                    origin,
+                    destination,
+                  ];
 
         return LayoutBuilder(
           builder: (context, constraints) {
@@ -1692,8 +1748,10 @@ class _DriverMapSectionState extends State<_DriverMapSection> {
                   Positioned.fill(
                     child: MasariMap(
                       height: constraints.maxHeight,
-                      emptyLabel: widget.l10n.mapRouteMissingCoordinates,
-                      attributionLabel: widget.l10n.mapAttribution,
+                      emptyLabel:
+                          widget.l10n.mapRouteMissingCoordinates,
+                      attributionLabel:
+                          widget.l10n.mapAttribution,
                       paths: [
                         if (pathPoints.length >= 2)
                           MasariMapPath(
@@ -1703,7 +1761,7 @@ class _DriverMapSectionState extends State<_DriverMapSection> {
                           ),
                       ],
                       markers: markers,
-                      // Checkpoints are intentionally shown only in the bottom panel.
+                      // Checkpoints appear on the map and in the bottom panel.
                       banner: null,
                     ),
                   ),
@@ -1752,6 +1810,7 @@ class _DriverMapSectionState extends State<_DriverMapSection> {
     );
   }
 }
+
 
 // ============================================================================
 // DRIVER ETA
