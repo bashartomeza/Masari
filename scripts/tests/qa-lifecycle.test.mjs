@@ -27,7 +27,7 @@ async function removeGenerated(directory) {
 
 // Breaks caught: late/missing signal handlers, untracked commands/descendants,
 // unbounded waits, repeated cleanup, deletion of a sibling resource, secret output.
-for (const phase of ["mysql-startup", "api-startup", "admin-startup", "mobile-startup", "readiness", "command", "normal", "startup-failure", "spawn-failure", "timeout"]) {
+for (const phase of ["mysql-startup", "api-startup", "admin-startup", "mobile-startup", "readiness", "interrupt", "command", "normal", "startup-failure", "spawn-failure", "timeout"]) {
   test(`owned tree and private runtime are cleaned during ${phase}`, { timeout: 40_000 }, async (t) => {
     const directory = await mkdtemp(join(tmpdir(), "qa-lifecycle-test-"));
     const controlFile = join(directory, "unrelated.txt");
@@ -51,12 +51,12 @@ for (const phase of ["mysql-startup", "api-startup", "admin-startup", "mobile-st
     if (!["startup-failure", "spawn-failure"].includes(phase)) {
       await until(async () => (await pids(record)).length === 2);
       if (!["normal", "timeout"].includes(phase)) {
-        if (process.platform === "win32") owner.send("cancel");
-        else owner.kill("SIGTERM");
+        if (process.platform === "win32") owner.send(phase === "interrupt" ? "cancel-int" : "cancel");
+        else owner.kill(phase === "interrupt" ? "SIGINT" : "SIGTERM");
       }
     }
     await Promise.race([exited, delay(8_000, undefined, { ref: false }).then(() => assert.fail(`cleanup_not_bounded: ${output}`))]);
-    assert.equal(status.code, ["normal", "startup-failure", "spawn-failure", "timeout"].includes(phase) ? 0 : 143, output);
+    assert.equal(status.code, ["normal", "startup-failure", "spawn-failure", "timeout"].includes(phase) ? 0 : phase === "interrupt" ? 130 : 143, output);
     await until(async () => (await pids(record)).every(pid => !alive(pid)));
     await assert.rejects(access(ready.runtime), { code: "ENOENT" });
     assert(alive(control.pid), "unrelated control process was killed");

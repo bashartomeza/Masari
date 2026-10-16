@@ -43,14 +43,14 @@ for (const phase of phases) {
     let adapterError;
     child.on("message", message => {
       ownedPids.push(message.ownedPid);
-      if (!selection && message.nativePid && message.phase === (phase === "readiness" ? "mobile" : phase)) selection = (async () => {
+      const selected = phase === "readiness" ? message.readinessPolling : message.nativePid && message.phase === phase;
+      if (!selection && selected) selection = (async () => {
         selectedNative = message.nativePid;
         ownedPids.push(selectedNative);
-        if (phase === "readiness") await delay(1_000);
         readyAtCancellation = output.includes('"localQaReady":true');
         sent = true;
-        cancellationAt = Date.now();
-        if (child.connected) child.send("SIGTERM");
+        cancellationAt = message.cancellationAt ?? Date.now();
+        if (phase !== "readiness" && child.connected) child.send("SIGTERM");
       })().catch(error => { adapterError = error; child.kill("SIGKILL"); });
     });
     t.after(async () => {
@@ -74,7 +74,8 @@ for (const phase of phases) {
     if (adapterError) throw adapterError;
     assert(sent && runtime && selectedNative, `harness did not reach requested tool startup: ${output}`);
     assert.equal(status, 143, output);
-    assert(Date.now() - cancellationAt <= 8_000, "signal shutdown exceeded its separate 8000ms budget");
+    const shutdownMs = Date.now() - cancellationAt;
+    assert(shutdownMs <= 8_000, "signal shutdown exceeded its separate 8000ms budget");
     if (phase === "readiness") assert(!readyAtCancellation, "cancellation arrived after readiness completed");
     await assert.rejects(access(runtime), { code: "ENOENT" }, "cancelled harness left its private runtime and owned MySQL data behind");
     const deadline = Date.now() + 8_000;
@@ -83,6 +84,6 @@ for (const phase of phases) {
     assert(alive(control.pid), "unrelated control process was killed");
     assert.equal(await readFile(controlFile, "utf8"), "unrelated-control");
     assert(!/mysql:\/\/(?!\[REDACTED\])/.test(output), "unredacted database URL in harness output");
-    console.log(`verified native ${phase}; owned children stopped; unrelated control survived; private runtime removed`);
+    console.log(`verified native ${phase}; shutdown_ms=${shutdownMs}; owned children stopped; unrelated control survived; private runtime removed`);
   });
 }

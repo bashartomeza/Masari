@@ -7,6 +7,7 @@ const [record, phase, mode = "tree"] = process.argv.slice(2);
 const owner = createQaLifecycle({ env: { ...process.env, QA_LIFECYCLE_TEST_SECRET: "synthetic-secret-do-not-print" }, graceMs: 150, forceMs: 2_000 });
 process.on("message", (message) => {
   if (message === "cancel") { process.emit("SIGTERM"); process.emit("SIGINT"); }
+  if (message === "cancel-int") { process.emit("SIGINT"); process.emit("SIGTERM"); }
 });
 try {
   await writeFile(join(owner.runtime, "credential.txt"), "synthetic-secret-do-not-print");

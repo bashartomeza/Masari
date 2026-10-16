@@ -400,6 +400,13 @@ void main() {
     );
     await tester.tap(find.byIcon(Icons.schedule_rounded));
     await tester.pumpAndSettle();
+    // The form's initial time is tomorrow near midnight. Select today
+    // explicitly so this regression always exercises a past timestamp.
+    final now = DateTime.now();
+    tester
+        .widget<CalendarDatePicker>(find.byType(CalendarDatePicker))
+        .onDateChanged(DateTime(now.year, now.month, now.day));
+    await tester.pump();
     await tester.tap(find.text('OK').last);
     await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.keyboard_outlined));
