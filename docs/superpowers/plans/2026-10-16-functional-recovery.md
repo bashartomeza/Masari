@@ -46,14 +46,24 @@ Provider boundary: retain existing server PostgREST service/config; partner API 
 - [ ] Trace selected trip endpoints/API payload and async routing lifecycle.
 - [ ] Regress actual endpoints and trip-switch races, clear stale geometry, verify client/API path.
 
+Implemented: GET `/trips/:id` already includes full request coordinates/parcel destinations; mobile summaries discarded them. Driver maps/ETA now consume selected request endpoints/labels. Removed unrelated locked-coordinate and straight-line fallbacks. Trip identity and endpoints key the routing futures, so late old results cannot repaint a newly selected trip. Route transport is injectable and bounded to 10 seconds; invalid geometry/metadata or missing positions yield an explicit unavailable state. Arbitrary Arabic origin names are preserved. A merchant trip with several distinct destinations cannot truthfully be reduced to one endpoint and is shown without an invented single route. The current source has no separate “Request Destinations” action; selected tripId is the existing entry path.
+
+RED→GREEN evidence: wrong selected origin, invented road fallback, trip-switch/late-response races, missing supply/request coordinates, malformed routing metadata, Arabic label overwrite, scalar checkpoint badge/detail mismatch, and baseline 6px overflow. Final new+existing driver group: **43/43 passed**; changed-file analyzer clean. Minimum-height overflow correction and formatter/deprecation corrections preserve the existing visual design.
+
 ## 3A. Location names and coordinates
 
 - [ ] Trace location selection and payload; regress name/coordinate association through selection and request.
+
+Not reproduced at this baseline: named locations are already stored/displayed independently from coordinates. Characterization through the actual picker and authenticated repository payload passes **5/5** tests, with distinct origin/destination labels and geographic pairs. No speculative reverse-geocoding or automatic relabeling was introduced. Section 2 independently fixes driver Arabic labels being replaced by an unrelated predefined origin.
 
 ## 3B. New trip/request persistence
 
 - [ ] Trace form → API validation → transaction → audit → response.
 - [ ] Regress actual persistence errors and concurrent double submission; confirm success only after committed outcome.
+
+Confirmed: legacy request/driver-route creation committed a row before awaiting audit, so audit failure returned an error after saving. Passenger create now performs resource, audit and actor-scoped idempotency completion in one transaction. Exact key/payload retries replay only the authenticated actor's resource; conflicts do not mutate it. Completed booking identity survives claim TTL. Headerless existing clients keep compatibility with transactional creation. Driver create locks its existing profile row, reuses an exact active-route retry, and rejects conflicting operational routes; route+audit are atomic. Mobile submit now has a synchronous busy guard (two rapid events previously sent two requests) and save failures use their actual error category.
+
+Verification so far: passenger 6 RED→GREEN; driver 3 RED→GREEN plus existing passenger/driver API group 14 passed; typecheck passed. Mobile actual-picker/form/client rapid-submit regression RED (`2` requests) → GREEN (`1`). Disposable MySQL concurrency/audit probes are pending final integration; uncertain-outcome client retention is section 5.
 
 ## 4. Traditional booking validation
 
@@ -101,3 +111,5 @@ No module algorithms, tariffs, trust policies, quota pooling, autonomous executi
 ## Delivery
 
 - [ ] Fresh review, final required checks, exact-head hosted checks, disposable runnable QA with protected local login material, draft PR and report.
+
+User explicitly excluded CodeRabbit after it reported unauthenticated. No CodeRabbit repository review was run or content sent. Use local independent review and required automated gates; no external review sign-in is pending.
