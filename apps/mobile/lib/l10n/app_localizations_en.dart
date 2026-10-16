@@ -298,6 +298,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get selectedDriver => 'Selected driver';
 
   @override
+  String get selectedDriverUnavailable =>
+      'The selected driver route is no longer available. Please search again.';
+
+  @override
   String get selectedRoute => 'Selected route';
 
   @override

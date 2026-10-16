@@ -428,20 +428,50 @@ class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen>
         payload: payload,
         send: ref.read(passengerRepositoryProvider).createPayload,
       );
-      await mutation.acknowledge(receipt);
       final createdId = receipt.value;
+      final recovery = receipt.bundle.payload['client_recovery'];
+      String? selectedRoute;
+      if (recovery != null) {
+        final option = recovery is Map ? recovery['option'] : null;
+        final routeId = option is Map ? option['id'] : null;
+        if (routeId is! String || routeId.isEmpty) {
+          throw const FormatException('Missing selected driver route');
+        }
+        selectedRoute = routeId;
+      }
       if (!mounted) return;
 
       try {
         final match = await ref
             .read(matchingRepositoryProvider)
-            .runForPassengerRequest(createdId);
+            .runForPassengerRequest(createdId, driverRouteId: selectedRoute);
         mutation.requireActor(receipt.bundle.actorId);
+        await mutation.acknowledge(receipt);
         if (mounted) {
           context.go('/passenger/match/${match.id}');
         }
       } catch (error) {
         mutation.requireActor(receipt.bundle.actorId);
+        if (selectedRoute != null) {
+          final existing = await ref
+              .read(matchingRepositoryProvider)
+              .latestForPassengerRequest(
+                createdId,
+                driverRouteId: selectedRoute,
+              );
+          mutation.requireActor(receipt.bundle.actorId);
+          if (existing != null) {
+            await mutation.acknowledge(receipt);
+            if (mounted) context.go('/passenger/match/${existing.id}');
+            return;
+          }
+          final definitive =
+              error is ApiException &&
+              error.message != 'passenger_request_already_matched' &&
+              [400, 404, 409, 422].contains(error.statusCode);
+          if (!definitive) rethrow;
+        }
+        await mutation.acknowledge(receipt);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -505,6 +535,9 @@ class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen>
 
 String _matchingCreateErrorLabel(AppLocalizations l10n, Object error) {
   if (error is! ApiException) return l10n.requestFailed;
+  if (error.message == 'selected_driver_route_unavailable') {
+    return l10n.selectedDriverUnavailable;
+  }
   if (error.message == 'booking_time_passed' ||
       error.message == 'preferred_time_in_past') {
     return l10n.bookingTimePassed;

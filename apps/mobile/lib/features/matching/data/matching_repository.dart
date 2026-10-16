@@ -14,10 +14,16 @@ class MatchingRepository {
 
   final AuthenticatedApiClient apiClient;
 
-  Future<MatchResult> runForPassengerRequest(String requestId) async {
+  Future<MatchResult> runForPassengerRequest(
+    String requestId, {
+    String? driverRouteId,
+  }) async {
     final json = await apiClient.postJson(
       '/matches/run',
-      body: {'passengerRequestId': requestId},
+      body: {
+        'passengerRequestId': requestId,
+        if (driverRouteId != null) 'driverRouteId': driverRouteId,
+      },
     );
     return _match(json);
   }
@@ -27,13 +33,25 @@ class MatchingRepository {
     return _match(json);
   }
 
-  Future<MatchResult?> latestForPassengerRequest(String requestId) async {
+  Future<MatchResult?> latestForPassengerRequest(
+    String requestId, {
+    String? driverRouteId,
+  }) async {
     final json = await apiClient.getJson('/matches');
     final matches = json['matches'];
     if (matches is! List) throw const FormatException('Missing matches');
     for (final raw in matches.cast<Map<String, dynamic>>()) {
       final passengerRequest = raw['passenger_request'];
       if (passengerRequest is Map && passengerRequest['id'] == requestId) {
+        if (driverRouteId != null &&
+            (raw['driver_route'] is! Map ||
+                (raw['driver_route'] as Map)['id'] != driverRouteId ||
+                ![
+                  'proposed',
+                  'sent_to_driver',
+                  'accepted',
+                ].contains(raw['status'])))
+          continue;
         final scoring = raw['scoring_breakdown'];
         if (scoring is! Map<String, dynamic>) {
           throw const FormatException('Missing scoring breakdown');

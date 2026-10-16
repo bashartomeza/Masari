@@ -300,6 +300,10 @@ class AppLocalizationsAr extends AppLocalizations {
   String get selectedDriver => 'السائق المختار';
 
   @override
+  String get selectedDriverUnavailable =>
+      'مسار السائق المختار لم يعد متاحاً. اختر رحلة أخرى.';
+
+  @override
   String get selectedRoute => 'المسار المختار';
 
   @override

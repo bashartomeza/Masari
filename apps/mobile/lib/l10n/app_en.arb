@@ -92,6 +92,7 @@
   "noConnectedTrip": "No connected trip yet.",
   "matchResult": "Match result",
   "selectedDriver": "Selected driver",
+  "selectedDriverUnavailable": "The selected driver route is no longer available. Please search again.",
   "selectedRoute": "Selected route",
   "matchScore": "Match score",
   "scoringBreakdown": "Scoring breakdown",

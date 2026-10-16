@@ -650,6 +650,12 @@ abstract class AppLocalizations {
   /// **'السائق المختار'**
   String get selectedDriver;
 
+  /// No description provided for @selectedDriverUnavailable.
+  ///
+  /// In ar, this message translates to:
+  /// **'مسار السائق المختار لم يعد متاحاً. اختر رحلة أخرى.'**
+  String get selectedDriverUnavailable;
+
   /// No description provided for @selectedRoute.
   ///
   /// In ar, this message translates to:

@@ -92,6 +92,7 @@
   "noConnectedTrip": "لا توجد رحلة مرتبطة بعد.",
   "matchResult": "نتيجة المطابقة",
   "selectedDriver": "السائق المختار",
+  "selectedDriverUnavailable": "مسار السائق المختار لم يعد متاحاً. اختر رحلة أخرى.",
   "selectedRoute": "المسار المختار",
   "matchScore": "درجة المطابقة",
   "scoringBreakdown": "تفصيل الدرجات",

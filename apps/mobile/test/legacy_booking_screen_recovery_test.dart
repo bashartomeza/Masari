@@ -10,6 +10,10 @@ import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import 'package:masari_mobile/core/widgets/masari_map.dart';
 import 'package:masari_mobile/features/auth/application/auth_actor_binding.dart';
+import 'package:masari_mobile/features/assistant/data/passenger_assistant_repository.dart';
+import 'package:masari_mobile/features/assistant/domain/passenger_assistant_models.dart';
+import 'package:masari_mobile/features/canonical_routes/data/canonical_operation_storage.dart';
+import 'package:masari_mobile/features/passenger/application/legacy_passenger_request_mutation.dart';
 import 'package:masari_mobile/features/matching/data/matching_repository.dart';
 import 'package:masari_mobile/features/passenger/data/passenger_repository.dart';
 import 'package:masari_mobile/features/passenger/presentation/create_request_screen.dart';
@@ -19,6 +23,175 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'support/auth_test_support.dart';
 
 void main() {
+  testWidgets(
+    'unavailable selected route is reported without matching an alternative',
+    (tester) async {
+      FlutterSecureStorage.setMockInitialValues({});
+      var createCalls = 0;
+      final routes = <Object?>[];
+      Future<http.Response> handler(http.Request request) async {
+        if (request.url.path.endsWith('/passenger/requests')) {
+          createCalls++;
+          if (createCalls == 1)
+            throw http.ClientException('saved response lost');
+          return http.Response(
+            jsonEncode({
+              'request': {
+                ...jsonDecode(request.body) as Map,
+                'id': 'unavailable-request',
+              },
+            }),
+            200,
+          );
+        }
+        if (request.url.path.endsWith('/matches/run')) {
+          routes.add((jsonDecode(request.body) as Map)['driverRouteId']);
+          return http.Response(
+            '{"error":"selected_driver_route_unavailable"}',
+            409,
+          );
+        }
+        return http.Response('{"matches":[]}', 200);
+      }
+
+      final mutation = LegacyPassengerRequestMutation(
+        storage: CanonicalOperationStorage(
+          const FlutterSecureStorage(),
+          storageKey: 'masari_legacy_passenger_create_v1',
+        ),
+        currentActor: () => 'passenger-fixture',
+      );
+      final assistant = ApiPassengerAssistantRepository(
+        apiClient: TestAuthenticatedClient(handler: handler).client,
+        mutation: mutation,
+      );
+      await expectLater(
+        assistant.selectTrip(
+          draft: PassengerAssistantTripDraft(
+            pickupKey: 'bab_al_zawiya',
+            pickupLabel: 'Origin',
+            destinationKey: 'bethlehem',
+            destinationLabel: 'Destination',
+            preferredTime: DateTime.utc(2030, 1, 2),
+            passengerCount: 1,
+          ),
+          option: const PassengerAssistantTripOption(
+            id: 'unavailable-route',
+            driverName: 'Selected',
+            fromLabel: 'Origin',
+            toLabel: 'Destination',
+            seatsAvailable: 2,
+            score: 0.8,
+          ),
+        ),
+        throwsA(anything),
+      );
+      await _pump(tester, handler, preserveStorage: true);
+      expect(routes, ['unavailable-route']);
+      expect(find.text('Saved unavailable-request'), findsOneWidget);
+      expect(
+        find.text(
+          'The selected driver route is no longer available. Please search again.',
+        ),
+        findsOneWidget,
+      );
+      expect(await mutation.pending(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+  for (final failure in ['transport', 'already-matched']) {
+    testWidgets(
+      'assistant handoff and restart retain the selected route after $failure',
+      (tester) async {
+        FlutterSecureStorage.setMockInitialValues({});
+        final keys = <String>[];
+        final selectedRoutes = <Object?>[];
+        var loseCreate = true;
+        var loseMatch = true;
+        Map<String, dynamic>? saved;
+        Future<http.Response> handler(http.Request request) async {
+          if (request.url.path.endsWith('/passenger/requests')) {
+            keys.add(request.headers['idempotency-key']!);
+            saved ??= {
+              ...jsonDecode(request.body) as Map<String, dynamic>,
+              'id': 'selected-request',
+              'status': 'pending',
+              'created_at': DateTime.now().toUtc().toIso8601String(),
+            };
+            if (loseCreate) {
+              loseCreate = false;
+              throw http.ClientException('create response lost after commit');
+            }
+            return http.Response(jsonEncode({'request': saved}), 200);
+          }
+          if (request.url.path.endsWith('/matches/run')) {
+            selectedRoutes.add(
+              (jsonDecode(request.body) as Map)['driverRouteId'],
+            );
+            if (loseMatch) {
+              loseMatch = false;
+              if (failure == 'already-matched')
+                return http.Response(
+                  '{"error":"passenger_request_already_matched"}',
+                  409,
+                );
+              throw http.ClientException('match response lost');
+            }
+            return http.Response(
+              jsonEncode(_matchResponse('selected-route')),
+              201,
+            );
+          }
+          return http.Response('{"matches":[]}', 200);
+        }
+
+        final mutation = LegacyPassengerRequestMutation(
+          storage: CanonicalOperationStorage(
+            const FlutterSecureStorage(),
+            storageKey: 'masari_legacy_passenger_create_v1',
+          ),
+          currentActor: () => 'passenger-fixture',
+        );
+        final assistant = ApiPassengerAssistantRepository(
+          apiClient: TestAuthenticatedClient(handler: handler).client,
+          mutation: mutation,
+        );
+        await expectLater(
+          assistant.selectTrip(
+            draft: PassengerAssistantTripDraft(
+              pickupKey: 'bab_al_zawiya',
+              pickupLabel: 'Bab Al-Zawiya',
+              destinationKey: 'bethlehem',
+              destinationLabel: 'Bethlehem Center',
+              preferredTime: DateTime.utc(2030, 1, 2),
+              passengerCount: 1,
+            ),
+            option: const PassengerAssistantTripOption(
+              id: 'selected-route',
+              driverName: 'Chosen driver',
+              fromLabel: 'Origin',
+              toLabel: 'Destination',
+              seatsAvailable: 2,
+              score: 0.8,
+            ),
+          ),
+          throwsA(anything),
+        );
+        // Recreate the ordinary screen with only durable storage from the assistant.
+        await _pump(tester, handler, preserveStorage: true);
+        expect(selectedRoutes, ['selected-route']);
+        expect(find.text('Verify booking'), findsOneWidget);
+        await tester.pumpWidget(const SizedBox.shrink());
+        await _pump(tester, handler, preserveStorage: true);
+        expect(selectedRoutes, ['selected-route', 'selected-route']);
+        expect(find.text('Matched'), findsOneWidget);
+        expect(keys.toSet(), hasLength(1));
+        expect(saved!['id'], 'selected-request');
+        expect(await mutation.pending(), isNull);
+        await tester.pumpWidget(const SizedBox.shrink());
+      },
+    );
+  }
   testWidgets(
     'lost create response recovers after reopening using the same durable identity',
     (tester) async {
@@ -228,6 +401,33 @@ void main() {
     }
   });
 }
+
+Map<String, dynamic> _matchResponse(String routeId) => {
+  'match': {
+    'id': 'selected-match',
+    'status': 'proposed',
+    'score': 0.8,
+    'explanation': 'Selected route',
+    'passenger_request': {'id': 'selected-request'},
+    'driver_route': {
+      'id': routeId,
+      'origin_label': 'Origin',
+      'destination_label': 'Destination',
+      'seats_available': 1,
+    },
+  },
+  'scoringBreakdown': {
+    for (final key in [
+      'corridorOverlap',
+      'pickupDistanceScore',
+      'timingFit',
+      'trustScore',
+      'capacityFit',
+      'finalScore',
+    ])
+      key: 0.8,
+  },
+};
 
 Future<void> _pump(
   WidgetTester tester,
