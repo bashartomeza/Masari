@@ -71,12 +71,14 @@ class Checkpoint {
 
   factory Checkpoint.fromJson(Map<String, dynamic> json) {
     final id = json['id'];
-    if (id is! String || id.trim().isEmpty)
+    if (id is! String || id.trim().isEmpty) {
       throw const FormatException('Invalid checkpoint id');
+    }
     final lat = _coordinate(json['latitude'], 90);
     final lng = _coordinate(json['longitude'], 180);
-    if (lat == null || lng == null)
+    if (lat == null || lng == null) {
       throw const FormatException('Missing checkpoint position');
+    }
     final entering = _text(json['entering_status']);
     final leaving = _text(json['leaving_status']);
     var status = parseCheckpointStatus(_text(json['status']));
