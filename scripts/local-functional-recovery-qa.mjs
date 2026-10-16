@@ -1,13 +1,12 @@
 import assert from "node:assert/strict";
-import { spawn, spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { access, cp, mkdir, mkdtemp, readdir, writeFile } from "node:fs/promises";
+import { access, cp, mkdir, mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir, userInfo } from "node:os";
 import { delimiter, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { setTimeout as delay } from "node:timers/promises";
 import mysql from "mysql2/promise";
+import { createQaLifecycle } from "./lib/qa-lifecycle.mjs";
 
 // This harness accepts a server executable, never a database URL or datadir.
 // All destructive integration fixtures target databases created by this process.
@@ -30,10 +29,20 @@ for (const key of ["PATH", "SYSTEMROOT", "WINDIR", "TEMP", "TMP", "COMSPEC", "PA
 }
 const pathKey = Object.keys(systemEnv).find((key) => key.toUpperCase() === "PATH") ?? "PATH";
 systemEnv[pathKey] = `${dirname(process.execPath)}${delimiter}${systemEnv[pathKey] ?? ""}`;
-const runtime = await mkdtemp(join(tmpdir(), "masari-functional-"));
+const lifecycle = createQaLifecycle({ env: systemEnv, onChild: child => console.log(`OWNED child_pid=${child.pid ?? "not-started"}`) });
+const runtime = lifecycle.runtime;
+let connection;
+let api;
+let server;
+let redact;
+let evidenceRuntime;
+try {
+console.log(`Private runtime: ${runtime}`);
+evidenceRuntime = await mkdtemp(join(tmpdir(), "masari-functional-evidence-"));
+console.log(`Evidence directory: ${evidenceRuntime}`);
 if (process.platform === "win32") {
-  const acl = spawnSync("icacls", [runtime, "/inheritance:r", "/grant:r", `${userInfo().username}:(OI)(CI)F`, "*S-1-5-18:(OI)(CI)F"], { env: systemEnv, windowsHide: true, stdio: "ignore" });
-  assert.equal(acl.status, 0, "private_runtime_acl_failed");
+  const acl = lifecycle.spawn(join(process.env.SYSTEMROOT ?? "C:\\Windows", "System32/icacls.exe"), [runtime, "/inheritance:r", "/grant:r", `${userInfo().username}:(OI)(CI)F`, "*S-1-5-18:(OI)(CI)F"], { env: systemEnv, stdio: "ignore" });
+  assert.equal(await lifecycle.wait(acl, { timeoutMs: 15_000 }), 0, "private_runtime_acl_failed");
 }
 const password = randomBytes(32).toString("hex");
 const secrets = [password];
@@ -61,39 +70,32 @@ if (process.argv.includes("--monitoring-expiry-regression")) {
   assert(process.argv.includes("--monitoring-only"), "expiry_regression_requires_monitoring_only");
   env.LEGACY_DISPATCH_INTERVAL_MS = "100";
 }
-const redact = (text) => secrets.reduce((result, value) => result.replaceAll(value, "[REDACTED]"), text).replace(/mysql:\/\/[^\s"']+/g, "mysql://[REDACTED]");
+redact = (text) => secrets.reduce((result, value) => result.replaceAll(value, "[REDACTED]"), text).replace(/mysql:\/\/[^\s"']+/g, "mysql://[REDACTED]");
 const checks = [];
-async function command(args, environment, label) {
+async function command(args, environment, label, executable = process.execPath, recordCheck = true) {
   console.log(`START ${label}`);
-  const child = spawn(process.execPath, args, { cwd: root, env: environment, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
+  const child = lifecycle.spawn(executable, args, { cwd: root, env: environment, stdio: ["ignore", "pipe", "pipe"] });
   let output = "";
   child.stdout.on("data", (chunk) => { output += chunk; });
   child.stderr.on("data", (chunk) => { output += chunk; });
-  const timeout = setTimeout(() => {
-    if (process.platform === "win32") spawnSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], { env: systemEnv, windowsHide: true, stdio: "ignore" });
-    else child.kill();
-  }, 300_000);
-  const status = await new Promise((ok, fail) => { child.once("error", fail); child.once("exit", ok); });
-  clearTimeout(timeout);
-  await writeFile(join(runtime, `${label}.log`), redact(output));
+  let status;
+  try { status = await lifecycle.wait(child); }
+  finally { await writeFile(join(evidenceRuntime, `${label}.log`), redact(output)); }
   console.log(`${status === 0 ? "PASS" : "FAIL"} ${label}`);
   assert.equal(status, 0, `${label} failed; inspect redacted runtime log`);
-  checks.push(label);
+  if (recordCheck) checks.push(label);
 }
-console.log(`Evidence directory: ${runtime}`);
-const init = spawnSync(process.env.FUNCTIONAL_QA_MYSQLD, ["--no-defaults", "--initialize-insecure", "--console", `--datadir=${data}`], { env: systemEnv, windowsHide: true, encoding: "utf8" });
-if (init.status !== 0) console.error(redact((init.stdout ?? "") + (init.stderr ?? "") + String(init.error ?? "")));
-assert.equal(init.status, 0, "isolated_mysql_initialization_failed");
+await command(["--no-defaults", "--initialize-insecure", "--console", `--datadir=${data}`], systemEnv, "mysql_initialize", process.env.FUNCTIONAL_QA_MYSQLD, false);
 await writeFile(bootstrap, `ALTER USER 'root'@'localhost' IDENTIFIED BY '${password}';\n`, { mode: 0o600 });
-const server = spawn(process.env.FUNCTIONAL_QA_MYSQLD, ["--no-defaults", `--datadir=${data}`, `--port=${port}`, "--bind-address=127.0.0.1", "--mysqlx=OFF", `--init-file=${bootstrap}`, `--log-error=${join(runtime, "mysql.err")}`], { env: systemEnv, windowsHide: true, stdio: "ignore" });
-let connection;
-let api;
+console.log("START mysql_server");
+server = lifecycle.spawn(process.env.FUNCTIONAL_QA_MYSQLD, ["--no-defaults", `--datadir=${data}`, `--port=${port}`, "--bind-address=127.0.0.1", "--mysqlx=OFF", `--init-file=${bootstrap}`, `--log-error=${join(runtime, "mysql.err")}`], { env: systemEnv, stdio: "ignore" });
 const clients = [];
 const clientDiagnostics = new Map();
 function startClient(label, executable, args, options) {
-  const child = spawn(executable, args, { ...options, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
+  console.log(`START ${label}`);
+  const child = lifecycle.spawn(executable, args, { ...options, stdio: ["ignore", "pipe", "pipe"] });
   const diagnostic = { label, output: "", stopped: false, saved: Promise.resolve() };
-  const save = () => { diagnostic.stopped = true; diagnostic.saved = writeFile(join(runtime, `${label}.log`), redact(diagnostic.output)); };
+  const save = () => { diagnostic.stopped = true; diagnostic.saved = writeFile(join(evidenceRuntime, `${label}.log`), redact(diagnostic.output)); };
   child.stdout.on("data", chunk => { diagnostic.output += chunk; });
   child.stderr.on("data", chunk => { diagnostic.output += chunk; });
   child.once("error", error => { diagnostic.output += `\nstartup_error:${error.code ?? "unknown"}`; save(); });
@@ -101,6 +103,21 @@ function startClient(label, executable, args, options) {
   clients.push(child);
   clientDiagnostics.set(child, diagnostic);
   return child;
+}
+async function waitFor(url, timeoutMs = 180_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    lifecycle.check();
+    if (api && (api.exitCode !== null || api.signalCode !== null)) throw new Error("local_qa_api_exited");
+    if (server && (server.exitCode !== null || server.signalCode !== null)) throw new Error("local_qa_mysql_exited");
+    for (const diagnostic of clientDiagnostics.values()) if (diagnostic.stopped) {
+      await diagnostic.saved;
+      throw new Error(`local_qa_${diagnostic.label}_exited`);
+    }
+    try { if ((await fetch(url, { signal: AbortSignal.any([lifecycle.signal, AbortSignal.timeout(2_000)]) })).ok) return; } catch {}
+    await lifecycle.sleep(500);
+  }
+  throw new Error("local_qa_surface_not_ready");
 }
 const prisma = "node_modules/prisma/build/index.js";
 async function database(label) {
@@ -111,10 +128,11 @@ async function database(label) {
   url.username = "root"; url.password = password;
   return { ...env, DATABASE_URL: url.toString(), DEMO_RESET_ALLOWED_DATABASES: name };
 }
-try {
   for (let attempt = 0; attempt < 150; attempt++) {
-    try { connection = await mysql.createConnection({ host: "127.0.0.1", port, user: "root", password }); break; } catch { await delay(200); }
+    lifecycle.check();
+    try { connection = await mysql.createConnection({ host: "127.0.0.1", port, user: "root", password, connectTimeout: 1_000 }); break; } catch { await lifecycle.sleep(200); }
   }
+  lifecycle.check();
   assert(connection, "isolated_mysql_start_failed");
   await writeFile(bootstrap, "-- consumed bootstrap credential\n");
   const [[version]] = await connection.query("SELECT VERSION() AS version");
@@ -129,14 +147,15 @@ try {
   assert.equal(probe.count, 0);
   checks.push("original_monitoring_phone_rejected_without_partial_row");
   await command(["node_modules/typescript/bin/tsc", "-p", "apps/api/tsconfig.json"], currentEnv, "api_build");
+  if (process.argv.includes("--booking-probe")) {
+    // Exercise its controlled HTTP app/clock before a monitoring API or any
+    // background expiry worker can race its deadline/rollback cases.
+    await command(["apps/api/dist/scripts/legacyBookingIntegration.js"], currentEnv, "legacy_booking_probe");
+  }
   if (process.argv.includes("--monitoring-only")) {
-    api = spawn(process.execPath, ["scripts/local-functional-qa-api.mjs"], { cwd: root, env: currentEnv, windowsHide: true, stdio: "ignore" });
-    let ready = false;
-    for (let attempt = 0; attempt < 60; attempt++) {
-      try { if ((await fetch(`${env.API_BASE_URL}/api/v1/health/ready`)).ok) { ready = true; break; } } catch {}
-      await delay(250);
-    }
-    assert(ready, "isolated_api_not_ready");
+    console.log("START api");
+    api = lifecycle.spawn(process.execPath, ["scripts/local-functional-qa-api.mjs"], { cwd: root, env: currentEnv, stdio: "ignore" });
+    await waitFor(`${env.API_BASE_URL}/api/v1/health/ready`);
     await command(["apps/api/dist/scripts/adminMatchingMonitoringIntegration.js"], currentEnv, "monitoring_regression");
   } else {
     const migrationRoot = join(root, "apps/api/prisma/migrations");
@@ -161,33 +180,16 @@ try {
       await command([`apps/api/dist/scripts/${script}.js`], canonicalEnv, script);
     }
   }
-  if (process.argv.includes("--booking-probe")) {
-    // Its deadline/rollback cases control their own HTTP app and clock. Do not
-    // race them with the monitoring server's independent expiry worker.
-    if (api?.exitCode === null) { api.kill(); await new Promise((ok) => api.once("exit", ok)); api = undefined; }
-    await command(["apps/api/dist/scripts/legacyBookingIntegration.js"], currentEnv, "legacy_booking_probe");
-  }
   const evidence = { runtime: version.version, realDatabase: true, checks, completedAt: new Date().toISOString() };
-  await writeFile(join(runtime, "evidence.json"), JSON.stringify(evidence, null, 2));
+  await writeFile(join(evidenceRuntime, "evidence.json"), JSON.stringify(evidence, null, 2));
   console.log(JSON.stringify(evidence));
   if (keepRunning) {
     // Start from a deterministic seed only after every requested validation passes.
-    if (api?.exitCode === null) { api.kill(); await new Promise((ok) => api.once("exit", ok)); }
-    api = spawn(process.execPath, ["scripts/local-functional-qa-api.mjs"], { cwd: root, env: currentEnv, windowsHide: true, stdio: "ignore" });
-    async function waitFor(url, timeoutMs = 180_000) {
-      const deadline = Date.now() + timeoutMs;
-      while (Date.now() < deadline) {
-        for (const diagnostic of clientDiagnostics.values()) if (diagnostic.stopped) {
-          await diagnostic.saved;
-          throw new Error(`local_qa_${diagnostic.label}_exited`);
-        }
-        try { if ((await fetch(url, { signal: AbortSignal.timeout(2_000) })).ok) return; } catch {}
-        await delay(500);
-      }
-      throw new Error("local_qa_surface_not_ready");
-    }
+    if (api) await lifecycle.stop(api);
+    console.log("START api");
+    api = lifecycle.spawn(process.execPath, ["scripts/local-functional-qa-api.mjs"], { cwd: root, env: currentEnv, stdio: "ignore" });
     await waitFor(`${env.API_BASE_URL}/api/v1/health/ready`);
-    const reset = await fetch(`${env.API_BASE_URL}/api/v1/demo/reset`, { method: "POST", headers: { "content-type": "application/json", "x-demo-reset-key": env.DEMO_RESET_KEY }, body: "{}" });
+    const reset = await fetch(`${env.API_BASE_URL}/api/v1/demo/reset`, { method: "POST", headers: { "content-type": "application/json", "x-demo-reset-key": env.DEMO_RESET_KEY }, body: "{}", signal: AbortSignal.any([lifecycle.signal, AbortSignal.timeout(10_000)]) });
     assert.equal(reset.status, 200, "local_qa_seed_failed");
     const urls = { api: env.API_BASE_URL, admin: `http://127.0.0.1:${adminPort}`, mobile: `http://127.0.0.1:${mobilePort}` };
     const logins = Object.fromEntries(["admin", "passenger", "driver", "merchant"].map((role) => [role, { email: `demo.${role}@masari.app`, password: env[`DEMO_${role.toUpperCase()}_PASSWORD`] }]));
@@ -198,21 +200,25 @@ try {
     startClient("mobile", join(flutterRoot, "bin/cache/dart-sdk/bin", process.platform === "win32" ? "dart.exe" : "dart"), [`--packages=${join(flutterRoot, "packages/flutter_tools/.dart_tool/package_config.json")}`, join(flutterRoot, "bin/cache/flutter_tools.snapshot"), "run", "-d", "web-server", "--web-hostname", "127.0.0.1", "--web-port", String(mobilePort), "--no-pub", `--dart-define-from-file=${defines}`], { cwd: join(root, "apps/mobile"), env: { ...systemEnv, FLUTTER_ROOT: flutterRoot, FLUTTER_SUPPRESS_ANALYTICS: "true", CI: "true" } });
     await Promise.all([waitFor(urls.admin), waitFor(urls.mobile)]);
     console.log(JSON.stringify({ localQaReady: true, urls, privateRuntimeFile: join(runtime, "qa-private.json"), stopFile: join(runtime, "STOP") }));
-    let stopping = false;
-    process.once("SIGTERM", () => { stopping = true; });
-    process.once("SIGINT", () => { stopping = true; });
-    while (!stopping) {
-      if ([api, server, ...clients].some((child) => child.exitCode !== null)) throw new Error("local_qa_child_stopped");
+    while (true) {
+      lifecycle.check();
+      if ([api, server, ...clients].some((child) => child.exitCode !== null || child.signalCode !== null)) throw new Error("local_qa_child_stopped");
       try { await access(join(runtime, "STOP")); break; } catch {}
-      await delay(1_000);
+      await lifecycle.sleep(1_000);
     }
   }
+} catch (error) {
+  if (!lifecycle.signal.aborted) throw error;
+  console.log("Cancelled local QA; cleaning owned resources");
 } finally {
-  for (const child of clients) if (child.exitCode === null) {
-    if (process.platform === "win32") spawnSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], { env: systemEnv, windowsHide: true, stdio: "ignore" });
-    else child.kill();
-  }
-  if (api?.exitCode === null) { api.kill(); await Promise.race([new Promise((ok) => api.once("exit", ok)), delay(12_000)]); }
-  if (connection) { await connection.query("SHUTDOWN").catch(() => {}); await connection.end().catch(() => {}); }
-  if (server.exitCode === null) server.kill();
+  // A connection can be in use when cancellation arrives. Destroy it rather
+  // than awaiting an unbounded query, then close only this invocation's jobs.
+  connection?.destroy();
+  try {
+    if (server) await lifecycle.stop(server);
+    if (redact && evidenceRuntime) {
+      const diagnostic = await readFile(join(runtime, "mysql.err"), "utf8").catch(() => undefined);
+      if (diagnostic) await writeFile(join(evidenceRuntime, "mysql.log"), redact(diagnostic));
+    }
+  } finally { await lifecycle.cleanup(); }
 }
