@@ -42,7 +42,10 @@ class PassengerAssistantController
         return;
       }
       final current = next.value;
-      if (userId == null || current.messages.isEmpty) return;
+      if (userId == null ||
+          (current.messages.isEmpty && current.savedRequestId == null)) {
+        return;
+      }
       _saving = _saving
           .then((_) async {
             if (_isCurrent(generation, userId)) {
@@ -88,6 +91,7 @@ class PassengerAssistantController
           messages: history.messages,
           conversationId: history.conversationId,
           lastLocale: history.lastLocale,
+          savedRequestId: history.savedRequestId,
           draft: draft,
           tripOptions: [option],
           selectionFailure: PassengerAssistantFailure.unknownBooking,
@@ -128,6 +132,7 @@ class PassengerAssistantController
     state = AsyncData(
       PassengerAssistantState(
         phase: PassengerAssistantPhase.searching,
+        savedRequestId: current.savedRequestId,
         messages: current.messages,
         suggestions: current.suggestions,
         conversationId: current.conversationId,
@@ -151,6 +156,7 @@ class PassengerAssistantController
           lastLocale: current.lastLocale,
           draft: draft,
           tripOptions: results,
+          savedRequestId: current.savedRequestId,
         ),
       );
     } catch (error) {
@@ -165,6 +171,7 @@ class PassengerAssistantController
           lastLocale: current.lastLocale,
           draft: draft,
           searchFailure: _failureFor(error),
+          savedRequestId: current.savedRequestId,
         ),
       );
     }
@@ -195,6 +202,7 @@ class PassengerAssistantController
         draft: draft,
         tripOptions: current.tripOptions,
         selectingTripId: option.id,
+        savedRequestId: current.savedRequestId,
       ),
     );
 
@@ -222,8 +230,16 @@ class PassengerAssistantController
           draft: draft,
           tripOptions: current.tripOptions,
           selectionFailure: _failureFor(error),
+          savedRequestId: error is AssistantSavedRequestException
+              ? error.requestId
+              : current.savedRequestId,
+          selectionRequestId:
+              error is AssistantSavedRequestException && !_mutationPending
+              ? error.requestId
+              : null,
         ),
       );
+      await _saving;
       return null;
     }
   }
@@ -241,6 +257,7 @@ class PassengerAssistantController
         lastQuery: current.lastQuery,
         lastLocale: current.lastLocale,
         draft: current.draft,
+        savedRequestId: current.savedRequestId,
       ),
     );
   }
@@ -277,6 +294,7 @@ class PassengerAssistantController
     ];
     final processing = PassengerAssistantState(
       phase: PassengerAssistantPhase.processing,
+      savedRequestId: current.savedRequestId,
       messages: messages,
       conversationId: current.conversationId,
       lastQuery: normalized,
@@ -313,6 +331,7 @@ class PassengerAssistantController
           lastQuery: normalized,
           lastLocale: locale,
           draft: reply.draft,
+          savedRequestId: current.savedRequestId,
         ),
       );
     } catch (error) {
@@ -325,6 +344,7 @@ class PassengerAssistantController
           lastQuery: normalized,
           lastLocale: locale,
           failure: _failureFor(error),
+          savedRequestId: current.savedRequestId,
         ),
       );
     }
@@ -333,6 +353,9 @@ class PassengerAssistantController
 
 PassengerAssistantFailure _failureFor(Object error) {
   if (error is ApiException) {
+    if (error.message == 'selected_driver_route_unavailable') {
+      return PassengerAssistantFailure.selectedDriverUnavailable;
+    }
     if (error.message == 'booking_outcome_unknown') {
       return PassengerAssistantFailure.unknownBooking;
     }

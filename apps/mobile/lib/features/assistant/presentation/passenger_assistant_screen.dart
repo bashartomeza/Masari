@@ -15,6 +15,7 @@ import '../../../core/widgets/masari_back_button.dart';
 import '../application/passenger_assistant_controller.dart';
 import '../domain/passenger_assistant_models.dart';
 import '../../passenger/data/passenger_models.dart';
+import '../../auth/application/auth_controller.dart';
 import '../../passenger/domain/trip_offer.dart';
 import '../../passenger/presentation/widgets/trip_offer_card.dart';
 
@@ -78,11 +79,37 @@ class _PassengerAssistantScreenState
 
   Future<void> _selectTrip(PassengerAssistantTripOption option) async {
     FocusScope.of(context).unfocus();
+    final actor = ref.read(authControllerProvider).value?.user?.id;
     final matchId = await ref
         .read(passengerAssistantControllerProvider.notifier)
         .selectTrip(option);
+    if (!mounted || actor != ref.read(authControllerProvider).value?.user?.id) {
+      return;
+    }
     if (mounted && matchId != null) {
       context.go('/passenger/match/$matchId');
+    } else if (mounted) {
+      final current = ref.read(passengerAssistantControllerProvider).value;
+      final requestId = current?.selectionRequestId;
+      if (requestId != null &&
+          current?.selectionFailure !=
+              PassengerAssistantFailure.unknownBooking &&
+          current?.selectionFailure != PassengerAssistantFailure.savedBooking) {
+        final l10n = AppLocalizations.of(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              current?.selectionFailure == PassengerAssistantFailure.expired
+                  ? l10n.bookingTimePassed
+                  : current?.selectionFailure ==
+                        PassengerAssistantFailure.selectedDriverUnavailable
+                  ? l10n.selectedDriverUnavailable
+                  : l10n.assistantSearchError,
+            ),
+          ),
+        );
+        context.go('/passenger/request/$requestId');
+      }
     }
   }
 
@@ -389,7 +416,10 @@ class _TripSearchResults extends StatelessWidget {
           ],
           if (selectionFailure != null)
             Text(
-              selectionFailure == PassengerAssistantFailure.expired
+              selectionFailure ==
+                      PassengerAssistantFailure.selectedDriverUnavailable
+                  ? l10n.selectedDriverUnavailable
+                  : selectionFailure == PassengerAssistantFailure.expired
                   ? l10n.bookingTimePassed
                   : selectionFailure == PassengerAssistantFailure.unknownBooking
                   ? l10n.bookingOutcomeUnknown

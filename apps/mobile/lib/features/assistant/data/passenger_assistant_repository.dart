@@ -39,6 +39,18 @@ abstract interface class PassengerAssistantRepository {
   });
 }
 
+/// The create is confirmed even when matching is rejected or remains uncertain.
+class AssistantSavedRequestException extends ApiException {
+  const AssistantSavedRequestException(
+    super.type,
+    super.message, {
+    required this.requestId,
+    super.statusCode,
+  });
+
+  final String requestId;
+}
+
 class ApiPassengerAssistantRepository implements PassengerAssistantRepository {
   ApiPassengerAssistantRepository({required this.apiClient, this.mutation});
 
@@ -121,16 +133,37 @@ class ApiPassengerAssistantRepository implements PassengerAssistantRepository {
     final receipt = await _requestForDraft(body, option, draft);
     final requestId = receipt.value;
     recovery.requireActor(actor);
+    final context = receipt.bundle.payload['client_recovery'];
+    final savedOption = context is Map ? context['option'] : null;
+    final selectedRouteId = savedOption is Map ? savedOption['id'] : null;
+    if (selectedRouteId is! String || selectedRouteId != option.id) {
+      throw AssistantSavedRequestException(
+        ApiErrorType.validation,
+        'booking_saved_matching_unavailable',
+        requestId: requestId,
+      );
+    }
 
     Map<String, dynamic> matched;
     try {
       matched = await apiClient.postJson(
         '/matches/run',
-        body: {'passengerRequestId': requestId, 'driverRouteId': option.id},
+        body: {
+          'passengerRequestId': requestId,
+          'driverRouteId': selectedRouteId,
+        },
       );
-    } catch (_) {
+      final match = matched['match'];
+      if (match is! Map ||
+          match['id'] is! String ||
+          (match['id'] as String).isEmpty) {
+        throw const FormatException('Missing match result');
+      }
+    } catch (error) {
       // The request is known saved. A lost match response must recover that
       // request's existing active match rather than create another request.
+      Map? recovered;
+      var confirmedNoActiveMatch = false;
       try {
         final existing = await apiClient.getJson('/matches');
         final matches = existing['matches'];
@@ -148,14 +181,38 @@ class ApiPassengerAssistantRepository implements PassengerAssistantRepository {
                   ].contains(match['status']) &&
                   match['id'] is String,
             )
+            .toList(growable: false);
+        confirmedNoActiveMatch = active.isEmpty;
+        recovered = active
+            .where(
+              (match) =>
+                  match['driver_route'] is Map &&
+                  (match['driver_route'] as Map)['id'] == selectedRouteId,
+            )
             .firstOrNull;
-        if (active == null) throw const FormatException('No active match');
-        matched = {'match': active};
       } catch (_) {
         recovery.requireActor(actor);
-        throw const ApiException(
-          ApiErrorType.validation,
+      }
+      recovery.requireActor(actor);
+      if (recovered != null) {
+        matched = {'match': recovered};
+      } else if (confirmedNoActiveMatch &&
+          _definitiveMatchingRejection(error)) {
+        await recovery.acknowledge(receipt);
+        _createdRequests.remove('$actor:${jsonEncode(body)}');
+        final rejection = error as ApiException;
+        throw AssistantSavedRequestException(
+          rejection.type,
+          rejection.message,
+          requestId: requestId,
+          statusCode: rejection.statusCode,
+        );
+      } else {
+        throw AssistantSavedRequestException(
+          error is ApiException ? error.type : ApiErrorType.unknown,
           'booking_saved_matching_unavailable',
+          requestId: requestId,
+          statusCode: error is ApiException ? error.statusCode : null,
         );
       }
     }
@@ -274,6 +331,12 @@ class ApiPassengerAssistantRepository implements PassengerAssistantRepository {
     'passenger_count': draft.passengerCount,
   };
 }
+
+bool _definitiveMatchingRejection(Object error) =>
+    error is ApiException &&
+    error.message != 'invalid_response' &&
+    error.message != 'passenger_request_already_matched' &&
+    [400, 404, 409, 422].contains(error.statusCode);
 
 extension<T> on List<T> {
   Iterable<T> takeLast(int count) => skip(length > count ? length - count : 0);
