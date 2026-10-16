@@ -49,7 +49,22 @@ const readBudgetMs = 10_000;
 
 async function get<T>(path: string, token = adminToken, status = 200): Promise<T> {
   const start = performance.now();
-  const response = await fetch(`${base}${path}`, { headers: token ? { authorization: `Bearer ${token}` } : {}, signal: AbortSignal.timeout(readBudgetMs) });
+  const signal = AbortSignal.timeout(readBudgetMs);
+  let response: Response;
+  try {
+    response = await fetch(`${base}${path}`, { headers: token ? { authorization: `Bearer ${token}` } : {}, signal });
+  } catch (error) {
+    const pathname = path.split("?")[0]!;
+    const fixedPath = pathname === "/overview" || pathname === "/matches" || pathname === "/batches" ? pathname
+      : /^\/matches\/[^/]+$/.test(pathname) ? "/matches/:id"
+      : /^\/batches\/[^/]+\/parcels$/.test(pathname) ? "/batches/:id/parcels"
+      : /^\/batches\/[^/]+$/.test(pathname) ? "/batches/:id" : "/unknown";
+    const name = error instanceof Error && ["TimeoutError", "AbortError", "TypeError", "Error"].includes(error.name)
+      ? error.name : "UnknownError";
+    console.error(JSON.stringify({ phase, pathname: fixedPath, error_name: name,
+      elapsed_ms: Math.round(performance.now() - start), timed_out: signal.aborted }));
+    throw error;
+  }
   const body: unknown = await response.json();
   assert.equal(response.status, status, `${phase}: ${path.split("?")[0]} HTTP status`);
   assert(!JSON.stringify(body).includes(marker), "Private fixture marker escaped projection");

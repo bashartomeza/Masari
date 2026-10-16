@@ -475,6 +475,32 @@ async function createBestMatch(req: AuthenticatedRequest, input: MatchInput) {
         });
       }
 
+      // Bound timestamps can become stale while a claim waits for an InnoDB
+      // row lock. Read the locked demand/supply, then start a fresh clock
+      // statement: CURRENT_TIMESTAMP in the locking SELECT itself would be
+      // evaluated before any lock wait in that statement.
+      const timingRows = await tx.$queryRaw<Array<{
+        preferred_time: Date | null;
+        departure_at: Date | null;
+        departed_at: Date | null;
+        availability_window_end: Date | null;
+      }>>`
+        SELECT pr.preferred_time, dr.departure_at, dr.departed_at, dr.availability_window_end
+        FROM driver_routes dr
+        LEFT JOIN passenger_requests pr ON pr.id = ${passengerRequest?.id ?? null}
+        WHERE dr.id = ${best.route.id}
+        FOR UPDATE
+      `;
+      const timing = timingRows[0];
+      if (!timing) throw new HttpError(409, "selected_driver_route_unavailable");
+      // Prisma stores/reads DATETIME values as UTC regardless of session zone.
+      const clock = await tx.$queryRaw<Array<{ now: Date }>>`SELECT UTC_TIMESTAMP(3) AS now`;
+      const creationTime = clock[0]!.now;
+      if (timing.preferred_time && timing.preferred_time <= creationTime) {
+        throw new HttpError(409, "passenger_request_expired");
+      }
+      if (!isLegacyRouteTimely(timing, creationTime)) throw new HttpError(409, "selected_driver_route_unavailable");
+
       const created = await tx.match.create({
         data: {
           driver_route_id: best.route.id,

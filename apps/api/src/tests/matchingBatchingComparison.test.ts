@@ -5,6 +5,7 @@ import { scoreDriverRoute } from "../modules/matching.js";
 
 const prismaMock = vi.hoisted(() => ({
   $transaction: vi.fn(),
+  $queryRaw: vi.fn(),
   user: { findUnique: vi.fn() },
   authSession: { findUnique: vi.fn(), update: vi.fn() },
   auditEvent: { create: vi.fn() },
@@ -144,6 +145,10 @@ describe("matching, batching, comparison", () => {
     prismaMock.passengerRequest.update.mockResolvedValue({});
     prismaMock.passengerRequest.updateMany.mockResolvedValue({ count: 1 });
     prismaMock.$transaction.mockImplementation((callback: (tx: typeof prismaMock) => unknown) => callback(prismaMock));
+    prismaMock.$queryRaw.mockImplementation(async (query: TemplateStringsArray) => query.join("").includes("TIMESTAMP")
+      ? [{ now: new Date() }]
+      : [{ preferred_time: passengerRequest.preferred_time, departure_at: compatibleRoute.departure_at,
+        departed_at: null, availability_window_end: compatibleRoute.availability_window_end }]);
   });
 
   it("route-compatible driver scores higher than nearest wrong-direction driver", () => {
@@ -214,6 +219,34 @@ describe("matching, batching, comparison", () => {
     prismaMock.match.create.mockImplementation(({ data }) => ({ id: "must_not_exist", ...data, driver_route: compatibleRoute }));
     await request(createApp()).post("/api/v1/matches/run").set(auth("passenger_1"))
       .send({ passengerRequestId: passengerRequest.id, driverRouteId: compatibleRoute.id }).expect(409);
+    expect(prismaMock.match.create).not.toHaveBeenCalled();
+    expect(prismaMock.driverRoute.updateMany).not.toHaveBeenCalled();
+  });
+
+  it.each(["demand", "departure", "window"] as const)("rejects match creation when %s expires during a row lock wait", async boundary => {
+    prismaMock.passengerRequest.findUnique.mockResolvedValue(passengerRequest);
+    prismaMock.driverRoute.findMany.mockResolvedValue([compatibleRoute]);
+    prismaMock.match.create.mockImplementation(({ data }) => ({ id: "expired_offer", ...data, driver_route: compatibleRoute }));
+    // The DB clock has crossed one deadline after the capacity claim acquires
+    // its lock; the pre-transaction application clock still sees valid supply.
+    prismaMock.$queryRaw.mockImplementation(async (query: TemplateStringsArray) => query.join("").includes("TIMESTAMP")
+      ? [{ now: new Date("2026-07-02T10:00:00.001Z") }]
+      : [{ preferred_time: new Date(boundary === "demand" ? "2026-07-02T10:00:00.000Z" : "2026-07-02T11:00:00.000Z"),
+        departure_at: boundary === "departure" ? new Date("2026-07-02T10:00:00.000Z") : null,
+        departed_at: null,
+        availability_window_end: boundary === "window" ? new Date("2026-07-02T10:00:00.000Z") : null }]);
+    const response = await request(createApp()).post("/api/v1/matches/run").set(auth("passenger_1"))
+      .send({ passengerRequestId: passengerRequest.id, driverRouteId: compatibleRoute.id });
+    expect(response.status).toBe(409);
+    expect(prismaMock.match.create).not.toHaveBeenCalled();
+  });
+
+  it("never substitutes another candidate when the selected route is unavailable", async () => {
+    prismaMock.passengerRequest.findUnique.mockResolvedValue(passengerRequest);
+    prismaMock.driverRoute.findMany.mockResolvedValue([compatibleRoute]);
+    const response = await request(createApp()).post("/api/v1/matches/run").set(auth("passenger_1"))
+      .send({ passengerRequestId: passengerRequest.id, driverRouteId: "unavailable_selected_route" });
+    expect(response.status).toBe(409);
     expect(prismaMock.match.create).not.toHaveBeenCalled();
     expect(prismaMock.driverRoute.updateMany).not.toHaveBeenCalled();
   });

@@ -174,6 +174,134 @@ try {
   check(await prisma.driverRoute.count({ where: { driver_id: driver.driver_profile!.id, operational_mode: "legacy" } }) === 1,
     "completed keyed driver retry never creates another legacy route");
 
+  // A bound Date (and MySQL CURRENT_TIMESTAMP in a statement that waits) can
+  // become stale while InnoDB acquires the request or capacity row lock.
+  // Every expired case must roll back the demand claim and the capacity hold.
+  const alternativeDriver = await prisma.user.create({ data: {
+    name: `${prefix}_alternative_driver`, ...completeIdentity("alternative_driver"), role: "driver",
+    account_status: "active", demo_account: true,
+    driver_profile: { create: { vehicle_type: "QA", seats_total: 4, parcel_capacity: 5, verified: true, trust_score: 95 } },
+  }, include: { driver_profile: true } });
+  const alternativeRoute = await prisma.driverRoute.create({ data: {
+    driver_id: alternativeDriver.driver_profile!.id,
+    origin_label: "Hebron / PPU / Bab Al-Zawiya", origin_lat: body.pickup_lat, origin_lng: body.pickup_lng,
+    destination_label: "Bethlehem", destination_lat: body.destination_lat, destination_lng: body.destination_lng,
+    corridor_key: "hebron-ppu-bab-al-zawiya-to-bethlehem", status: "active", seats_available: 2, parcel_capacity_available: 5,
+  } });
+  const creationBarriers: Array<{ probe: string; passed: boolean }> = [];
+  for (const scenario of [
+    { name: "request_lock_demand_deadline", lock: "request", deadline: "demand" },
+    { name: "route_lock_demand_deadline", lock: "route", deadline: "demand" },
+    { name: "route_lock_departure_deadline", lock: "route", deadline: "departure" },
+    { name: "route_lock_window_deadline", lock: "route", deadline: "window" },
+    { name: "route_lock_future_control", lock: "route", deadline: "future" },
+  ] as const) {
+    await prisma.driverRoute.update({ where: { id: routeId }, data: {
+      status: "active", seats_available: 2, parcel_capacity_available: 5,
+      completed_at: null, departure_at: null, departed_at: null, availability_window_end: null,
+    } });
+    if (scenario.deadline === "future") {
+      const preview = await search();
+      const selected = preview.body.results?.find((candidate: { id: string }) => candidate.id === routeId);
+      check(preview.status === 200 && preview.body.results[0]?.id === alternativeRoute.id &&
+        selected && preview.body.results[0].score > selected.score,
+      "future control explicitly selects a route behind an eligible higher-ranked alternative");
+      console.log(JSON.stringify({ probe: "selected_route_score_control", selected_score: selected.score,
+        alternative_score: preview.body.results[0].score, alternative_ranked_first: true }));
+    }
+    const createdRequest = await post(0, { ...body, pickup_label: `${prefix}_${scenario.name}` }, `${prefix}_${scenario.name}`);
+    check(createdRequest.status === 201, `${scenario.name}: demand starts valid`);
+    const demandId = createdRequest.body.request.id as string;
+    const auditWhere = { user_id: users[0]!.id, action: "match_decision" as const, entity_type: "Match" };
+    const auditsBefore = await prisma.auditEvent.count({ where: auditWhere });
+    const expires = scenario.deadline !== "future";
+    const deadline = new Date(Date.now() + (expires ? 2_500 : 60_000));
+    if (scenario.deadline === "demand") {
+      await prisma.passengerRequest.update({ where: { id: demandId }, data: { preferred_time: deadline } });
+    } else if (scenario.deadline === "departure" || scenario.deadline === "window") {
+      await prisma.driverRoute.update({ where: { id: routeId }, data: scenario.deadline === "departure"
+        ? { departure_at: deadline } : { availability_window_end: deadline } });
+    }
+    let release!: () => void;
+    let ready!: () => void;
+    const released = new Promise<void>(resolve => { release = resolve; });
+    const locked = new Promise<void>(resolve => { ready = resolve; });
+    const holder = prisma.$transaction(async tx => {
+      if (scenario.lock === "request") await tx.$queryRaw`SELECT id FROM passenger_requests WHERE id = ${demandId} FOR UPDATE`;
+      else await tx.$queryRaw`SELECT id FROM driver_routes WHERE id = ${routeId} FOR UPDATE`;
+      ready();
+      await released;
+    }, { timeout: 15_000 });
+    await Promise.race([locked, holder.then(() => { throw new Error("creation_barrier_lock_ended_early"); })]);
+    const started = Date.now();
+    const blocked = request(server).post("/api/v1/matches/run").set("Authorization", `Bearer ${tokens[0]}`)
+      .send({ passengerRequestId: demandId, driverRouteId: routeId }).then(response => response);
+    const table = scenario.lock === "request" ? "passenger_requests" : "driver_routes";
+    let observed = false;
+    let releasedAt = 0;
+    let releasedAtDb = 0;
+    try {
+      while (Date.now() < Math.min(deadline.getTime(), started + 2_000)) {
+        const waits = await prisma.$queryRaw<Array<{ count: bigint }>>`
+          SELECT COUNT(*) AS count FROM performance_schema.data_lock_waits waits
+          INNER JOIN performance_schema.data_locks locks ON locks.ENGINE = waits.ENGINE
+            AND locks.ENGINE_LOCK_ID = waits.REQUESTING_ENGINE_LOCK_ID
+          WHERE locks.OBJECT_SCHEMA = DATABASE() AND locks.OBJECT_NAME = ${table}
+        `;
+        if (Number(waits[0]?.count) > 0 && Date.now() < deadline.getTime()) { observed = true; break; }
+        await delay(25);
+      }
+      if (observed && expires) await delay(Math.max(0, deadline.getTime() - Date.now() + 150));
+    } finally {
+      try {
+        const clock = await prisma.$queryRaw<Array<{ now: Date }>>`SELECT UTC_TIMESTAMP(3) AS now`;
+        releasedAtDb = clock[0]!.now.getTime();
+      } finally {
+        releasedAt = Date.now();
+        release();
+        await holder;
+      }
+    }
+    const response = await blocked;
+    const [demandRow, routeRow, offers, trips, alternative, auditsAfter] = await Promise.all([
+      prisma.passengerRequest.findUniqueOrThrow({ where: { id: demandId } }),
+      prisma.driverRoute.findUniqueOrThrow({ where: { id: routeId } }),
+      prisma.match.findMany({ where: { passenger_request_id: demandId } }),
+      prisma.trip.count({ where: { passenger_request_id: demandId } }),
+      prisma.driverRoute.findUniqueOrThrow({ where: { id: alternativeRoute.id } }),
+      prisma.auditEvent.count({ where: auditWhere }),
+    ]);
+    const rollback = demandRow.status === "pending" && routeRow.seats_available === 2 && offers.length === 0 &&
+      trips === 0 && auditsAfter === auditsBefore;
+    const futureBinding = response.status === 201 && offers.length === 1 && offers[0]!.driver_route_id === routeId &&
+      offers[0]!.legacy_capacity_held && routeRow.seats_available === 1 && demandRow.status === "matched" && auditsAfter === auditsBefore + 1;
+    const passed = observed && alternative.seats_available === 2 &&
+      (expires ? releasedAtDb > deadline.getTime() && response.status === 409 && rollback : futureBinding);
+    creationBarriers.push({ probe: scenario.name, passed });
+    console.log(JSON.stringify({ probe: scenario.name, observed_mysql_lock_wait: observed, table,
+      deadline_ms: deadline.getTime(), released_at_ms: releasedAt, released_at_db_ms: releasedAtDb, elapsed_ms: Date.now() - started,
+      http_status: response.status, demand_status: demandRow.status, seats_available: routeRow.seats_available,
+      offer_count: offers.length, held_offer_count: offers.filter(offer => offer.legacy_capacity_held).length,
+      trip_count: trips, selected_route_bound: offers[0]?.driver_route_id === routeId,
+      match_decision_audits_before: auditsBefore, match_decision_audits_after: auditsAfter,
+      alternative_seats_available: alternative.seats_available, passed }));
+    // Isolate subsequent cases even on RED: these are disposable synthetic rows.
+    await prisma.auditEvent.deleteMany({ where: { entity_id: { in: offers.map(offer => offer.id) } } });
+    await prisma.match.deleteMany({ where: { passenger_request_id: demandId } });
+  }
+  await prisma.driverRoute.update({ where: { id: routeId }, data: { status: "completed", completed_at: new Date(),
+    seats_available: 2, departure_at: null, availability_window_end: null } });
+  const unavailableDemand = await post(0, { ...body, pickup_label: `${prefix}_unavailable_choice` }, `${prefix}_unavailable_choice`);
+  check(unavailableDemand.status === 201, "unavailable-choice demand starts valid");
+  const unavailableChoice = await request(server).post("/api/v1/matches/run").set("Authorization", `Bearer ${tokens[0]}`)
+    .send({ passengerRequestId: unavailableDemand.body.request.id, driverRouteId: routeId });
+  check(unavailableChoice.status === 409 &&
+    await prisma.match.count({ where: { passenger_request_id: unavailableDemand.body.request.id } }) === 0 &&
+    (await prisma.driverRoute.findUniqueOrThrow({ where: { id: alternativeRoute.id } })).seats_available === 2,
+  "unavailable selected route never silently falls back to eligible alternative supply");
+  await prisma.driverRoute.update({ where: { id: alternativeRoute.id }, data: { status: "completed", completed_at: new Date() } });
+  check(creationBarriers.every(result => result.passed), `creation deadline lock barriers: ${JSON.stringify(creationBarriers)}`);
+
   const barrierRouteResponse = await request(server).post("/api/v1/driver/routes").set("Authorization", `Bearer ${driverToken}`)
     .set("Idempotency-Key", `${prefix}_barrier_route`).send({ seats_available: 2, parcel_capacity_available: 0 });
   check(barrierRouteResponse.status === 201, "deadline barrier has undated driver supply");
