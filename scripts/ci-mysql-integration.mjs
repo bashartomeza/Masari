@@ -12,7 +12,10 @@ if (database.toLowerCase() === "masari" || !resetAllowedDatabases.includes(datab
 }
 const root = resolve(new URL("../", import.meta.url).pathname.replace(/^\/(\w:)/, "$1"));
 const apiOrigin = (process.env.API_BASE_URL ?? "http://127.0.0.1:3000").replace(/\/$/, "");
-const child = spawn(process.execPath, ["apps/api/dist/server.js"], { cwd: root, env: {
+const apiEntrypoint = process.env.CI_MYSQL_LOOPBACK_QA === "true"
+  ? "scripts/local-functional-qa-api.mjs"
+  : "apps/api/dist/server.js";
+const child = spawn(process.execPath, [apiEntrypoint], { cwd: root, env: {
   ...process.env,
   MULTI_ROUTE_ENTRY_ENABLED: "false",
   MULTI_ROUTE_MATCHING_ENABLED: "false",

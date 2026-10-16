@@ -300,6 +300,10 @@ class AppLocalizationsAr extends AppLocalizations {
   String get selectedDriver => 'السائق المختار';
 
   @override
+  String get selectedDriverUnavailable =>
+      'مسار السائق المختار لم يعد متاحاً. اختر رحلة أخرى.';
+
+  @override
   String get selectedRoute => 'المسار المختار';
 
   @override
@@ -1845,4 +1849,14 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get mapSelectRoute => 'اختر مساراً لعرضه على الخريطة.';
+
+  @override
+  String get bookingTimePassed => 'وقت المغادرة هذا قد مضى. اختر وقتاً قادماً.';
+
+  @override
+  String get bookingOutcomeUnknown =>
+      'قد يكون الحجز محفوظًا بالفعل. سنتحقق منه عند عودة الاتصال. لا تنشئ حجزًا آخر.';
+
+  @override
+  String get verifyBooking => 'التحقق من الحجز';
 }

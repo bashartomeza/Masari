@@ -23,6 +23,8 @@ import 'package:masari_mobile/features/trips/data/trip_models.dart';
 
 import 'support/auth_test_support.dart';
 import 'test_app_config.dart';
+import 'support/booking_recovery_test_support.dart';
+import 'package:masari_mobile/features/driver/application/legacy_driver_route_mutation.dart';
 
 void main() {
   test(
@@ -464,7 +466,15 @@ void main() {
 
 ProviderContainer _container(_FakeDriverRepository fake) {
   return ProviderContainer(
-    overrides: [driverRepositoryProvider.overrideWithValue(fake)],
+    overrides: [
+      driverRepositoryProvider.overrideWithValue(fake),
+      legacyDriverRouteMutationProvider.overrideWithValue(
+        LegacyDriverRouteMutation(
+          storage: MemoryBookingStorage(),
+          currentActor: () => 'test-driver',
+        ),
+      ),
+    ],
   );
 }
 
@@ -529,6 +539,8 @@ class _FakeDriverRepository extends DriverRepository {
   Future<DriverRoute> createRoute({
     required int seatsAvailable,
     required int parcelCapacityAvailable,
+    String? idempotencyKey,
+    Future<void> Function()? beforeRetry,
   }) async {
     createCalls += 1;
     lastSeats = seatsAvailable;
@@ -654,6 +666,8 @@ class _AuthenticatedDriverController extends AuthController {
 }
 
 class _MemoryCanonicalStorage implements CanonicalOperationStorage {
+  @override
+  String get namespace => CanonicalOperationStorage.bundleKey;
   _MemoryCanonicalStorage({this.saveError});
 
   CanonicalOperationBundle? bundle;

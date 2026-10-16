@@ -24,6 +24,7 @@ class TripOfferCard extends StatelessWidget {
     this.actionLabel,
     this.busy = false,
     this.enabled = true,
+    this.verifyingBooking = false,
     super.key,
   });
 
@@ -35,10 +36,16 @@ class TripOfferCard extends StatelessWidget {
   final bool busy;
   final bool enabled;
 
+  /// Reconcile an existing request identity; this never authorizes a new booking.
+  final bool verifyingBooking;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context);
+    final departurePassed =
+        offer.departureAt != null &&
+        !offer.departureAt!.isAfter(DateTime.now());
 
     return MasariCard(
       padding: const EdgeInsets.all(AppTokens.spaceMedium),
@@ -139,7 +146,10 @@ class TripOfferCard extends StatelessWidget {
                 const SizedBox(width: AppTokens.spaceSmall),
                 FilledButton(
                   key: ValueKey('bookOffer-${offer.id}'),
-                  onPressed: busy || !enabled ? null : onBook,
+                  onPressed:
+                      busy || !enabled || (departurePassed && !verifyingBooking)
+                      ? null
+                      : onBook,
                   style: FilledButton.styleFrom(
                     minimumSize: const Size(0, AppTokens.minTouchTarget),
                     padding: const EdgeInsets.symmetric(
@@ -156,6 +166,7 @@ class TripOfferCard extends StatelessWidget {
               ],
             ],
           ),
+          if (departurePassed && onBook != null) Text(l10n.bookingTimePassed),
         ],
       ),
     );

@@ -650,6 +650,12 @@ abstract class AppLocalizations {
   /// **'السائق المختار'**
   String get selectedDriver;
 
+  /// No description provided for @selectedDriverUnavailable.
+  ///
+  /// In ar, this message translates to:
+  /// **'مسار السائق المختار لم يعد متاحاً. اختر رحلة أخرى.'**
+  String get selectedDriverUnavailable;
+
   /// No description provided for @selectedRoute.
   ///
   /// In ar, this message translates to:
@@ -3499,6 +3505,24 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'اختر مساراً لعرضه على الخريطة.'**
   String get mapSelectRoute;
+
+  /// No description provided for @bookingTimePassed.
+  ///
+  /// In ar, this message translates to:
+  /// **'وقت المغادرة هذا قد مضى. اختر وقتاً قادماً.'**
+  String get bookingTimePassed;
+
+  /// No description provided for @bookingOutcomeUnknown.
+  ///
+  /// In ar, this message translates to:
+  /// **'قد يكون الحجز محفوظًا بالفعل. سنتحقق منه عند عودة الاتصال. لا تنشئ حجزًا آخر.'**
+  String get bookingOutcomeUnknown;
+
+  /// No description provided for @verifyBooking.
+  ///
+  /// In ar, this message translates to:
+  /// **'التحقق من الحجز'**
+  String get verifyBooking;
 }
 
 class _AppLocalizationsDelegate

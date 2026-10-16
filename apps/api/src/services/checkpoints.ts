@@ -53,7 +53,7 @@ const STATUS_KEYS = ["status", "state", "condition"] as const;
 const UPDATED_KEYS = ["updated_at", "last_updated", "modified_at", "created_at"] as const;
 
 const CLOSED_MARKERS = ["closed", "blocked", "shut", "مغلق", "مغلقة"];
-const CONGESTED_MARKERS = ["congested", "busy", "slow", "delay", "crowded", "ازدحام", "مزدحم"];
+const CONGESTED_MARKERS = ["congested", "busy", "slow", "delay", "crowded", "ازدحام", "مزدحم", "أزمة", "ازمة", "أزمة متوسطة"];
 const OPEN_MARKERS = ["open", "clear", "flowing", "مفتوح", "مفتوحة", "سالك"];
 
 function pick(row: Record<string, unknown>, keys: readonly string[]) {
@@ -65,6 +65,8 @@ function pick(row: Record<string, unknown>, keys: readonly string[]) {
 }
 
 function toCoordinate(value: unknown, limit: number) {
+  if (typeof value !== "number" && typeof value !== "string") return null;
+  if (typeof value === "string" && value.trim() === "") return null;
   const numeric = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(numeric) || Math.abs(numeric) > limit) return null;
   // Six decimals matches the catalog's stop precision (~0.1 m).
@@ -74,9 +76,11 @@ function toCoordinate(value: unknown, limit: number) {
 function toStatus(value: unknown): CheckpointStatus {
   if (typeof value !== "string") return "unknown";
   const normalized = value.trim().toLowerCase();
-  if (CLOSED_MARKERS.some((marker) => normalized.includes(marker))) return "closed";
-  if (CONGESTED_MARKERS.some((marker) => normalized.includes(marker))) return "congested";
-  if (OPEN_MARKERS.some((marker) => normalized.includes(marker))) return "open";
+  const matches = (markers: string[]) => markers.some((marker) =>
+    normalized === marker || normalized.startsWith(`${marker} `));
+  if (matches(CLOSED_MARKERS)) return "closed";
+  if (matches(CONGESTED_MARKERS)) return "congested";
+  if (matches(OPEN_MARKERS)) return "open";
   return "unknown";
 }
 
