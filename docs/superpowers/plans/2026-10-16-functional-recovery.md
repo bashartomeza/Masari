@@ -11,7 +11,7 @@
 ## Constraints and verification
 
 - DESIGN CHANGES = NONE. No real masari access, production deployment, merge, rebase, force push, or old feature branch work.
-- Provider credential must never be tested or reused. Rotation: awaiting owner confirmation. A multiline literal escaped the initial output filter; no further raw credential source output is permitted.
+- Provider credential must never be tested or reused. Rotation: awaiting owner confirmation. Inspection incident: the pre-existing literal appeared in tool output when a multiline value escaped the initial filter and again in a historical diff. It was not tested, reused, or copied into new files. No further raw historical credential source/diff output is permitted; rotation remains necessary.
 - Preserve approved migration checksums. Review missing migration before adding its checksum.
 - Keep one branch and focused commits; push and open one draft PR to production-readiness.
 - Require API/Admin/Mobile/tooling checks, migrations, builds, artifact/secret scans, full/production audits, real MySQL integration, and four exact-head hosted checks.
@@ -25,17 +25,17 @@ Race/failure cases: post-commit audit/response failure, lost successful response
 
 ## 0. Security and CI blockers
 
-- [ ] Restore mobile checkpoint calls through the authenticated existing API and prevent embedded credential regressions.
-- [ ] Review missing `20261012165000_allow_legacy_offer_lifecycle_timestamps`; reconcile only that inventory entry.
-- [ ] Diagnose Backend/MySQL monitoring setup failure, Mobile formatting, Security migration inventory failure.
-- [ ] Record local baseline commands/results; hosted baseline: Admin success (38790113687), Backend failure (38790113696), Mobile failure (38790113737), Security failure (38790113769).
+- [x] Restore mobile checkpoint calls through the authenticated existing API and prevent embedded credential regressions.
+- [x] Review missing `20261012165000_allow_legacy_offer_lifecycle_timestamps`; reconcile only that inventory entry.
+- [x] Diagnose Backend/MySQL monitoring setup failure, Mobile formatting, Security migration inventory failure.
+- [x] Record local baseline commands/results; hosted baseline: Admin success (38790113687), Backend failure (38790113696), Mobile failure (38790113737), Security failure (38790113769).
 - Docker daemon unavailable locally. MySQL 8 installed; use a new isolated datadir/port with generated credentials, never the existing database.
 
 ## 1. Maps and Traffic Alerts
 
-- [ ] Trace checkpoint API/model/marker contracts and independent base-map loading. Canonical API currently emits coordinates/status while mobile expects partner fields and substitutes `(0,0)` for unknown IDs.
-- [ ] Regress invalid/missing coordinates, status aliases/severity, missing rows, canonical parsing, optional layer failure.
-- [ ] Restore compatible parsing/shared marker function and verify both screens.
+- [x] Trace checkpoint API/model/marker contracts and independent base-map loading. Canonical API currently emits coordinates/status while mobile expects partner fields and substitutes `(0,0)` for unknown IDs.
+- [x] Regress invalid/missing coordinates, status aliases/severity, missing rows, canonical parsing, optional layer failure.
+- [x] Restore compatible parsing/shared marker function and verify both screens.
 
 Evidence: mobile boundary and synthetic secret detection tests failed before fixes and now pass (3/3 including artifact rejection, without printing values). API malformed-coordinate regression failed (booleans/arrays/whitespace were coerced to coordinates), now 7/7 checkpoint API tests pass. Qualified closure phrases remain recognized; negated `not open` is unknown. Mobile canonical parsing/marker tests failed, then 20 focused tests passed including base-map rendering while optional APIs remain pending. The initial repository fixture needed an explicit UTF-8 response header before it exercised Arabic data. Invalid snapshot rows are omitted individually; malformed envelopes still fail. Removed local `(0,0)` fallback and use authenticated canonical coordinates/names/status/fetched_at/stale. Passenger map now draws the shared markers; optional route loading no longer blocks its base map. Fresh independent security review found no remaining direct-session bypass; canonical-only congestion counts and driver details required follow-up. Passenger metric regression reproduced as expected (zero instead of one); driver caller corrections are included with section 2.
 
@@ -43,8 +43,8 @@ Provider boundary: retain existing server PostgREST service/config; partner API 
 
 ## 2. Driver Trip Map and Route Tracking
 
-- [ ] Trace selected trip endpoints/API payload and async routing lifecycle.
-- [ ] Regress actual endpoints and trip-switch races, clear stale geometry, verify client/API path.
+- [x] Trace selected trip endpoints/API payload and async routing lifecycle.
+- [x] Regress actual endpoints and trip-switch races, clear stale geometry, verify client/API path.
 
 Implemented: GET `/trips/:id` already includes full request coordinates/parcel destinations; mobile summaries discarded them. Driver maps/ETA now consume selected request endpoints/labels. Removed unrelated locked-coordinate and straight-line fallbacks. Trip identity and endpoints key the routing futures, so late old results cannot repaint a newly selected trip. Route transport is injectable and bounded to 10 seconds; invalid geometry/metadata or missing positions yield an explicit unavailable state. Arbitrary Arabic origin names are preserved. A merchant trip with several distinct destinations cannot truthfully be reduced to one endpoint and is shown without an invented single route. The current source has no separate “Request Destinations” action; selected tripId is the existing entry path.
 
@@ -52,35 +52,45 @@ RED→GREEN evidence: wrong selected origin, invented road fallback, trip-switch
 
 ## 3A. Location names and coordinates
 
-- [ ] Trace location selection and payload; regress name/coordinate association through selection and request.
+- [x] Trace location selection and payload; regress name/coordinate association through selection and request.
 
 Not reproduced at this baseline: named locations are already stored/displayed independently from coordinates. Characterization through the actual picker and authenticated repository payload passes **5/5** tests, with distinct origin/destination labels and geographic pairs. No speculative reverse-geocoding or automatic relabeling was introduced. Section 2 independently fixes driver Arabic labels being replaced by an unrelated predefined origin.
 
 ## 3B. New trip/request persistence
 
-- [ ] Trace form → API validation → transaction → audit → response.
-- [ ] Regress actual persistence errors and concurrent double submission; confirm success only after committed outcome.
+- [x] Trace form → API validation → transaction → audit → response.
+- [x] Regress actual persistence errors and concurrent double submission; confirm success only after committed outcome.
 
 Confirmed: legacy request/driver-route creation committed a row before awaiting audit, so audit failure returned an error after saving. Passenger create now performs resource, audit and actor-scoped idempotency completion in one transaction. Exact key/payload retries replay only the authenticated actor's resource; conflicts do not mutate it. Completed booking identity survives claim TTL. Headerless existing clients keep compatibility with transactional creation. Driver create locks its existing profile row, reuses an exact active-route retry, and rejects conflicting operational routes; route+audit are atomic. Mobile submit now has a synchronous busy guard (two rapid events previously sent two requests) and save failures use their actual error category.
 
-Verification so far: passenger 6 RED→GREEN; driver 3 RED→GREEN plus existing passenger/driver API group 14 passed; typecheck passed. Mobile actual-picker/form/client rapid-submit regression RED (`2` requests) → GREEN (`1`). Disposable MySQL concurrency/audit probes are pending final integration; uncertain-outcome client retention is section 5.
+Verification: passenger 6 RED→GREEN; driver 3 RED→GREEN plus existing passenger/driver API group 14 passed; typecheck passed. Mobile actual-picker/form/client rapid-submit regression RED (`2` requests) → GREEN (`1`). Final disposable MySQL probe passed 55 assertions covering concurrency, audit rollback, response-loss replay and row-lock expiry; uncertain-outcome client retention is section 5.
 
 ## 4. Traditional booking validation
 
-- [ ] Trace date/departure/expiry semantics and regress server/client rejection plus upcoming control.
+- [x] Trace date/departure/expiry semantics and regress server/client rejection plus upcoming control.
+
+Confirmed: legacy create/search/run and accept did not consistently enforce preferred time, departure, offer expiry and route-window boundaries. Server guards now run on new creation/claims; completed idempotent replay precedes dynamic validation. Deliberately preserve undated active legacy driver supply. Actual mobile picker/past-time and expired-offer click/card regressions were RED, then GREEN (17 focused tests including existing assistant transport). Independent review identified time advancing during acceptance; final locking-current-read regressions and the real MySQL lock-wait probe now pass.
 
 ## 5. Uncertain booking recovery
 
-- [ ] Trace operation identity, actor scoping, payload conflicts and durable recovery.
-- [ ] Regress commit followed by audit/response loss and concurrent retries without duplicate records. Stop if a new schema is required.
+- [x] Trace operation identity, actor scoping, payload conflicts and durable recovery.
+- [x] Regress commit followed by audit/response loss and concurrent retries without duplicate records. Stop if a new schema is required.
+
+Server completed canonical create claims retain identity beyond TTL and replay before dynamic time checks. Scope remains actor+operation for demand, and the established actor+routeVersion for canonical driver availability. Changed payloads under the same scope/key conflict; different actors cannot replay one another. Mobile legacy request and driver-route identity is securely stored before HTTP; lost-success-response/reopen tests recover with the original key/payload and one logical resource even after driver capacity/status changes. The three retained canonical create paths also replay their exact two-day-old operation after departure; other operations keep their existing expiry quarantine. No schema changes.
+
+Compatibility limits: headerless older clients retain transactional creation but cannot obtain durable response-loss recovery without an operation key; the updated mobile clients supply one. Canonical driver key uniqueness remains actor+routeVersion, so changing route version changes the established server scope. Pending mobile retries cannot change their payload or route. A global per-actor key policy across distinct canonical route versions would require an explicit owner decision and compatibility plan; none was introduced during recovery.
+
+Review-driven regressions/fixes: each completed call carries its own receipt; acknowledgement requires its exact actor/operation/key and serializes storage access by namespace. A delayed K1 completion or K1 validation cleanup cannot delete newer unresolved K2. Assistant booking context is stored atomically with the operation, stripped from HTTP, and restored into the existing verification card after restart. An unresolved booking blocks a new query from hiding recovery. Actor/generation guards prevent late search/selection/message results and queued history saves from publishing another account's captured data. Genuine RED evidence exists for those three account-switch cases, actual widget restart (after correcting an off-screen test tap), pending-query behavior, expired availability-window click, and three acknowledgement/cleanup races. Focused receipt group **89 passed**; final review group **29 passed**. Final independent read-only review found no further actionable issue. Full package validation remains the delivery gate.
 
 ## 6. Login errors
 
-- [ ] Trace initial/restored/attempt error state; regress stale errors, edits, genuine invalid credentials and network outcomes.
+- [x] Trace initial/restored/attempt error state; regress stale errors, edits, genuine invalid credentials and network outcomes.
+
+Confirmed: LoginScreen displayed any shared auth error immediately, including another screen's stale error, and kept the failed attempt visible after edits. Two new widget regressions reproduced both failures. Error display now belongs to the current login attempt; credential edits/new attempts clear it. Controller ownership survives router page recreation, so genuine invalid credentials/Google failures still display. Editing during an in-flight attempt suppresses its later obsolete error without cancelling a successful authentication. Session-ended messages remain separate. New and existing actual router/auth widget group: **35/35 passed**, including genuine invalid credentials, network errors, edit-during-response race, successful role navigation and session revocation.
 
 ## Modules 01–09 assessment
 
-- [ ] Map each requested function to existing code, missing behavior, and required product/security decisions. Do not implement algorithms, pricing, trust policies, autonomous dispatch, key pooling, or cryptographic claims. Simulation is not measured evidence.
+- [x] Map each requested function to existing code, missing behavior, and required product/security decisions. Do not implement algorithms, pricing, trust policies, autonomous dispatch, key pooling, or cryptographic claims. Simulation is not measured evidence.
 
 Read-only assessment: requested `apps/api/ai_services/*.py` paths are absent. Prototypes are in `apps/api/Daedalus/`, with no API/mobile invocation found. Existing Python tests import the absent `ai_services` package and can reach a live extractor when a provider key is present; they were not run with inherited credentials.
 
@@ -108,8 +118,35 @@ No module algorithms, tariffs, trust policies, quota pooling, autonomous executi
 - Mobile initial format check: 5 changed files (embedded-repository transport had already been removed), baseline hosted check listed 6. Analyzer: 6 findings (3 unused/deprecation items in passenger map and 3 in driver map); initial Flutter suite failed 4 tests from 6px quick-info RenderFlex overflow at driver_trip_screen.dart:609.
 - MySQL 8.0.46: all 27 migrations deployed to a fresh isolated instance, repeated deployment and status passed. Monitoring setup reproduced failure at session user.create: synthetic phone exceeds current VARCHAR(32); no user-phone validator or schema is weakened.
 
+## Verification and review evidence
+
+- Missing migration reviewed before inventory reconciliation: `20261012165000_allow_legacy_offer_lifecycle_timestamps` changes legacy offer timestamp constraints only. Added its normalized SHA-256 `0a349a0bf2367407e41f89642ae8c407e266fbc17d67d0cf83159e97acedb0be`; every earlier inventory entry and migration SQL file is unchanged. The existing test verifies canonical lifecycle branches remain intact.
+- Monitoring fixture roots: overlong generated phone; incomplete/unverified synthetic identity rejected by existing auth; nine batch states versus a six-state fixture; yesterday's preferred time let the actual expiry worker mutate asserted rows. Fixes update synthetic fixtures and independent expected counts only. Real fast-worker (100ms interval) RED→GREEN covers six HTTP endpoints, role/expired/revoked authorization, all nine states, pagination/exclusions, read-only snapshots, concurrency and 10,000 matches. Performance remained within the existing thresholds.
+- Full real MySQL 8.0.46 rehearsal: 18 checks passed; fresh 27-migration deploy/repeat/status; previous 26 then upgrade to 27/repeat/status; existing CI workflow; reset matrix 49 assertions; online-state recovery 21; passenger-trip association 12; canonical single 98; shared 145; pre-final-lock-barrier booking probe 48. Redacted logs and evidence: `C:/Users/basha/AppData/Local/Temp/masari-functional-P8VhCp/`. Subsequent final-source runs below pass the added real row-lock deadline barrier.
+- Final API production changes: 53 files / **670 tests passed**, typecheck and build passed. Three additional RED→GREEN tests force time to advance while request, match, or route claims wait; acceptance now performs a locking current read after all claims, samples the clock afterward, and rolls back expired request/offer/route claims before creating a trip.
+- Admin: typecheck, all 28 files / **368 tests passed**, production-like build and artifact scan passed.
+- Tooling: **59 tests passed, zero skipped** with `MASARI_TEST_ANDROID_TOOLS=true`; installed Android tools executed the compiled manifest fixtures. Separate compiled location/artifact policy group: **35 passed**.
+- Full and production npm audits: zero findings at every severity; dependency policy passed. No lockfile changes or security-check suppression.
+- Final mobile validation: generated localizations consistent; all 198 Dart files formatted with zero further changes; full analyzer reports no issues; **353 tests passed**. Final production-like test APK built (61.1MB, 89.8s) and artifact scan passed. SDK XML-version/Java source-target warnings and an unused Cupertino font warning were informational; no build failure was suppressed.
+- Verification environment failures are retained separately from application regressions: sandboxed Admin attempts failed on temporary-cache `EPERM` renames (28 files, no tests), then the bounded two-worker run outside those restrictions passed all 368. A sandboxed unbounded API invocation produced loopback `EACCES` (401 failed/266 passed, three errors); the final bounded two-worker run outside the restriction passed all 670. Direct pinned-node invocation preserves worker arguments on this Windows shell.
+- Independent local review resolved mutable driver capacity/status retry identity and both pre-query and database-lock expiry races. Final mobile review identified assistant restart reachability, acknowledgement key races, and late results after actor switching; regression fixes were re-reviewed with no additional actionable findings. CodeRabbit is excluded by the user.
+- QA startup attempt `GRXQOV` failed monitoring performance at **10,032ms** against the unchanged 10,000ms limit (seven queries, major SELECTs 4,799.47ms and 5,185.10ms) while full mobile tests/APK compilation were concurrent. Fixture cleanup and isolated MySQL shutdown were verified. No assertion, threshold, integrity constraint or schema was weakened; isolated reruns below pass after builds finish.
+- Isolated rerun `laYGRd` passed monitoring with the original limits (HTTP matches maximum 1,669ms), then failed the new barrier's setup observation. The probe started its short deadline before HTTP setup and relied on prepared-query text in `INNODB_TRX`. Corrected fixture: create the demand safely in the future, set its final 2.5-second deadline immediately before locking, and observe actual `performance_schema.data_lock_waits`/`data_locks` rows. Production transaction timeouts and rejection assertions are unchanged.
+- Final isolated runtime **`xNGGUP`**: migrations/build/monitoring passed; real booking probe **55 assertions passed**. Observed passenger row lock wait before expiry; release after expiry; HTTP **409**; no trip; request/match/route claims rolled back. Barrier elapsed 2,646ms. Evidence: `C:/Users/basha/AppData/Local/Temp/masari-functional-xNGGUP/evidence.json` and redacted `legacy_booking_probe.log`. All test setup failures above remain recorded; none were waived.
+
+## Disposable QA operation
+
+The checked-in harness `scripts/local-functional-recovery-qa.mjs` creates a fresh MySQL datadir and random loopback port, refuses existing dotenv files, strips inherited app/provider configuration, generates synthetic credentials, and guards the QA API before importing application services. It never accepts an existing database URL/datadir. Windows runtime files are restricted to the current user and SYSTEM; passwords are neither committed nor printed. All clients bind to `127.0.0.1`.
+
+Use pinned Node 22.17.1, set `FUNCTIONAL_QA_MYSQLD` to the installed MySQL 8 executable and `FUNCTIONAL_QA_FLUTTER_ROOT` to the installed Flutter 3.44.6 root, then run `node scripts/local-functional-recovery-qa.mjs --confirm-disposable --keep-running --monitoring-only --booking-probe`. Omit `--monitoring-only` for the complete fresh/upgrade/legacy/canonical rehearsal. Successful startup prints only URLs and the path to protected `qa-private.json`; read credentials locally from that file. Create the printed `STOP` file to shut down only this harness's processes and disposable MySQL instance. No production deployment is performed.
+
+Final runnable QA evidence: runtime `hNfY1E` passed migrations, build, monitoring and all **55** booking assertions (observed row-lock wait, 2,644ms, HTTP 409 and rollback). API `http://127.0.0.1:52489`, Admin `http://127.0.0.1:52490`, Mobile `http://127.0.0.1:52491` returned HTTP 200 from the permitted loopback context. Browser QA verified real mobile login as the synthetic passenger, authenticated navigation and the persisted request detail with its original labels. The separate Admin browser rehearsal verified synthetic Admin login and the dashboard. Read role credentials locally from `C:/Users/basha/AppData/Local/Temp/masari-functional-hNfY1E/qa-private.json`; use existing demo account buttons on mobile. Keep that file private. Create sibling `STOP` to stop this runtime. These local services require the QA process to remain running; the checked-in harness recreates everything if it stops.
+
+QA launcher diagnosis: direct Flutter snapshot invocation initially failed without its standard `--packages` configuration; the launcher now supplies it and retains redacted per-client exit diagnostics. A later apparent process disappearance was a restricted-tool visibility error: an elevated scoped check confirmed the original root-owned process and all three HTTP surfaces remained healthy. No application crash was established. A redundant rehearsal was interrupted; no production database was involved. The Admin launcher now uses the current demo email variable rather than the obsolete phone variable.
+
 ## Delivery
 
-- [ ] Fresh review, final required checks, exact-head hosted checks, disposable runnable QA with protected local login material, draft PR and report.
+- [x] Fresh independent review, final local required checks and disposable runnable QA with protected local login material.
+- [ ] Draft PR and all four required hosted checks on the exact final head. The PR checks and final task report carry immutable head/run links; no merge or release is authorized.
 
 User explicitly excluded CodeRabbit after it reported unauthenticated. No CodeRabbit repository review was run or content sent. Use local independent review and required automated gates; no external review sign-in is pending.
