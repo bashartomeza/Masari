@@ -41,7 +41,7 @@ void main() {
             throw http.ClientException('match response lost');
           }
           return http.Response(
-            '{"matches":[{"id":"existing","status":"proposed","passenger_request":{"id":"saved"}}]}',
+            '{"matches":[{"id":"existing","status":"proposed","passenger_request":{"id":"saved"},"driver_route":{"id":"route"}}]}',
             200,
           );
         },

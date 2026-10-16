@@ -10,13 +10,15 @@ import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import 'package:masari_mobile/core/widgets/masari_map.dart';
 import 'package:masari_mobile/features/auth/application/auth_actor_binding.dart';
+import 'package:masari_mobile/features/auth/data/authenticated_api_client.dart';
 import 'package:masari_mobile/features/assistant/data/passenger_assistant_repository.dart';
 import 'package:masari_mobile/features/assistant/domain/passenger_assistant_models.dart';
 import 'package:masari_mobile/features/canonical_routes/data/canonical_operation_storage.dart';
 import 'package:masari_mobile/features/passenger/application/legacy_passenger_request_mutation.dart';
-import 'package:masari_mobile/features/matching/data/matching_repository.dart';
+import 'package:masari_mobile/features/passenger/data/passenger_request_selection_storage.dart';
 import 'package:masari_mobile/features/passenger/data/passenger_repository.dart';
 import 'package:masari_mobile/features/passenger/presentation/create_request_screen.dart';
+import 'package:masari_mobile/features/passenger/presentation/request_detail_screen.dart';
 import 'package:masari_mobile/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -24,16 +26,97 @@ import 'support/auth_test_support.dart';
 
 void main() {
   testWidgets(
+    'direct request detail cannot lose selection after confirmed create pin write fails',
+    (tester) async {
+      FlutterSecureStorage.setMockInitialValues({});
+      final saved = {
+        'id': 'pin-pending-request',
+        'status': 'pending',
+        'pickup_label': 'Origin',
+        'pickup_lat': 31.5,
+        'pickup_lng': 35.1,
+        'destination_label': 'Destination',
+        'destination_lat': 31.7,
+        'destination_lng': 35.2,
+        'preferred_time': '2030-01-02T12:00:00.000Z',
+        'passenger_count': 1,
+        'created_at': DateTime.now().toUtc().toIso8601String(),
+      };
+      final mutation = LegacyPassengerRequestMutation(
+        storage: CanonicalOperationStorage(
+          const FlutterSecureStorage(),
+          storageKey: 'masari_legacy_passenger_create_v1',
+        ),
+        currentActor: () => 'passenger-fixture',
+        selectionStorage: _FailedSelectionStorage(),
+      );
+      await expectLater(
+        mutation.create(
+          payload: {...saved}
+            ..remove('id')
+            ..remove('status')
+            ..remove('created_at'),
+          recoveryContext: const {
+            'option': {'id': 'selected-route'},
+          },
+          send: (_, _, _) async => {'request': saved},
+        ),
+        throwsStateError,
+      );
+      expect(await mutation.pending(), isNotNull);
+      var matchingCalls = 0;
+      await _pump(
+        tester,
+        (request) async {
+          if (request.url.path.endsWith(
+            '/passenger/requests/pin-pending-request',
+          )) {
+            return http.Response(jsonEncode({'request': saved}), 200);
+          }
+          if (request.url.path.endsWith('/matches/run')) {
+            matchingCalls++;
+            return http.Response(
+              jsonEncode(_matchResponse('alternative-route')),
+              201,
+            );
+          }
+          if (request.url.path.endsWith('/trips')) {
+            return http.Response('{"trips":[]}', 200);
+          }
+          return http.Response('{"matches":[]}', 200);
+        },
+        preserveStorage: true,
+        detailRequestId: 'pin-pending-request',
+      );
+      await tester.tap(
+        find.widgetWithText(FilledButton, 'Find compatible route'),
+      );
+      await tester.pumpAndSettle();
+      expect(matchingCalls, 0);
+      expect(find.text('Matched'), findsNothing);
+      expect(await mutation.pending(), isNotNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+  testWidgets(
     'unavailable selected route is reported without matching an alternative',
     (tester) async {
       FlutterSecureStorage.setMockInitialValues({});
       var createCalls = 0;
+      Map<String, dynamic>? savedRequest;
       final routes = <Object?>[];
       Future<http.Response> handler(http.Request request) async {
         if (request.url.path.endsWith('/passenger/requests')) {
           createCalls++;
-          if (createCalls == 1)
+          savedRequest ??= {
+            ...jsonDecode(request.body) as Map<String, dynamic>,
+            'id': 'unavailable-request',
+            'status': 'pending',
+            'created_at': DateTime.now().toUtc().toIso8601String(),
+          };
+          if (createCalls == 1) {
             throw http.ClientException('saved response lost');
+          }
           return http.Response(
             jsonEncode({
               'request': {
@@ -46,10 +129,24 @@ void main() {
         }
         if (request.url.path.endsWith('/matches/run')) {
           routes.add((jsonDecode(request.body) as Map)['driverRouteId']);
+          if ((jsonDecode(request.body) as Map)['driverRouteId'] == null) {
+            return http.Response(
+              jsonEncode(_matchResponse('alternative-route')),
+              201,
+            );
+          }
           return http.Response(
             '{"error":"selected_driver_route_unavailable"}',
             409,
           );
+        }
+        if (request.url.path.endsWith(
+          '/passenger/requests/unavailable-request',
+        )) {
+          return http.Response(jsonEncode({'request': savedRequest}), 200);
+        }
+        if (request.url.path.endsWith('/trips')) {
+          return http.Response('{"trips":[]}', 200);
         }
         return http.Response('{"matches":[]}', 200);
       }
@@ -97,6 +194,19 @@ void main() {
       );
       expect(await mutation.pending(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
+      await _pump(
+        tester,
+        handler,
+        preserveStorage: true,
+        detailRequestId: 'unavailable-request',
+      );
+      await tester.tap(
+        find.widgetWithText(FilledButton, 'Find compatible route'),
+      );
+      await tester.pumpAndSettle();
+      expect(routes, ['unavailable-route', 'unavailable-route']);
+      expect(find.text('Matched'), findsNothing);
+      await tester.pumpWidget(const SizedBox.shrink());
     },
   );
   for (final failure in ['transport', 'already-matched']) {
@@ -130,11 +240,12 @@ void main() {
             );
             if (loseMatch) {
               loseMatch = false;
-              if (failure == 'already-matched')
+              if (failure == 'already-matched') {
                 return http.Response(
                   '{"error":"passenger_request_already_matched"}',
                   409,
                 );
+              }
               throw http.ClientException('match response lost');
             }
             return http.Response(
@@ -429,10 +540,19 @@ Map<String, dynamic> _matchResponse(String routeId) => {
   },
 };
 
+class _FailedSelectionStorage extends PassengerRequestSelectionStorage {
+  _FailedSelectionStorage() : super(const FlutterSecureStorage());
+  @override
+  Future<void> save(String actorId, String requestId, String routeId) async {
+    throw StateError('secure selection write failed');
+  }
+}
+
 Future<void> _pump(
   WidgetTester tester,
   Future<http.Response> Function(http.Request) handler, {
   bool preserveStorage = false,
+  String? detailRequestId,
 }) async {
   tester.view.physicalSize = const Size(1000, 2400);
   tester.view.devicePixelRatio = 1;
@@ -443,13 +563,16 @@ Future<void> _pump(
   final client = TestAuthenticatedClient(handler: handler);
   final actor = AuthenticatedActorBinding()..bind('passenger-fixture');
   final router = GoRouter(
-    initialLocation: '/create',
+    initialLocation: detailRequestId == null
+        ? '/create'
+        : '/passenger/request/$detailRequestId',
     routes: [
       GoRoute(path: '/create', builder: (_, _) => const CreateRequestScreen()),
       GoRoute(
         path: '/passenger/request/:id',
-        builder: (_, state) =>
-            Scaffold(body: Text('Saved ${state.pathParameters['id']}')),
+        builder: (_, state) => detailRequestId == null
+            ? Scaffold(body: Text('Saved ${state.pathParameters['id']}'))
+            : RequestDetailScreen(requestId: state.pathParameters['id']!),
       ),
       GoRoute(
         path: '/passenger/match/:id',
@@ -465,9 +588,7 @@ Future<void> _pump(
         passengerRepositoryProvider.overrideWithValue(
           PassengerRepository(apiClient: client.client),
         ),
-        matchingRepositoryProvider.overrideWithValue(
-          MatchingRepository(apiClient: client.client),
-        ),
+        authenticatedApiClientProvider.overrideWithValue(client.client),
       ],
       child: MaterialApp.router(
         routerConfig: router,

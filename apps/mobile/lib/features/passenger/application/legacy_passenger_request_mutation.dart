@@ -1,10 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../../core/api/api_error.dart';
 import '../../auth/application/auth_actor_binding.dart';
 import '../../auth/data/token_storage.dart';
 import '../../canonical_routes/application/canonical_route_controller.dart';
 import '../../canonical_routes/data/canonical_operation_storage.dart';
+import '../data/passenger_request_selection_storage.dart';
 
 final legacyPassengerRequestMutationProvider =
     Provider<LegacyPassengerRequestMutation>((ref) {
@@ -15,6 +17,9 @@ final legacyPassengerRequestMutationProvider =
           storageKey: 'masari_legacy_passenger_create_v1',
         ),
         currentActor: () => binding.actorId,
+        selectionStorage: PassengerRequestSelectionStorage(
+          ref.watch(secureStorageProvider),
+        ),
       );
     });
 
@@ -24,6 +29,9 @@ class LegacyPassengerRequestMutation {
   LegacyPassengerRequestMutation({
     required this.storage,
     required this.currentActor,
+    this.selectionStorage = const PassengerRequestSelectionStorage(
+      FlutterSecureStorage(),
+    ),
   }) : _runner = CanonicalMutationRunner(storage: storage);
 
   static const operation = 'legacy_passenger_request_create';
@@ -31,6 +39,7 @@ class LegacyPassengerRequestMutation {
   final CanonicalOperationStorage storage;
   final String? Function() currentActor;
   final CanonicalMutationRunner _runner;
+  final PassengerRequestSelectionStorage selectionStorage;
 
   String get actorId {
     final actor = currentActor();
@@ -76,8 +85,9 @@ class LegacyPassengerRequestMutation {
     if (recoveryContext != null) {
       storedPayload['client_recovery'] = recoveryContext;
     }
+    late CanonicalMutationReceipt<String> receipt;
     try {
-      return await _runner.runWithReceipt<String>(
+      receipt = await _runner.runWithReceipt<String>(
         operation: operation,
         scope: 'passenger',
         actorId: actor,
@@ -141,6 +151,51 @@ class LegacyPassengerRequestMutation {
       }
       rethrow;
     }
+    // Persist the pin before any caller can clear the create receipt. A failed
+    // secure-storage write leaves the original idempotent operation unresolved.
+    await _rememberSelection(receipt);
+    return receipt;
+  }
+
+  Future<String?> selectedDriverRouteForRequest(String requestId) async {
+    final actor = actorId;
+    final selected = await selectionStorage.read(actor, requestId);
+    requireActor(actor);
+    if (selected == null) {
+      final unresolved = await pending();
+      requireActor(actor);
+      if (unresolved?.payload['client_recovery'] != null) {
+        // The response may have committed before the request-to-selection pin
+        // was written. Its request identity must be reconciled first; the
+        // pending selection cannot safely be assigned to an arbitrary request.
+        throw const ApiException(
+          ApiErrorType.validation,
+          'booking_outcome_unknown',
+        );
+      }
+    }
+    return selected;
+  }
+
+  Future<void> _rememberSelection(
+    CanonicalMutationReceipt<String> receipt,
+  ) async {
+    final actor = receipt.bundle.actorId;
+    requireActor(actor);
+    final context = receipt.bundle.payload['client_recovery'];
+    if (context == null) return;
+    final option = context is Map ? context['option'] : null;
+    final routeId = option is Map ? option['id'] : null;
+    if (routeId is! String || routeId.trim().isEmpty) {
+      throw const FormatException('Missing selected driver route');
+    }
+    final existing = await selectionStorage.read(actor, receipt.value);
+    requireActor(actor);
+    if (existing != null && existing != routeId) {
+      throw const FormatException('Saved request selection conflict');
+    }
+    await selectionStorage.save(actor, receipt.value, routeId);
+    requireActor(actor);
   }
 
   Future<void> acknowledge(CanonicalMutationReceipt<String> receipt) async {
@@ -150,10 +205,12 @@ class LegacyPassengerRequestMutation {
         'canonical_recovery_acknowledgement_mismatch',
       );
     }
+    await _rememberSelection(receipt);
     await _runner.acknowledge(
       actorId: receipt.bundle.actorId,
       operation: operation,
       idempotencyKey: receipt.bundle.idempotencyKey,
     );
+    requireActor(receipt.bundle.actorId);
   }
 }
