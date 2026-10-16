@@ -205,7 +205,14 @@ enum PassengerAssistantPhase {
   error,
 }
 
-enum PassengerAssistantFailure { unavailable, network, generic }
+enum PassengerAssistantFailure {
+  unavailable,
+  network,
+  expired,
+  unknownBooking,
+  savedBooking,
+  generic,
+}
 
 class PassengerAssistantState {
   const PassengerAssistantState({

@@ -97,7 +97,13 @@ class _PassengerAssistantScreenState
     final phase = assistant.value?.phase;
     final busy =
         phase == PassengerAssistantPhase.processing ||
-        phase == PassengerAssistantPhase.searching;
+        phase == PassengerAssistantPhase.searching ||
+        assistant.value?.selectingTripId != null;
+    final recoveryPending =
+        assistant.value?.selectionFailure ==
+            PassengerAssistantFailure.unknownBooking ||
+        assistant.value?.selectionFailure ==
+            PassengerAssistantFailure.savedBooking;
 
     return Scaffold(
       key: const ValueKey('passengerAssistantScreen'),
@@ -139,7 +145,7 @@ class _PassengerAssistantScreenState
           ),
           _AssistantComposer(
             controller: _inputController,
-            enabled: !assistant.isLoading && !busy,
+            enabled: !assistant.isLoading && !busy && !recoveryPending,
             busy: busy,
             onSubmit: _submit,
           ),
@@ -363,7 +369,16 @@ class _TripSearchResults extends StatelessWidget {
           for (final option in options) ...[
             TripOfferCard(
               offer: _offerFor(option),
-              actionLabel: l10n.bookSeat,
+              actionLabel:
+                  selectionFailure ==
+                          PassengerAssistantFailure.unknownBooking ||
+                      selectionFailure == PassengerAssistantFailure.savedBooking
+                  ? l10n.verifyBooking
+                  : l10n.bookSeat,
+              verifyingBooking:
+                  selectionFailure ==
+                      PassengerAssistantFailure.unknownBooking ||
+                  selectionFailure == PassengerAssistantFailure.savedBooking,
               busy: selectingTripId == option.id,
               enabled: selectingTripId == null,
               onBook: () {
@@ -374,7 +389,13 @@ class _TripSearchResults extends StatelessWidget {
           ],
           if (selectionFailure != null)
             Text(
-              l10n.assistantSearchError,
+              selectionFailure == PassengerAssistantFailure.expired
+                  ? l10n.bookingTimePassed
+                  : selectionFailure == PassengerAssistantFailure.unknownBooking
+                  ? l10n.bookingOutcomeUnknown
+                  : selectionFailure == PassengerAssistantFailure.savedBooking
+                  ? l10n.requestRecorded
+                  : l10n.assistantSearchError,
               key: const ValueKey('assistantTripSelectionError'),
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: SemanticColors.onErrorContainer,

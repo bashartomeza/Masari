@@ -5,6 +5,7 @@ import '../data/passenger_assistant_repository.dart';
 import '../domain/passenger_assistant_models.dart';
 import '../data/assistant_conversation_storage.dart';
 import '../../auth/application/auth_controller.dart';
+import '../../passenger/application/legacy_passenger_request_mutation.dart';
 
 final passengerAssistantControllerProvider =
     AsyncNotifierProvider<
@@ -15,28 +16,89 @@ final passengerAssistantControllerProvider =
 class PassengerAssistantController
     extends AsyncNotifier<PassengerAssistantState> {
   Future<void> _saving = Future.value();
+  int _generation = 0;
+  String? _actor;
+  bool _mutationPending = false;
+
+  bool _isCurrent(int generation, String? actor) =>
+      generation == _generation &&
+      actor == _actor &&
+      ref.read(authControllerProvider).value?.user?.id == actor;
+
   @override
   Future<PassengerAssistantState> build() async {
+    final generation = ++_generation;
     final userId = ref.watch(
       authControllerProvider.select((value) => value.value?.user?.id),
     );
+    _actor = userId;
+    _mutationPending = false;
     final storage = ref.read(assistantConversationStorageProvider);
     final stopSaving = listenSelf((previous, next) {
+      // AsyncLoading can retain a previous account's value. Only a current
+      // actor's newly published data may enter that account's history.
+      if (next is! AsyncData<PassengerAssistantState> ||
+          !_isCurrent(generation, userId)) {
+        return;
+      }
       final current = next.value;
-      if (userId == null || current == null || current.messages.isEmpty) return;
-      // Preserve write order so a slow older save cannot replace a newer reply.
+      if (userId == null || current.messages.isEmpty) return;
       _saving = _saving
-          .then((_) => storage.save(userId, current))
+          .then((_) async {
+            if (_isCurrent(generation, userId)) {
+              await storage.save(userId, current);
+            }
+          })
           .catchError((Object _) {});
     });
-    ref.onDispose(stopSaving);
+    ref.onDispose(() {
+      stopSaving();
+      if (_generation == generation) _generation++;
+    });
     if (userId == null) return const PassengerAssistantState();
     await _saving;
+    if (!_isCurrent(generation, userId)) return const PassengerAssistantState();
+    PassengerAssistantState history;
     try {
-      return await storage.read(userId);
+      history = await storage.read(userId);
     } catch (_) {
-      return const PassengerAssistantState();
+      history = const PassengerAssistantState();
     }
+    if (!_isCurrent(generation, userId)) return const PassengerAssistantState();
+    try {
+      final pending = await ref
+          .read(legacyPassengerRequestMutationProvider)
+          .pending();
+      if (!_isCurrent(generation, userId)) {
+        return const PassengerAssistantState();
+      }
+      final context = pending?.payload['client_recovery'];
+      if (context is Map &&
+          context['draft'] is Map &&
+          context['option'] is Map) {
+        final draft = PassengerAssistantTripDraft.fromJson(
+          Map<String, dynamic>.from(context['draft'] as Map),
+        );
+        final option = PassengerAssistantTripOption.fromJson(
+          Map<String, dynamic>.from(context['option'] as Map),
+        );
+        _mutationPending = true;
+        return PassengerAssistantState(
+          phase: PassengerAssistantPhase.result,
+          messages: history.messages,
+          conversationId: history.conversationId,
+          lastLocale: history.lastLocale,
+          draft: draft,
+          tripOptions: [option],
+          selectionFailure: PassengerAssistantFailure.unknownBooking,
+        );
+      }
+    } catch (_) {
+      // Another actor's unresolved operation is never exposed in this chat.
+    }
+    return _isCurrent(generation, userId)
+        ? history
+        : const PassengerAssistantState();
   }
 
   Future<void> submit(String query, {required String locale}) async {
@@ -55,6 +117,9 @@ class PassengerAssistantController
   }
 
   Future<void> confirmAndSearch(PassengerAssistantTripDraft draft) async {
+    if (state.isLoading || _mutationPending) return;
+    final generation = _generation;
+    final actor = _actor;
     final current = state.value;
     if (current == null ||
         current.phase != PassengerAssistantPhase.requestReview) {
@@ -75,6 +140,7 @@ class PassengerAssistantController
       final results = await ref
           .read(passengerAssistantRepositoryProvider)
           .searchTrips(draft);
+      if (!_isCurrent(generation, actor)) return;
       state = AsyncData(
         PassengerAssistantState(
           phase: PassengerAssistantPhase.result,
@@ -88,6 +154,7 @@ class PassengerAssistantController
         ),
       );
     } catch (error) {
+      if (!_isCurrent(generation, actor)) return;
       state = AsyncData(
         PassengerAssistantState(
           phase: PassengerAssistantPhase.requestReview,
@@ -104,6 +171,9 @@ class PassengerAssistantController
   }
 
   Future<String?> selectTrip(PassengerAssistantTripOption option) async {
+    if (state.isLoading) return null;
+    final generation = _generation;
+    final actor = _actor;
     final current = state.value;
     final draft = current?.draft;
     if (current == null ||
@@ -129,10 +199,18 @@ class PassengerAssistantController
     );
 
     try {
-      return await ref
+      final result = await ref
           .read(passengerAssistantRepositoryProvider)
           .selectTrip(draft: draft, option: option);
+      if (!_isCurrent(generation, actor)) return null;
+      _mutationPending = false;
+      return result;
     } catch (error) {
+      if (!_isCurrent(generation, actor)) return null;
+      final failure = _failureFor(error);
+      _mutationPending =
+          failure == PassengerAssistantFailure.unknownBooking ||
+          failure == PassengerAssistantFailure.savedBooking;
       state = AsyncData(
         PassengerAssistantState(
           phase: current.phase,
@@ -151,6 +229,7 @@ class PassengerAssistantController
   }
 
   void editSearch() {
+    if (state.isLoading || _mutationPending) return;
     final current = state.value;
     if (current?.draft == null || current?.selectingTripId != null) return;
     state = AsyncData(
@@ -171,6 +250,9 @@ class PassengerAssistantController
     required String locale,
     required bool appendPassengerMessage,
   }) async {
+    if (state.isLoading || _mutationPending) return;
+    final generation = _generation;
+    final actor = _actor;
     final normalized = query.trim();
     if (normalized.isEmpty) return;
     final current = state.value ?? const PassengerAssistantState();
@@ -211,6 +293,7 @@ class PassengerAssistantController
             history: history,
             conversationId: current.conversationId,
           );
+      if (!_isCurrent(generation, actor)) return;
       state = AsyncData(
         PassengerAssistantState(
           phase: switch (reply.type) {
@@ -233,6 +316,7 @@ class PassengerAssistantController
         ),
       );
     } catch (error) {
+      if (!_isCurrent(generation, actor)) return;
       state = AsyncData(
         PassengerAssistantState(
           phase: PassengerAssistantPhase.error,
@@ -249,6 +333,21 @@ class PassengerAssistantController
 
 PassengerAssistantFailure _failureFor(Object error) {
   if (error is ApiException) {
+    if (error.message == 'booking_outcome_unknown') {
+      return PassengerAssistantFailure.unknownBooking;
+    }
+    if (error.message == 'booking_saved_matching_unavailable') {
+      return PassengerAssistantFailure.savedBooking;
+    }
+    if ([
+      'booking_time_passed',
+      'preferred_time_in_past',
+      'passenger_request_expired',
+      'match_expired',
+      'route_not_active',
+    ].contains(error.message)) {
+      return PassengerAssistantFailure.expired;
+    }
     if (error.statusCode == 404 || error.statusCode == 503) {
       return PassengerAssistantFailure.unavailable;
     }

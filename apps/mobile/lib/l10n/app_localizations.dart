@@ -3499,6 +3499,24 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'اختر مساراً لعرضه على الخريطة.'**
   String get mapSelectRoute;
+
+  /// No description provided for @bookingTimePassed.
+  ///
+  /// In ar, this message translates to:
+  /// **'وقت المغادرة هذا قد مضى. اختر وقتاً قادماً.'**
+  String get bookingTimePassed;
+
+  /// No description provided for @bookingOutcomeUnknown.
+  ///
+  /// In ar, this message translates to:
+  /// **'قد يكون الحجز محفوظًا بالفعل. سنتحقق منه عند عودة الاتصال. لا تنشئ حجزًا آخر.'**
+  String get bookingOutcomeUnknown;
+
+  /// No description provided for @verifyBooking.
+  ///
+  /// In ar, this message translates to:
+  /// **'التحقق من الحجز'**
+  String get verifyBooking;
 }
 
 class _AppLocalizationsDelegate

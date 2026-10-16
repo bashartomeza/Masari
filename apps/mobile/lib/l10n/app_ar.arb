@@ -700,5 +700,8 @@
   },
   "checkpointUnnamed": "حاجز",
   "mapRouteMissingCoordinates": "لا توجد إحداثيات لهذا المسار، لذلك لا يمكن رسمه على الخريطة.",
-  "mapSelectRoute": "اختر مساراً لعرضه على الخريطة."
+  "mapSelectRoute": "اختر مساراً لعرضه على الخريطة.",
+  "bookingTimePassed": "وقت المغادرة هذا قد مضى. اختر وقتاً قادماً.",
+  "bookingOutcomeUnknown": "قد يكون الحجز محفوظًا بالفعل. سنتحقق منه عند عودة الاتصال. لا تنشئ حجزًا آخر.",
+  "verifyBooking": "التحقق من الحجز"
 }

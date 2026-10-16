@@ -613,5 +613,8 @@
   },
   "checkpointUnnamed": "Barrier",
   "mapRouteMissingCoordinates": "This route has no coordinates, so it cannot be drawn on the map.",
-  "mapSelectRoute": "Choose a route to show it on the map."
+  "mapSelectRoute": "Choose a route to show it on the map.",
+  "bookingTimePassed": "This departure time has passed. Choose an upcoming time.",
+  "bookingOutcomeUnknown": "The booking may already be saved. We will verify it when the connection returns. Do not create another booking.",
+  "verifyBooking": "Verify booking"
 }
