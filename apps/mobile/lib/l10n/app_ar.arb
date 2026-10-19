@@ -92,6 +92,7 @@
   "noConnectedTrip": "لا توجد رحلة مرتبطة بعد.",
   "matchResult": "نتيجة المطابقة",
   "selectedDriver": "السائق المختار",
+  "selectedDriverUnavailable": "مسار السائق المختار لم يعد متاحاً. اختر رحلة أخرى.",
   "selectedRoute": "المسار المختار",
   "matchScore": "درجة المطابقة",
   "scoringBreakdown": "تفصيل الدرجات",
@@ -700,5 +701,8 @@
   },
   "checkpointUnnamed": "حاجز",
   "mapRouteMissingCoordinates": "لا توجد إحداثيات لهذا المسار، لذلك لا يمكن رسمه على الخريطة.",
-  "mapSelectRoute": "اختر مساراً لعرضه على الخريطة."
+  "mapSelectRoute": "اختر مساراً لعرضه على الخريطة.",
+  "bookingTimePassed": "وقت المغادرة هذا قد مضى. اختر وقتاً قادماً.",
+  "bookingOutcomeUnknown": "قد يكون الحجز محفوظًا بالفعل. سنتحقق منه عند عودة الاتصال. لا تنشئ حجزًا آخر.",
+  "verifyBooking": "التحقق من الحجز"
 }

@@ -7,6 +7,25 @@ export type LegacyCapacityInput = {
   parcelUnits: number;
 };
 
+export function legacyRouteTimingWhere(now = new Date()): Prisma.DriverRouteWhereInput {
+  return {
+    departed_at: null,
+    AND: [
+      { OR: [{ departure_at: null }, { departure_at: { gt: now } }] },
+      { OR: [{ availability_window_end: null }, { availability_window_end: { gt: now } }] },
+    ],
+  };
+}
+
+export function isLegacyRouteTimely(route: {
+  departure_at?: Date | null;
+  departed_at?: Date | null;
+  availability_window_end?: Date | null;
+}, now = new Date()) {
+  return !route.departed_at && (!route.departure_at || route.departure_at > now) &&
+    (!route.availability_window_end || route.availability_window_end > now);
+}
+
 export async function reserveLegacyCapacity(
   tx: Prisma.TransactionClient,
   input: LegacyCapacityInput,
@@ -20,6 +39,7 @@ export async function reserveLegacyCapacity(
       id: input.driverRouteId,
       operational_mode: "legacy",
       status: "active",
+      ...legacyRouteTimingWhere(),
       seats_available: { gte: input.seats },
       parcel_capacity_available: { gte: input.parcelUnits },
     },

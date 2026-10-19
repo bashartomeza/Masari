@@ -298,6 +298,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get selectedDriver => 'Selected driver';
 
   @override
+  String get selectedDriverUnavailable =>
+      'The selected driver route is no longer available. Please search again.';
+
+  @override
   String get selectedRoute => 'Selected route';
 
   @override
@@ -1855,4 +1859,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mapSelectRoute => 'Choose a route to show it on the map.';
+
+  @override
+  String get bookingTimePassed =>
+      'This departure time has passed. Choose an upcoming time.';
+
+  @override
+  String get bookingOutcomeUnknown =>
+      'The booking may already be saved. We will verify it when the connection returns. Do not create another booking.';
+
+  @override
+  String get verifyBooking => 'Verify booking';
 }

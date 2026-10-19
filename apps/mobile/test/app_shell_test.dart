@@ -515,6 +515,46 @@ void main() {
     );
   });
 
+  testWidgets(
+    'editing credentials while login is pending discards that attempt error',
+    (tester) async {
+      final response = Completer<http.Response>();
+      var attempts = 0;
+      await _pumpApp(
+        tester,
+        handler: (request) async {
+          if (attempts++ == 0) return response.future;
+          return http.Response('{"error":"invalid_credentials"}', 401);
+        },
+      );
+      await tester.ensureVisible(find.byKey(const ValueKey('demo-passenger')));
+      await tester.tap(find.byKey(const ValueKey('demo-passenger')));
+      await tester.pump();
+      await tester.ensureVisible(find.byKey(const ValueKey('loginButton')));
+      await tester.tap(find.byKey(const ValueKey('loginButton')));
+      await tester.pump();
+      await tester.enterText(
+        find.byKey(const ValueKey('emailField')),
+        'edited@example.invalid',
+      );
+      response.complete(http.Response('{"error":"invalid_credentials"}', 401));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('loginError')), findsNothing);
+      await tester.enterText(
+        find.byKey(const ValueKey('emailField')),
+        'retry@example.invalid',
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey('passwordField')),
+        'fixture-password',
+      );
+      await tester.ensureVisible(find.byKey(const ValueKey('loginButton')));
+      await tester.tap(find.byKey(const ValueKey('loginButton')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('loginError')), findsOneWidget);
+    },
+  );
+
   testWidgets('passenger reaches passenger home', (tester) async {
     await _pumpApp(
       tester,

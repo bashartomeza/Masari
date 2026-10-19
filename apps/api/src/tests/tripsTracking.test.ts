@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const prismaMock = vi.hoisted(() => ({
   $transaction: vi.fn(),
+  $queryRaw: vi.fn(),
   user: { findUnique: vi.fn() },
   authSession: { findUnique: vi.fn(), update: vi.fn() },
   auditEvent: { create: vi.fn() },
@@ -112,6 +113,8 @@ describe("trip acceptance, status, and tracking", () => {
     prismaMock.driverRoute.findUnique.mockResolvedValue({ id: "route_1", status: "assigned" });
     prismaMock.passengerRequest.updateMany.mockResolvedValue({ count: 1 });
     prismaMock.trip.updateMany.mockResolvedValue({ count: 1 });
+    prismaMock.$queryRaw.mockResolvedValue([{ preferred_time: null, match_expires_at: null,
+      departure_at: null, departed_at: null, availability_window_end: null }]);
     prismaMock.$transaction.mockImplementation((callback: (tx: typeof prismaMock) => unknown) => callback(prismaMock));
   });
 
@@ -135,12 +138,25 @@ describe("trip acceptance, status, and tracking", () => {
       })
     );
     expect(prismaMock.driverRoute.updateMany).toHaveBeenCalledWith({
-      where: { id: "route_1", status: "active" },
+      where: expect.objectContaining({ id: "route_1", status: "active", departed_at: null }),
       data: { status: "assigned" }
     });
     expect(prismaMock.passengerRequest.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({ data: { status: "accepted" } })
     );
+  });
+
+  it.each([
+    { name: "expired offer", match: { expires_at: new Date(0) }, route: {} },
+    { name: "past scheduled departure", match: {}, route: { departure_at: new Date(0) } },
+    { name: "departed route with stale active status", match: {}, route: { departed_at: new Date(0) } },
+    { name: "expired availability with stale active status", match: {}, route: { availability_window_end: new Date(0) } },
+  ])("rejects $name before accepting demand or creating a trip", async ({ match, route }) => {
+    prismaMock.match.findUnique.mockResolvedValue({ ...baseMatch, ...match,
+      driver_route: { ...baseMatch.driver_route, status: "active", ...route } });
+    await request(createApp()).post("/api/v1/matches/match_1/accept").set(auth("driver_1")).expect(409);
+    expect(prismaMock.passengerRequest.updateMany).not.toHaveBeenCalled();
+    expect(prismaMock.trip.create).not.toHaveBeenCalled();
   });
 
   it("prevents a duplicate trip for a passenger request even when an older trip used another route", async () => {
@@ -159,6 +175,58 @@ describe("trip acceptance, status, and tracking", () => {
 
     expect(prismaMock.trip.create).not.toHaveBeenCalled();
   });
+
+  it("atomically rejects a passenger deadline that passes while acceptance awaits duplicate lookup", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const initial = new Date("2026-10-16T12:00:00.000Z");
+    vi.setSystemTime(initial);
+    const deadline = new Date(initial.getTime() + 1_000);
+    prismaMock.match.findUnique.mockResolvedValue({ ...baseMatch,
+      passenger_request: { ...baseMatch.passenger_request, preferred_time: deadline } });
+    prismaMock.trip.findFirst.mockImplementation(async () => {
+      vi.setSystemTime(new Date(initial.getTime() + 2_000));
+      return null;
+    });
+    prismaMock.passengerRequest.updateMany.mockImplementation(async ({ where }) => ({
+      count: where.preferred_time?.gt >= deadline ? 0 : 1,
+    }));
+    try {
+      await request(createApp()).post("/api/v1/matches/match_1/accept").set(auth("driver_1")).expect(409);
+      expect(prismaMock.passengerRequest.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ preferred_time: { gt: new Date(initial.getTime() + 2_000) } }),
+      }));
+      expect(prismaMock.trip.create).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it.each(["passengerRequest", "match", "driverRoute"] as const)(
+    "rechecks deadlines after the %s claim waits across its deadline", async claimDelegate => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      const initial = new Date("2026-10-16T12:00:00.000Z");
+      vi.setSystemTime(initial);
+      const deadline = new Date(initial.getTime() + 1_000);
+      const preferredTime = claimDelegate === "passengerRequest" ? deadline : new Date(initial.getTime() + 3_600_000);
+      const expiresAt = claimDelegate === "match" ? deadline : new Date(initial.getTime() + 600_000);
+      const departureAt = claimDelegate === "driverRoute" ? deadline : null;
+      prismaMock.match.findUnique.mockResolvedValue({ ...baseMatch, legacy_capacity_held: true, expires_at: expiresAt,
+        passenger_request: { ...baseMatch.passenger_request, preferred_time: preferredTime },
+        driver_route: { ...baseMatch.driver_route, departure_at: departureAt } });
+      prismaMock[claimDelegate].updateMany.mockImplementation(async () => {
+        vi.setSystemTime(new Date(initial.getTime() + 2_000));
+        return { count: 1 };
+      });
+      prismaMock.$queryRaw.mockResolvedValue([{ preferred_time: preferredTime, match_expires_at: expiresAt,
+        departure_at: departureAt, departed_at: null, availability_window_end: null }]);
+      try {
+        await request(createApp()).post("/api/v1/matches/match_1/accept").set(auth("driver_1")).expect(409);
+        expect(prismaMock.trip.create).not.toHaveBeenCalled();
+      } finally {
+        vi.useRealTimers();
+      }
+    },
+  );
 
   it("prevents a second concurrent accept after the match claim is lost", async () => {
     prismaMock.match.findUnique.mockResolvedValue(baseMatch);

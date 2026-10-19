@@ -8,7 +8,7 @@ import { HttpError } from "../middleware/error.js";
 import { LOCKED_CORRIDOR_KEY, LOCKED_CORRIDOR_LABEL } from "./demoReset.js";
 import type { Prisma } from "../generated/prisma/client.js";
 import { AuditAction, MatchStatus } from "../generated/prisma/enums.js";
-import { reserveLegacyCapacity } from "../services/legacyCapacity.js";
+import { isLegacyRouteTimely, legacyRouteTimingWhere, reserveLegacyCapacity } from "../services/legacyCapacity.js";
 
 const runMatchSchema = z
   .object({
@@ -274,13 +274,15 @@ async function rankDriverRoutes(input: {
   parcelCount: number;
   excludeRouteIds?: ReadonlySet<string>;
 }) {
+  const now = new Date();
   const routes = await prisma.driverRoute.findMany({
     where: {
       status: "active",
       corridor_key: LOCKED_CORRIDOR_KEY,
       canonical_availability_version: null,
       operational_mode: "legacy",
-      driver: { verified: true }
+      driver: { verified: true },
+      ...legacyRouteTimingWhere(now)
     },
     include: {
       driver: {
@@ -293,6 +295,7 @@ async function rankDriverRoutes(input: {
   });
 
   return routes
+    .filter((route) => isLegacyRouteTimely(route, now))
     .filter((route) => !input.excludeRouteIds?.has(route.id))
     .filter((route) => !input.passengerRequest || route.seats_available >= input.passengerRequest.passenger_count)
     .filter((route) => input.parcelCount === 0 || route.parcel_capacity_available >= input.parcelCount)
@@ -348,6 +351,9 @@ function passengerDemandFromSearch(input: PassengerMatchSearchInput): PassengerD
 
 async function createBestMatch(req: AuthenticatedRequest, input: MatchInput) {
   const { passengerRequest, merchantOrder } = await loadAuthorizedInput(req, input);
+  if (passengerRequest && passengerRequest.preferred_time <= new Date()) {
+    throw new HttpError(409, "passenger_request_expired");
+  }
   const merchantBatchId = merchantOrder?.parcel_batches[0]?.id ?? merchantOrder?.batch_members[0]?.parcel_batch_id ?? null;
   const parcelCount = merchantOrder
     ? merchantBatchId
@@ -400,7 +406,8 @@ async function createBestMatch(req: AuthenticatedRequest, input: MatchInput) {
             id: passengerRequest.id,
             passenger_id: passengerRequest.passenger_id,
             status: { in: ["pending", "matched"] },
-            canonical_entry_version: null
+            canonical_entry_version: null,
+            preferred_time: { gt: new Date() }
           },
           data: { status: "matched" }
         });
@@ -468,6 +475,32 @@ async function createBestMatch(req: AuthenticatedRequest, input: MatchInput) {
         });
       }
 
+      // Bound timestamps can become stale while a claim waits for an InnoDB
+      // row lock. Read the locked demand/supply, then start a fresh clock
+      // statement: CURRENT_TIMESTAMP in the locking SELECT itself would be
+      // evaluated before any lock wait in that statement.
+      const timingRows = await tx.$queryRaw<Array<{
+        preferred_time: Date | null;
+        departure_at: Date | null;
+        departed_at: Date | null;
+        availability_window_end: Date | null;
+      }>>`
+        SELECT pr.preferred_time, dr.departure_at, dr.departed_at, dr.availability_window_end
+        FROM driver_routes dr
+        LEFT JOIN passenger_requests pr ON pr.id = ${passengerRequest?.id ?? null}
+        WHERE dr.id = ${best.route.id}
+        FOR UPDATE
+      `;
+      const timing = timingRows[0];
+      if (!timing) throw new HttpError(409, "selected_driver_route_unavailable");
+      // Prisma stores/reads DATETIME values as UTC regardless of session zone.
+      const clock = await tx.$queryRaw<Array<{ now: Date }>>`SELECT UTC_TIMESTAMP(3) AS now`;
+      const creationTime = clock[0]!.now;
+      if (timing.preferred_time && timing.preferred_time <= creationTime) {
+        throw new HttpError(409, "passenger_request_expired");
+      }
+      if (!isLegacyRouteTimely(timing, creationTime)) throw new HttpError(409, "selected_driver_route_unavailable");
+
       const created = await tx.match.create({
         data: {
           driver_route_id: best.route.id,
@@ -521,6 +554,7 @@ matchingRouter.post(
   async (req: AuthenticatedRequest, res, next) => {
     try {
       const input = passengerMatchSearchSchema.parse(req.body);
+      if (input.preferred_time <= new Date()) throw new HttpError(400, "preferred_time_in_past");
       const destinationDistanceKm = haversineKm(
         { lat: input.destination_lat, lng: input.destination_lng },
         LOCKED_DESTINATION
