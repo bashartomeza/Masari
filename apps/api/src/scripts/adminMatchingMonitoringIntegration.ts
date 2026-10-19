@@ -216,8 +216,41 @@ try {
     await prisma.match.create({ data: matchData(`excluded_${suffix}`, extra) });
     excludedMatches.push(id(`excluded_${suffix}`));
   }
+  // Keep this cohort outside the existing volume/default date ranges. Match
+  // order and batch order are independent; neither may weaken the other's gate.
+  const relationCreated = new Date(created.getTime() - 8 * 86_400_000);
+  const relationRange = { from: new Date(relationCreated.getTime() - 1).toISOString(), until: new Date(relationCreated.getTime() + 1).toISOString() };
+  const optionalRelations = [
+    ["passenger_null_batch", { merchant_order_id: null, parcel_batch_id: null }],
+    ["merchant_null_batch", { passenger_request_id: null, parcel_batch_id: null }],
+    ["combined_null_batch", { parcel_batch_id: null }],
+    ["different_orders", { parcel_batch_id: id("empty_batch") }],
+    ["empty_direct_order", { merchant_order_id: id("empty_order") }],
+    ["empty_order_null_batch", { passenger_request_id: null, merchant_order_id: id("empty_order"), parcel_batch_id: null }]
+  ] satisfies [string, Partial<Prisma.MatchUncheckedCreateInput>][];
+  await prisma.match.createMany({ data: optionalRelations.map(([suffix, extra]) => matchData(`relation_${suffix}`, { ...extra, created_at: relationCreated })) });
+  for (const [suffix, extra] of [
+    ["direct_demo", { merchant_order_id: id("demo_order") }],
+    ["batch_demo", { parcel_batch_id: id("excluded_demo_batch") }],
+    ["direct_canonical", { merchant_order_id: id("canonical_order") }],
+    ["batch_canonical", { parcel_batch_id: id("excluded_canonical_batch") }],
+    ["batch_driver", { parcel_batch_id: id("excluded_driver_batch") }],
+    ["no_demand_null_batch", { passenger_request_id: null, merchant_order_id: null, parcel_batch_id: null }]
+  ] satisfies [string, Partial<Prisma.MatchUncheckedCreateInput>][]) {
+    await prisma.match.create({ data: matchData(`relation_${suffix}`, { ...extra, created_at: relationCreated }) });
+    excludedMatches.push(id(`relation_${suffix}`));
+  }
   phase = "HTTP contract";
   const snapshot = await domainSnapshot();
+  const relationPage = await get<Page<MatchRow>>(`/matches${query({ ...relationRange, search: id("route"), limit: 50 })}`);
+  safePage(relationPage, safeMatch);
+  assert.equal(relationPage.data.total, optionalRelations.length);
+  assert.deepEqual(relationPage.data.items.map(row => row.id).sort(), optionalRelations.map(([suffix]) => id(`relation_${suffix}`)).sort());
+  for (const [suffix, extra] of optionalRelations) {
+    const detail = await get<Observed<MatchRow>>(`/matches/${id(`relation_${suffix}`)}`);
+    safeMatch(detail.data);
+    if ("parcel_batch_id" in extra && extra.parcel_batch_id === null) assert.equal(detail.data.parcel_batch, null);
+  }
   const paths = ["/overview", "/matches", `/matches/${id("match_02")}`, "/batches", `/batches/${id("batch_00")}`, `/batches/${id("batch_00")}/parcels`];
   for (const path of paths) {
     await get(path, "", 401);
@@ -346,6 +379,8 @@ try {
   // Measure real HTTP before instrumented service calls so profiling cannot warm these reads first.
   for (let iteration = 0; iteration < 3; iteration++) {
     await get(`/overview${query(range)}`);
+    const unfiltered = await get<Page<MatchRow>>(`/matches${query({ ...range, search: id("route"), limit: 25 })}`);
+    assert.equal(unfiltered.data.total, 10_060); safePage(unfiltered, safeMatch);
     const result = await get<Page<MatchRow>>(`/matches${query({ ...range, search: id("route"), status: "accepted", page: 2, limit: 50 })}`);
     assert.equal(result.data.total, 10_010); safePage(result, safeMatch);
     assert.equal((await get<Page<MatchRow>>(`/matches${query({ ...range, search: id("bulk_00000") })}`)).data.total, 1);
