@@ -700,5 +700,9 @@
   },
   "checkpointUnnamed": "حاجز",
   "mapRouteMissingCoordinates": "لا توجد إحداثيات لهذا المسار، لذلك لا يمكن رسمه على الخريطة.",
-  "mapSelectRoute": "اختر مساراً لعرضه على الخريطة."
+  "mapSelectRoute": "اختر مساراً لعرضه على الخريطة.",
+  "recoverMerchantOrder": "استعادة الطلب",
+  "merchantOrderUncertain": "قد يكون الطلب قد حُفظ. استعده قبل إنشاء طلب آخر.",
+  "merchantOrderRecoveryExpired": "انتهت مهلة إعادة المحاولة. يُسمح فقط بالتحقق من الطلب المحفوظ. تواصل مع الدعم إذا لم تُحسم نتيجة الطلب.",
+  "merchantOrderRecoveryUnavailable": "استعادة الطلب غير متاحة. سجّل الدخول إلى حساب التاجر الأصلي أو تواصل مع الدعم. لا ترسل طلباً بديلاً."
 }

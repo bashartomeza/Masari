@@ -105,6 +105,10 @@ jobs:
       - run: npm run typecheck
       - run: npm run test
       - run: npm run build
+      - name: Real MySQL merchant order atomicity and recovery
+        env:
+          MERCHANT_ORDER_INTEGRATION_CONFIRM_DISPOSABLE: "true"
+        run: npm run test:integration:merchant-orders
       - name: Real MySQL deterministic and trusted-session integration smoke
         run: npm run test:integration:mysql
       - name: Real MySQL persistent demo-reset gate matrix

@@ -1855,4 +1855,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mapSelectRoute => 'Choose a route to show it on the map.';
+
+  @override
+  String get recoverMerchantOrder => 'Recover order';
+
+  @override
+  String get merchantOrderUncertain =>
+      'The order may have been saved. Recover it before creating another order.';
+
+  @override
+  String get merchantOrderRecoveryExpired =>
+      'The retry window has expired. Only a saved-order lookup is allowed. Contact support if recovery remains unresolved.';
+
+  @override
+  String get merchantOrderRecoveryUnavailable =>
+      'Order recovery is unavailable. Sign in to the original merchant account or contact support. Do not submit a replacement order.';
 }

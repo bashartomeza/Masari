@@ -78,6 +78,13 @@ class MerchantOrderDraftController extends Notifier<List<ParcelDraft>> {
   @override
   List<ParcelDraft> build() => const [ParcelDraft()];
 
+  void restorePending(List<ParcelDraft> parcels) {
+    if (parcels.isEmpty || parcels.length > 10) {
+      throw const FormatException("Invalid parcel count");
+    }
+    state = List.unmodifiable(parcels);
+  }
+
   bool get canAdd => state.length < 10;
   bool get canRemove => state.length > 1;
 
