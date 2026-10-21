@@ -22,7 +22,8 @@ test("security remediation keeps vulnerable dependency floors fixed", () => {
     prisma: {
       mysql2: "3.23.1"
     },
-    qs: "6.16.0"
+    qs: "6.16.0",
+    vite: "8.1.6"
   });
   assert.equal(apiPackageJson.devDependencies.vitest, "4.1.11");
   assert.equal(adminPackageJson.devDependencies.vitest, "4.1.11");
@@ -38,4 +39,12 @@ test("security remediation keeps vulnerable dependency floors fixed", () => {
   for (const [path, version] of Object.entries(expected)) {
     assert.equal(lockfile.packages[path]?.version, version, `${path} must stay on ${version}`);
   }
+});
+
+// Vite bundles launch-editor; 8.1.6 is the patched 8.1 release for the
+// October 2026 Windows command-injection advisory GHSA-587h-7wmj-h5pm.
+test("Admin Vite manifest and bundled lock entry use the patched 8.1 release", () => {
+  assert.equal(adminPackageJson.dependencies.vite, "8.1.6");
+  assert.equal(lockfile.packages["apps/admin"].dependencies.vite, "8.1.6");
+  assert.equal(lockfile.packages["node_modules/vite"].version, "8.1.6");
 });

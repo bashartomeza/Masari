@@ -1,4 +1,3 @@
-
 import '../../canonical_routes/domain/canonical_route_models.dart';
 
 /// AweenRayeh checkpoint data with locally maintained coordinates.
@@ -63,32 +62,25 @@ class Checkpoint {
 /// GeoPoint arguments: latitude, longitude.
 const Map<String, GeoPoint> checkpointPositions = {
   // تياسير
-  '4d1ae43d39f43111fa7b61f761459615':
-      GeoPoint(32.329087, 35.436267),
+  '4d1ae43d39f43111fa7b61f761459615': GeoPoint(32.329087, 35.436267),
 
   // راس الجورة
-  '86a11dfe82cc33a21cb8f914a0d3d115':
-      GeoPoint(31.564492, 35.118423),
+  '86a11dfe82cc33a21cb8f914a0d3d115': GeoPoint(31.564492, 35.118423),
 
   // قلنديا
-  '1e4b8812c6cc4442bd2f30d7e729ed35':
-      GeoPoint(31.862713, 35.228312),
+  '1e4b8812c6cc4442bd2f30d7e729ed35': GeoPoint(31.862713, 35.228312),
 
   // حزما
-  'e6729dea0aa2166b477a96b48d3592e3':
-      GeoPoint(31.828154, 35.252625),
+  'e6729dea0aa2166b477a96b48d3592e3': GeoPoint(31.828154, 35.252625),
 
   // الكونتينر
-  '02b3915084de3f92e30d2f4bdac09583':
-      GeoPoint(31.743549, 35.289786),
+  '02b3915084de3f92e30d2f4bdac09583': GeoPoint(31.743549, 35.289786),
 
   // بيت إيل DCO
-  '26710db52a1dbb26fdfb78d97a333814':
-      GeoPoint(31.924323, 35.226516),
+  '26710db52a1dbb26fdfb78d97a333814': GeoPoint(31.924323, 35.226516),
 
   // برطعة
-  '967f17b540c1bb299924b75593f5996e':
-      GeoPoint(32.450837, 35.118205),
+  '967f17b540c1bb299924b75593f5996e': GeoPoint(32.450837, 35.118205),
 };
 
 /// Snapshot returned by the checkpoint feed.
@@ -115,14 +107,9 @@ class CheckpointSnapshot {
           }
 
           final id = value['id'];
-          final position = id is String
-              ? checkpointPositions[id]
-              : null;
+          final position = id is String ? checkpointPositions[id] : null;
 
-          return Checkpoint.fromJson(
-            value,
-            position: position,
-          );
+          return Checkpoint.fromJson(value, position: position);
         }),
       ),
       fetchedAt: _parseDateTime(json['generatedAt']),

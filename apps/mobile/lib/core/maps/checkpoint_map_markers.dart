@@ -23,11 +23,7 @@ MasariMapMarker checkpointTrafficMarker(Checkpoint checkpoint) {
     foreground: Colors.white,
     size: 40,
     type: MasariMapMarkerType.checkpoint,
-    label: _buildLabel(
-      checkpoint,
-      entering: entering,
-      leaving: leaving,
-    ),
+    label: _buildLabel(checkpoint, entering: entering, leaving: leaving),
   );
 }
 
