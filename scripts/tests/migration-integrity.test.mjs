@@ -32,7 +32,8 @@ const expected = {
   "20260915130000_external_identity_profile_state": "f6b3712bb229fa5cc5e2e9fb39a9c9ac0de64f23506abdb00bf250faa9ae14a5",
   "20260915130100_backfill_legacy_google_external_identities": "45e06a478346579c680cbc787599e29d4e3c79b5e8c62d9596f42455820e6193",
   "20261006110000_complete_passenger_trip_lifecycle": "d7633c03f7d1cd3443413d00cb99b6212d2ba30027d1aba21c07e5a12a587537",
-  "20261008190000_complete_capacity_batching_failure_states": "e76db39a4220df2abe2ba160ac32de05f95e0394513c27b23da733e345bb0efb"
+  "20261008190000_complete_capacity_batching_failure_states": "e76db39a4220df2abe2ba160ac32de05f95e0394513c27b23da733e345bb0efb",
+  "20261012165000_allow_legacy_offer_lifecycle_timestamps": "0a349a0bf2367407e41f89642ae8c407e266fbc17d67d0cf83159e97acedb0be"
 };
 
 function normalizedChecksum(path) {
