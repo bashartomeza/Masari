@@ -205,6 +205,31 @@ function routeParam(value: string | string[] | undefined) {
 
 merchantRouter.use("/merchant", requireAuth, requireRole("merchant"));
 
+// Read-only reconciliation remains safe even after the client's mutation window.
+// Keep the operation key in a header, outside URL/access-log paths.
+merchantRouter.get("/merchant/order-operation", async (req: AuthenticatedRequest, res, next) => {
+  try {
+    const key = merchantCreateIdempotencyKey.parse(req.header("idempotency-key"));
+    const record = await prisma.idempotencyRecord.findUnique({
+      where: { operation_scope_digest_idempotency_key_key_version: {
+        operation: MERCHANT_CREATE_OPERATION,
+        scope_digest: merchantCreateDigest(`${MERCHANT_CREATE_OPERATION}:${req.user!.id}`),
+        idempotency_key: merchantCreateDigest(key), key_version: 1
+      } }
+    });
+    if (!record) throw new HttpError(404, "merchant_order_operation_not_found");
+    if (record.state !== "completed" || record.resource_type !== "MerchantOrder" || !record.resource_id) {
+      throw new HttpError(409, "idempotency_replay_unavailable");
+    }
+    const order = await prisma.merchantOrder.findFirst({
+      where: { id: record.resource_id, merchant_id: req.user!.id, canonical_entry_version: null },
+      include: { parcels: true }
+    });
+    if (!order) throw new HttpError(409, "idempotency_replay_unavailable");
+    res.json({ order: serializeLegacyMerchantOrder(order as unknown as Record<string, unknown>), replayed: true });
+  } catch (error) { next(error); }
+});
+
 merchantRouter.post("/merchant/orders", async (req: AuthenticatedRequest, res, next) => {
   try {
     const input = createOrderSchema.parse(req.body);
@@ -231,8 +256,9 @@ merchantRouter.post("/merchant/orders", async (req: AuthenticatedRequest, res, n
         keyDigest: merchantCreateDigest(key),
         keyVersion: 1,
         requestDigest: merchantCreateDigest(JSON.stringify(normalized)),
-        // Client-side recovery refuses retries beyond seven days, safely
-        // inside the server's thirty-day replay retention.
+        preserveCompleted: true,
+        // Completed keys are never reclaimed into a different order. Mobile
+        // creation retries stop at seven days; older recovery uses read-only lookup.
         expiresAt: new Date(Date.now() + MERCHANT_CREATE_RETENTION_MS)
       });
       if (claim?.kind === "conflict") throw new HttpError(409, "idempotency_conflict");

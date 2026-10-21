@@ -29,6 +29,7 @@
     "security:scan": "node scripts/security-scan.mjs",
     "security:audit": "node scripts/audit-policy.mjs",
     "security:artifacts": "node scripts/scan-production-artifacts.mjs",
+    "test:integration:merchant-orders": "node apps/api/dist/scripts/merchantOrderIntegration.js",
     "test:integration:mysql": "node scripts/ci-mysql-integration.mjs",
     "test:integration:auth-migration": "node scripts/local-auth-mysql-rehearsal.mjs",
     "test:integration:sessions": "node scripts/session-integration-smoke.mjs",

@@ -1845,4 +1845,19 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get mapSelectRoute => 'اختر مساراً لعرضه على الخريطة.';
+
+  @override
+  String get recoverMerchantOrder => 'استعادة الطلب';
+
+  @override
+  String get merchantOrderUncertain =>
+      'قد يكون الطلب قد حُفظ. استعده قبل إنشاء طلب آخر.';
+
+  @override
+  String get merchantOrderRecoveryExpired =>
+      'انتهت مهلة إعادة المحاولة. يُسمح فقط بالتحقق من الطلب المحفوظ. تواصل مع الدعم إذا لم تُحسم نتيجة الطلب.';
+
+  @override
+  String get merchantOrderRecoveryUnavailable =>
+      'استعادة الطلب غير متاحة. سجّل الدخول إلى حساب التاجر الأصلي أو تواصل مع الدعم. لا ترسل طلباً بديلاً.';
 }

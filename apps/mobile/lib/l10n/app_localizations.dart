@@ -3499,6 +3499,30 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'اختر مساراً لعرضه على الخريطة.'**
   String get mapSelectRoute;
+
+  /// No description provided for @recoverMerchantOrder.
+  ///
+  /// In ar, this message translates to:
+  /// **'استعادة الطلب'**
+  String get recoverMerchantOrder;
+
+  /// No description provided for @merchantOrderUncertain.
+  ///
+  /// In ar, this message translates to:
+  /// **'قد يكون الطلب قد حُفظ. استعده قبل إنشاء طلب آخر.'**
+  String get merchantOrderUncertain;
+
+  /// No description provided for @merchantOrderRecoveryExpired.
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت مهلة إعادة المحاولة. يُسمح فقط بالتحقق من الطلب المحفوظ. تواصل مع الدعم إذا لم تُحسم نتيجة الطلب.'**
+  String get merchantOrderRecoveryExpired;
+
+  /// No description provided for @merchantOrderRecoveryUnavailable.
+  ///
+  /// In ar, this message translates to:
+  /// **'استعادة الطلب غير متاحة. سجّل الدخول إلى حساب التاجر الأصلي أو تواصل مع الدعم. لا ترسل طلباً بديلاً.'**
+  String get merchantOrderRecoveryUnavailable;
 }
 
 class _AppLocalizationsDelegate

@@ -43,18 +43,33 @@ class MerchantRepository {
   Future<MerchantOrder> createOrderPayload(
     Map<String, dynamic> payload, {
     String? idempotencyKey,
+    void Function()? beforeSend,
   }) async {
     final json = await apiClient.postJson(
       '/merchant/orders',
       body: payload,
+      beforeSend: beforeSend,
       headers: idempotencyKey == null
           ? const {}
           : {'idempotency-key': idempotencyKey},
     );
     return MerchantOrder.fromJson({
       ...(json['order'] as Map<String, dynamic>),
-      'parcel_batches': (json['order'] as Map<String, dynamic>)['parcel_batches'] ?? const [],
+      'parcel_batches':
+          (json['order'] as Map<String, dynamic>)['parcel_batches'] ?? const [],
     });
+  }
+
+  Future<MerchantOrder> recoverOrder(
+    String key, {
+    void Function()? beforeSend,
+  }) async {
+    final json = await apiClient.getJson(
+      '/merchant/order-operation',
+      headers: {'idempotency-key': key},
+      beforeSend: beforeSend,
+    );
+    return MerchantOrder.fromJson(json['order'] as Map<String, dynamic>);
   }
 
   Future<MerchantBatch> createBatch(String orderId) async {
