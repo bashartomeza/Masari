@@ -25,19 +25,35 @@ class MerchantRepository {
     return MerchantOrder.fromJson(json['order'] as Map<String, dynamic>);
   }
 
-  Future<MerchantOrder> createOrder(List<ParcelDraft> parcels) async {
+  static Map<String, dynamic> createOrderBody(List<ParcelDraft> parcels) => {
+    'pickup_label': merchantPickupLabel,
+    'pickup_lat': merchantPickupLat,
+    'pickup_lng': merchantPickupLng,
+    'parcels': parcels.map((parcel) => parcel.toJson()).toList(),
+  };
+
+  Future<MerchantOrder> createOrder(
+    List<ParcelDraft> parcels, {
+    String? idempotencyKey,
+  }) => createOrderPayload(
+    createOrderBody(parcels),
+    idempotencyKey: idempotencyKey,
+  );
+
+  Future<MerchantOrder> createOrderPayload(
+    Map<String, dynamic> payload, {
+    String? idempotencyKey,
+  }) async {
     final json = await apiClient.postJson(
       '/merchant/orders',
-      body: {
-        'pickup_label': merchantPickupLabel,
-        'pickup_lat': merchantPickupLat,
-        'pickup_lng': merchantPickupLng,
-        'parcels': parcels.map((parcel) => parcel.toJson()).toList(),
-      },
+      body: payload,
+      headers: idempotencyKey == null
+          ? const {}
+          : {'idempotency-key': idempotencyKey},
     );
     return MerchantOrder.fromJson({
       ...(json['order'] as Map<String, dynamic>),
-      'parcel_batches': const [],
+      'parcel_batches': (json['order'] as Map<String, dynamic>)['parcel_batches'] ?? const [],
     });
   }
 
