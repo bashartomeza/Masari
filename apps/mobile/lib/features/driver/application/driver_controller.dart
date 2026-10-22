@@ -1,5 +1,4 @@
 import '../../../core/api/authoritative_refresh.dart';
-import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -390,168 +389,157 @@ final driverTripControllerProvider = AsyncNotifierProvider.autoDispose
 class DriverTripController extends AsyncNotifier<DriverTripState> {
   DriverTripController(this._tripId);
   final String _tripId;
-  Timer? _tripTimer;
-  Timer? _locationTimer;
-  bool _tripRefreshRunning = false;
-  bool _locationRefreshRunning = false;
-
-  bool get isPolling => _tripTimer != null || _locationTimer != null;
-  int get activeTimerCount =>
-      (_tripTimer == null ? 0 : 1) + (_locationTimer == null ? 0 : 1);
+  late AuthoritativeRefresh<({DriverTripState state, int actionRevision})>
+  _reads;
+  bool _actionRunning = false;
+  int _actionRevision = 0;
+  bool _resetLocation = false;
 
   @override
-  Future<DriverTripState> build() async {
-    ref.onDispose(pausePolling);
-    final initial = await _load();
-    resumePolling();
-    return initial;
+  Future<DriverTripState> build() {
+    _reads =
+        AuthoritativeRefresh<({DriverTripState state, int actionRevision})>();
+    ref.onDispose(_reads.dispose);
+    return _read();
   }
 
   Future<void> refresh() async {
-    if (state.value?.actionInProgress == true) return;
-    state = AsyncData(await _load());
+    if (!_actionRunning) await _read();
   }
 
-  void pausePolling() {
-    _tripTimer?.cancel();
-    _locationTimer?.cancel();
-    _tripTimer = null;
-    _locationTimer = null;
-  }
+  Future<DriverTripState> _read() async {
+    if (!ref.mounted) throw StateError('session_changed');
+    final binding = ref.read(authenticatedActorBindingProvider);
+    final revision = binding.revision;
+    if (binding.actorId == null) throw StateError('session_changed');
+    final actionRevision = _actionRevision;
+    void requireCurrent() {
+      if (!ref.mounted || binding.revision != revision) {
+        throw StateError('session_changed');
+      }
+    }
 
-  void resumePolling() {
-    if (isPolling) return;
-    _tripTimer = Timer.periodic(
-      const Duration(seconds: 5),
-      (_) => unawaited(_refreshTrip()),
+    final read = await _reads.run(
+      load: () async {
+        requireCurrent();
+        final repository = ref.read(driverRepositoryProvider);
+        final trip = await repository.tripDetail(_tripId);
+        requireCurrent();
+        final location = await repository.latestLocation(_tripId);
+        requireCurrent();
+        return (
+          state: DriverTripState(trip: trip, location: location),
+          actionRevision: actionRevision,
+        );
+      },
+      publish: (read) {
+        if (read.actionRevision != _actionRevision) return;
+        final next = read.state;
+        final location = _resetLocation
+            ? next.location
+            : latestTripLocation(state.value?.location, next.location);
+        _resetLocation = false;
+        state = AsyncData(
+          next.copyWith(
+            location: location,
+            clearLocation: location == null,
+            actionInProgress: _actionRunning,
+          ),
+        );
+      },
+      isCurrent: () => ref.mounted && binding.revision == revision,
     );
-    _locationTimer = Timer.periodic(
-      const Duration(seconds: 3),
-      (_) => unawaited(_refreshLocation()),
-    );
+    return read.state;
   }
 
   Future<void> advanceStatus() async {
     final current = state.value;
     final next = current?.trip.nextStatus;
-    if (current == null || current.actionInProgress || next == null) return;
-    await _runAction(() async {
-      await ref.read(driverRepositoryProvider).updateTripStatus(_tripId, next);
-    });
-    ref.invalidate(driverDashboardProvider);
+    if (current == null || _actionRunning || next == null) return;
+    await _runAction(
+      () => ref.read(driverRepositoryProvider).updateTripStatus(_tripId, next),
+    );
+    if (ref.mounted) ref.invalidate(driverDashboardProvider);
   }
 
   Future<void> cancelTrip() async {
     final current = state.value;
-    if (current == null || current.actionInProgress) return;
-    final cancellable = {
-      'accepted',
-      'pickup_started',
-      'picked_up',
-      'in_transit',
-    }.contains(current.trip.status);
-    if (!cancellable) return;
-    await _runAction(() async {
-      await ref
+    if (current == null ||
+        _actionRunning ||
+        !{
+          'accepted',
+          'pickup_started',
+          'picked_up',
+          'in_transit',
+        }.contains(current.trip.status)) {
+      return;
+    }
+    await _runAction(
+      () => ref
           .read(driverRepositoryProvider)
-          .updateTripStatus(_tripId, 'cancelled');
-    });
-    ref.invalidate(driverDashboardProvider);
+          .updateTripStatus(_tripId, 'cancelled'),
+    );
+    if (ref.mounted) ref.invalidate(driverDashboardProvider);
   }
 
   Future<void> failDelivery() async {
-    final current = state.value;
-    if (current == null ||
-        current.actionInProgress ||
-        current.trip.status != 'in_transit') {
-      return;
-    }
-    await _runAction(() async {
-      await ref
+    if (state.value?.trip.status != 'in_transit' || _actionRunning) return;
+    await _runAction(
+      () => ref
           .read(driverRepositoryProvider)
-          .updateTripStatus(_tripId, 'failed');
-    });
-    ref.invalidate(driverDashboardProvider);
+          .updateTripStatus(_tripId, 'failed'),
+    );
+    if (ref.mounted) ref.invalidate(driverDashboardProvider);
   }
 
   Future<void> simulateStep() async {
-    final current = state.value;
-    if (current == null || current.actionInProgress) return;
-    await _runAction(() async {
-      await ref.read(driverRepositoryProvider).simulateStep(_tripId);
-    });
+    if (state.value == null || _actionRunning) return;
+    await _runAction(
+      () => ref.read(driverRepositoryProvider).simulateStep(_tripId),
+    );
   }
 
   Future<void> resetSimulation() async {
-    final current = state.value;
-    if (current == null || current.actionInProgress) return;
-    state = AsyncData(current.copyWith(actionInProgress: true));
-    try {
-      await ref.read(driverRepositoryProvider).resetSimulation(_tripId);
-      final trip = await ref.read(driverRepositoryProvider).tripDetail(_tripId);
-      state = AsyncData(
-        current.copyWith(
-          trip: trip,
-          clearLocation: true,
-          actionInProgress: false,
-        ),
-      );
-    } catch (_) {
-      state = AsyncData(current.copyWith(actionInProgress: false));
-      rethrow;
-    }
+    if (state.value == null || _actionRunning) return;
+    await _runAction(
+      () => ref.read(driverRepositoryProvider).resetSimulation(_tripId),
+      resetLocation: true,
+    );
   }
 
-  Future<void> _runAction(Future<void> Function() action) async {
-    final current = state.value!;
-    state = AsyncData(current.copyWith(actionInProgress: true));
+  Future<void> _runAction(
+    Future<void> Function() action, {
+    bool resetLocation = false,
+  }) async {
+    final binding = ref.read(authenticatedActorBindingProvider);
+    final revision = binding.revision;
+    if (binding.actorId == null) throw StateError('session_changed');
+    bool currentActor() => ref.mounted && binding.revision == revision;
+    _actionRunning = true;
+    _actionRevision++;
+    _resetLocation = resetLocation;
+    state = AsyncData(state.value!.copyWith(actionInProgress: true));
     try {
       await action();
-      state = AsyncData((await _load()).copyWith(actionInProgress: false));
-    } catch (_) {
-      state = AsyncData(current.copyWith(actionInProgress: false));
-      rethrow;
-    }
-  }
-
-  Future<DriverTripState> _load() async {
-    final repository = ref.read(driverRepositoryProvider);
-    final trip = await repository.tripDetail(_tripId);
-    final location = await repository.latestLocation(_tripId);
-    return DriverTripState(trip: trip, location: location);
-  }
-
-  Future<void> _refreshTrip() async {
-    if (_tripRefreshRunning || state.value?.actionInProgress == true) return;
-    _tripRefreshRunning = true;
-    try {
-      final trip = await ref.read(driverRepositoryProvider).tripDetail(_tripId);
-      final current = state.value;
-      if (current != null) state = AsyncData(current.copyWith(trip: trip));
-    } catch (_) {
-      // Polling keeps the last good state; explicit actions surface errors.
-    } finally {
-      _tripRefreshRunning = false;
-    }
-  }
-
-  Future<void> _refreshLocation() async {
-    if (_locationRefreshRunning || state.value?.actionInProgress == true) {
-      return;
-    }
-    _locationRefreshRunning = true;
-    try {
-      final location = await ref
-          .read(driverRepositoryProvider)
-          .latestLocation(_tripId);
-      final current = state.value;
-      if (current != null && location != null) {
-        state = AsyncData(current.copyWith(location: location));
+      if (!currentActor()) throw StateError('session_changed');
+      _resetLocation = resetLocation;
+      await _read();
+    } catch (error, stackTrace) {
+      // A committed POST may lose its response. Reconcile with a GET; never
+      // replay the action or restore the captured pre-action snapshot.
+      if (currentActor()) {
+        try {
+          await _read();
+        } catch (_) {
+          /* retain last authoritative state */
+        }
       }
-    } catch (_) {
-      // Polling keeps the last good state; explicit actions surface errors.
+      Error.throwWithStackTrace(error, stackTrace);
     } finally {
-      _locationRefreshRunning = false;
+      _actionRunning = false;
+      if (currentActor() && state.value != null) {
+        state = AsyncData(state.value!.copyWith(actionInProgress: false));
+      }
     }
   }
 }

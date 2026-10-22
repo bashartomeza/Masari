@@ -133,3 +133,25 @@ int _int(Map<String, dynamic> json, String key) {
 
   throw FormatException('Missing $key');
 }
+
+/// The endpoint orders by stored sequence; timestamp breaks equal-sequence ties.
+/// Demo reset alone may restart simulated sequences. A null authoritative read
+/// clears an absent location, including the gap immediately following reset.
+TripLocation? latestTripLocation(
+  TripLocation? current,
+  TripLocation? incoming,
+) {
+  if (current == null || incoming == null) return incoming;
+  if (incoming.sequence > current.sequence) return incoming;
+  if (incoming.sequence == current.sequence) {
+    return incoming.recordedAt.isBefore(current.recordedAt)
+        ? current
+        : incoming;
+  }
+  if (current.source == 'simulated' &&
+      incoming.source == 'simulated' &&
+      incoming.recordedAt.isAfter(current.recordedAt)) {
+    return incoming;
+  }
+  return current;
+}
