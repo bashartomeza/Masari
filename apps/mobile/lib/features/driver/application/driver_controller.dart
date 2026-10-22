@@ -218,21 +218,43 @@ final driverRouteControllerProvider =
     );
 
 class DriverRouteController extends AsyncNotifier<DriverRouteState> {
+  late AuthoritativeRefresh<DriverRouteState> _reads;
+
   @override
-  Future<DriverRouteState> build() => refresh();
+  Future<DriverRouteState> build() {
+    _reads = AuthoritativeRefresh<DriverRouteState>();
+    ref.onDispose(_reads.dispose);
+    return refresh();
+  }
 
   Future<DriverRouteState> refresh() async {
-    final repository = ref.read(driverRepositoryProvider);
-    final activeRoutes = await repository.activeRoutes();
-    final routeHistory = await repository.listRoutes();
-    final seen = <String>{};
-    final routes = [
-      ...activeRoutes.where((route) => seen.add(route.id)),
-      ...routeHistory.where((route) => seen.add(route.id)),
-    ];
-    final next = DriverRouteState(routes);
-    state = AsyncData(next);
-    return next;
+    if (!ref.mounted) throw StateError('session_changed');
+    final binding = ref.read(authenticatedActorBindingProvider);
+    final revision = binding.revision;
+    if (binding.actorId == null) throw StateError('session_changed');
+    void requireCurrent() {
+      if (!ref.mounted || binding.revision != revision) {
+        throw StateError('session_changed');
+      }
+    }
+
+    return _reads.run(
+      load: () async {
+        requireCurrent();
+        final repository = ref.read(driverRepositoryProvider);
+        final activeRoutes = await repository.activeRoutes();
+        requireCurrent();
+        final routeHistory = await repository.listRoutes();
+        requireCurrent();
+        final seen = <String>{};
+        return DriverRouteState([
+          ...activeRoutes.where((route) => seen.add(route.id)),
+          ...routeHistory.where((route) => seen.add(route.id)),
+        ]);
+      },
+      publish: (next) => state = AsyncData(next),
+      isCurrent: () => ref.mounted && binding.revision == revision,
+    );
   }
 
   Future<DriverRoute> create({
