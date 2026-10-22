@@ -472,7 +472,7 @@ async function createBestMatch(req: AuthenticatedRequest, input: MatchInput) {
           driverRouteId: best.route.id,
           seats: seatsToReserve,
           parcelUnits: parcelCount,
-          validateMerchantRoute: Boolean(merchantOrder)
+          passengerRequestId: passengerRequest?.id
         });
       }
 

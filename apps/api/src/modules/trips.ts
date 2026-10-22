@@ -7,7 +7,7 @@ import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
 import { HttpError } from "../middleware/error.js";
 import { AuditAction, MatchStatus, TripStatus } from "../generated/prisma/enums.js";
 import { advanceLegacyTrip, isLegacyTripTransitionAllowed } from "../services/tripLifecycle.js";
-import { legacyParcelUnits, reserveLegacyCapacity, releaseLegacyCapacity, requireEligibleMerchantRoute } from "../services/legacyCapacity.js";
+import { legacyParcelUnits, reserveLegacyCapacity, releaseLegacyCapacity, requireEligibleLegacyRoute } from "../services/legacyCapacity.js";
 
 export const tripsRouter = Router();
 export const trackingSimulationRouter = Router();
@@ -86,7 +86,7 @@ tripsRouter.post("/matches/:id/accept", requireAuth, async (req: AuthenticatedRe
           const offers = await tx.$queryRaw<Array<{ status: string; expires_at: Date | null }>>`
             SELECT status, expires_at FROM matches WHERE id = ${match.id} FOR UPDATE
           `;
-          const now = await requireEligibleMerchantRoute(tx, match.driver_route_id);
+          const now = await requireEligibleLegacyRoute(tx, match.driver_route_id);
           if (!offers[0] || !["proposed", "sent_to_driver"].includes(offers[0].status)) throw new HttpError(409, "match_cannot_be_accepted");
           if (offers[0].expires_at && offers[0].expires_at <= now) throw new HttpError(409, "match_expired");
         }
@@ -150,6 +150,8 @@ tripsRouter.post("/matches/:id/accept", requireAuth, async (req: AuthenticatedRe
         });
         if (claimedRoute.count !== 1) throw new HttpError(409, "driver_route_not_available");
 
+        // The route claim blocks new holds. Read committed proposals here,
+        // including those created after this transaction first read its offer.
         const staleMatches = await tx.match.findMany({
           where: {
             id: { not: match.id },
@@ -200,6 +202,14 @@ tripsRouter.post("/matches/:id/accept", requireAuth, async (req: AuthenticatedRe
           }
         }
 
+        // Competitor cleanup may itself wait on locks. Revalidate the held
+        // demand, offer and approved supply with a fresh DB clock after that wait.
+        await requireEligibleLegacyRoute(tx, match.driver_route_id, {
+          passengerRequestId: match.passenger_request_id,
+          matchId: match.id,
+          assigned: true,
+        });
+
         const trip = await tx.trip.create({
           data: {
             driver_id: match.driver_route.driver_id,
@@ -241,7 +251,7 @@ tripsRouter.post("/matches/:id/accept", requireAuth, async (req: AuthenticatedRe
         });
 
         return { trip, matchId: match.id };
-      });
+      }, { isolationLevel: "ReadCommitted" });
     } catch (error) {
       if (error && typeof error === "object" && "code" in error && error.code === "P2002") {
         throw new HttpError(409, "duplicate_active_trip");
