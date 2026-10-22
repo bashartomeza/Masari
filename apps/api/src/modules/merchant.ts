@@ -344,7 +344,14 @@ merchantRouter.patch("/merchant/orders/:id/cancel", async (req: AuthenticatedReq
       const batch = order.parcel_batches[0] ?? order.batch_members[0]?.parcel_batch ?? null;
       if (batch) {
         const members = await tx.parcelBatchOrder.findMany({ where: { parcel_batch_id: batch.id }, select: { merchant_order_id: true } });
-        const ids = members.map((member) => member.merchant_order_id);
+        const ids = [...new Set([order.id, ...members.map((member) => member.merchant_order_id)])];
+        // A current write claim serializes cancellation with matching/acceptance,
+        // including cancellation through a secondary order in the same batch.
+        const claimed = await tx.merchantOrder.updateMany({
+          where: { id: { in: ids }, merchant_id: req.user!.id, canonical_entry_version: null, status: order.status },
+          data: { status: "cancelled" }
+        });
+        if (claimed.count !== ids.length) throw new HttpError(409, "order_cannot_be_cancelled");
         const activeMatches = await tx.match.findMany({
           where: { parcel_batch_id: batch.id, operational_mode: "legacy", status: { in: ["proposed", "sent_to_driver"] } },
           select: { id: true, driver_route_id: true, legacy_capacity_held: true }
@@ -369,10 +376,12 @@ merchantRouter.patch("/merchant/orders/:id/cancel", async (req: AuthenticatedReq
         await tx.parcelBatch.update({ where: { id: batch.id }, data: { status: "cancelled", driver_route_id: null } });
         await tx.parcelBatchOrder.updateMany({ where: { parcel_batch_id: batch.id }, data: { active: false, active_membership_key: null } });
         await tx.parcel.updateMany({ where: { batch_id: batch.id }, data: { status: "cancelled" } });
-        if (ids.length) {
-          await tx.merchantOrder.updateMany({ where: { id: { in: ids }, status: { in: ["submitted", "batched", "matched"] } }, data: { status: "cancelled" } });
-        }
       } else {
+        const claimed = await tx.merchantOrder.updateMany({
+          where: { id: order.id, merchant_id: req.user!.id, canonical_entry_version: null, status: order.status },
+          data: { status: "cancelled" }
+        });
+        if (claimed.count !== 1) throw new HttpError(409, "order_cannot_be_cancelled");
         const activeMatches = await tx.match.findMany({
           where: { merchant_order_id: order.id, operational_mode: "legacy", status: { in: ["proposed", "sent_to_driver"] } },
           select: { id: true, driver_route_id: true, legacy_capacity_held: true }
@@ -405,7 +414,7 @@ merchantRouter.patch("/merchant/orders/:id/cancel", async (req: AuthenticatedReq
         metadata: { action: "merchant_order_cancelled" }
       });
       return tx.merchantOrder.findUniqueOrThrow({ where: { id: order.id }, include: merchantOrderInclude });
-    });
+    }, { isolationLevel: "ReadCommitted" });
     res.json({ order: serializeLegacyMerchantOrder(result as unknown as Record<string, unknown>) });
   } catch (error) {
     next(error);

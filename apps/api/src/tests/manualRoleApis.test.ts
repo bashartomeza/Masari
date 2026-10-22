@@ -233,6 +233,7 @@ describe("manual role APIs", () => {
   });
 
   it("merchant can cancel a matched batched order and releases reserved parcel capacity", async () => {
+    prismaMock.merchantOrder.updateMany.mockResolvedValue({ count: 2 });
     prismaMock.merchantOrder.findFirst.mockResolvedValue({
       id: "order_1",
       merchant_id: "merchant_1",

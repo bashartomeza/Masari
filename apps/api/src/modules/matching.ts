@@ -101,7 +101,8 @@ const matchSummarySelect = {
       status: true,
       estimated_distance_saved: true,
       explanation: true,
-      created_at: true
+      created_at: true,
+      members: { select: { merchant_order: { select: { _count: { select: { parcels: true } } } } } }
     }
   }
 } satisfies Prisma.MatchSelect;
@@ -172,7 +173,8 @@ function toMatchSummary(match: MatchSummaryRecord) {
           status: match.parcel_batch.status,
           estimated_distance_saved: match.parcel_batch.estimated_distance_saved,
           explanation: match.parcel_batch.explanation,
-          created_at: match.parcel_batch.created_at
+          created_at: match.parcel_batch.created_at,
+          parcel_count: match.parcel_batch.members?.reduce((count, member) => count + member.merchant_order._count.parcels, 0) ?? match.merchant_order?._count.parcels ?? 0
         }
       : null
   };
@@ -280,7 +282,7 @@ async function rankDriverRoutes(input: {
       corridor_key: LOCKED_CORRIDOR_KEY,
       canonical_availability_version: null,
       operational_mode: "legacy",
-      driver: { verified: true }
+      driver: { verified: true, user: { role: "driver", account_status: "active" } }
     },
     include: {
       driver: {
@@ -294,6 +296,8 @@ async function rankDriverRoutes(input: {
 
   return routes
     .filter((route) => !input.excludeRouteIds?.has(route.id))
+    .filter((route) => input.parcelCount === 0 || ((!route.departure_at || route.departure_at.getTime() > Date.now()) &&
+      (!route.availability_window_end || route.availability_window_end.getTime() > Date.now())))
     .filter((route) => !input.passengerRequest || route.seats_available >= input.passengerRequest.passenger_count)
     .filter((route) => input.parcelCount === 0 || route.parcel_capacity_available >= input.parcelCount)
     .map((route) => ({
@@ -348,6 +352,9 @@ function passengerDemandFromSearch(input: PassengerMatchSearchInput): PassengerD
 
 async function createBestMatch(req: AuthenticatedRequest, input: MatchInput) {
   const { passengerRequest, merchantOrder } = await loadAuthorizedInput(req, input);
+  if (merchantOrder && !["submitted", "batched", "matched"].includes(merchantOrder.status)) {
+    throw new HttpError(409, "merchant_order_not_matchable");
+  }
   const merchantBatchId = merchantOrder?.parcel_batches[0]?.id ?? merchantOrder?.batch_members[0]?.parcel_batch_id ?? null;
   const parcelCount = merchantOrder
     ? merchantBatchId
@@ -464,7 +471,8 @@ async function createBestMatch(req: AuthenticatedRequest, input: MatchInput) {
         await reserveLegacyCapacity(tx, {
           driverRouteId: best.route.id,
           seats: seatsToReserve,
-          parcelUnits: parcelCount
+          parcelUnits: parcelCount,
+          validateMerchantRoute: Boolean(merchantOrder)
         });
       }
 

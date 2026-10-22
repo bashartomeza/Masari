@@ -219,6 +219,40 @@ void main() {
     expect(find.text('تسجيل الدخول'), findsWidgets);
     expect(find.text('إنشاء طلب'), findsNothing);
   });
+  testWidgets(
+    'waiting merchant match reconciles driver decision without refresh',
+    (tester) async {
+      final handler = _MerchantHandler()..matched = true;
+      await _pumpMerchant(tester, handler);
+      GoRouter.of(
+        tester.element(find.byKey(const ValueKey('merchantHome'))),
+      ).go('/merchant/match/match_1');
+      await tester.pumpAndSettle();
+      handler.matchStatus = 'accepted';
+      await tester.pump(const Duration(seconds: 6));
+      await tester.pumpAndSettle();
+      expect(find.text('مقبول'), findsWidgets);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
+  testWidgets('rejected merchant order exposes existing manual match action', (
+    tester,
+  ) async {
+    final handler = _MerchantHandler(initiallyBatched: true)
+      ..matched = true
+      ..matchStatus = 'rejected';
+    await _pumpMerchant(tester, handler);
+    GoRouter.of(
+      tester.element(find.byKey(const ValueKey('merchantHome'))),
+    ).go('/merchant/order/order_1');
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('runMerchantMatchButton')),
+      findsOneWidget,
+    );
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
 }
 
 Future<void> _pumpMerchant(
@@ -261,6 +295,7 @@ class _MerchantHandler {
   final bool initiallyBatched;
   bool batched;
   bool matched = false;
+  String matchStatus = 'proposed';
   int batchCalls = 0;
   int matchCalls = 0;
   Map<String, dynamic>? createBody;
@@ -330,11 +365,16 @@ class _MerchantHandler {
       );
     }
     if (path.endsWith('/matches/match_1')) {
-      return http.Response('{"match":$_matchJson}', 200);
+      return http.Response(
+        '{"match":${_matchJson.replaceFirst('"proposed"', '"$matchStatus"')}}',
+        200,
+      );
     }
     if (path.endsWith('/matches')) {
       return http.Response(
-        matched ? '{"matches":[$_matchJson]}' : '{"matches":[]}',
+        matched
+            ? '{"matches":[${_matchJson.replaceFirst('"proposed"', '"$matchStatus"')}]}'
+            : '{"matches":[]}',
         200,
       );
     }

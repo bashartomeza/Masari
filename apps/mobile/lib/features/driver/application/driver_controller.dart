@@ -1,3 +1,4 @@
+import '../../../core/api/authoritative_refresh.dart';
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -52,24 +53,39 @@ final driverDashboardProvider =
     >(DriverDashboardController.new);
 
 class DriverDashboardController extends AsyncNotifier<DriverDashboardState> {
+  late AuthoritativeRefresh<DriverDashboardState> _reads;
   @override
-  Future<DriverDashboardState> build() => refresh();
+  Future<DriverDashboardState> build() {
+    _reads = AuthoritativeRefresh<DriverDashboardState>();
+    ref.onDispose(_reads.dispose);
+    return refresh();
+  }
 
   Future<DriverDashboardState> refresh() async {
+    final binding = ref.read(authenticatedActorBindingProvider);
+    final revision = binding.revision;
     try {
-      final repository = ref.read(driverRepositoryProvider);
-      final routes = await repository.listRoutes();
-      final matches = await repository.listMatches();
-      final trips = await repository.listTrips();
-      final next = DriverDashboardState(
-        routes: routes,
-        matches: matches,
-        trips: trips,
+      return await _reads.run(
+        load: () async {
+          final repository = ref.read(driverRepositoryProvider);
+          final routes = await repository.listRoutes();
+          final matches = await repository.listMatches();
+          final trips = await repository.listTrips();
+          final next = DriverDashboardState(
+            routes: routes,
+            matches: matches,
+            trips: trips,
+          );
+
+          return next;
+        },
+        publish: (next) => state = AsyncData(next),
+        isCurrent: () => ref.mounted && binding.revision == revision,
       );
-      state = AsyncData(next);
-      return next;
     } catch (error, stackTrace) {
-      state = AsyncError(error, stackTrace);
+      if (ref.mounted && binding.revision == revision) {
+        state = AsyncError<DriverDashboardState>(error, stackTrace);
+      }
       Error.throwWithStackTrace(error, stackTrace);
     }
   }
@@ -253,25 +269,39 @@ final driverMatchInboxProvider =
     >(DriverMatchInboxController.new);
 
 class DriverMatchInboxController extends AsyncNotifier<List<DriverMatch>> {
+  late AuthoritativeRefresh<List<DriverMatch>> _reads;
   @override
-  Future<List<DriverMatch>> build() => refresh();
+  Future<List<DriverMatch>> build() {
+    _reads = AuthoritativeRefresh<List<DriverMatch>>();
+    ref.onDispose(_reads.dispose);
+    return refresh();
+  }
 
   Future<List<DriverMatch>> refresh({String? status}) async {
-    final matches = await ref
-        .read(driverRepositoryProvider)
-        .listMatches(status: status);
-    final indexed = matches.indexed.toList();
-    indexed.sort((left, right) {
-      final priority = _matchPriority(
-        left.$2.status,
-      ).compareTo(_matchPriority(right.$2.status));
-      if (priority != 0) return priority;
-      final created = right.$2.createdAt.compareTo(left.$2.createdAt);
-      return created != 0 ? created : left.$1.compareTo(right.$1);
-    });
-    final next = indexed.map((entry) => entry.$2).toList();
-    state = AsyncData(next);
-    return next;
+    final binding = ref.read(authenticatedActorBindingProvider);
+    final revision = binding.revision;
+
+    return await _reads.run(
+      load: () async {
+        final matches = await ref
+            .read(driverRepositoryProvider)
+            .listMatches(status: status);
+        final indexed = matches.indexed.toList();
+        indexed.sort((left, right) {
+          final priority = _matchPriority(
+            left.$2.status,
+          ).compareTo(_matchPriority(right.$2.status));
+          if (priority != 0) return priority;
+          final created = right.$2.createdAt.compareTo(left.$2.createdAt);
+          return created != 0 ? created : left.$1.compareTo(right.$1);
+        });
+        final next = indexed.map((entry) => entry.$2).toList();
+
+        return next;
+      },
+      publish: (next) => state = AsyncData(next),
+      isCurrent: () => ref.mounted && binding.revision == revision,
+    );
   }
 }
 
@@ -284,18 +314,32 @@ final driverMatchDetailProvider = AsyncNotifierProvider.autoDispose
     );
 
 class DriverMatchDetailController extends AsyncNotifier<DriverMatch> {
+  late AuthoritativeRefresh<DriverMatch> _reads;
   DriverMatchDetailController(this._matchId);
   final String _matchId;
 
   @override
-  Future<DriverMatch> build() => refresh();
+  Future<DriverMatch> build() {
+    _reads = AuthoritativeRefresh<DriverMatch>();
+    ref.onDispose(_reads.dispose);
+    return refresh();
+  }
 
   Future<DriverMatch> refresh() async {
-    final match = await ref
-        .read(driverRepositoryProvider)
-        .matchDetail(_matchId);
-    state = AsyncData(match);
-    return match;
+    final binding = ref.read(authenticatedActorBindingProvider);
+    final revision = binding.revision;
+
+    return await _reads.run(
+      load: () async {
+        final match = await ref
+            .read(driverRepositoryProvider)
+            .matchDetail(_matchId);
+
+        return match;
+      },
+      publish: (next) => state = AsyncData(next),
+      isCurrent: () => ref.mounted && binding.revision == revision,
+    );
   }
 
   Future<DriverTripReference> accept() async {

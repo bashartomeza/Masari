@@ -25,8 +25,8 @@ test("security remediation keeps vulnerable dependency floors fixed", () => {
     qs: "6.16.0",
     vite: "8.1.6"
   });
-  assert.equal(apiPackageJson.devDependencies.vitest, "4.1.11");
-  assert.equal(adminPackageJson.devDependencies.vitest, "4.1.11");
+  assert.equal(apiPackageJson.devDependencies.vitest, "4.1.12");
+  assert.equal(adminPackageJson.devDependencies.vitest, "4.1.12");
 
   const expected = {
     "node_modules/deepmerge-ts": "8.0.1",
@@ -34,7 +34,7 @@ test("security remediation keeps vulnerable dependency floors fixed", () => {
     "node_modules/mariadb": "3.5.4",
     "node_modules/mysql2": "3.23.1",
     "node_modules/qs": "6.16.0",
-    "node_modules/vitest": "4.1.11"
+    "node_modules/vitest": "4.1.12"
   };
   for (const [path, version] of Object.entries(expected)) {
     assert.equal(lockfile.packages[path]?.version, version, `${path} must stay on ${version}`);
@@ -47,4 +47,9 @@ test("Admin Vite manifest and bundled lock entry use the patched 8.1 release", (
   assert.equal(adminPackageJson.dependencies.vite, "8.1.6");
   assert.equal(lockfile.packages["apps/admin"].dependencies.vite, "8.1.6");
   assert.equal(lockfile.packages["node_modules/vite"].version, "8.1.6");
+});
+
+// Both October 2026 mocker advisories are fixed in the 4.1.12 backport.
+test("Vitest mock registration and Windows traversal fixes remain installed", () => {
+  assert.equal(lockfile.packages["node_modules/@vitest/mocker"].version, "4.1.12");
 });

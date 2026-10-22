@@ -76,6 +76,13 @@ export async function createParcelBatch(req: AuthenticatedRequest, orderId: stri
       `${selectedOrders.length} compatible merchant ${orderWord} with ${parcelCount} parcels share the ` +
       `${LOCKED_CORRIDOR_LABEL} pickup corridor and can be assigned together to one driver capacity allocation.`;
 
+    const orderIds = selectedOrders.map((candidate) => candidate.id);
+    const claimed = await tx.merchantOrder.updateMany({
+      where: { id: { in: orderIds }, merchant_id: order.merchant_id, canonical_entry_version: null, status: "submitted" },
+      data: { status: "batched" }
+    });
+    if (claimed.count !== orderIds.length) throw new HttpError(409, "order_not_batchable");
+
     let batch;
     try {
       batch = await tx.parcelBatch.create({
@@ -105,8 +112,6 @@ export async function createParcelBatch(req: AuthenticatedRequest, orderId: stri
       throw error;
     }
 
-    const orderIds = selectedOrders.map((candidate) => candidate.id);
-    await tx.merchantOrder.updateMany({ where: { id: { in: orderIds }, status: "submitted" }, data: { status: "batched" } });
     await tx.parcel.updateMany({ where: { order_id: { in: orderIds }, status: "pending" }, data: { status: "batched", batch_id: batch.id } });
 
     await auditEvent(tx, {

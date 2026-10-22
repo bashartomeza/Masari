@@ -7,7 +7,7 @@ import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
 import { HttpError } from "../middleware/error.js";
 import { AuditAction, MatchStatus, TripStatus } from "../generated/prisma/enums.js";
 import { advanceLegacyTrip, isLegacyTripTransitionAllowed } from "../services/tripLifecycle.js";
-import { legacyParcelUnits, reserveLegacyCapacity, releaseLegacyCapacity } from "../services/legacyCapacity.js";
+import { legacyParcelUnits, reserveLegacyCapacity, releaseLegacyCapacity, requireEligibleMerchantRoute } from "../services/legacyCapacity.js";
 
 export const tripsRouter = Router();
 export const trackingSimulationRouter = Router();
@@ -77,6 +77,20 @@ tripsRouter.post("/matches/:id/accept", requireAuth, async (req: AuthenticatedRe
         if (match.status !== MatchStatus.proposed && match.status !== MatchStatus.sent_to_driver) {
           throw new HttpError(409, "match_cannot_be_accepted");
         }
+        if (match.merchant_order_id) {
+          // Re-read demand after taking its write lock, before assigning any parcel.
+          const orders = await tx.$queryRaw<Array<{ status: string }>>`
+            SELECT status FROM merchant_orders WHERE id = ${match.merchant_order_id} FOR UPDATE
+          `;
+          if (orders[0]?.status !== "matched") throw new HttpError(409, "merchant_order_not_matchable");
+          const offers = await tx.$queryRaw<Array<{ status: string; expires_at: Date | null }>>`
+            SELECT status, expires_at FROM matches WHERE id = ${match.id} FOR UPDATE
+          `;
+          const now = await requireEligibleMerchantRoute(tx, match.driver_route_id);
+          if (!offers[0] || !["proposed", "sent_to_driver"].includes(offers[0].status)) throw new HttpError(409, "match_cannot_be_accepted");
+          if (offers[0].expires_at && offers[0].expires_at <= now) throw new HttpError(409, "match_expired");
+        }
+
 
         const duplicate = await tx.trip.findFirst({
           where: match.passenger_request_id
@@ -123,7 +137,8 @@ tripsRouter.post("/matches/:id/accept", requireAuth, async (req: AuthenticatedRe
         const claimedMatch = await tx.match.updateMany({
           where: {
             id: match.id,
-            status: { in: [MatchStatus.proposed, MatchStatus.sent_to_driver] }
+            status: { in: [MatchStatus.proposed, MatchStatus.sent_to_driver] },
+            ...(match.merchant_order_id ? { OR: [{ expires_at: null }, { expires_at: { gt: new Date() } }] } : {})
           },
           data: { status: MatchStatus.accepted, accepted_at: new Date(), legacy_capacity_held: true }
         });
@@ -289,7 +304,6 @@ tripsRouter.post("/matches/:id/reject", requireAuth, async (req: AuthenticatedRe
         }
       }
 
-      await tx.driverRoute.update({ where: { id: match.driver_route_id }, data: { status: "active" } });
 
       const changed = await tx.match.updateMany({
         where: {

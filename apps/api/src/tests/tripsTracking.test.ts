@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const prismaMock = vi.hoisted(() => ({
   $transaction: vi.fn(),
+  $queryRaw: vi.fn(),
   user: { findUnique: vi.fn() },
   authSession: { findUnique: vi.fn(), update: vi.fn() },
   auditEvent: { create: vi.fn() },
@@ -79,6 +80,14 @@ function baseTrip(status = "accepted") {
 describe("trip acceptance, status, and tracking", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    prismaMock.$queryRaw.mockImplementation((parts: TemplateStringsArray) => {
+      const sql = parts.join("?");
+      if (sql.includes("UTC_TIMESTAMP")) return [{ now: new Date() }];
+      if (sql.includes("FROM driver_routes")) return [{ id: "route_1", status: "active", verified: true, role: "driver", account_status: "active", departure_at: null, availability_window_end: null }];
+      if (sql.includes("FROM merchant_orders")) return [{ status: "matched" }];
+      if (sql.includes("FROM matches")) return [{ status: "proposed", expires_at: new Date(Date.now() + 60_000) }];
+      throw new Error("unexpected_test_raw_query");
+    });
     prismaMock.user.findUnique.mockImplementation(({ where }: { where: { id?: string } }) => {
       if (!where.id) return null;
       const user = users[where.id];
@@ -474,4 +483,23 @@ describe("trip acceptance, status, and tracking", () => {
 
     await request(createApp()).get("/api/v1/trips/trip_1/location").set(auth("merchant_2")).expect(403);
   });
+  it("rejects an expired merchant offer before creating a trip", async () => {
+    prismaMock.match.findUnique.mockResolvedValue(baseMatch);
+    const original = prismaMock.$queryRaw.getMockImplementation()!;
+    prismaMock.$queryRaw.mockImplementation((parts: TemplateStringsArray) => parts.join("?").includes("FROM matches")
+      ? [{ status: "proposed", expires_at: new Date(Date.now() - 1) }] : original(parts));
+    await request(createApp()).post("/api/v1/matches/match_1/accept").set(auth("driver_1")).expect(409);
+    expect(prismaMock.trip.create).not.toHaveBeenCalled();
+    expect(prismaMock.match.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("revalidates driver approval even when an offer already holds capacity", async () => {
+    prismaMock.match.findUnique.mockResolvedValue({ ...baseMatch, legacy_capacity_held: true });
+    const original = prismaMock.$queryRaw.getMockImplementation()!;
+    prismaMock.$queryRaw.mockImplementation((parts: TemplateStringsArray) => parts.join("?").includes("FROM driver_routes")
+      ? [{ status: "active", verified: false, role: "driver", account_status: "active" }] : original(parts));
+    await request(createApp()).post("/api/v1/matches/match_1/accept").set(auth("driver_1")).expect(409);
+    expect(prismaMock.trip.create).not.toHaveBeenCalled();
+  });
+
 });
