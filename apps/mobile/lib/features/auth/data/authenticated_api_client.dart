@@ -52,11 +52,17 @@ class AuthenticatedApiClient {
     String path, {
     Map<String, dynamic> body = const {},
     Map<String, String> headers = const {},
+    void Function()? beforeSend,
   }) {
-    return sessionCoordinator.sendAuthenticated(
-      (token) =>
-          apiClient.patchJson(path, body: body, token: token, headers: headers),
-    );
+    return sessionCoordinator.sendAuthenticated((token) {
+      beforeSend?.call();
+      return apiClient.patchJson(
+        path,
+        body: body,
+        token: token,
+        headers: headers,
+      );
+    });
   }
 
   Future<Map<String, dynamic>> putJson(
