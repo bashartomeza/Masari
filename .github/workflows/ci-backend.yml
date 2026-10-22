@@ -113,6 +113,14 @@ jobs:
         env:
           MERCHANT_ORDER_INTEGRATION_CONFIRM_DISPOSABLE: "true"
         run: npm run test:integration:merchant-matching
+      - name: Real MySQL legacy cargo batching integrity and recovery
+        env:
+          MERCHANT_ORDER_INTEGRATION_CONFIRM_DISPOSABLE: "true"
+          MULTI_ROUTE_ENTRY_ENABLED: "false"
+          MULTI_ROUTE_MATCHING_ENABLED: "false"
+          CANONICAL_TRIP_CREATION_ENABLED: "false"
+          CANONICAL_SHARED_TRIPS_ENABLED: "false"
+        run: npm run test:integration:cargo
       - name: Real MySQL passenger driver lifecycle synchronization and concurrency
         env:
           MERCHANT_ORDER_INTEGRATION_CONFIRM_DISPOSABLE: "true"

@@ -241,11 +241,40 @@ try {
   check((await match(cancelled.id)).status === 409, "cancelled order cannot match");
   await available(); const noDriver = await demand(); await prisma.driverRoute.update({where:{id:routeId},data:{status:"inactive"}});
   check((await match(noDriver.id)).status === 404, "no compatible driver is explicit"); await cancel(noDriver.id);
+  // A supported older client can match an order before creating its batch.
+  // Accepting a competing batched delivery must not strand that eligible cargo.
+  const recoveryRoute = await prisma.driverRoute.create({ data: {
+    driver_id: profile.id, origin_label: "Hebron / PPU / Bab Al-Zawiya", origin_lat: "31.532600", origin_lng: "35.099800",
+    destination_label: "Bethlehem", destination_lat: "31.705400", destination_lng: "35.202400",
+    corridor_key: LOCKED_CORRIDOR_KEY, seats_available: 4, parcel_capacity_available: 20
+  } });
+  routeId = recoveryRoute.id; await available();
+  const standalone = await call("other", "POST", "/merchant/orders", { ...payload, parcels: [payload.parcels[0], payload.parcels[0]] });
+  assert.equal(standalone.status, 201);
+  const standaloneId = standalone.body.order.id;
+  const standaloneOffer = await call("other", "POST", "/matches/run", { merchantOrderId: standaloneId });
+  assert.equal(standaloneOffer.status, 201);
+  const winner = await demand(true); const winnerOffer = await match(winner.id); assert.equal(winnerOffer.status, 201);
+  const winningAcceptance = await call("driver", "POST", `/matches/${winnerOffer.body.match.id}/accept`, {});
+  assert.equal(winningAcceptance.status, 201);
+  const recoveredOrder = await call("other", "GET", `/merchant/orders/${standaloneId}`);
+  check(recoveredOrder.body.order.status === "submitted", "invalidated standalone cargo returns to manual batching eligibility");
+  check(recoveredOrder.body.order.parcels.every((parcel: any) => parcel.status === "pending" && parcel.batch_id === null), "invalidated standalone cargo retains pending unbatched parcels");
+  const obsolete = await prisma.match.findUniqueOrThrow({ where: { id: standaloneOffer.body.match.id } });
+  check(obsolete.status === "invalidated" && !obsolete.legacy_capacity_held, "standalone obsolete proposal holds no capacity");
+  check((await prisma.driverRoute.findUniqueOrThrow({ where: { id: routeId } })).parcel_capacity_available === 17, "standalone cleanup releases only two units and retains accepted batch allocation");
+  check((await call("driver", "POST", `/matches/${obsolete.id}/reject`, {})).status === 409, "obsolete rejection cannot duplicate capacity release");
+  const manualBatch = await call("other", "POST", `/merchant/orders/${standaloneId}/batch`, {});
+  check(manualBatch.status === 201, "previously invalidated standalone cargo can explicitly create a batch");
+  check(await prisma.parcelBatchOrder.count({ where: { merchant_order_id: standaloneId, active: true } }) === 1, "recovered standalone order has exactly one active membership");
+  check((await prisma.merchantOrder.findUniqueOrThrow({ where: { id: winner.id } })).status === "assigned", "accepted winner never returns to pending");
+  check((await prisma.merchantOrder.findUniqueOrThrow({ where: { id: cancelled.id } })).status === "cancelled", "unrelated terminal cancellation remains terminal");
+  check((await prisma.driverRoute.findUniqueOrThrow({ where: { id: routeId } })).parcel_capacity_available === 17, "manual batching and obsolete rejection do not change accepted capacity");
   console.log(JSON.stringify({ suite: "merchant_matching_real_mysql", assertions, failures }));
   assert.equal(failures.length, 0, "all merchant matching invariants must pass");
 } finally {
   server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve()));
-  const orderIds = (await prisma.merchantOrder.findMany({ where: { merchant_id: actors.merchant }, select: { id: true } })).map(o => o.id);
+  const orderIds = (await prisma.merchantOrder.findMany({ where: { merchant_id: { in: [actors.merchant, actors.other] } }, select: { id: true } })).map(o => o.id);
   const batches = (await prisma.parcelBatch.findMany({ where: { merchant_order_id: { in: orderIds } }, select: { id: true } })).map(b => b.id);
   await prisma.trip.deleteMany({ where: { merchant_order_id: { in: orderIds } } });
   await prisma.match.deleteMany({ where: { merchant_order_id: { in: orderIds } } });
