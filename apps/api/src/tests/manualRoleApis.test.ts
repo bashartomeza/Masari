@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const prismaMock = vi.hoisted(() => ({
   $transaction: vi.fn(),
+  $queryRaw: vi.fn(),
   user: { findUnique: vi.fn(), count: vi.fn() },
   authSession: { findUnique: vi.fn(), update: vi.fn() },
   auditEvent: { create: vi.fn() },
@@ -69,6 +70,7 @@ const merchantBody = {
 describe("manual role APIs", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    prismaMock.$queryRaw.mockResolvedValue([{ id: "req_1" }]);
     prismaMock.user.findUnique.mockImplementation(({ where }: { where: { id?: string } }) => {
       if (!where.id) return null;
       const user = users[where.id];

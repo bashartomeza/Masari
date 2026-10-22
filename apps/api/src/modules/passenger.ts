@@ -129,6 +129,13 @@ passengerRouter.patch("/passenger/requests/:id/cancel", async (req: Authenticate
   try {
     const requestId = routeParam(req.params.id);
     const request = await prisma.$transaction(async (tx) => {
+      // Lock before the first snapshot read: matching claims this same request.
+      // A cancellation must see every hold committed before it obtains the lock.
+      await tx.$queryRaw`
+        SELECT id FROM passenger_requests
+        WHERE id = ${requestId} AND passenger_id = ${req.user!.id} AND canonical_entry_version IS NULL
+        FOR UPDATE
+      `;
       const existing = await tx.passengerRequest.findFirst({
         where: { id: requestId, passenger_id: req.user!.id, canonical_entry_version: null },
       });

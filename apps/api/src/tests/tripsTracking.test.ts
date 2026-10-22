@@ -83,7 +83,7 @@ describe("trip acceptance, status, and tracking", () => {
     prismaMock.$queryRaw.mockImplementation((parts: TemplateStringsArray) => {
       const sql = parts.join("?");
       if (sql.includes("UTC_TIMESTAMP")) return [{ now: new Date() }];
-      if (sql.includes("FROM driver_routes")) return [{ id: "route_1", status: "active", verified: true, role: "driver", account_status: "active", departure_at: null, availability_window_end: null }];
+      if (sql.includes("FROM driver_routes")) return [{ id: "route_1", status: prismaMock.driverRoute.updateMany.mock.calls.some(([args]) => args.data?.status === "assigned") ? "assigned" : "active", verified: true, role: "driver", account_status: "active", departure_at: null, availability_window_end: null }];
       if (sql.includes("FROM merchant_orders")) return [{ status: "matched" }];
       if (sql.includes("FROM matches")) return [{ status: "proposed", expires_at: new Date(Date.now() + 60_000) }];
       throw new Error("unexpected_test_raw_query");

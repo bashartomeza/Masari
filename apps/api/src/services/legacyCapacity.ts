@@ -5,25 +5,36 @@ export type LegacyCapacityInput = {
   driverRouteId: string;
   seats: number;
   parcelUnits: number;
-  validateMerchantRoute?: boolean;
+  passengerRequestId?: string;
 };
 
 // Called inside the capacity/acceptance transaction. Check time after the lock,
 // so a route that expires during contention cannot receive a committed offer.
-export async function requireEligibleMerchantRoute(tx: Prisma.TransactionClient, driverRouteId: string) {
-  const routes = await tx.$queryRaw<Array<{ id: string; status: string; verified: boolean | number; role: string; account_status: string; departure_at: Date | null; availability_window_end: Date | null }>>`
-    SELECT dr.id, dr.status, dp.verified, u.role, u.account_status, dr.departure_at, dr.availability_window_end
+export async function requireEligibleLegacyRoute(
+  tx: Prisma.TransactionClient,
+  driverRouteId: string,
+  options: { passengerRequestId?: string | null; matchId?: string; assigned?: boolean } = {},
+) {
+  const routes = await tx.$queryRaw<Array<{ id: string; status: string; verified: boolean | number; role: string; account_status: string; departure_at: Date | null; availability_window_end: Date | null; departed_at: Date | null; preferred_time: Date | null; match_expires_at: Date | null }>>`
+    SELECT dr.id, dr.status, dp.verified, u.role, u.account_status,
+           dr.departure_at, dr.availability_window_end, dr.departed_at,
+           pr.preferred_time, m.expires_at AS match_expires_at
     FROM driver_routes dr JOIN driver_profiles dp ON dp.id = dr.driver_id JOIN users u ON u.id = dp.user_id
+    LEFT JOIN passenger_requests pr ON pr.id = ${options.passengerRequestId ?? null}
+    LEFT JOIN matches m ON m.id = ${options.matchId ?? null}
     WHERE dr.id = ${driverRouteId} AND dr.operational_mode = 'legacy' AND dr.canonical_availability_version IS NULL
     FOR UPDATE
   `;
   const [clock] = await tx.$queryRaw<Array<{ now: Date }>>`SELECT UTC_TIMESTAMP(3) AS now`;
   const route = routes[0];
-  if (!route || route.status !== "active" || !route.verified || route.role !== "driver" || route.account_status !== "active" ||
+  if (!route || route.status !== (options.assigned ? "assigned" : "active") || !route.verified || route.role !== "driver" || route.account_status !== "active" ||
+      route.departed_at ||
       (route.departure_at && route.departure_at <= clock.now) ||
       (route.availability_window_end && route.availability_window_end <= clock.now)) {
     throw new HttpError(409, "selected_driver_route_unavailable");
   }
+  if (route.preferred_time && route.preferred_time <= clock.now) throw new HttpError(409, "passenger_request_expired");
+  if (route.match_expires_at && route.match_expires_at <= clock.now) throw new HttpError(409, "match_expired");
   return clock.now;
 }
 
@@ -35,7 +46,7 @@ export async function reserveLegacyCapacity(
     throw new HttpError(400, "invalid_capacity_request");
   }
 
-  if (input.validateMerchantRoute) await requireEligibleMerchantRoute(tx, input.driverRouteId);
+  await requireEligibleLegacyRoute(tx, input.driverRouteId, { passengerRequestId: input.passengerRequestId });
 
   const result = await tx.driverRoute.updateMany({
     where: {
