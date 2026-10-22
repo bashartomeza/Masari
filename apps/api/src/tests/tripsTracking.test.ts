@@ -9,7 +9,7 @@ const prismaMock = vi.hoisted(() => ({
   authSession: { findUnique: vi.fn(), update: vi.fn() },
   auditEvent: { create: vi.fn() },
   match: { findUnique: vi.fn(), update: vi.fn(), updateMany: vi.fn(), findMany: vi.fn() },
-  trip: { findFirst: vi.fn(), create: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
+  trip: { findFirst: vi.fn(), create: vi.fn(), findUnique: vi.fn(), findUniqueOrThrow: vi.fn(), findMany: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
   driverRoute: { findUnique: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
   passengerRequest: { findUnique: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
   merchantOrder: { update: vi.fn(), updateMany: vi.fn() },
@@ -120,7 +120,7 @@ describe("trip acceptance, status, and tracking", () => {
     prismaMock.driverRoute.updateMany.mockResolvedValue({ count: 1 });
     prismaMock.driverRoute.findUnique.mockResolvedValue({ id: "route_1", status: "assigned" });
     prismaMock.passengerRequest.updateMany.mockResolvedValue({ count: 1 });
-    prismaMock.trip.updateMany.mockResolvedValue({ count: 1 });
+    prismaMock.trip.updateMany.mockImplementation(({ data }) => { prismaMock.trip.findUniqueOrThrow.mockResolvedValue(baseTrip(data.status)); return { count: 1 }; });
     prismaMock.$transaction.mockImplementation((callback: (tx: typeof prismaMock) => unknown) => callback(prismaMock));
   });
 
@@ -348,7 +348,7 @@ describe("trip acceptance, status, and tracking", () => {
       .send({ status: "pickup_started" })
       .expect(200);
 
-    expect(prismaMock.trip.update).toHaveBeenCalledWith(
+    expect(prismaMock.trip.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ status: "pickup_started", started_at: expect.any(Date) })
       })

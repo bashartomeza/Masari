@@ -412,7 +412,7 @@ trackingSimulationRouter.post("/trips/:id/simulate/reset", requireAuth, async (r
 tripsRouter.get("/trips/:id/location", requireAuth, async (req: AuthenticatedRequest, res, next) => {
   try {
     const trip = await getVisibleTrip(routeParam(req.params.id), req);
-    const location = await prisma.locationEvent.findFirst({ where: { trip_id: trip.id }, orderBy: { sequence: "desc" } });
+    const location = await prisma.locationEvent.findFirst({ where: { trip_id: trip.id }, orderBy: [{ sequence: "desc" }, { recorded_at: "desc" }, { id: "desc" }] });
     res.json({ location });
   } catch (error) {
     next(error);
