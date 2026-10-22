@@ -1,3 +1,4 @@
+import '../../../core/widgets/foreground_refresh.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -26,8 +27,7 @@ class PassengerTripScreen extends ConsumerStatefulWidget {
       _PassengerTripScreenState();
 }
 
-class _PassengerTripScreenState extends ConsumerState<PassengerTripScreen>
-    with WidgetsBindingObserver {
+class _PassengerTripScreenState extends ConsumerState<PassengerTripScreen> {
   Future<OsrmRouteResult>? _routeFuture;
   String? _routeKey;
 
@@ -56,34 +56,6 @@ class _PassengerTripScreenState extends ConsumerState<PassengerTripScreen>
   // ============================================================
   // LIFECYCLE
   // ============================================================
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    final controller = ref.read(
-      passengerTripControllerProvider(widget.tripId).notifier,
-    );
-
-    if (state == AppLifecycleState.resumed) {
-      controller.resumePolling();
-    }
-
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.inactive) {
-      controller.pausePolling();
-    }
-  }
 
   // ============================================================
   // ROUTE
@@ -256,15 +228,20 @@ class _PassengerTripScreenState extends ConsumerState<PassengerTripScreen>
 
     final checkpointSnapshot = checkpoints.value ?? CheckpointSnapshot.empty;
 
-    return Scaffold(
-      backgroundColor: _background,
-      body: state.when(
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: _orange, strokeWidth: 2.5),
+    return ForegroundRefresh(
+      refresh: () => ref
+          .read(passengerTripControllerProvider(widget.tripId).notifier)
+          .refresh(),
+      child: Scaffold(
+        backgroundColor: _background,
+        body: state.when(
+          loading: () => const Center(
+            child: CircularProgressIndicator(color: _orange, strokeWidth: 2.5),
+          ),
+          error: (_, _) => _buildErrorState(context, l10n),
+          data: (data) =>
+              _buildImmersiveContent(context, l10n, data, checkpointSnapshot),
         ),
-        error: (_, _) => _buildErrorState(context, l10n),
-        data: (data) =>
-            _buildImmersiveContent(context, l10n, data, checkpointSnapshot),
       ),
     );
   }

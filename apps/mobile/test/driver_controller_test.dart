@@ -386,27 +386,29 @@ void main() {
   });
 
   test(
-    'trip polling starts, avoids duplicate timers, pauses, and resumes',
+    'trip refresh reads authoritative changes without replaying actions',
     () async {
       final fake = _FakeDriverRepository(trips: [_trip()]);
       final container = _container(fake);
       addTearDown(container.dispose);
       await container.read(driverTripControllerProvider('trip_1').future);
-      final notifier = container.read(
-        driverTripControllerProvider('trip_1').notifier,
+      fake.trips = [_trip(status: 'completed')];
+      await container
+          .read(driverTripControllerProvider('trip_1').notifier)
+          .refresh();
+      expect(
+        container
+            .read(driverTripControllerProvider('trip_1'))
+            .value
+            ?.trip
+            .status,
+        'completed',
       );
-
-      expect(notifier.activeTimerCount, 2);
-      notifier.resumePolling();
-      expect(notifier.activeTimerCount, 2);
-      notifier.pausePolling();
-      expect(notifier.isPolling, isFalse);
-      notifier.resumePolling();
-      expect(notifier.activeTimerCount, 2);
+      expect(fake.statusUpdates, isEmpty);
     },
   );
 
-  test('terminal session state disposes active trip polling', () async {
+  test('terminal session invalidates the existing trip controller', () async {
     FlutterSecureStorage.setMockInitialValues(<String, String>{});
     final fake = _FakeDriverRepository(trips: [_trip()]);
     final storage = MemoryTokenStorage(
@@ -438,7 +440,6 @@ void main() {
     final polling = container.read(
       driverTripControllerProvider('trip_1').notifier,
     );
-    expect(polling.activeTimerCount, 2);
 
     await expectLater(
       container
@@ -454,7 +455,7 @@ void main() {
     );
     await Future<void>.delayed(Duration.zero);
 
-    expect(polling.activeTimerCount, 0);
+    await expectLater(polling.refresh(), throwsStateError);
     expect(
       container.read(authControllerProvider).value?.status,
       AuthStatus.sessionEnded,
@@ -463,9 +464,11 @@ void main() {
 }
 
 ProviderContainer _container(_FakeDriverRepository fake) {
-  return ProviderContainer(
+  final container = ProviderContainer(
     overrides: [driverRepositoryProvider.overrideWithValue(fake)],
   );
+  container.read(authenticatedActorBindingProvider).bind('driver_1');
+  return container;
 }
 
 class _FakeDriverRepository extends DriverRepository {

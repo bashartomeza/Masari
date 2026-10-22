@@ -1,3 +1,4 @@
+import '../../../core/widgets/foreground_refresh.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -64,41 +65,12 @@ class DriverTripScreen extends ConsumerStatefulWidget {
   ConsumerState<DriverTripScreen> createState() => _DriverTripScreenState();
 }
 
-class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
-    with WidgetsBindingObserver {
+class _DriverTripScreenState extends ConsumerState<DriverTripScreen> {
   String? _error;
 
   // ============================================================
   // LIFECYCLE
   // ============================================================
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    final controller = ref.read(
-      driverTripControllerProvider(widget.tripId).notifier,
-    );
-
-    if (state == AppLifecycleState.resumed) {
-      controller.resumePolling();
-    }
-
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.inactive) {
-      controller.pausePolling();
-    }
-  }
 
   // ============================================================
   // BUILD
@@ -110,15 +82,20 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
 
     final tripState = ref.watch(driverTripControllerProvider(widget.tripId));
 
-    return Scaffold(
-      key: const ValueKey('driverTrip'),
-      backgroundColor: background,
-      body: tripState.when(
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: orange, strokeWidth: 2.5),
+    return ForegroundRefresh(
+      refresh: () => ref
+          .read(driverTripControllerProvider(widget.tripId).notifier)
+          .refresh(),
+      child: Scaffold(
+        key: const ValueKey('driverTrip'),
+        backgroundColor: background,
+        body: tripState.when(
+          loading: () => const Center(
+            child: CircularProgressIndicator(color: orange, strokeWidth: 2.5),
+          ),
+          error: (error, _) => _buildErrorState(context, l10n),
+          data: (state) => _buildImmersiveContent(context, l10n, state),
         ),
-        error: (error, _) => _buildErrorState(context, l10n),
-        data: (state) => _buildImmersiveContent(context, l10n, state),
       ),
     );
   }
