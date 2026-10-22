@@ -191,6 +191,18 @@ tripsRouter.post("/matches/:id/accept", requireAuth, async (req: AuthenticatedRe
               if (ids.length) await tx.merchantOrder.updateMany({ where: { id: { in: ids }, status: "matched" }, data: { status: "batched" } });
             }
           }
+          // Standalone legacy cargo must remain eligible for manual batching or
+          // matching after this route accepts a different delivery.
+          const unbatchedMerchantIds = [...new Set(staleMatches
+            .filter((item) => item.parcel_batch_id === null)
+            .map((item) => item.merchant_order_id)
+            .filter((id): id is string => id !== null))];
+          if (unbatchedMerchantIds.length > 0) {
+            await tx.merchantOrder.updateMany({
+              where: { id: { in: unbatchedMerchantIds }, operational_mode: "legacy", canonical_entry_version: null, status: "matched" },
+              data: { status: "submitted" }
+            });
+          }
           const passengerIds = staleMatches
             .map((item) => item.passenger_request_id)
             .filter((id): id is string => id !== null);
