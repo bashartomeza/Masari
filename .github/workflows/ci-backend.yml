@@ -74,7 +74,7 @@ jobs:
           MYSQL_PWD: ci-only-root-password
         run: |
           mysql --protocol=tcp --host=127.0.0.1 --port=3306 --user=root \
-            --execute="SET GLOBAL log_bin_trust_function_creators = 1;"
+            --execute="SET GLOBAL log_bin_trust_function_creators = 1; GRANT SELECT ON performance_schema.data_lock_waits TO 'masari_ci'@'%';"
       - name: Deploy migrations from empty database
         run: npm run db:migrate
       - name: Confirm migration deploy is idempotent
@@ -117,6 +117,10 @@ jobs:
         env:
           MERCHANT_ORDER_INTEGRATION_CONFIRM_DISPOSABLE: "true"
         run: npm run test:integration:passenger-trip-sync
+      - name: Real MySQL capacity contention, cancellation and response loss
+        env:
+          MERCHANT_ORDER_INTEGRATION_CONFIRM_DISPOSABLE: "true"
+        run: npm run test:integration:capacity
       - name: Real MySQL deterministic and trusted-session integration smoke
         run: npm run test:integration:mysql
       - name: Real MySQL persistent demo-reset gate matrix
@@ -153,3 +157,14 @@ jobs:
             --execute="CREATE DATABASE masari_canonical_shared_ci CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; GRANT ALL PRIVILEGES ON masari_canonical_shared_ci.* TO 'masari_ci'@'%';"
           npm run db:migrate
           npm run test:integration:canonical-shared
+      - name: Real MySQL canonical capacity expiry and exact replay
+        env:
+          DATABASE_URL: mysql://masari_ci:ci-only-password@127.0.0.1:3306/masari_canonical_shared_ci
+          APP_ENV: demo
+          ENABLE_DEMO_FEATURES: "true"
+          MULTI_ROUTE_ENTRY_ENABLED: "true"
+          MULTI_ROUTE_MATCHING_ENABLED: "true"
+          CANONICAL_TRIP_CREATION_ENABLED: "true"
+          CANONICAL_SHARED_TRIPS_ENABLED: "true"
+          MERCHANT_ORDER_INTEGRATION_CONFIRM_DISPOSABLE: "true"
+        run: npm run test:integration:canonical-capacity
