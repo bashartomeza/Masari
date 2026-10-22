@@ -5,6 +5,7 @@ import { scoreDriverRoute } from "../modules/matching.js";
 
 const prismaMock = vi.hoisted(() => ({
   $transaction: vi.fn(),
+  $queryRaw: vi.fn(),
   user: { findUnique: vi.fn() },
   authSession: { findUnique: vi.fn(), update: vi.fn() },
   auditEvent: { create: vi.fn() },
@@ -72,8 +73,8 @@ const compatibleRoute = {
   origin_lng: "35.099800",
   seats_available: 2,
   parcel_capacity_available: 5,
-  departure_at: new Date("2026-07-02T10:00:00.000Z"),
-  availability_window_end: new Date("2026-07-02T10:30:00.000Z"),
+  departure_at: new Date(Date.now() + 3_600_000),
+  availability_window_end: new Date(Date.now() + 5_400_000),
   status: "active",
   corridor_key: "hebron-ppu-bab-al-zawiya-to-bethlehem",
   driver: {
@@ -93,8 +94,8 @@ const wrongDirectionRoute = {
   origin_lng: "35.202400",
   seats_available: 2,
   parcel_capacity_available: 5,
-  departure_at: new Date("2026-07-02T10:00:00.000Z"),
-  availability_window_end: new Date("2026-07-02T10:30:00.000Z"),
+  departure_at: new Date(Date.now() + 3_600_000),
+  availability_window_end: new Date(Date.now() + 5_400_000),
   status: "active",
   corridor_key: "hebron-ppu-bab-al-zawiya-to-bethlehem",
   driver: {
@@ -109,6 +110,14 @@ const wrongDirectionRoute = {
 describe("matching, batching, comparison", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    prismaMock.$queryRaw.mockImplementation((parts: TemplateStringsArray) => {
+      const sql = parts.join("?");
+      if (sql.includes("UTC_TIMESTAMP")) return [{ now: new Date() }];
+      if (sql.includes("FROM driver_routes")) return [{ id: "route_1", status: "active", verified: true, role: "driver", account_status: "active", departure_at: null, availability_window_end: null }];
+      if (sql.includes("FROM merchant_orders")) return [{ status: "matched" }];
+      if (sql.includes("FROM matches")) return [{ status: "proposed", expires_at: new Date(Date.now() + 60_000) }];
+      throw new Error("unexpected_test_raw_query");
+    });
     prismaMock.user.findUnique.mockImplementation(({ where }: { where: { id?: string } }) => {
       if (!where.id) return null;
       const user = users[where.id];
@@ -132,7 +141,7 @@ describe("matching, batching, comparison", () => {
     prismaMock.match.findFirst.mockResolvedValue(null);
     prismaMock.match.findMany.mockResolvedValue([]);
     prismaMock.merchantOrder.findMany.mockResolvedValue([]);
-    prismaMock.merchantOrder.updateMany.mockResolvedValue({ count: 1 });
+    prismaMock.merchantOrder.updateMany.mockImplementation(({ where }) => ({ count: Array.isArray(where.id?.in) ? where.id.in.length : 1 }));
     prismaMock.driverRoute.updateMany.mockResolvedValue({ count: 1 });
     prismaMock.parcelBatchOrder.findMany.mockResolvedValue([]);
     prismaMock.parcelBatchOrder.updateMany.mockResolvedValue({ count: 1 });
@@ -221,7 +230,7 @@ describe("matching, batching, comparison", () => {
 
     expect(prismaMock.driverRoute.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ status: "active", driver: { verified: true } })
+        where: expect.objectContaining({ status: "active", driver: { verified: true, user: { role: "driver", account_status: "active" } } })
       })
     );
   });
@@ -512,7 +521,7 @@ describe("matching, batching, comparison", () => {
       })
     }));
     expect(prismaMock.merchantOrder.updateMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: { id: { in: ["order_1", "order_2"] }, status: "submitted" },
+      where: { id: { in: ["order_1", "order_2"] }, merchant_id: "merchant_1", canonical_entry_version: null, status: "submitted" },
       data: { status: "batched" }
     }));
     expect(prismaMock.parcel.updateMany).toHaveBeenCalledWith(expect.objectContaining({
@@ -630,4 +639,20 @@ describe("matching, batching, comparison", () => {
     const response = await request(createApp()).get("/api/v1/compare/runs/comparison_1").set(auth("admin_1")).expect(200);
     expect(response.body.comparison.winner).toBe("masari");
   });
+  it("rejects departed merchant candidates before reserving capacity", async () => {
+    prismaMock.merchantOrder.findUnique.mockResolvedValue(merchantOrder);
+    prismaMock.driverRoute.findMany.mockResolvedValue([{ ...compatibleRoute, departure_at: new Date(Date.now() - 1) }]);
+    await request(createApp()).post("/api/v1/matches/run").set(auth("merchant_1")).send({ merchantOrderId: "order_1" }).expect(404);
+    expect(prismaMock.match.create).not.toHaveBeenCalled();
+    expect(prismaMock.driverRoute.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("creates no batch when a selected submitted order loses its claim", async () => {
+    prismaMock.merchantOrder.findUnique.mockResolvedValue(merchantOrder);
+    prismaMock.merchantOrder.updateMany.mockResolvedValue({ count: 0 });
+    await request(createApp()).post("/api/v1/merchant/orders/order_1/batch").set(auth("merchant_1")).send({}).expect(409);
+    expect(prismaMock.parcelBatch.create).not.toHaveBeenCalled();
+    expect(prismaMock.parcel.updateMany).not.toHaveBeenCalled();
+  });
+
 });

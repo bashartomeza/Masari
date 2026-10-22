@@ -109,6 +109,10 @@ jobs:
         env:
           MERCHANT_ORDER_INTEGRATION_CONFIRM_DISPOSABLE: "true"
         run: npm run test:integration:merchant-orders
+      - name: Real MySQL merchant manual matching and synchronization contracts
+        env:
+          MERCHANT_ORDER_INTEGRATION_CONFIRM_DISPOSABLE: "true"
+        run: npm run test:integration:merchant-matching
       - name: Real MySQL deterministic and trusted-session integration smoke
         run: npm run test:integration:mysql
       - name: Real MySQL persistent demo-reset gate matrix

@@ -162,15 +162,18 @@ class DriverParcelBatchSummary {
     required this.status,
     required this.estimatedDistanceSaved,
     required this.explanation,
+    this.parcelCount,
   });
 
   final String id;
   final String status;
   final double estimatedDistanceSaved;
   final String explanation;
+  final int? parcelCount;
 
   factory DriverParcelBatchSummary.fromJson(Map<String, dynamic> json) {
     return DriverParcelBatchSummary(
+      parcelCount: (json['parcel_count'] as num?)?.toInt(),
       id: _string(json, 'id'),
       status: _string(json, 'status'),
       estimatedDistanceSaved: _double(json, 'estimated_distance_saved'),
