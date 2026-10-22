@@ -14,11 +14,16 @@ const tokens: Record<string, string> = {};
 let assertions = 0;
 const failures: string[] = [];
 let dropStatusResponse = false;
+let dropCancellationResponse = false;
 function check(value: unknown, message: string) { assertions++; if (!value)
   failures.push(message); }
 const app = express();
 app.use((req, res, next) => { const send = res.json.bind(res); res.json = body => { if (dropStatusResponse && req.method === 'POST' && req.originalUrl.endsWith('/status') && res.statusCode === 200) {
   dropStatusResponse = false;
+  res.destroy();
+  return res;
+} if (dropCancellationResponse && req.method === 'PATCH' && req.originalUrl.endsWith('/cancel') && res.statusCode === 200) {
+  dropCancellationResponse = false;
   res.destroy();
   return res;
 } return send(body); }; next(); });
@@ -113,6 +118,46 @@ try {
     check((await call('driver', 'POST', `/trips/${t.id}/status`, { status: terminal })).status === 409, `${terminal} repeated action rejected`);
     check((await prisma.driverRoute.findUniqueOrThrow({ where: { id: t.routeId } })).seats_available === 4, `${terminal} duplicate cannot restore twice`);
   }
+  // Task12 verifies the real cancellation contract consumed by Request Details.
+  // A response destroyed here is lost only after the transaction committed.
+  for (const loseResponse of [false, true]) {
+    const t = await trip();
+    if (loseResponse) {
+      dropCancellationResponse = true;
+      await assert.rejects(call('passenger', 'PATCH', `/passenger/requests/${t.requestId}/cancel`, {}));
+      check(!dropCancellationResponse, 'successful committed cancellation response destroyed');
+    } else {
+      const cancelled = await call('passenger', 'PATCH', `/passenger/requests/${t.requestId}/cancel`, {});
+      check(cancelled.status === 200 && cancelled.body.request.status === 'cancelled', 'successful cancellation returns saved request');
+    }
+    await both(t.id, 'cancelled');
+    const detail = await call('passenger', 'GET', `/passenger/requests/${t.requestId}`);
+    check(detail.status === 200 && detail.body.request.status === 'cancelled', 'reconciled request agrees with cancelled trip');
+    check((await call('passenger', 'GET', '/trips')).body.trips.some((r: any) => r.id === t.id && r.status === 'cancelled'), 'related-trip list returns authoritative cancellation');
+    check((await prisma.driverRoute.findUniqueOrThrow({ where: { id: t.routeId } })).seats_available === 4, 'cancellation restores exactly one original seat');
+    check(await prisma.auditEvent.count({ where: { entity_id: t.requestId, action: 'passenger_request_cancelled' } }) === 1, 'one passenger cancellation audit');
+    check(await prisma.auditEvent.count({ where: { entity_id: t.id, action: 'trip_status_updated' } }) === 1, 'one trip transition audit');
+    check(await prisma.match.count({ where: { passenger_request_id: t.requestId, legacy_capacity_held: true } }) === 0, 'no capacity hold remains after cancellation');
+    check((await call('passenger', 'PATCH', `/passenger/requests/${t.requestId}/cancel`, {})).status === 409, 'duplicate cancellation cannot reapply');
+    check((await prisma.driverRoute.findUniqueOrThrow({ where: { id: t.routeId } })).seats_available === 4, 'duplicate cancellation cannot inflate capacity');
+    check(await prisma.auditEvent.count({ where: { entity_id: t.requestId, action: 'passenger_request_cancelled' } }) === 1, 'duplicate cancellation cannot add audit');
+    check((await call('otherPassenger', 'GET', `/trips/${t.id}`)).status === 403, 'other Passenger cannot read cancelled trip');
+    check((await call('otherPassenger', 'GET', `/passenger/requests/${t.requestId}`)).status === 404, 'other Passenger cannot read cancelled request');
+    check((await call('otherPassenger', 'PATCH', `/passenger/requests/${t.requestId}/cancel`, {})).status === 404, 'other Passenger cannot cancel request');
+  }
+  const race = await trip();
+  const competing = await Promise.all([
+    call('passenger', 'PATCH', `/passenger/requests/${race.requestId}/cancel`, {}),
+    call('driver', 'POST', `/trips/${race.id}/status`, { status: 'pickup_started' }),
+  ]);
+  check(competing.filter(r => r.status === 200).length === 1 && competing.filter(r => r.status === 409).length === 1, 'Passenger cancellation and Driver progress commit only one transition');
+  const persisted = await prisma.trip.findUniqueOrThrow({ where: { id: race.id } });
+  const cancelled = persisted.status === 'cancelled';
+  check(cancelled || persisted.status === 'pickup_started', 'race ends in one permitted authoritative state');
+  await both(race.id, persisted.status);
+  check((await call('passenger', 'GET', `/passenger/requests/${race.requestId}`)).body.request.status === (cancelled ? 'cancelled' : 'accepted'), 'request obeys existing status mapping after race');
+  check((await prisma.driverRoute.findUniqueOrThrow({ where: { id: race.routeId } })).seats_available === (cancelled ? 4 : 3), 'race restores capacity only when cancellation won');
+  check(await prisma.auditEvent.count({ where: { entity_id: race.id, action: 'trip_status_updated' } }) === 1, 'race has one trip transition audit');
   console.log(JSON.stringify({ suite: 'passenger_driver_trip_sync_real_mysql', assertions, failures, location_evidence: 'synthetic stored LocationEvents; no live GPS ingestion/provider claim' }));
   assert.equal(failures.length, 0);
 }
