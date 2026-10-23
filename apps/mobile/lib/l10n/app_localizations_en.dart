@@ -1885,4 +1885,25 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get verifyBooking => 'Verify booking';
+
+  @override
+  String get checkpointDirectoryTitle => 'Checkpoint directory';
+
+  @override
+  String get checkpointDirectoryDisabled =>
+      'Checkpoint directory is not enabled.';
+
+  @override
+  String get checkpointDirectoryLoadFailed =>
+      'Checkpoint directory could not be loaded.';
+
+  @override
+  String get checkpointDirectorySearch => 'Search checkpoints or cities';
+
+  @override
+  String get checkpointDirectoryNoResults => 'No matching checkpoints';
+
+  @override
+  String get checkpointDirectoryTrafficUnavailable =>
+      'Traffic status unavailable';
 }

@@ -1874,4 +1874,22 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get verifyBooking => 'التحقق من الحجز';
+
+  @override
+  String get checkpointDirectoryTitle => 'دليل الحواجز';
+
+  @override
+  String get checkpointDirectoryDisabled => 'دليل الحواجز غير مفعّل.';
+
+  @override
+  String get checkpointDirectoryLoadFailed => 'تعذر تحميل دليل الحواجز.';
+
+  @override
+  String get checkpointDirectorySearch => 'ابحث عن حاجز أو مدينة';
+
+  @override
+  String get checkpointDirectoryNoResults => 'لا توجد حواجز مطابقة';
+
+  @override
+  String get checkpointDirectoryTrafficUnavailable => 'حالة المرور غير متاحة';
 }

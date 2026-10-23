@@ -41,6 +41,8 @@ import type { CanonicalDemandService } from "./services/canonicalDemand.js";
 import { createCapabilitiesRouter } from "./modules/capabilities.js";
 import { createCheckpointRouter } from "./modules/checkpoints.js";
 import type { CheckpointService } from "./services/checkpoints.js";
+import { CheckpointDirectoryService } from "./services/checkpointDirectory.js";
+import { createCheckpointDirectoryRouter } from "./modules/checkpointDirectory.js";
 import { createCanonicalMatchingRouter } from "./modules/canonicalMatching.js";
 import { createCanonicalSharedMatchingRouter } from "./modules/canonicalSharedMatching.js";
 import type { CanonicalMatchingService } from "./services/canonicalMatching.js";
@@ -75,6 +77,7 @@ type AppDependencies = {
   canonicalMatchingService?: CanonicalMatchingService;
   canonicalSharedMatchingService?: CanonicalSharedMatchingService;
   checkpointService?: CheckpointService;
+  checkpointDirectoryService?: CheckpointDirectoryService;
   legacyDriverOnlineStateService?: LegacyDriverOnlineStateService;
   routePreviewService?: RoutePreviewService;
   passengerAssistantService?: PassengerAssistantService;
@@ -119,7 +122,11 @@ export function createApp(
   app.use("/api/v1", requireCompleteProfile);
 
   app.use("/api/v1", createAuthRouter(appConfig, dependencies));
-  app.use("/api/v1", createCapabilitiesRouter(appConfig));
+  const directory = appConfig.checkpointDirectoryEnabled && appConfig.checkpointDirectoryFile
+    ? dependencies.checkpointDirectoryService ?? new CheckpointDirectoryService(appConfig.checkpointDirectoryFile)
+    : undefined;
+  app.use("/api/v1", createCapabilitiesRouter(appConfig, directory));
+  app.use("/api/v1", createCheckpointDirectoryRouter(appConfig, directory));
   app.use(
     "/api/v1",
     createCheckpointRouter(appConfig, dependencies.checkpointService),
