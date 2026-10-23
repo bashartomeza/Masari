@@ -20,6 +20,7 @@ import '../../../core/widgets/masari_section.dart';
 import '../../../core/widgets/state_views.dart';
 import '../../checkpoints/application/checkpoint_controller.dart';
 import '../../checkpoints/domain/checkpoint_models.dart';
+import '../../checkpoints/presentation/checkpoint_sheet.dart';
 import '../../security/presentation/session_status_banner.dart';
 import '../../trips/application/passenger_trip_controller.dart';
 import '../application/passenger_map_controller.dart';
@@ -2233,8 +2234,9 @@ class _CheckpointsPanel extends ConsumerWidget {
     required Map<String, List<Checkpoint>> grouped,
   }) async {
     final cities = grouped.keys.toList()..sort();
-    await showModalBottomSheet<void>(
+    await showCheckpointSheet<void>(
       context: context,
+      checkpoints: snapshot.checkpoints,
       isScrollControlled: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
@@ -2318,8 +2320,9 @@ class _CheckpointsPanel extends ConsumerWidget {
     required String city,
     required List<Checkpoint> checkpoints,
   }) async {
-    await showModalBottomSheet<void>(
+    await showCheckpointSheet<void>(
       context: context,
+      checkpoints: checkpoints,
       isScrollControlled: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
@@ -2574,9 +2577,7 @@ class _CheckpointDetailCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name = checkpoint.nameAr.trim().isEmpty
-        ? 'حاجز'
-        : checkpoint.nameAr.trim();
+    final name = checkpoint.displayName;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(

@@ -32,9 +32,7 @@ String _buildLabel(
   required String entering,
   required String leaving,
 }) {
-  final name = checkpoint.nameAr.trim().isNotEmpty
-      ? checkpoint.nameAr.trim()
-      : 'حاجز';
+  final name = checkpoint.displayName;
   final city = checkpoint.city.trim();
   return [
     name,

@@ -19,6 +19,7 @@ import '../../../core/widgets/language_switch.dart';
 import '../../../core/widgets/masari_map.dart';
 import '../../checkpoints/application/checkpoint_controller.dart';
 import '../../checkpoints/domain/checkpoint_models.dart';
+import '../../checkpoints/presentation/checkpoint_sheet.dart';
 import '../application/driver_controller.dart';
 import '../data/driver_models.dart';
 
@@ -744,8 +745,9 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen> {
 
     final cities = grouped.keys.toList()..sort();
 
-    await showModalBottomSheet<void>(
+    await showCheckpointSheet<void>(
       context: context,
+      checkpoints: snapshot.checkpoints,
       isScrollControlled: true,
       backgroundColor: white,
       shape: const RoundedRectangleBorder(
@@ -888,8 +890,9 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen> {
     String city,
     List<Checkpoint> checkpoints,
   ) async {
-    await showModalBottomSheet<void>(
+    await showCheckpointSheet<void>(
       context: context,
+      checkpoints: checkpoints,
       isScrollControlled: true,
       backgroundColor: white,
       shape: const RoundedRectangleBorder(
@@ -2210,7 +2213,7 @@ class _CheckpointCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      checkpoint.nameAr.isNotEmpty ? checkpoint.nameAr : 'حاجز',
+                      checkpoint.displayName,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
