@@ -143,35 +143,13 @@ class _PassengerTripScreenState extends ConsumerState<PassengerTripScreen> {
   // ============================================================
 
   String _originCity(PassengerTripState data) {
-    final route = data.trip.routeLabel.trim();
-
-    if (route.isEmpty) {
-      return 'Origin';
-    }
-
-    final parts = route.split(RegExp(r'\s*(?:→|->|-)\s*'));
-
-    if (parts.length >= 2 && parts.first.trim().isNotEmpty) {
-      return parts.first.trim();
-    }
-
-    return route;
+    final label = data.trip.originDisplayLabel;
+    return label.trim().isEmpty ? 'Origin' : label;
   }
 
   String _destinationCity(PassengerTripState data) {
-    final route = data.trip.routeLabel.trim();
-
-    if (route.isEmpty) {
-      return 'Destination';
-    }
-
-    final parts = route.split(RegExp(r'\s*(?:→|->|-)\s*'));
-
-    if (parts.length >= 2 && parts.last.trim().isNotEmpty) {
-      return parts.last.trim();
-    }
-
-    return route;
+    final label = data.trip.destinationDisplayLabel;
+    return label.trim().isEmpty ? 'Destination' : label;
   }
 
   String _localizedPlace(String value, String languageCode) {
@@ -199,12 +177,14 @@ class _PassengerTripScreenState extends ConsumerState<PassengerTripScreen> {
   }
 
   String _displayOrigin(BuildContext context, PassengerTripState data) {
+    if (data.trip.originLabel != null) return _originCity(data);
     final language = Localizations.localeOf(context).languageCode;
 
     return _localizedPlace(_originCity(data), language);
   }
 
   String _displayDestination(BuildContext context, PassengerTripState data) {
+    if (data.trip.destinationLabel != null) return _destinationCity(data);
     final language = Localizations.localeOf(context).languageCode;
 
     return _localizedPlace(_destinationCity(data), language);
