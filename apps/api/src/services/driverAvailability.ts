@@ -195,7 +195,6 @@ export function createDriverAvailabilityService(db: PrismaClient = prisma) {
 
     async createOneOff(input: DriverAvailabilityInput, actor: Actor & { idempotencyKey: string }) {
       validateCapacity(input.totalSeats, input.totalParcelCapacity);
-      validateTiming(input.departureAt, input.availabilityWindowEnd);
       try {
         return await db.$transaction(async (tx) => {
           const payload = {
@@ -212,7 +211,8 @@ export function createDriverAvailabilityService(db: PrismaClient = prisma) {
             keyDigest: digest(actor.idempotencyKey),
             keyVersion: 1,
             requestDigest: digest(JSON.stringify(payload)),
-            expiresAt: new Date(Date.now() + 86_400_000)
+            expiresAt: new Date(Date.now() + 86_400_000),
+            retainCompleted: true,
           });
           if (claim.kind === "conflict") throw new HttpError(409, "idempotency_conflict");
           if (claim.kind === "in_progress") throw new HttpError(409, "idempotency_in_progress");
@@ -224,6 +224,7 @@ export function createDriverAvailabilityService(db: PrismaClient = prisma) {
             const resource = await ownerAvailability(tx, claim.record.resource_id, actor.id);
             return { resource, replayed: true };
           }
+          validateTiming(input.departureAt, input.availabilityWindowEnd);
           const profile = await requireApprovedProfile(tx, actor.id);
           if (input.totalSeats > profile.seats_total || input.totalParcelCapacity > profile.parcel_capacity) {
             throw new HttpError(400, "availability_exceeds_vehicle_capacity");

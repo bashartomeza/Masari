@@ -8,7 +8,7 @@ import { HttpError } from "../middleware/error.js";
 import { LOCKED_CORRIDOR_KEY, LOCKED_CORRIDOR_LABEL } from "./demoReset.js";
 import type { Prisma } from "../generated/prisma/client.js";
 import { AuditAction, MatchStatus } from "../generated/prisma/enums.js";
-import { reserveLegacyCapacity } from "../services/legacyCapacity.js";
+import { isLegacyRouteTimely, legacyRouteTimingWhere, reserveLegacyCapacity, requireEligibleLegacyRoute } from "../services/legacyCapacity.js";
 
 const runMatchSchema = z
   .object({
@@ -276,13 +276,15 @@ async function rankDriverRoutes(input: {
   parcelCount: number;
   excludeRouteIds?: ReadonlySet<string>;
 }) {
+  const now = new Date();
   const routes = await prisma.driverRoute.findMany({
     where: {
       status: "active",
       corridor_key: LOCKED_CORRIDOR_KEY,
       canonical_availability_version: null,
       operational_mode: "legacy",
-      driver: { verified: true, user: { role: "driver", account_status: "active" } }
+      driver: { verified: true, user: { role: "driver", account_status: "active" } },
+      ...legacyRouteTimingWhere(now)
     },
     include: {
       driver: {
@@ -295,9 +297,8 @@ async function rankDriverRoutes(input: {
   });
 
   return routes
+    .filter((route) => isLegacyRouteTimely(route, now))
     .filter((route) => !input.excludeRouteIds?.has(route.id))
-    .filter((route) => input.parcelCount === 0 || ((!route.departure_at || route.departure_at.getTime() > Date.now()) &&
-      (!route.availability_window_end || route.availability_window_end.getTime() > Date.now())))
     .filter((route) => !input.passengerRequest || route.seats_available >= input.passengerRequest.passenger_count)
     .filter((route) => input.parcelCount === 0 || route.parcel_capacity_available >= input.parcelCount)
     .map((route) => ({
@@ -355,6 +356,9 @@ async function createBestMatch(req: AuthenticatedRequest, input: MatchInput) {
   if (merchantOrder && !["submitted", "batched", "matched"].includes(merchantOrder.status)) {
     throw new HttpError(409, "merchant_order_not_matchable");
   }
+  if (passengerRequest && passengerRequest.preferred_time <= new Date()) {
+    throw new HttpError(409, "passenger_request_expired");
+  }
   const merchantBatchId = merchantOrder?.parcel_batches[0]?.id ?? merchantOrder?.batch_members[0]?.parcel_batch_id ?? null;
   const parcelCount = merchantOrder
     ? merchantBatchId
@@ -407,7 +411,8 @@ async function createBestMatch(req: AuthenticatedRequest, input: MatchInput) {
             id: passengerRequest.id,
             passenger_id: passengerRequest.passenger_id,
             status: { in: ["pending", "matched"] },
-            canonical_entry_version: null
+            canonical_entry_version: null,
+            preferred_time: { gt: new Date() }
           },
           data: { status: "matched" }
         });
@@ -476,6 +481,10 @@ async function createBestMatch(req: AuthenticatedRequest, input: MatchInput) {
         });
       }
 
+      // Batch/order writes may themselves wait on locks. Recheck approved
+      // supply and demand with a separate DB clock after all those waits.
+      await requireEligibleLegacyRoute(tx, best.route.id, { passengerRequestId: passengerRequest?.id });
+
       const created = await tx.match.create({
         data: {
           driver_route_id: best.route.id,
@@ -529,6 +538,7 @@ matchingRouter.post(
   async (req: AuthenticatedRequest, res, next) => {
     try {
       const input = passengerMatchSearchSchema.parse(req.body);
+      if (input.preferred_time <= new Date()) throw new HttpError(400, "preferred_time_in_past");
       const destinationDistanceKm = haversineKm(
         { lat: input.destination_lat, lng: input.destination_lng },
         LOCKED_DESTINATION

@@ -7,7 +7,7 @@ import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
 import { HttpError } from "../middleware/error.js";
 import { AuditAction, MatchStatus, TripStatus } from "../generated/prisma/enums.js";
 import { advanceLegacyTrip, isLegacyTripTransitionAllowed } from "../services/tripLifecycle.js";
-import { legacyParcelUnits, reserveLegacyCapacity, releaseLegacyCapacity, requireEligibleLegacyRoute } from "../services/legacyCapacity.js";
+import { isLegacyRouteTimely, legacyRouteTimingWhere, legacyParcelUnits, reserveLegacyCapacity, releaseLegacyCapacity, requireEligibleLegacyRoute } from "../services/legacyCapacity.js";
 
 export const tripsRouter = Router();
 export const trackingSimulationRouter = Router();
@@ -77,6 +77,13 @@ tripsRouter.post("/matches/:id/accept", requireAuth, async (req: AuthenticatedRe
         if (match.status !== MatchStatus.proposed && match.status !== MatchStatus.sent_to_driver) {
           throw new HttpError(409, "match_cannot_be_accepted");
         }
+        const now = new Date();
+        if (match.expires_at && match.expires_at <= now) throw new HttpError(409, "match_expired");
+        if (!isLegacyRouteTimely(match.driver_route, now)) throw new HttpError(409, "driver_route_not_available");
+        if (match.passenger_request && match.passenger_request.preferred_time <= now) {
+          throw new HttpError(409, "passenger_request_expired");
+        }
+
         if (match.merchant_order_id) {
           // Re-read demand after taking its write lock, before assigning any parcel.
           const orders = await tx.$queryRaw<Array<{ status: string }>>`
@@ -112,7 +119,8 @@ tripsRouter.post("/matches/:id/accept", requireAuth, async (req: AuthenticatedRe
           const claimedRequest = await tx.passengerRequest.updateMany({
             where: {
               id: match.passenger_request_id,
-              status: { in: ["pending", "matched"] }
+              status: { in: ["pending", "matched"] },
+              preferred_time: { gt: new Date() },
             },
             data: { status: "accepted" }
           });
@@ -138,14 +146,14 @@ tripsRouter.post("/matches/:id/accept", requireAuth, async (req: AuthenticatedRe
           where: {
             id: match.id,
             status: { in: [MatchStatus.proposed, MatchStatus.sent_to_driver] },
-            ...(match.merchant_order_id ? { OR: [{ expires_at: null }, { expires_at: { gt: new Date() } }] } : {})
+            OR: [{ expires_at: null }, { expires_at: { gt: new Date() } }],
           },
           data: { status: MatchStatus.accepted, accepted_at: new Date(), legacy_capacity_held: true }
         });
         if (claimedMatch.count !== 1) throw new HttpError(409, "match_cannot_be_accepted");
 
         const claimedRoute = await tx.driverRoute.updateMany({
-          where: { id: match.driver_route_id, status: "active" },
+          where: { id: match.driver_route_id, status: "active", ...legacyRouteTimingWhere() },
           data: { status: "assigned" }
         });
         if (claimedRoute.count !== 1) throw new HttpError(409, "driver_route_not_available");

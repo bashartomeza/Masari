@@ -8,6 +8,7 @@ import '../../auth/application/auth_controller.dart';
 import '../../auth/domain/auth_models.dart';
 import '../../canonical_routes/application/canonical_route_controller.dart';
 import '../../canonical_routes/data/canonical_operation_storage.dart';
+import 'legacy_driver_route_mutation.dart';
 import '../../trips/data/trip_models.dart';
 import '../data/driver_models.dart';
 import '../data/driver_repository.dart';
@@ -139,6 +140,7 @@ class LegacyDriverOnlineController {
               .acknowledge(
                 actorId: actorId,
                 operation: legacyDriverOnlineOperation,
+                idempotencyKey: pending.idempotencyKey,
               );
           return dashboard;
         }
@@ -152,9 +154,9 @@ class LegacyDriverOnlineController {
         'online': desiredOnline,
         'expected_route_id': desiredOnline ? null : routeId,
       };
-      await ref
+      final receipt = await ref
           .read(canonicalMutationRunnerProvider)
-          .run<void>(
+          .runWithReceipt<void>(
             operation: legacyDriverOnlineOperation,
             scope: _legacyOnlineScope,
             actorId: actorId,
@@ -183,6 +185,7 @@ class LegacyDriverOnlineController {
           .acknowledge(
             actorId: actorId,
             operation: legacyDriverOnlineOperation,
+            idempotencyKey: receipt.bundle.idempotencyKey,
           );
       return dashboard;
     } finally {
@@ -261,19 +264,30 @@ class DriverRouteController extends AsyncNotifier<DriverRouteState> {
     required int seatsAvailable,
     required int parcelCapacityAvailable,
   }) async {
+    final mutation = ref.read(legacyDriverRouteMutationProvider);
+    final pending = await mutation.pending();
     final current = state.value?.currentRoute;
-    if (current != null) {
+    if (current != null && pending == null) {
       throw const ApiException(ApiErrorType.validation, 'route_already_active');
     }
-    final route = await ref
-        .read(driverRepositoryProvider)
-        .createRoute(
-          seatsAvailable: seatsAvailable,
-          parcelCapacityAvailable: parcelCapacityAvailable,
-        );
+    final actor = mutation.actorId;
+    final receipt = await mutation.create(
+      seats: seatsAvailable,
+      parcels: parcelCapacityAvailable,
+      send: (key, beforeRetry) => ref
+          .read(driverRepositoryProvider)
+          .createRoute(
+            seatsAvailable: seatsAvailable,
+            parcelCapacityAvailable: parcelCapacityAvailable,
+            idempotencyKey: key,
+            beforeRetry: beforeRetry,
+          ),
+    );
     await refresh();
+    mutation.requireActor(actor);
+    await mutation.acknowledge(receipt);
     ref.invalidate(driverDashboardProvider);
-    return route;
+    return receipt.value;
   }
 
   Future<void> deactivate(String id) async {

@@ -407,7 +407,7 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen> {
                             : CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '${localizedOrigin(context, trip.route.originLabel.isNotEmpty ? trip.route.originLabel : lockedDriverOriginLabel)}  →  ${l10n.bethlehem}',
+                            '${localizedOrigin(context, trip.mapOriginLabel)}  →  ${trip.mapDestinationLabel}',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             textAlign: isArabic
@@ -841,14 +841,18 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen> {
 
                         final hasTrafficIssue = cityCheckpoints.any(
                           (checkpoint) =>
-                              _isCongested(checkpoint.enteringStatus) ||
-                              _isCongested(checkpoint.leavingStatus),
+                              checkpoint.status == CheckpointStatus.congested ||
+                              checkpoint.status == CheckpointStatus.closed,
                         );
 
                         return _CityCheckpointTile(
                           city: city,
                           count: cityCheckpoints.length,
                           hasTrafficIssue: hasTrafficIssue,
+                          hasClosedRoad: cityCheckpoints.any(
+                            (checkpoint) =>
+                                checkpoint.status == CheckpointStatus.closed,
+                          ),
                           onTap: () {
                             Navigator.of(sheetContext).pop();
 
@@ -1417,7 +1421,7 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen> {
 // DRIVER MAP
 // ============================================================================
 
-class _DriverMapSection extends StatefulWidget {
+class _DriverMapSection extends ConsumerStatefulWidget {
   const _DriverMapSection({
     required this.l10n,
     required this.trip,
@@ -1435,10 +1439,10 @@ class _DriverMapSection extends StatefulWidget {
   final bool checkpointsError;
 
   @override
-  State<_DriverMapSection> createState() => _DriverMapSectionState();
+  ConsumerState<_DriverMapSection> createState() => _DriverMapSectionState();
 }
 
-class _DriverMapSectionState extends State<_DriverMapSection> {
+class _DriverMapSectionState extends ConsumerState<_DriverMapSection> {
   late Future<OsrmRouteResult> _routeFuture;
 
   Future<OsrmRouteResult>? _remainingRouteFuture;
@@ -1454,14 +1458,10 @@ class _DriverMapSectionState extends State<_DriverMapSection> {
   void didUpdateWidget(covariant _DriverMapSection oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    final oldRoute = oldWidget.trip.route;
-    final newRoute = widget.trip.route;
-
     final routeChanged =
-        oldRoute.originLat != newRoute.originLat ||
-        oldRoute.originLng != newRoute.originLng ||
-        oldRoute.destinationLat != newRoute.destinationLat ||
-        oldRoute.destinationLng != newRoute.destinationLng;
+        oldWidget.trip.id != widget.trip.id ||
+        oldWidget.trip.mapOrigin != widget.trip.mapOrigin ||
+        oldWidget.trip.mapDestination != widget.trip.mapDestination;
 
     final oldLocation = oldWidget.location;
     final newLocation = widget.location;
@@ -1501,93 +1501,36 @@ class _DriverMapSectionState extends State<_DriverMapSection> {
   // ----------------------------------------------------------
 
   Future<OsrmRouteResult> _loadRoute() async {
-    final route = widget.trip.route;
-
-    final originLat = route.originLat != 0
-        ? route.originLat
-        : lockedDriverOriginLat;
-
-    final originLng = route.originLng != 0
-        ? route.originLng
-        : lockedDriverOriginLng;
-
-    final destinationLat = route.destinationLat != 0
-        ? route.destinationLat
-        : lockedDriverDestinationLat;
-
-    final destinationLng = route.destinationLng != 0
-        ? route.destinationLng
-        : lockedDriverDestinationLng;
-
-    final start = LatLng(originLat, originLng);
-
-    final end = LatLng(destinationLat, destinationLng);
-
-    try {
-      final result = await const OsrmRouteService().getRoute(
-        start: start,
-        end: end,
-      );
-
-      if (result.points.length >= 2) {
-        return result;
-      }
-    } catch (_) {}
-
-    return OsrmRouteResult(
-      points: [start, end],
-      durationSeconds: 0,
-      distanceMeters: 0,
+    final start = widget.trip.mapOrigin;
+    final end = widget.trip.mapDestination;
+    if (start == null || end == null) return _emptyRoute;
+    return _requestRoute(
+      start: LatLng(start.latitude, start.longitude),
+      end: LatLng(end.latitude, end.longitude),
     );
   }
-
-  // ----------------------------------------------------------
-  // REMAINING ROUTE
-  // ----------------------------------------------------------
 
   Future<OsrmRouteResult>? _loadRemainingRoute() {
     final location = widget.location;
-
-    if (location == null) {
-      return null;
-    }
-
-    final route = widget.trip.route;
-
-    final destinationLat = route.destinationLat != 0
-        ? route.destinationLat
-        : lockedDriverDestinationLat;
-
-    final destinationLng = route.destinationLng != 0
-        ? route.destinationLng
-        : lockedDriverDestinationLng;
-
-    return _requestRemainingRoute(
+    final destination = widget.trip.mapDestination;
+    if (location == null || destination == null) return null;
+    return _requestRoute(
       start: LatLng(location.lat, location.lng),
-      end: LatLng(destinationLat, destinationLng),
+      end: LatLng(destination.latitude, destination.longitude),
     );
   }
 
-  Future<OsrmRouteResult> _requestRemainingRoute({
+  Future<OsrmRouteResult> _requestRoute({
     required LatLng start,
     required LatLng end,
   }) async {
     try {
-      final result = await const OsrmRouteService().getRoute(
-        start: start,
-        end: end,
-      );
-
-      if (result.points.length >= 2) {
-        return result;
-      }
-    } catch (_) {}
-
-    return const OsrmRouteResult(
-      points: [],
-      durationSeconds: 0,
-      distanceMeters: 0,
-    );
+      return await ref
+          .read(osrmRouteServiceProvider)
+          .getRoute(start: start, end: end);
+    } catch (_) {
+      return _emptyRoute;
+    }
   }
 
   // ----------------------------------------------------------
@@ -1596,28 +1539,8 @@ class _DriverMapSectionState extends State<_DriverMapSection> {
 
   @override
   Widget build(BuildContext context) {
-    final route = widget.trip.route;
-
-    final originLat = route.originLat != 0
-        ? route.originLat
-        : lockedDriverOriginLat;
-
-    final originLng = route.originLng != 0
-        ? route.originLng
-        : lockedDriverOriginLng;
-
-    final destinationLat = route.destinationLat != 0
-        ? route.destinationLat
-        : lockedDriverDestinationLat;
-
-    final destinationLng = route.destinationLng != 0
-        ? route.destinationLng
-        : lockedDriverDestinationLng;
-
-    final origin = GeoPoint(originLat, originLng);
-
-    final destination = GeoPoint(destinationLat, destinationLng);
-
+    final origin = widget.trip.mapOrigin;
+    final destination = widget.trip.mapDestination;
     final markers = <MasariMapMarker>[
       // --------------------------------------------------------
       // CHECKPOINTS
@@ -1629,31 +1552,30 @@ class _DriverMapSectionState extends State<_DriverMapSection> {
       // --------------------------------------------------------
       // ORIGIN
       // ----------------------------------------------------------
-      MasariMapMarker(
-        position: origin,
-        icon: Icons.trip_origin_rounded,
-        color: SemanticColors.upcomingRoute,
-        label: widget.l10n.mapOriginLabel(
-          localizedOrigin(
-            context,
-            route.originLabel.isNotEmpty
-                ? route.originLabel
-                : lockedDriverOriginLabel,
+      if (origin != null)
+        MasariMapMarker(
+          position: origin,
+          icon: Icons.trip_origin_rounded,
+          color: SemanticColors.upcomingRoute,
+          label: widget.l10n.mapOriginLabel(
+            localizedOrigin(context, widget.trip.mapOriginLabel),
           ),
+          size: 42,
         ),
-        size: 42,
-      ),
 
       // --------------------------------------------------------
       // DESTINATION
       // ----------------------------------------------------------
-      MasariMapMarker(
-        position: destination,
-        icon: Icons.flag_rounded,
-        color: SemanticColors.completedRoute,
-        label: widget.l10n.mapDestinationLabel(widget.l10n.bethlehem),
-        size: 42,
-      ),
+      if (destination != null)
+        MasariMapMarker(
+          position: destination,
+          icon: Icons.flag_rounded,
+          color: SemanticColors.completedRoute,
+          label: widget.l10n.mapDestinationLabel(
+            widget.trip.mapDestinationLabel,
+          ),
+          size: 42,
+        ),
 
       // --------------------------------------------------------
       // DRIVER / VEHICLE
@@ -1669,6 +1591,7 @@ class _DriverMapSectionState extends State<_DriverMapSection> {
     ];
 
     return FutureBuilder<OsrmRouteResult>(
+      key: ObjectKey(_routeFuture),
       future: _routeFuture,
       builder: (context, snapshot) {
         final routedPoints = snapshot.data?.points
@@ -1677,7 +1600,7 @@ class _DriverMapSectionState extends State<_DriverMapSection> {
 
         final pathPoints = routedPoints != null && routedPoints.length >= 2
             ? routedPoints
-            : <GeoPoint>[origin, destination];
+            : const <GeoPoint>[];
 
         return LayoutBuilder(
           builder: (context, constraints) {
@@ -1705,7 +1628,12 @@ class _DriverMapSectionState extends State<_DriverMapSection> {
                       ],
                       markers: markers,
                       // Checkpoints appear on the map and in the bottom panel.
-                      banner: null,
+                      banner: origin == null || destination == null
+                          ? Text(widget.l10n.mapRouteMissingCoordinates)
+                          : snapshot.connectionState == ConnectionState.done &&
+                                pathPoints.isEmpty
+                          ? Text(widget.l10n.requestFailed)
+                          : null,
                     ),
                   ),
 
@@ -1730,6 +1658,7 @@ class _DriverMapSectionState extends State<_DriverMapSection> {
                       right: 14,
                       bottom: 192,
                       child: FutureBuilder<OsrmRouteResult>(
+                        key: ObjectKey(_remainingRouteFuture),
                         future: _remainingRouteFuture,
                         builder: (context, routeSnapshot) {
                           final result = routeSnapshot.data;
@@ -1758,17 +1687,17 @@ class _DriverMapSectionState extends State<_DriverMapSection> {
 // DRIVER ETA
 // ============================================================================
 
-class _DriverEtaCard extends StatefulWidget {
+class _DriverEtaCard extends ConsumerStatefulWidget {
   const _DriverEtaCard({required this.trip, required this.location});
 
   final DriverTrip trip;
   final TripLocation? location;
 
   @override
-  State<_DriverEtaCard> createState() => _DriverEtaCardState();
+  ConsumerState<_DriverEtaCard> createState() => _DriverEtaCardState();
 }
 
-class _DriverEtaCardState extends State<_DriverEtaCard> {
+class _DriverEtaCardState extends ConsumerState<_DriverEtaCard> {
   Future<OsrmRouteResult>? _future;
   String? _key;
 
@@ -1785,25 +1714,19 @@ class _DriverEtaCardState extends State<_DriverEtaCard> {
   }
 
   void _ensureRoute() {
-    final route = widget.trip.route;
-
-    final destinationLat = route.destinationLat != 0
-        ? route.destinationLat
-        : lockedDriverDestinationLat;
-
-    final destinationLng = route.destinationLng != 0
-        ? route.destinationLng
-        : lockedDriverDestinationLng;
-
-    final startLat =
-        widget.location?.lat ??
-        (route.originLat != 0 ? route.originLat : lockedDriverOriginLat);
-
-    final startLng =
-        widget.location?.lng ??
-        (route.originLng != 0 ? route.originLng : lockedDriverOriginLng);
-
-    final key = '$startLat,$startLng|$destinationLat,$destinationLng';
+    final origin = widget.trip.mapOrigin;
+    final destination = widget.trip.mapDestination;
+    final startLat = widget.location?.lat ?? origin?.latitude;
+    final startLng = widget.location?.lng ?? origin?.longitude;
+    if (startLat == null || startLng == null || destination == null) {
+      _future = null;
+      _key = null;
+      return;
+    }
+    final destinationLat = destination.latitude;
+    final destinationLng = destination.longitude;
+    final key =
+        '${widget.trip.id}|$startLat,$startLng|$destinationLat,$destinationLng';
 
     if (_future != null && _key == key) {
       return;
@@ -1822,10 +1745,9 @@ class _DriverEtaCardState extends State<_DriverEtaCard> {
     required LatLng end,
   }) async {
     try {
-      final result = await const OsrmRouteService().getRoute(
-        start: start,
-        end: end,
-      );
+      final result = await ref
+          .read(osrmRouteServiceProvider)
+          .getRoute(start: start, end: end);
 
       if (result.points.length >= 2) {
         return result;
@@ -1842,6 +1764,7 @@ class _DriverEtaCardState extends State<_DriverEtaCard> {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<OsrmRouteResult>(
+      key: ObjectKey(_future),
       future: _future,
       builder: (context, snapshot) {
         final result = snapshot.data;
@@ -2135,12 +2058,14 @@ class _CityCheckpointTile extends StatelessWidget {
     required this.city,
     required this.count,
     required this.hasTrafficIssue,
+    required this.hasClosedRoad,
     required this.onTap,
   });
 
   final String city;
   final int count;
   final bool hasTrafficIssue;
+  final bool hasClosedRoad;
   final VoidCallback onTap;
 
   @override
@@ -2212,9 +2137,9 @@ class _CityCheckpointTile extends StatelessWidget {
                     color: orangeSoft,
                     borderRadius: BorderRadius.circular(9),
                   ),
-                  child: const Text(
-                    'ازدحام',
-                    style: TextStyle(
+                  child: Text(
+                    hasClosedRoad ? 'مغلق' : 'ازدحام',
+                    style: const TextStyle(
                       color: orangeDark,
                       fontSize: 9,
                       fontWeight: FontWeight.w900,
@@ -2319,6 +2244,13 @@ class _CheckpointCard extends StatelessWidget {
           // --------------------------------------------------------
           // ENTERING
           // --------------------------------------------------------
+          _CheckpointDirectionCard(
+            icon: Icons.traffic_rounded,
+            title: 'الحالة',
+            status: checkpointStatusLabel(checkpoint.status),
+            updatedAt: checkpoint.updatedAt,
+          ),
+          const SizedBox(height: 8),
           _CheckpointDirectionCard(
             icon: Icons.login_rounded,
             title: 'الدخول',
@@ -2463,60 +2395,32 @@ _CheckpointStatusStyle _checkpointStatusStyle(
   String status,
 ) {
   final theme = Theme.of(context);
-  final normalized = status.trim();
-
-  switch (normalized) {
-    case 'سالك':
+  switch (parseCheckpointStatus(status)) {
+    case CheckpointStatus.open:
       return const _CheckpointStatusStyle(
-        color: SemanticColors.success,
+        color: Color(0xFF16A34A),
         icon: Icons.check_circle_rounded,
       );
-
-    case 'أزمة متوسطة':
+    case CheckpointStatus.congested:
       return const _CheckpointStatusStyle(
-        color: SemanticColors.warning,
+        color: Color(0xFFF59E0B),
         icon: Icons.traffic_rounded,
       );
-
-    case 'أزمة':
+    case CheckpointStatus.closed:
       return const _CheckpointStatusStyle(
-        color: SemanticColors.error,
-        icon: Icons.warning_amber_rounded,
+        color: Color(0xFFDC2626),
+        icon: Icons.block_rounded,
       );
-
-    case 'الحالة غير متوفرة':
+    case CheckpointStatus.unknown:
       return _CheckpointStatusStyle(
         color: theme.colorScheme.onSurfaceVariant,
         icon: Icons.help_outline_rounded,
       );
-
-    default:
-      return _CheckpointStatusStyle(
-        color: theme.colorScheme.primary,
-        icon: Icons.info_outline_rounded,
-      );
   }
 }
 
-// ============================================================================
-// CHECKPOINT STATUS HELPERS
-// ============================================================================
-
-String _checkpointStatusLabel(String? status) {
-  final value = status?.trim();
-
-  if (value == null || value.isEmpty) {
-    return 'الحالة غير متوفرة';
-  }
-
-  return value;
-}
-
-bool _isCongested(String? status) {
-  final value = status?.trim();
-
-  return value == 'أزمة' || value == 'أزمة متوسطة';
-}
+String _checkpointStatusLabel(String? status) =>
+    checkpointStatusLabel(parseCheckpointStatus(status));
 
 // ============================================================================
 // CHECKPOINT TIME
@@ -2552,3 +2456,9 @@ class _BottomSheetHandle extends StatelessWidget {
     );
   }
 }
+
+const _emptyRoute = OsrmRouteResult(
+  points: [],
+  durationSeconds: 0,
+  distanceMeters: 0,
+);

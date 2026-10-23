@@ -315,6 +315,8 @@ String _matchingErrorLabel(AppLocalizations l10n, Object error) {
   if (error.type == ApiErrorType.timeout) return l10n.requestTimedOut;
   if (error.type == ApiErrorType.forbidden) return l10n.forbidden;
   return switch (error.message) {
+    'booking_outcome_unknown' => l10n.bookingOutcomeUnknown,
+    'selected_driver_route_unavailable' => l10n.selectedDriverUnavailable,
     'no_compatible_driver_route' => l10n.noCompatibleDriverFound,
     'passenger_request_already_matched' => l10n.statusMatched,
     'passenger_request_not_matchable' => l10n.requestFailed,
