@@ -18,6 +18,8 @@ import 'package:masari_mobile/features/driver/presentation/driver_trip_screen.da
 import 'package:masari_mobile/features/driver/presentation/driver_ui.dart';
 import 'package:masari_mobile/l10n/app_localizations.dart';
 
+import 'support/checkpoint_test_harness.dart';
+
 void main() {
   test(
     'unrelated missing supply coordinates do not discard selected trip endpoints',
@@ -81,7 +83,7 @@ void main() {
   testWidgets('canonical scalar checkpoint status appears in city and detail', (
     tester,
   ) async {
-    final snapshot = CheckpointSnapshot.fromJson({
+    final feed = {
       'checkpoints': [
         {
           'id': 'closed',
@@ -94,11 +96,22 @@ void main() {
           'leaving_status': 'congested',
         },
       ],
-    });
-    final container = _container(
-      (_) async => _road(31.8, 35.3),
-      snapshot: snapshot,
+    };
+    final h = CheckpointTestHarness(
+      containerFactory: (fixture) => ProviderContainer(
+        overrides: [
+          ...fixture.overrides,
+          driverTripControllerProvider('one').overrideWith(() => _Trip('one')),
+        ],
+      ),
     );
+    h.role = 'driver';
+    h.checkpointHandler = (_) async => CheckpointTestHarness.response(feed);
+    await tester.runAsync(() async {
+      await h.login();
+      await h.load();
+    });
+    final container = h.container;
     await _pump(tester, container, 'one');
     await tester.ensureVisible(find.text('الحواجز'));
     await tester.tap(find.text('الحواجز'));
@@ -111,7 +124,7 @@ void main() {
     expect(find.text('أزمة متوسطة'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox.shrink());
-    container.dispose();
+    h.dispose();
   });
 
   testWidgets(

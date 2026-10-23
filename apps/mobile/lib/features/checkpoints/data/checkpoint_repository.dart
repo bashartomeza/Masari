@@ -15,7 +15,9 @@ class CheckpointRepository {
 
   final AuthenticatedApiClient apiClient;
 
-  Future<CheckpointSnapshot> checkpoints() async {
-    return CheckpointSnapshot.fromJson(await apiClient.getJson('/checkpoints'));
+  Future<CheckpointSnapshot> checkpoints({void Function()? beforeSend}) async {
+    return CheckpointSnapshot.fromJson(
+      await apiClient.getJson('/checkpoints', beforeSend: beforeSend),
+    );
   }
 }

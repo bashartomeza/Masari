@@ -69,6 +69,12 @@ class Checkpoint {
   final DateTime? enteringStatusLastUpdated;
   final DateTime? leavingStatusLastUpdated;
 
+  String get displayName => nameAr.trim().isNotEmpty
+      ? nameAr.trim()
+      : nameEn.trim().isNotEmpty
+      ? nameEn.trim()
+      : 'حاجز';
+
   factory Checkpoint.fromJson(Map<String, dynamic> json) {
     final id = json['id'];
     if (id is! String || id.trim().isEmpty) {
