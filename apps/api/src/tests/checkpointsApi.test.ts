@@ -46,11 +46,7 @@ function serviceConfig() {
 }
 
 function upstream(status: number, body: unknown) {
-  return vi.fn().mockResolvedValue({
-    ok: status >= 200 && status < 300,
-    status,
-    json: async () => body
-  } as unknown as Response);
+  return vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status }));
 }
 
 describe("checkpoint catalog", () => {
@@ -123,6 +119,13 @@ describe("checkpoint catalog", () => {
     const result = await new CheckpointService(serviceConfig()).list();
     expect(result.checkpoints).toHaveLength(1);
     expect(result.checkpoints[0]).toEqual(expect.objectContaining({ id: "valid", status: "congested" }));
+  });
+
+  it("rejects an entirely unusable feed through the authenticated API without exposing upstream data", async () => {
+    vi.stubGlobal("fetch", upstream(200, [{ name_en: "synthetic-invalid-upstream-row", latitude: true, longitude: [] }]));
+    const server = createApp(enabledConfig, { checkpointService: new CheckpointService(serviceConfig()) });
+    const response = await request(server).get("/api/v1/checkpoints").set(auth()).expect(502);
+    expect(response.body).toEqual({ error: "checkpoints_upstream_invalid", request_id: expect.any(String) });
   });
 
   it("serves the last good read as stale rather than a blank map", async () => {

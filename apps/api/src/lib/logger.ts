@@ -3,6 +3,9 @@ import type { AppConfig } from "../config.js";
 
 const AUTH_CREDENTIAL_FIELD_NAMES = [
   "authorization",
+  "apikey",
+  "apiKey",
+  "CHECKPOINTS_API_KEY",
   "cookie",
   "token",
   "raw_action_token",
