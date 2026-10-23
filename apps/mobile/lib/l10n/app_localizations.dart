@@ -3547,6 +3547,42 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'التحقق من الحجز'**
   String get verifyBooking;
+
+  /// No description provided for @checkpointDirectoryTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'دليل الحواجز'**
+  String get checkpointDirectoryTitle;
+
+  /// No description provided for @checkpointDirectoryDisabled.
+  ///
+  /// In ar, this message translates to:
+  /// **'دليل الحواجز غير مفعّل.'**
+  String get checkpointDirectoryDisabled;
+
+  /// No description provided for @checkpointDirectoryLoadFailed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذر تحميل دليل الحواجز.'**
+  String get checkpointDirectoryLoadFailed;
+
+  /// No description provided for @checkpointDirectorySearch.
+  ///
+  /// In ar, this message translates to:
+  /// **'ابحث عن حاجز أو مدينة'**
+  String get checkpointDirectorySearch;
+
+  /// No description provided for @checkpointDirectoryNoResults.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد حواجز مطابقة'**
+  String get checkpointDirectoryNoResults;
+
+  /// No description provided for @checkpointDirectoryTrafficUnavailable.
+  ///
+  /// In ar, this message translates to:
+  /// **'حالة المرور غير متاحة'**
+  String get checkpointDirectoryTrafficUnavailable;
 }
 
 class _AppLocalizationsDelegate

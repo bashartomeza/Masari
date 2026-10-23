@@ -21,6 +21,7 @@ import '../../../core/widgets/state_views.dart';
 import '../../checkpoints/application/checkpoint_controller.dart';
 import '../../checkpoints/domain/checkpoint_models.dart';
 import '../../checkpoints/presentation/checkpoint_sheet.dart';
+import '../../checkpoint_directory/presentation/checkpoint_directory_screen.dart';
 import '../../security/presentation/session_status_banner.dart';
 import '../../trips/application/passenger_trip_controller.dart';
 import '../application/passenger_map_controller.dart';
@@ -100,6 +101,7 @@ class PassengerMapAlertsScreen extends ConsumerWidget {
         ],
       ),
       actions: const [
+        CheckpointDirectoryAction(),
         Padding(
           padding: EdgeInsetsDirectional.only(end: 8),
           child: LanguageSwitch(),

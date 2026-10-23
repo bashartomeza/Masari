@@ -20,6 +20,7 @@ import '../../../core/widgets/masari_map.dart';
 import '../../checkpoints/application/checkpoint_controller.dart';
 import '../../checkpoints/domain/checkpoint_models.dart';
 import '../../checkpoints/presentation/checkpoint_sheet.dart';
+import '../../checkpoint_directory/presentation/checkpoint_directory_screen.dart';
 import '../application/driver_controller.dart';
 import '../data/driver_models.dart';
 
@@ -157,6 +158,7 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen> {
               const Spacer(),
 
               _buildLanguageButton(),
+              const CheckpointDirectoryAction(),
 
               const SizedBox(width: 8),
 

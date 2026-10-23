@@ -44,6 +44,7 @@ class CheckpointTestHarness {
   ProviderSubscription<AsyncValue<CheckpointSnapshot>>? _subscription;
   Future<http.Response> Function(http.Request)? checkpointHandler;
   Future<http.Response> Function(http.Request)? refreshHandler;
+  Future<http.Response> Function(http.Request)? extraHandler;
 
   List<Override> get overrides => [
     appConfigProvider.overrideWithValue(demoTestAppConfig),
@@ -78,7 +79,8 @@ class CheckpointTestHarness {
         request.url.path.endsWith('/auth/logout-all')) {
       return response({'ok': true});
     }
-    return response({'error': 'unexpected_synthetic_endpoint'}, 404);
+    return extraHandler?.call(request) ??
+        response({'error': 'unexpected_synthetic_endpoint'}, 404);
   }
 
   Map<String, dynamic> get user => {

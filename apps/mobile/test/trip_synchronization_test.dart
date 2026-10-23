@@ -4,6 +4,7 @@ import 'package:masari_mobile/features/trips/presentation/passenger_trip_screen.
 import 'package:masari_mobile/features/driver/presentation/driver_trip_screen.dart';
 import 'package:masari_mobile/features/checkpoints/application/checkpoint_controller.dart';
 import 'package:masari_mobile/features/checkpoints/domain/checkpoint_models.dart';
+import 'package:masari_mobile/features/checkpoint_directory/application/checkpoint_directory_controller.dart';
 import 'package:masari_mobile/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -331,6 +332,9 @@ class _Harness {
   _Harness(this.driver, {_Source? source}) : source = source ?? _Source() {
     container = ProviderContainer(
       overrides: [
+        // This fixture models trip ownership directly; optional directory auth
+        // is covered separately through the real session/HTTP harness.
+        checkpointDirectoryOwnerProvider.overrideWith((ref) => null),
         checkpointsProvider.overrideWith(_NoCheckpoints.new),
         tripRepositoryProvider.overrideWithValue(
           _Passenger(source: this.source),

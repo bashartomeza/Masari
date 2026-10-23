@@ -708,5 +708,11 @@
   "merchantOrderRecoveryUnavailable": "استعادة الطلب غير متاحة. سجّل الدخول إلى حساب التاجر الأصلي أو تواصل مع الدعم. لا ترسل طلباً بديلاً.",
   "bookingTimePassed": "وقت المغادرة هذا قد مضى. اختر وقتاً قادماً.",
   "bookingOutcomeUnknown": "قد يكون الحجز محفوظًا بالفعل. سنتحقق منه عند عودة الاتصال. لا تنشئ حجزًا آخر.",
-  "verifyBooking": "التحقق من الحجز"
+  "verifyBooking": "التحقق من الحجز",
+  "checkpointDirectoryTitle": "دليل الحواجز",
+  "checkpointDirectoryDisabled": "دليل الحواجز غير مفعّل.",
+  "checkpointDirectoryLoadFailed": "تعذر تحميل دليل الحواجز.",
+  "checkpointDirectorySearch": "ابحث عن حاجز أو مدينة",
+  "checkpointDirectoryNoResults": "لا توجد حواجز مطابقة",
+  "checkpointDirectoryTrafficUnavailable": "حالة المرور غير متاحة"
 }

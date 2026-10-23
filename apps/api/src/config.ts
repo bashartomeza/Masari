@@ -61,6 +61,8 @@ const rawSchema = z.object({
   CANONICAL_SHARED_TRIP_MOBILE_ENABLED: z.string().optional(),
   MAPS_ENABLED: z.string().optional(),
   CHECKPOINTS_ENABLED: z.string().optional(),
+  CHECKPOINT_DIRECTORY_ENABLED: z.string().optional(),
+  CHECKPOINT_DIRECTORY_FILE: z.string().min(1).optional(),
   CHECKPOINTS_URL: z.string().url().optional(),
   CHECKPOINTS_API_KEY: z.string().min(20).optional(),
   CHECKPOINTS_TIMEOUT_MS: z.coerce.number().int().min(500).max(15_000).default(6_000),
@@ -197,6 +199,7 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
   );
   const mapsEnabled = parseBoolean("MAPS_ENABLED", raw.MAPS_ENABLED);
   const checkpointsEnabled = parseBoolean("CHECKPOINTS_ENABLED", raw.CHECKPOINTS_ENABLED);
+  const checkpointDirectoryEnabled = parseBoolean("CHECKPOINT_DIRECTORY_ENABLED", raw.CHECKPOINT_DIRECTORY_ENABLED);
   const routeMapsEnabled = parseBoolean("ROUTE_MAPS_ENABLED", raw.ROUTE_MAPS_ENABLED);
   const invitationsEnabled = parseBoolean("INVITATIONS_ENABLED", raw.INVITATIONS_ENABLED);
   const publicOnboardingEnabled = parseBoolean("PUBLIC_ONBOARDING_ENABLED", raw.PUBLIC_ONBOARDING_ENABLED);
@@ -205,6 +208,9 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
     raw.ONBOARDING_TEST_LEGAL_FIXTURES_ENABLED
   );
   const problems: string[] = [];
+  if (checkpointDirectoryEnabled && !raw.CHECKPOINT_DIRECTORY_FILE) {
+    problems.push("CHECKPOINT_DIRECTORY_FILE is required when the directory is enabled");
+  }
   const demoResetAllowedDatabases = (raw.DEMO_RESET_ALLOWED_DATABASES ?? "")
     .split(",")
     .map((name) => name.trim())
@@ -545,6 +551,8 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
     },
     mapsEnabled,
     checkpointsEnabled,
+    checkpointDirectoryEnabled,
+    checkpointDirectoryFile: raw.CHECKPOINT_DIRECTORY_FILE,
     checkpoints: checkpointsEnabled
       ? {
           url: raw.CHECKPOINTS_URL!,

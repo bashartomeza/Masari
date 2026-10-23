@@ -105,6 +105,8 @@ jobs:
       - run: npm run typecheck
       - run: npm run test
       - run: npm run build
+      - name: Real MySQL synthetic checkpoint directory authorization
+        run: node apps/api/dist/scripts/checkpointDirectoryIntegration.js
       - name: Real MySQL merchant order atomicity and recovery
         env:
           MERCHANT_ORDER_INTEGRATION_CONFIRM_DISPOSABLE: "true"

@@ -621,5 +621,11 @@
   "merchantOrderRecoveryUnavailable": "Order recovery is unavailable. Sign in to the original merchant account or contact support. Do not submit a replacement order.",
   "bookingTimePassed": "This departure time has passed. Choose an upcoming time.",
   "bookingOutcomeUnknown": "The booking may already be saved. We will verify it when the connection returns. Do not create another booking.",
-  "verifyBooking": "Verify booking"
+  "verifyBooking": "Verify booking",
+  "checkpointDirectoryTitle": "Checkpoint directory",
+  "checkpointDirectoryDisabled": "Checkpoint directory is not enabled.",
+  "checkpointDirectoryLoadFailed": "Checkpoint directory could not be loaded.",
+  "checkpointDirectorySearch": "Search checkpoints or cities",
+  "checkpointDirectoryNoResults": "No matching checkpoints",
+  "checkpointDirectoryTrafficUnavailable": "Traffic status unavailable"
 }
