@@ -15,6 +15,17 @@ class PassengerRepository {
 
   final AuthenticatedApiClient apiClient;
 
+  Future<Map<String, dynamic>> createPayload(
+    Map<String, dynamic> payload,
+    String key,
+    Future<void> Function() beforeRetry,
+  ) => apiClient.postJson(
+    '/passenger/requests',
+    body: payload,
+    headers: {'Idempotency-Key': key},
+    beforeRetry: beforeRetry,
+  );
+
   // --------------------------------------------------------------------------
   // LIST REQUESTS
   // --------------------------------------------------------------------------

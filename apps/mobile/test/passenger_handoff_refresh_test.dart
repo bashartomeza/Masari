@@ -11,6 +11,8 @@ import 'package:masari_mobile/features/matching/data/matching_repository.dart';
 import 'package:masari_mobile/features/matching/presentation/match_detail_screen.dart';
 import 'package:masari_mobile/l10n/app_localizations.dart';
 import 'support/auth_test_support.dart';
+import 'support/booking_recovery_test_support.dart';
+import 'package:masari_mobile/features/passenger/application/legacy_passenger_request_mutation.dart';
 
 void main() {
   testWidgets(
@@ -104,6 +106,10 @@ void main() {
 class _Repository extends MatchingRepository {
   _Repository()
     : super(
+        mutation: LegacyPassengerRequestMutation(
+          storage: MemoryBookingStorage(),
+          currentActor: () => 'passenger',
+        ),
         apiClient: TestAuthenticatedClient(
           handler: (_) async => http.Response('{}', 500),
         ).client,

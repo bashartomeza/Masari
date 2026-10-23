@@ -61,9 +61,13 @@ class DriverRepository {
   Future<DriverRoute> createRoute({
     required int seatsAvailable,
     required int parcelCapacityAvailable,
+    String? idempotencyKey,
+    Future<void> Function()? beforeRetry,
   }) async {
     final json = await apiClient.postJson(
       '/driver/routes',
+      headers: {'Idempotency-Key': ?idempotencyKey},
+      beforeRetry: beforeRetry,
       body: {
         'origin_label': lockedDriverOriginLabel,
         'destination_label': lockedDriverDestinationLabel,

@@ -8,6 +8,7 @@ import 'package:masari_mobile/l10n/app_localizations.dart';
 
 import '../../../core/location/location_service.dart';
 import '../../../core/maps/osrm_route_service.dart';
+import '../../../core/maps/checkpoint_map_markers.dart';
 import '../../../core/presentation/localized_labels.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -40,8 +41,11 @@ class PassengerMapAlertsScreen extends ConsumerWidget {
       appBar: _buildAppBar(context, l10n),
       body: SafeArea(
         child: view.when(
-          loading: () => const Center(
-            child: CircularProgressIndicator(color: Color(0xFFF97316)),
+          loading: () => const _MapBody(
+            view: PassengerMapView(
+              mapsAvailable: true,
+              checkpointsAvailable: true,
+            ),
           ),
           error: (_, _) => ErrorStateView(
             title: l10n.mapLoadFailed,
@@ -738,10 +742,9 @@ class _MapBodyState extends ConsumerState<_MapBody> {
                       attributionLabel: l10n.mapAttribution,
                       height: 390,
 
-                      // The current CheckpointSnapshot does not contain
-                      // a "stale" field. Therefore no stale banner is
-                      // calculated here.
-                      banner: null,
+                      banner: checkpointSnapshot.stale
+                          ? Text(l10n.checkpointsStale)
+                          : null,
 
                       paths: [
                         if (pathPoints.length >= 2)
@@ -819,20 +822,11 @@ class _MapBodyState extends ConsumerState<_MapBody> {
                               _stopMarker(l10n, stop, stopName(stop), route),
 
                         // --------------------------------------------------
+                        for (final checkpoint in checkpointSnapshot.checkpoints)
+                          checkpointTrafficMarker(checkpoint),
                         // CHECKPOINTS
                         //
-                        // IMPORTANT:
-                        // The current AweenRayeh API gives checkpoint
-                        // names/cities/timestamps but does NOT provide
-                        // coordinates.
-                        //
-                        // Checkpoint.position currently defaults to
-                        // GeoPoint(0, 0) when no local position is supplied.
-                        // Therefore checkpoints must NOT be drawn on the
-                        // map here, otherwise they would appear at (0, 0).
-                        //
-                        // They are displayed correctly in the checkpoints
-                        // section below using nameAr, city and timestamps.
+                        // Invalid or absent coordinates are omitted at parsing.
                         // --------------------------------------------------
                       ],
                     ),
@@ -2050,9 +2044,7 @@ class _CheckpointsPanel extends ConsumerWidget {
 
         final congestedCount = snapshot.checkpoints
             .where(
-              (checkpoint) =>
-                  _isCheckpointCongested(checkpoint.enteringStatus) ||
-                  _isCheckpointCongested(checkpoint.leavingStatus),
+              (checkpoint) => checkpoint.status == CheckpointStatus.congested,
             )
             .length;
 
@@ -2295,8 +2287,7 @@ class _CheckpointsPanel extends ConsumerWidget {
                     final items = grouped[city]!;
                     final congested = items.any(
                       (checkpoint) =>
-                          _isCheckpointCongested(checkpoint.enteringStatus) ||
-                          _isCheckpointCongested(checkpoint.leavingStatus),
+                          checkpoint.status == CheckpointStatus.congested,
                     );
                     return _CheckpointCityTile(
                       city: city,
@@ -2482,9 +2473,7 @@ class _CheckpointCityTile extends StatelessWidget {
     final hasCongestion =
         congested ??
         checkpoints.any(
-          (checkpoint) =>
-              _isCheckpointCongested(checkpoint.enteringStatus) ||
-              _isCheckpointCongested(checkpoint.leavingStatus),
+          (checkpoint) => checkpoint.status == CheckpointStatus.congested,
         );
 
     return Material(
@@ -2627,6 +2616,7 @@ class _CheckpointDetailCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 13),
+          Text(checkpointStatusLabel(checkpoint.status)),
           Row(
             children: [
               Expanded(
@@ -2742,20 +2732,20 @@ class _CheckpointStatusStyle {
 }
 
 _CheckpointStatusStyle _checkpointStatusStyle(String? status) {
-  switch (status?.trim()) {
-    case 'سالك':
+  switch (parseCheckpointStatus(status)) {
+    case CheckpointStatus.open:
       return const _CheckpointStatusStyle(
         color: Color(0xFF16A34A),
         background: Color(0xFFF0FDF4),
         icon: Icons.check_circle_rounded,
       );
-    case 'أزمة متوسطة':
+    case CheckpointStatus.congested:
       return const _CheckpointStatusStyle(
         color: Color(0xFFF59E0B),
         background: Color(0xFFFFFBEB),
         icon: Icons.traffic_rounded,
       );
-    case 'أزمة':
+    case CheckpointStatus.closed:
       return const _CheckpointStatusStyle(
         color: Color(0xFFDC2626),
         background: Color(0xFFFEF2F2),
@@ -2773,11 +2763,6 @@ _CheckpointStatusStyle _checkpointStatusStyle(String? status) {
 String _checkpointStatusLabel(String? status) {
   final value = status?.trim();
   return value == null || value.isEmpty ? 'الحالة غير متوفرة' : value;
-}
-
-bool _isCheckpointCongested(String? status) {
-  final value = status?.trim();
-  return value == 'أزمة' || value == 'أزمة متوسطة';
 }
 
 class _CheckpointSheetHandle extends StatelessWidget {

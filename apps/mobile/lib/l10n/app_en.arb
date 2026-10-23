@@ -92,6 +92,7 @@
   "noConnectedTrip": "No connected trip yet.",
   "matchResult": "Match result",
   "selectedDriver": "Selected driver",
+  "selectedDriverUnavailable": "The selected driver route is no longer available. Please search again.",
   "selectedRoute": "Selected route",
   "matchScore": "Match score",
   "scoringBreakdown": "Scoring breakdown",
@@ -617,5 +618,8 @@
   "recoverMerchantOrder": "Recover order",
   "merchantOrderUncertain": "The order may have been saved. Recover it before creating another order.",
   "merchantOrderRecoveryExpired": "The retry window has expired. Only a saved-order lookup is allowed. Contact support if recovery remains unresolved.",
-  "merchantOrderRecoveryUnavailable": "Order recovery is unavailable. Sign in to the original merchant account or contact support. Do not submit a replacement order."
+  "merchantOrderRecoveryUnavailable": "Order recovery is unavailable. Sign in to the original merchant account or contact support. Do not submit a replacement order.",
+  "bookingTimePassed": "This departure time has passed. Choose an upcoming time.",
+  "bookingOutcomeUnknown": "The booking may already be saved. We will verify it when the connection returns. Do not create another booking.",
+  "verifyBooking": "Verify booking"
 }

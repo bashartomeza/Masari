@@ -65,9 +65,9 @@ async function pauseRead(model,method,predicate,startOperation,concurrent){
  let pending;try{pending=startOperation();await Promise.race([seen,new Promise((_,fail)=>setTimeout(()=>fail(Error('scheduling_barrier_not_reached')),10000))]);await concurrent();release();return await pending;}finally{release();if(pending)await pending.catch(()=>{});prisma.$transaction=transaction;}
 }
 let driver,profile;
-async function supply(){
+async function supply(who=driver){
  await prisma.driverRoute.updateMany({where:{operational_mode:'legacy',status:'active'},data:{status:'inactive'}});
- const r=await call(driver,'POST','/driver/routes',{seats_available:4,parcel_capacity_available:20});assert.equal(r.status,201,'supply fixture');routeIds.push(r.body.route.id);return r.body.route.id;
+ const r=await call(who,'POST','/driver/routes',{seats_available:4,parcel_capacity_available:20});assert.equal(r.status,201,'supply fixture');routeIds.push(r.body.route.id);return r.body.route.id;
 }
 const originalRoutes=await prisma.driverRoute.findMany({where:{operational_mode:'legacy'},select:{id:true,status:true}});
 await start();
@@ -167,7 +167,13 @@ try{
   check(s.matches.find(m=>m.id===old.body.match.id).status==='invalidated'&&!s.matches.find(m=>m.id===old.body.match.id).legacy_capacity_held,'obsolete standalone offer is invalidated without a hold');
   check(s.parcels.filter(p=>p.order_id===solo).every(p=>p.status==='pending'&&p.batch_id===null),'standalone parcels remain eligible and unbatched');
   const recovered=await batch(a,solo);check(recovered.status===201,'public API standalone order can enter manual batching after invalidation');
-  if(recovered.status===201){const nextRoute=await supply(),again=await match(a,solo);check(again.status===201,'recovered cargo can explicitly match available supply');assert.equal((await cancel(a,solo)).status,200);check((await prisma.driverRoute.findUnique({where:{id:nextRoute}})).parcel_capacity_available===20,'recovered demand cancellation releases only its current hold');}
+  if(recovered.status===201){
+   const duplicateSupply=await call(driver,'POST','/driver/routes',{seats_available:4,parcel_capacity_available:20});
+   check(duplicateSupply.status===409&&duplicateSupply.body.error==='route_already_active','assigned Driver cannot create a conflicting active route');
+   const otherDriver=await actor('driver');
+   await prisma.driverProfile.create({data:{user_id:otherDriver,vehicle_type:'van',verified:true,seats_total:4,parcel_capacity:20}});
+   const nextRoute=await supply(otherDriver),again=await match(a,solo);
+   check((await prisma.driverRoute.findUnique({where:{id:route}})).status==='assigned','alternate supply leaves accepted Driver route assigned');check(again.status===201,'recovered cargo can explicitly match available supply');assert.equal((await cancel(a,solo)).status,200);check((await prisma.driverRoute.findUnique({where:{id:nextRoute}})).parcel_capacity_available===20,'recovered demand cancellation releases only its current hold');}
   check((await prisma.driverRoute.findUnique({where:{id:route}})).parcel_capacity_available===18,'recovery does not release accepted competitor capacity');
  });
  await scenario('canonical records and feature gates remain isolated',async()=>{
@@ -191,7 +197,7 @@ try{
  await prisma.idempotencyRecord.deleteMany({where:{operation:'legacy_merchant_order_create_v1',resource_id:{in:orderIds}}});
  await prisma.trip.deleteMany({where:{driver_route_id:{in:routeIds}}});await prisma.match.deleteMany({where:{OR:[{merchant_order_id:{in:orderIds}},{driver_route_id:{in:routeIds}}]}});
  await prisma.parcelBatchOrder.deleteMany({where:{parcel_batch_id:{in:batchIds}}});await prisma.parcelBatch.deleteMany({where:{id:{in:batchIds}}});await prisma.parcel.deleteMany({where:{order_id:{in:orderIds}}});await prisma.merchantOrder.deleteMany({where:{id:{in:orderIds}}});
- await prisma.driverRoute.deleteMany({where:{id:{in:routeIds}}});if(profile)await prisma.driverProfile.delete({where:{id:profile.id}});
+ await prisma.driverRoute.deleteMany({where:{id:{in:routeIds}}});await prisma.driverProfile.deleteMany({where:{user_id:{in:actors}}});
  if(canonicalVersion){await prisma.routeVersionStop.deleteMany({where:{service_route_version_id:canonicalVersion}});await prisma.serviceRouteVersion.delete({where:{id:canonicalVersion}});}if(canonicalCatalog)await prisma.serviceRoute.delete({where:{id:canonicalCatalog}});await prisma.stop.deleteMany({where:{id:{in:canonicalStops}}});
  await prisma.auditEvent.deleteMany({where:{user_id:{in:actors}}});await prisma.user.deleteMany({where:{id:{in:actors}}});
  for(const original of originalRoutes)await prisma.driverRoute.update({where:{id:original.id},data:{status:original.status}});

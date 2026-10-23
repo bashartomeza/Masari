@@ -49,7 +49,22 @@ const readBudgetMs = 10_000;
 
 async function get<T>(path: string, token = adminToken, status = 200): Promise<T> {
   const start = performance.now();
-  const response = await fetch(`${base}${path}`, { headers: token ? { authorization: `Bearer ${token}` } : {}, signal: AbortSignal.timeout(readBudgetMs) });
+  const signal = AbortSignal.timeout(readBudgetMs);
+  let response: Response;
+  try {
+    response = await fetch(`${base}${path}`, { headers: token ? { authorization: `Bearer ${token}` } : {}, signal });
+  } catch (error) {
+    const pathname = path.split("?")[0]!;
+    const fixedPath = pathname === "/overview" || pathname === "/matches" || pathname === "/batches" ? pathname
+      : /^\/matches\/[^/]+$/.test(pathname) ? "/matches/:id"
+      : /^\/batches\/[^/]+\/parcels$/.test(pathname) ? "/batches/:id/parcels"
+      : /^\/batches\/[^/]+$/.test(pathname) ? "/batches/:id" : "/unknown";
+    const name = error instanceof Error && ["TimeoutError", "AbortError", "TypeError", "Error"].includes(error.name)
+      ? error.name : "UnknownError";
+    console.error(JSON.stringify({ phase, pathname: fixedPath, error_name: name,
+      elapsed_ms: Math.round(performance.now() - start), timed_out: signal.aborted }));
+    throw error;
+  }
   const body: unknown = await response.json();
   assert.equal(response.status, status, `${phase}: ${path.split("?")[0]} HTTP status`);
   assert(!JSON.stringify(body).includes(marker), "Private fixture marker escaped projection");
@@ -271,7 +286,7 @@ try {
     safePage(result, inspect); assert.equal(result.data.items.length, 50); assert.equal(result.data.total, 60);
     assert.equal((await get<Page<unknown>>(`${path}${query({ ...range, search: prefix })}`)).data.total, 0, "Search is exact, not prefix");
   }
-  for (const status of matchStatuses) assert.equal((await get<Page<MatchRow>>(`/matches${query({ ...range, search: id("route"), status })}`)).data.total, 10);
+  for (const status of matchStatuses) assert.equal((await get<Page<MatchRow>>(`/matches${query({ ...range, search: id("route"), status })}`)).data.total, 10, `Match count for ${status}`);
   for (const status of batchStatuses) assert.equal((await get<Page<BatchRow>>(`/batches${query({ ...range, search: id("route"), status })}`)).data.total, expectedBatchCounts[status], `Batch count for ${status}`);
   for (const demand_kind of ["passenger_only", "merchant_only", "combined"]) assert.equal((await get<Page<MatchRow>>(`/matches${query({ ...range, search: id("route"), demand_kind })}`)).data.total, 20);
   for (const [search, total] of [[id("request"), 40], [id("order"), 40], [id("batch_00"), 60], [id("match_02"), 1]] as const) {
@@ -324,7 +339,7 @@ try {
   assert.equal(overview.pending_passenger_requests - baseline.pending_passenger_requests, 2);
   assert.equal(overview.submitted_merchant_orders - baseline.submitted_merchant_orders, 2);
   for (const status of matchStatuses) assert.equal(overview.match_results_by_status[status] - baseline.match_results_by_status[status], 10);
-  for (const status of batchStatuses) assert.equal(overview.batches_by_status[status] - baseline.batches_by_status[status], expectedBatchCounts[status] + (status === "created" ? 2 : 0));
+  for (const status of batchStatuses) assert.equal(overview.batches_by_status[status] - baseline.batches_by_status[status], expectedBatchCounts[status] + (status === "created" ? 2 : 0), `Overview batch count for ${status}`);
   assert.equal(overview.active_batches - baseline.active_batches, 30, "Only created + assigned + picked_up + in_transit are active");
   assert.equal(await domainSnapshot(), snapshot, "Monitoring GET sequence wrote fixture domain rows");
 
@@ -427,11 +442,10 @@ try {
   console.log("Monitoring MySQL integration passed: auth, six HTTP endpoints, exclusions, safe keys, dates/status, pagination, read-only snapshots, concurrency, 10,000-match volume");
 } catch (error) {
   // Prisma errors may contain connection information: emit only the failing phase and safe assertion text.
-  if (error instanceof assert.AssertionError) console.error(`Monitoring integration ${phase}: ${error.message}`);
+  const frame = error instanceof Error ? error.stack?.match(/adminMatchingMonitoringIntegration\.js:\d+:\d+/)?.[0] : undefined;
+  if (error instanceof assert.AssertionError) console.error(`Monitoring integration ${phase}${frame ? ` at ${frame}` : ""}: ${error.message}`);
   else {
-    const code = error && typeof error === "object" && "code" in error && /^P\d{4}$/.test(String(error.code)) ? String(error.code) : "unknown";
-    const frame = error instanceof Error ? error.stack?.match(/adminMatchingMonitoringIntegration\.js:\d+:\d+/)?.[0] : undefined;
-    console.error(`Monitoring integration failed during ${phase}; code=${code}${frame ? ` at ${frame}` : ""}; query/connection details suppressed`);
+    console.error(`Monitoring integration failed during ${phase}${frame ? ` at ${frame}` : ""}; details suppressed to protect connection information`);
   }
   process.exitCode = 1;
 } finally {
