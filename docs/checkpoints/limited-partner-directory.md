@@ -46,6 +46,9 @@ not an observation timestamp or proof of present conditions.
 Each app instance shares one single-flight request and a 15-second successful
 response cache. Cache lifetime uses monotonic time. Expired data is never served
 after failure; five-second negative caching reduces repeated failures. No
+shared reservation denial is cached longer than five seconds: another instance
+may settle its in-flight hold. Each retry still consults the durable budget
+before HTTP, including during a provider cooldown. No
 maximum stale-observation policy is invented. A fresh HTTP response can contain
 old change timestamps: the UI continues to say traffic unavailable.
 

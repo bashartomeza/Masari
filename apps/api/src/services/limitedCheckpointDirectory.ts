@@ -91,7 +91,9 @@ export class LimitedCheckpointDirectoryService {
         const reservation = await this.budget.reserve(this.options.timeoutMs);
         const lease = reservation.lease;
         if (reservation.retryAfterSeconds > 0 || !lease) {
-          this.failureUntil = performance.now() + reservation.retryAfterSeconds * 1000; throw Error("shared_budget");
+          // A peer can settle an in-flight hold. Recheck the authoritative row
+          // after a bounded negative cache; never cache its year-9999 sentinel.
+          this.failureUntil = performance.now() + 5000; throw Error("shared_budget");
         }
         let releaseNormalHold = true;
         try {

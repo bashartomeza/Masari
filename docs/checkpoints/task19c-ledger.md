@@ -30,6 +30,12 @@ This intentionally requires operator investigation after an unresolved attempt,
 rather than silently retrying against an unknown cooldown. No schema was added.
 An additional RED/GREEN covers a received 429 crossing the local deadline;
 its cooldown is persisted before applying the ordinary deadline rejection.
+Review of `27b050ca40d01e5cfb129daebd8980a1222b59d5` found that a peer could
+cache the hard-hold sentinel locally even after its owner settled normally.
+An actual-service RED reproduces that permanent local unavailability. Shared
+denial caching is now bounded to five seconds; durable database authorization
+is still checked before every HTTP request. Synthetic two-instance and real
+MySQL recovery regressions verify the peer resumes without a process restart.
 
 The dependency security-floor test was updated to assert the new patched pins,
 including body-parser, after its existing deep-equality assertion correctly

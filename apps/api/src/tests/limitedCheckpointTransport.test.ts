@@ -103,6 +103,28 @@ it("shared denial and failed coordination never send a request", async () => {
   }
   expect(count).toBe(0);
 });
+it("rechecks a shared in-flight hold after its owner successfully settles", async () => {
+  let now = 0, held = false, calls = 0;
+  vi.spyOn(performance, "now").mockImplementation(() => now);
+  let entered!: () => void, respond!: (response: Response) => void;
+  const started = new Promise<void>(done => { entered = done; });
+  const pending = new Promise<Response>(done => { respond = done; });
+  const budget: PartnerBudget = {
+    reserve: async () => {
+      if (held) return { retryAfterSeconds: 251_000_000_000 };
+      held = true; return { retryAfterSeconds: 0, lease: { id: "synthetic-held-attempt", notBefore: new Date(0) } };
+    },
+    settle: async () => { held = false; }
+  };
+  const first = new LimitedCheckpointDirectoryService({ apiKey: key, timeoutMs: 500 }, budget, async () => { calls++; entered(); return pending; });
+  const second = new LimitedCheckpointDirectoryService({ apiKey: key, timeoutMs: 500 }, budget, async () => { calls++; return new Response(JSON.stringify(fixture())); });
+  const flight = first.list(); await started;
+  await expect(second.list()).rejects.toThrow("limited_directory_unavailable");
+  respond(new Response(JSON.stringify(fixture()))); await flight;
+  now = 5001;
+  await expect(second.list()).resolves.toMatchObject({ count: 2 });
+  expect(calls).toBe(2);
+});
 it.each(["headers", "body"])("deadline covers stalled %s and closes the socket", async phase => {
   let closed = false;
   const local = await origin((_req, res) => {

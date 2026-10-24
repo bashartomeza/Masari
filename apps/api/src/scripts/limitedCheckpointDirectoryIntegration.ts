@@ -47,6 +47,18 @@ try {
   await new Promise(done => setTimeout(done, 2700));
   check((await new MysqlPartnerBudget(prisma, failureKey).reserve(500)).retryAfterSeconds > 0);
 
+  const recoveryKey = key(); let enter!: () => void, respond!: (response: Response) => void;
+  const entered = new Promise<void>(done => { enter = done; });
+  const pending = new Promise<Response>(done => { respond = done; });
+  const emptyPayload = () => new Response(JSON.stringify({ generatedAt: "2026-10-24T10:00:00Z", checkpoints: [] }));
+  const leader = new LimitedCheckpointDirectoryService({ apiKey: recoveryKey, timeoutMs: 2000 }, new MysqlPartnerBudget(prisma, recoveryKey), async () => { enter(); return pending; });
+  const peer = new LimitedCheckpointDirectoryService({ apiKey: recoveryKey, timeoutMs: 2000 }, new MysqlPartnerBudget(prisma, recoveryKey), async () => emptyPayload());
+  const ownerRead = leader.list(); await entered;
+  await assert.rejects(peer.list(), { message: "limited_directory_unavailable" });
+  respond(emptyPayload()); await ownerRead;
+  await new Promise(done => setTimeout(done, 5100));
+  check((await peer.list()).count === 0);
+
   // A real lock wait crosses expiry. DB time must be read after acquiring it.
   const lockKey = key(), lockDigest = digests.at(-1)!;
   const lockedBudget = new MysqlPartnerBudget(prisma, lockKey);
