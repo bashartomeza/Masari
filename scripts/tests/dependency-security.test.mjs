@@ -16,13 +16,14 @@ test("security remediation keeps vulnerable dependency floors fixed", () => {
       mariadb: "3.5.4"
     },
     "deepmerge-ts": "8.0.1",
-    "fast-uri": "3.1.8",
+    "body-parser": "2.4.0",
+    "fast-uri": "3.1.9",
     mariadb: "3.5.4",
     mysql2: "3.23.1",
     prisma: {
       mysql2: "3.23.1"
     },
-    qs: "6.16.0",
+    qs: "6.16.1",
     vite: "8.1.6"
   });
   assert.equal(apiPackageJson.devDependencies.vitest, "4.1.12");
@@ -30,10 +31,11 @@ test("security remediation keeps vulnerable dependency floors fixed", () => {
 
   const expected = {
     "node_modules/deepmerge-ts": "8.0.1",
-    "node_modules/fast-uri": "3.1.8",
+    "node_modules/body-parser": "2.4.0",
+    "node_modules/fast-uri": "3.1.9",
     "node_modules/mariadb": "3.5.4",
     "node_modules/mysql2": "3.23.1",
-    "node_modules/qs": "6.16.0",
+    "node_modules/qs": "6.16.1",
     "node_modules/vitest": "4.1.12"
   };
   for (const [path, version] of Object.entries(expected)) {

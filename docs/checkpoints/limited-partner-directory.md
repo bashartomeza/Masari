@@ -52,18 +52,27 @@ old change timestamps: the UI continues to say traffic unavailable.
 The existing `abuse_counters` table coordinates the key budget across instances
 and process restarts in an isolated `checkpoint_partner_budget` namespace. Only
 a SHA-256 digest of the dedicated high-entropy key is stored, never the key.
-One row's `expires_at` is its next eligible reservation. A short transaction
-locks it and reads database UTC time **after** acquiring the lock. Reservations
-last the whole request deadline plus 2100 milliseconds. Since HTTP cannot start
-after that deadline, starts remain at least 2100 ms apart, conservatively below
-30/minute even at minute boundaries. No transaction stays open during HTTP.
+One row's `expires_at` is either its next eligible reservation or a fail-closed
+hold. A short transaction locks it and reads database UTC time **after** acquiring
+the lock. Before HTTP, it durably holds the key and returns a unique attempt lease.
+Only successful settlement of that lease releases the hold to the request
+deadline plus 2100 milliseconds, or extends it to a received Retry-After cooldown.
+Since HTTP cannot start after its deadline, starts remain at least 2100 ms apart,
+conservatively below 30/minute even at minute boundaries. Settlement rotates the
+attempt identity; a stale settlement cannot clear a newer hold or cooldown.
+No transaction stays open during HTTP.
 The shared limiter may return unavailable rather than queue mobile requests;
 payload caches are instance-local, not a distributed cache. The guide's edge
 cache remains upstream-owned.
 
 HTTP 429 extends the durable key cooldown using documented integer Retry-After
 seconds, with a minimum/default of 60. Unsupported or excessive cooldown values
-fail closed. Database coordination errors send no request. SQL waits, transport,
+fail closed. A crash or failed settlement/cooldown write retains the shared hold
+across processes/restarts; it requires operator investigation rather than an
+automatic retry. This trades availability for respecting an unknown provider
+cooldown. Do not delete a held row as a quota workaround; any recovery requires
+the responsible operator's independently verified provider evidence and approval.
+Database reservation errors send no request. SQL waits, transport,
 body consumption and parsing share the request deadline. Responses are capped
 at 1,000,000 decompressed bytes as a **server resource limit**, not a provider
 feed-size or pagination claim. Overflow fails the entire response, never truncates.

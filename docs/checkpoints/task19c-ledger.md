@@ -20,6 +20,21 @@ Dart files; they were corrected rather than suppressed. A test-first regression
 also caught shortening a long Retry-After into a local maximum; the implementation
 now preserves representable values and holds the budget for unrepresentable ones.
 
+Independent review of immutable `44f5ea02fea319b7db7b46bab746ac995df47269`
+identified a P2: failed persistence of a received 429 left only a short shared
+reservation. A real-MySQL RED then reproduced a second-instance grant after 2700
+milliseconds despite Retry-After 90. The correction persists a hold before HTTP
+and releases it only through owner-fenced settlement; a failed cooldown write or
+crash retains the shared hold. Regression coverage also rejects stale settlement.
+This intentionally requires operator investigation after an unresolved attempt,
+rather than silently retrying against an unknown cooldown. No schema was added.
+An additional RED/GREEN covers a received 429 crossing the local deadline;
+its cooldown is persisted before applying the ordinary deadline rejection.
+
+The dependency security-floor test was updated to assert the new patched pins,
+including body-parser, after its existing deep-equality assertion correctly
+rejected the changed manifest. Its exact-version policy remains enforced.
+
 The [adapter and operator guide](limited-partner-directory.md) describes bounds,
 source selection, deployment prerequisites and the separate read-only secure
 conformance procedure. Offline fixtures establish local behavior only; they do

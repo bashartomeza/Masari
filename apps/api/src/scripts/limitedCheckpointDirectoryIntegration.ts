@@ -28,15 +28,29 @@ try {
   const quotaKey = key();
   const quotas = [new MysqlPartnerBudget(prisma, quotaKey), new MysqlPartnerBudget(prisma, quotaKey)];
   const starts = await Promise.all(Array.from({ length: 24 }, (_, i) => quotas[i % 2]!.reserve(500)));
-  check(starts.filter(v => v === 0).length === 1);
-  await quotas[0]!.defer(60);
-  check(await new MysqlPartnerBudget(prisma, quotaKey).reserve(500) >= 59);
-  const distinct = new MysqlPartnerBudget(prisma, key()); check(await distinct.reserve(500) === 0);
+  check(starts.filter(v => v.retryAfterSeconds === 0).length === 1);
+  const winningIndex = starts.findIndex(v => v.lease !== undefined);
+  await quotas[winningIndex % 2]!.settle(starts[winningIndex]!.lease!, 60);
+  await assert.rejects(quotas[winningIndex % 2]!.settle(starts[winningIndex]!.lease!));
+  check((await new MysqlPartnerBudget(prisma, quotaKey).reserve(500)).retryAfterSeconds >= 59);
+  const distinct = new MysqlPartnerBudget(prisma, key()); check((await distinct.reserve(500)).retryAfterSeconds === 0);
+
+  // A received 429 followed by a database failure must not permit another
+  // process to retry after the short original request slot.
+  const failureKey = key(), failureBudget = new MysqlPartnerBudget(prisma, failureKey);
+  let received429 = false;
+  const failedCooldown = new LimitedCheckpointDirectoryService({ apiKey: failureKey, timeoutMs: 500 }, {
+    reserve: timeout => failureBudget.reserve(timeout), settle: async () => { throw Error("synthetic_database_outage"); }
+  }, async () => { received429 = true; return new Response("", { status: 429, headers: { "retry-after": "90" } }); });
+  await assert.rejects(failedCooldown.list(), { message: "limited_directory_unavailable" });
+  check(received429);
+  await new Promise(done => setTimeout(done, 2700));
+  check((await new MysqlPartnerBudget(prisma, failureKey).reserve(500)).retryAfterSeconds > 0);
 
   // A real lock wait crosses expiry. DB time must be read after acquiring it.
   const lockKey = key(), lockDigest = digests.at(-1)!;
   const lockedBudget = new MysqlPartnerBudget(prisma, lockKey);
-  check(await lockedBudget.reserve(500) === 0);
+  check((await lockedBudget.reserve(500)).retryAfterSeconds === 0);
   await prisma.$executeRaw`UPDATE abuse_counters SET expires_at=DATE_ADD(UTC_TIMESTAMP(3),INTERVAL 100000 MICROSECOND)
     WHERE bucket_type='checkpoint_partner_budget' AND subject_digest=${lockDigest}`;
   let release!: () => void, acquired!: () => void;
@@ -49,7 +63,7 @@ try {
   await ready;
   const started = performance.now(), waiting = lockedBudget.reserve(500);
   await new Promise(done => setTimeout(done, 300)); release(); await locker;
-  check(await waiting === 0); const lockWaitMs = Math.round(performance.now() - started); check(lockWaitMs >= 290);
+  check((await waiting).retryAfterSeconds === 0); const lockWaitMs = Math.round(performance.now() - started); check(lockWaitMs >= 290);
 
   const tokens: string[] = [], sessions: string[] = [];
   for (const role of ["passenger", "driver", "merchant", "admin"] as const) {

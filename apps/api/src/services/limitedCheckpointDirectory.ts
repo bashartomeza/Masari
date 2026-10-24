@@ -6,9 +6,10 @@ export const PARTNER_ENDPOINT = "https://db.aweenrayeh.com/v1/partner/checkpoint
 export const PARTNER_CACHE_MS = 15_000;
 // Server memory/CPU budget, not a claim about provider pagination or feed size.
 export const PARTNER_MAX_BYTES = 1_000_000;
+export type PartnerLease = { id: string; notBefore: Date };
 export interface PartnerBudget {
-  reserve(timeoutMs: number): Promise<number>;
-  defer(seconds: number): Promise<void>;
+  reserve(timeoutMs: number): Promise<{ retryAfterSeconds: number; lease?: PartnerLease }>;
+  settle(lease: PartnerLease, cooldownSeconds?: number): Promise<void>;
 }
 export type PartnerTimestamp = { raw: string; timezone_specified: boolean };
 function text(value: unknown): string {
@@ -87,44 +88,58 @@ export class LimitedCheckpointDirectoryService {
     };
     try {
       const run = async () => {
-        const retry = await this.budget.reserve(this.options.timeoutMs);
-        checkDeadline();
-        if (retry > 0) { this.failureUntil = performance.now() + retry * 1000; throw Error("shared_budget"); }
-        response = await this.transport(PARTNER_ENDPOINT, { redirect: "manual", signal: controller.signal,
-          headers: { Accept: "application/json", "X-Api-Key": this.options.apiKey } });
-        checkDeadline();
-        if (response.status === 429) {
-          const header = response.headers.get("retry-after");
-          // Guide documents seconds, 60 by default. Never shorten that cooldown.
-          const seconds = header && /^\d+$/.test(header) ? Math.max(60, Number(header)) : 60;
-          if (!Number.isSafeInteger(seconds) || seconds > 2_147_483_647) {
-            // Unrepresentable cooldown: require operator investigation instead
-            // of shortening it into an automatic retry. The shared row is held.
-            this.failureUntil = Infinity;
-            await this.budget.defer(Infinity);
-          } else {
-            this.failureUntil = performance.now() + seconds * 1000;
-            await this.budget.defer(seconds);
+        const reservation = await this.budget.reserve(this.options.timeoutMs);
+        const lease = reservation.lease;
+        if (reservation.retryAfterSeconds > 0 || !lease) {
+          this.failureUntil = performance.now() + reservation.retryAfterSeconds * 1000; throw Error("shared_budget");
+        }
+        let releaseNormalHold = true;
+        try {
+          checkDeadline();
+          response = await this.transport(PARTNER_ENDPOINT, { redirect: "manual", signal: controller.signal,
+            headers: { Accept: "application/json", "X-Api-Key": this.options.apiKey } });
+          if (response.status === 429) {
+            // The durable reservation is still held. Never release it on a
+            // failed cooldown write or a crash between receipt and persistence.
+            releaseNormalHold = false;
+            const header = response.headers.get("retry-after");
+            // Guide documents seconds, 60 by default. Never shorten that cooldown.
+            const seconds = header && /^\d+$/.test(header) ? Math.max(60, Number(header)) : 60;
+            if (!Number.isSafeInteger(seconds) || seconds > 2_147_483_647) {
+              // Unrepresentable cooldown: require operator investigation instead
+              // of shortening it into an automatic retry. The shared row is held.
+              this.failureUntil = Infinity;
+              await this.budget.settle(lease, Infinity);
+            } else {
+              this.failureUntil = performance.now() + seconds * 1000;
+              await this.budget.settle(lease, seconds);
+            }
+            throw Error("provider_budget");
           }
-          throw Error("provider_budget");
+          checkDeadline();
+          if (response.status !== 200 || !response.body) throw Error("upstream_rejected");
+          const contentLength = response.headers.get("content-length");
+          if (contentLength && /^\d+$/.test(contentLength) && Number(contentLength) > PARTNER_MAX_BYTES) throw Error("body_limit");
+          reader = response.body.getReader();
+          const chunks: Uint8Array[] = []; let size = 0;
+          while (true) {
+            const result = await reader.read(); checkDeadline();
+            if (result.done) break;
+            size += result.value.byteLength;
+            if (size > PARTNER_MAX_BYTES) throw Error("body_limit");
+            chunks.push(result.value);
+          }
+          const bytes = Buffer.concat(chunks, size);
+          const value = mapLimitedPartnerResponse(JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)), new Date().toISOString());
+          checkDeadline();
+          releaseNormalHold = false;
+          await this.budget.settle(lease);
+          checkDeadline();
+          this.cache = { value, until: performance.now() + PARTNER_CACHE_MS };
+          return value;
+        } finally {
+          if (releaseNormalHold) await this.budget.settle(lease);
         }
-        if (response.status !== 200 || !response.body) throw Error("upstream_rejected");
-        const contentLength = response.headers.get("content-length");
-        if (contentLength && /^\d+$/.test(contentLength) && Number(contentLength) > PARTNER_MAX_BYTES) throw Error("body_limit");
-        reader = response.body.getReader();
-        const chunks: Uint8Array[] = []; let size = 0;
-        while (true) {
-          const result = await reader.read(); checkDeadline();
-          if (result.done) break;
-          size += result.value.byteLength;
-          if (size > PARTNER_MAX_BYTES) throw Error("body_limit");
-          chunks.push(result.value);
-        }
-        const bytes = Buffer.concat(chunks, size);
-        const value = mapLimitedPartnerResponse(JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)), new Date().toISOString());
-        checkDeadline();
-        this.cache = { value, until: performance.now() + PARTNER_CACHE_MS };
-        return value;
       };
       return await Promise.race([run(), deadline]);
     } catch {

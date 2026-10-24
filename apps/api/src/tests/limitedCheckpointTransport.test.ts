@@ -19,7 +19,7 @@ async function origin(handler: RequestListener) {
 afterEach(async () => { vi.restoreAllMocks(); await Promise.all(servers.splice(0).map(server => new Promise<void>(done => { server.closeAllConnections(); server.close(() => done()); }))); });
 it("documented object preserves IDs and ambiguous timestamps without coordinates or traffic inference", async () => {
   const local = await origin((_req, res) => res.end(JSON.stringify(fixture())));
-  const value = await new LimitedCheckpointDirectoryService({ apiKey: key, timeoutMs: 500 }, { reserve: async () => 0, defer: async () => {} }, (_url, init) => { expect(_url).toBe(PARTNER_ENDPOINT); return fetch(local, init); }).list();
+  const value = await new LimitedCheckpointDirectoryService({ apiKey: key, timeoutMs: 500 }, { reserve: async () => ({ retryAfterSeconds: 0, lease: { id: "synthetic-attempt", notBefore: new Date(0) } }), settle: async () => {} }, (_url, init) => { expect(_url).toBe(PARTNER_ENDPOINT); return fetch(local, init); }).list();
   expect(value.checkpoints).toHaveLength(2);
   expect(value.checkpoints[0]).toMatchObject({ provider_checkpoint_id: "synthetic:one", latitude: null, longitude: null, traffic_status: "unavailable" });
   expect(value).toMatchObject({ limited_dataset: true, max_records_per_city: 7, permission_state: "USER_REPORTED", city_count: 2,
@@ -27,7 +27,7 @@ it("documented object preserves IDs and ambiguous timestamps without coordinates
   expect(value.checkpoints[0]!.entering_status_last_updated).toEqual({ raw: "2026-08-16T18:28:32", timezone_specified: false });
   expect(value.checkpoints[0]!.leaving_status_last_updated.timezone_specified).toBe(true);
 });
-function service(local: string, budget: PartnerBudget = { reserve: async () => 0, defer: async () => {} }, timeoutMs = 500) {
+function service(local: string, budget: PartnerBudget = { reserve: async () => ({ retryAfterSeconds: 0, lease: { id: "synthetic-attempt", notBefore: new Date(0) } }), settle: async () => {} }, timeoutMs = 500) {
   return new LimitedCheckpointDirectoryService({ apiKey: key, timeoutMs }, budget, (url, init) => {
     expect(url).toBe(PARTNER_ENDPOINT); return fetch(local, init);
   });
@@ -75,7 +75,7 @@ it.each([401, 403, 502])("sanitizes HTTP %i and does not return provider bodies"
 it("persists Retry-After without immediately repeating the upstream request", async () => {
   let count = 0, deferred = 0;
   const local = await origin((_req, res) => { count++; res.writeHead(429, { "retry-after": "90" }); res.end(key); });
-  const adapter = service(local, { reserve: async () => 0, defer: async seconds => { deferred = seconds; } });
+  const adapter = service(local, { reserve: async () => ({ retryAfterSeconds: 0, lease: { id: "synthetic-attempt", notBefore: new Date(0) } }), settle: async (_lease, seconds) => { deferred = seconds ?? 0; } });
   await expect(adapter.list()).rejects.toThrow("limited_directory_unavailable");
   await expect(adapter.list()).rejects.toThrow("limited_directory_unavailable");
   expect(deferred).toBe(90); expect(count).toBe(1);
@@ -83,13 +83,23 @@ it("persists Retry-After without immediately repeating the upstream request", as
 it("does not shorten a long Retry-After into a local maximum", async () => {
   let deferred = 0;
   const local = await origin((_req, res) => { res.writeHead(429, { "retry-after": "90000" }); res.end(); });
-  await expect(service(local, { reserve: async () => 0, defer: async seconds => { deferred = seconds; } }).list()).rejects.toThrow("limited_directory_unavailable");
+  await expect(service(local, { reserve: async () => ({ retryAfterSeconds: 0, lease: { id: "synthetic-attempt", notBefore: new Date(0) } }), settle: async (_lease, seconds) => { deferred = seconds ?? 0; } }).list()).rejects.toThrow("limited_directory_unavailable");
   expect(deferred).toBe(90000);
+});
+it("persists a received 429 even when its headers cross the local deadline", async () => {
+  let now = 0, cooldown = 0;
+  vi.spyOn(performance, "now").mockImplementation(() => now);
+  const adapter = new LimitedCheckpointDirectoryService({ apiKey: key, timeoutMs: 500 }, {
+    reserve: async () => ({ retryAfterSeconds: 0, lease: { id: "synthetic-late-429", notBefore: new Date(0) } }),
+    settle: async (_lease, seconds) => { cooldown = seconds ?? 0; }
+  }, async () => { now = 600; return new Response("", { status: 429, headers: { "retry-after": "90" } }); });
+  await expect(adapter.list()).rejects.toThrow("limited_directory_unavailable");
+  expect(cooldown).toBe(90);
 });
 it("shared denial and failed coordination never send a request", async () => {
   let count = 0; const local = await origin((_req, res) => { count++; res.end("{}"); });
-  for (const reserve of [async () => 60, async () => { throw Error(key); }]) {
-    await expect(service(local, { reserve, defer: async () => {} }).list()).rejects.toThrow("limited_directory_unavailable");
+  for (const reserve of [async () => ({ retryAfterSeconds: 60 }), async () => { throw Error(key); }]) {
+    await expect(service(local, { reserve, settle: async () => {} }).list()).rejects.toThrow("limited_directory_unavailable");
   }
   expect(count).toBe(0);
 });
@@ -107,7 +117,7 @@ it.each(["headers", "body"])("deadline covers stalled %s and closes the socket",
 it("deadline also bounds database wait and a late grant never starts HTTP", async () => {
   let calls = 0;
   const adapter = new LimitedCheckpointDirectoryService({ apiKey: key, timeoutMs: 30 }, {
-    reserve: async () => { await new Promise(done => setTimeout(done, 90)); return 0; }, defer: async () => {}
+    reserve: async () => { await new Promise(done => setTimeout(done, 90)); return { retryAfterSeconds: 0, lease: { id: "synthetic-late-attempt", notBefore: new Date(0) } }; }, settle: async () => {}
   }, async () => { calls++; return new Response(JSON.stringify(fixture())); });
   await expect(adapter.list()).rejects.toThrow("limited_directory_unavailable");
   await new Promise(done => setTimeout(done, 100)); expect(calls).toBe(0);
@@ -119,7 +129,7 @@ it.each(["oversized", "invalid-json", "bad-utf8"])("rejects %s body", async fail
 it("does not serve expired cache after network failure", async () => {
   let now = 0, calls = 0;
   vi.spyOn(performance, "now").mockImplementation(() => now);
-  const adapter = new LimitedCheckpointDirectoryService({ apiKey: key, timeoutMs: 500 }, { reserve: async () => 0, defer: async () => {} }, async () => {
+  const adapter = new LimitedCheckpointDirectoryService({ apiKey: key, timeoutMs: 500 }, { reserve: async () => ({ retryAfterSeconds: 0, lease: { id: "synthetic-attempt", notBefore: new Date(0) } }), settle: async () => {} }, async () => {
     if (++calls > 1) throw Error(key); return new Response(JSON.stringify(fixture()));
   });
   await adapter.list(); now = 14999; await adapter.list(); expect(calls).toBe(1);

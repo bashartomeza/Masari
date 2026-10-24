@@ -31,7 +31,7 @@ it("disabled endpoint remains inaccessible", async () => {
 function enabled() {
   const transport = vi.fn(async () => new Response(JSON.stringify({ generatedAt: "2026-10-24T10:00:00Z", checkpoints: [] })));
   const appConfig = createConfig({ ...env, AWEENRAYEH_LIMITED_DIRECTORY_ENABLED: "true", AWEENRAYEH_PARTNER_API_KEY: "SYNTHETIC-LIMITED-KEY-ONLY" });
-  const app = createApp(appConfig, { limitedCheckpointDirectoryService: new LimitedCheckpointDirectoryService(appConfig.limitedCheckpointDirectory!, { reserve: async () => 0, defer: async () => {} }, transport) });
+  const app = createApp(appConfig, { limitedCheckpointDirectoryService: new LimitedCheckpointDirectoryService(appConfig.limitedCheckpointDirectory!, { reserve: async () => ({ retryAfterSeconds: 0, lease: { id: "synthetic-attempt", notBefore: new Date(0) } }), settle: async () => {} }, transport) });
   return { app, transport };
 }
 it.each(["passenger", "driver"])("authorizes %s without enabling legacy feed, maps or research publication", async role => {
