@@ -3583,6 +3583,36 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'حالة المرور غير متاحة'**
   String get checkpointDirectoryTrafficUnavailable;
+
+  /// No description provided for @checkpointDirectoryLimitedNotice.
+  ///
+  /// In ar, this message translates to:
+  /// **'بيانات محدودة من المزود: حتى سبع نقاط في كل مدينة. هذه ليست القائمة الكاملة.'**
+  String get checkpointDirectoryLimitedNotice;
+
+  /// No description provided for @checkpointDirectoryGenerated.
+  ///
+  /// In ar, this message translates to:
+  /// **'وقت إنشاء استجابة المزود'**
+  String get checkpointDirectoryGenerated;
+
+  /// No description provided for @checkpointDirectoryEnteringUpdated.
+  ///
+  /// In ar, this message translates to:
+  /// **'آخر تغيير لحالة الدخول (الحالة غير متاحة)'**
+  String get checkpointDirectoryEnteringUpdated;
+
+  /// No description provided for @checkpointDirectoryLeavingUpdated.
+  ///
+  /// In ar, this message translates to:
+  /// **'آخر تغيير لحالة الخروج (الحالة غير متاحة)'**
+  String get checkpointDirectoryLeavingUpdated;
+
+  /// No description provided for @checkpointDirectoryTimezoneUnspecified.
+  ///
+  /// In ar, this message translates to:
+  /// **'المنطقة الزمنية غير محددة'**
+  String get checkpointDirectoryTimezoneUnspecified;
 }
 
 class _AppLocalizationsDelegate

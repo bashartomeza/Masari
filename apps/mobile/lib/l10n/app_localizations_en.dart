@@ -1906,4 +1906,22 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get checkpointDirectoryTrafficUnavailable =>
       'Traffic status unavailable';
+
+  @override
+  String get checkpointDirectoryLimitedNotice =>
+      'Limited provider dataset: up to seven checkpoints per city. This is not the complete directory.';
+
+  @override
+  String get checkpointDirectoryGenerated => 'Provider response generated';
+
+  @override
+  String get checkpointDirectoryEnteringUpdated =>
+      'Entering status last changed (status unavailable)';
+
+  @override
+  String get checkpointDirectoryLeavingUpdated =>
+      'Leaving status last changed (status unavailable)';
+
+  @override
+  String get checkpointDirectoryTimezoneUnspecified => 'timezone unspecified';
 }

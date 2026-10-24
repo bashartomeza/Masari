@@ -1,6 +1,6 @@
 import { Router } from "express";
 import type { AppConfig } from "../config.js";
-import { requireAuth } from "../middleware/auth.js";
+import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
 import { evaluateDemoResetSafety } from "../lib/demoResetSafety.js";
 import type { CheckpointDirectoryService } from "../services/checkpointDirectory.js";
 
@@ -36,6 +36,9 @@ export function createCapabilitiesRouter(appConfig: AppConfig, directory?: Check
       // explicitly opt into this extension; legacy responses stay byte-shaped.
       ...(req.query.include === "checkpoint-directory" ? {
         checkpoint_directory_available: appConfig.checkpointDirectoryEnabled && directory?.available() === true
+      } : {}),
+      ...(req.query.include === "limited-checkpoint-directory" ? {
+        limited_checkpoint_directory_available: appConfig.limitedCheckpointDirectoryEnabled && ["passenger", "driver"].includes((req as AuthenticatedRequest).user?.role ?? "")
       } : {}),
       live_tracking_available: false,
       demo_reset_available: evaluateDemoResetSafety(appConfig).allowed
