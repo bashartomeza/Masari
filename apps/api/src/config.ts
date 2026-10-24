@@ -61,6 +61,9 @@ const rawSchema = z.object({
   CANONICAL_SHARED_TRIP_MOBILE_ENABLED: z.string().optional(),
   MAPS_ENABLED: z.string().optional(),
   CHECKPOINTS_ENABLED: z.string().optional(),
+  AWEENRAYEH_LIMITED_DIRECTORY_ENABLED: z.string().optional(),
+  AWEENRAYEH_PARTNER_API_KEY: z.string().trim().min(20).optional(),
+  AWEENRAYEH_PARTNER_TIMEOUT_MS: z.coerce.number().int().min(500).max(15_000).default(6_000),
   CHECKPOINT_DIRECTORY_ENABLED: z.string().optional(),
   CHECKPOINT_DIRECTORY_FILE: z.string().min(1).optional(),
   CHECKPOINTS_URL: z.string().url().optional(),
@@ -207,7 +210,15 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
     "ONBOARDING_TEST_LEGAL_FIXTURES_ENABLED",
     raw.ONBOARDING_TEST_LEGAL_FIXTURES_ENABLED
   );
+  const limitedCheckpointDirectoryEnabled = parseBoolean("AWEENRAYEH_LIMITED_DIRECTORY_ENABLED", raw.AWEENRAYEH_LIMITED_DIRECTORY_ENABLED);
   const problems: string[] = [];
+  if (limitedCheckpointDirectoryEnabled && (!raw.AWEENRAYEH_PARTNER_API_KEY || isUnsafeRouteProviderSecret(raw.AWEENRAYEH_PARTNER_API_KEY))) {
+    problems.push("AWEENRAYEH_PARTNER_API_KEY is required and must be securely configured");
+  }
+  // Demo reset removes abuse counters; it must never reset a real provider budget.
+  if (limitedCheckpointDirectoryEnabled && demoFeaturesEnabled) {
+    problems.push("Limited provider directory cannot run with demo reset features");
+  }
   if (checkpointDirectoryEnabled && !raw.CHECKPOINT_DIRECTORY_FILE) {
     problems.push("CHECKPOINT_DIRECTORY_FILE is required when the directory is enabled");
   }
@@ -551,6 +562,8 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
     },
     mapsEnabled,
     checkpointsEnabled,
+    limitedCheckpointDirectoryEnabled,
+    limitedCheckpointDirectory: limitedCheckpointDirectoryEnabled ? { apiKey: raw.AWEENRAYEH_PARTNER_API_KEY!, timeoutMs: raw.AWEENRAYEH_PARTNER_TIMEOUT_MS } : undefined,
     checkpointDirectoryEnabled,
     checkpointDirectoryFile: raw.CHECKPOINT_DIRECTORY_FILE,
     checkpoints: checkpointsEnabled

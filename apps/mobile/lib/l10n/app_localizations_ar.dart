@@ -1892,4 +1892,23 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get checkpointDirectoryTrafficUnavailable => 'حالة المرور غير متاحة';
+
+  @override
+  String get checkpointDirectoryLimitedNotice =>
+      'بيانات محدودة من المزود: حتى سبع نقاط في كل مدينة. هذه ليست القائمة الكاملة.';
+
+  @override
+  String get checkpointDirectoryGenerated => 'وقت إنشاء استجابة المزود';
+
+  @override
+  String get checkpointDirectoryEnteringUpdated =>
+      'آخر تغيير لحالة الدخول (الحالة غير متاحة)';
+
+  @override
+  String get checkpointDirectoryLeavingUpdated =>
+      'آخر تغيير لحالة الخروج (الحالة غير متاحة)';
+
+  @override
+  String get checkpointDirectoryTimezoneUnspecified =>
+      'المنطقة الزمنية غير محددة';
 }

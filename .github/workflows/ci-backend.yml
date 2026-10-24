@@ -105,6 +105,8 @@ jobs:
       - run: npm run typecheck
       - run: npm run test
       - run: npm run build
+      - name: Real MySQL limited provider directory and shared budget (synthetic transport only)
+        run: node apps/api/dist/scripts/limitedCheckpointDirectoryIntegration.js
       - name: Real MySQL synthetic checkpoint directory authorization
         run: node apps/api/dist/scripts/checkpointDirectoryIntegration.js
       - name: Real MySQL merchant order atomicity and recovery

@@ -627,5 +627,10 @@
   "checkpointDirectoryLoadFailed": "Checkpoint directory could not be loaded.",
   "checkpointDirectorySearch": "Search checkpoints or cities",
   "checkpointDirectoryNoResults": "No matching checkpoints",
-  "checkpointDirectoryTrafficUnavailable": "Traffic status unavailable"
+  "checkpointDirectoryTrafficUnavailable": "Traffic status unavailable",
+  "checkpointDirectoryLimitedNotice": "Limited provider dataset: up to seven checkpoints per city. This is not the complete directory.",
+  "checkpointDirectoryGenerated": "Provider response generated",
+  "checkpointDirectoryEnteringUpdated": "Entering status last changed (status unavailable)",
+  "checkpointDirectoryLeavingUpdated": "Leaving status last changed (status unavailable)",
+  "checkpointDirectoryTimezoneUnspecified": "timezone unspecified"
 }

@@ -714,5 +714,10 @@
   "checkpointDirectoryLoadFailed": "تعذر تحميل دليل الحواجز.",
   "checkpointDirectorySearch": "ابحث عن حاجز أو مدينة",
   "checkpointDirectoryNoResults": "لا توجد حواجز مطابقة",
-  "checkpointDirectoryTrafficUnavailable": "حالة المرور غير متاحة"
+  "checkpointDirectoryTrafficUnavailable": "حالة المرور غير متاحة",
+  "checkpointDirectoryLimitedNotice": "بيانات محدودة من المزود: حتى سبع نقاط في كل مدينة. هذه ليست القائمة الكاملة.",
+  "checkpointDirectoryGenerated": "وقت إنشاء استجابة المزود",
+  "checkpointDirectoryEnteringUpdated": "آخر تغيير لحالة الدخول (الحالة غير متاحة)",
+  "checkpointDirectoryLeavingUpdated": "آخر تغيير لحالة الخروج (الحالة غير متاحة)",
+  "checkpointDirectoryTimezoneUnspecified": "المنطقة الزمنية غير محددة"
 }
