@@ -49,3 +49,10 @@ not prove live provider conformance or full redistribution permission.
 No schemas, historical migration SQL/checksums, research manifest, private
 173-record dataset, live coordinate adapter, matching, booking or route logic
 were changed. No feature was enabled. No merge or deployment is authorized.
+
+A later real-MySQL run exposed a deadlock during 24 concurrent first-time key
+reservations. The lease implementation rotated the counter primary key while
+other transactions entered its composite unique index. The correction retains
+the stable counter primary key and fences attempts with its locked monotonic
+count instead. The same concurrency assertion is retained unchanged; no
+transaction error, assertion, timeout or security policy is suppressed.

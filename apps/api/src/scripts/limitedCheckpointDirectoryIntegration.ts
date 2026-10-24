@@ -29,6 +29,11 @@ try {
   const quotas = [new MysqlPartnerBudget(prisma, quotaKey), new MysqlPartnerBudget(prisma, quotaKey)];
   const starts = await Promise.all(Array.from({ length: 24 }, (_, i) => quotas[i % 2]!.reserve(500)));
   check(starts.filter(v => v.retryAfterSeconds === 0).length === 1);
+  for (let round = 0; round < 2; round++) {
+    const probeKey = key(), peers = [new MysqlPartnerBudget(prisma, probeKey), new MysqlPartnerBudget(prisma, probeKey)];
+    const concurrent = await Promise.all(Array.from({ length: 24 }, (_, i) => peers[i % 2]!.reserve(500)));
+    check(concurrent.filter(v => v.lease !== undefined).length === 1);
+  }
   const winningIndex = starts.findIndex(v => v.lease !== undefined);
   await quotas[winningIndex % 2]!.settle(starts[winningIndex]!.lease!, 60);
   await assert.rejects(quotas[winningIndex % 2]!.settle(starts[winningIndex]!.lease!));
@@ -118,8 +123,8 @@ try {
   await prisma.authSession.update({ where: { id: sessions[0] }, data: { revoked_at: new Date() } });
   await get(a, "/limited-checkpoint-directory", 401, tokens[0]);
   check(JSON.stringify(before) === JSON.stringify(await productCounts()));
-  console.log(JSON.stringify({ suite: "limited_directory_real_mysql", result: "PASS", assertions, concurrent_reservations: 24,
-    grants: 1, independent_instances: 2, coalesced_http_reads: 12, upstream_calls: upstream, lock_wait_ms: lockWaitMs,
+  console.log(JSON.stringify({ suite: "limited_directory_real_mysql", result: "PASS", assertions, concurrent_reservations: 72,
+    concurrent_keys: 3, grants_per_key: 1, independent_instances: 2, coalesced_http_reads: 12, upstream_calls: upstream, lock_wait_ms: lockWaitMs,
     cross_restart_cooldown: true, product_rows_unchanged: true, provider_calls: 0, credentials: "synthetic_only" }));
 } finally {
   for (const server of servers) { server.closeAllConnections(); await new Promise<void>(done => server.close(() => done())); }
