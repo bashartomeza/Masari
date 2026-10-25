@@ -1440,13 +1440,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get shipmentsFailed => 'Could not load your shipments.';
 
   @override
-  String get reportsUnavailable => 'Reports unavailable';
-
-  @override
-  String get reportsUnavailableBody =>
-      'There is no backend for generating or exporting PDF or Excel reports.';
-
-  @override
   String get accountProfile => 'Profile';
 
   @override
@@ -1782,4 +1775,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String notificationsUnreadCount(int count) {
     return '$count unread';
   }
+
+  @override
+  String get reportsDeliveries => 'Deliveries';
+
+  @override
+  String get reportsLoadError => 'Could not load the report.';
+
+  @override
+  String get reportsOrdersByStatus => 'Orders by status';
+
+  @override
+  String get reportsDeliveriesByStatus => 'Deliveries by status';
+
+  @override
+  String get reportsNoRecords => 'No records yet.';
 }

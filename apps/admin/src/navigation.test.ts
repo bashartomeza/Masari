@@ -73,7 +73,7 @@ describe("admin navigation", () => {
     expect(isModuleAvailable("matchingBatching", allOn)).toBe(true);
     expect(isModuleAvailable("matchingBatching", allOff)).toBe(false);
     expect(isModuleAvailable("incidentsSafety", allOn)).toBe(false);
-    expect(isModuleAvailable("reports", allOn)).toBe(false);
+    expect(isModuleAvailable("reports", allOn)).toBe(true);
   });
 
   it("keeps API-backed people modules available", () => {

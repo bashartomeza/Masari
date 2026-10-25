@@ -2774,18 +2774,6 @@ abstract class AppLocalizations {
   /// **'تعذّر تحميل الشحنات.'**
   String get shipmentsFailed;
 
-  /// No description provided for @reportsUnavailable.
-  ///
-  /// In ar, this message translates to:
-  /// **'التقارير غير متاحة'**
-  String get reportsUnavailable;
-
-  /// No description provided for @reportsUnavailableBody.
-  ///
-  /// In ar, this message translates to:
-  /// **'لا يوجد نظام خلفي لتوليد التقارير أو تصديرها بصيغة PDF أو Excel.'**
-  String get reportsUnavailableBody;
-
   /// No description provided for @accountProfile.
   ///
   /// In ar, this message translates to:
@@ -3355,6 +3343,36 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'{count} غير مقروءة'**
   String notificationsUnreadCount(int count);
+
+  /// No description provided for @reportsDeliveries.
+  ///
+  /// In ar, this message translates to:
+  /// **'التوصيلات'**
+  String get reportsDeliveries;
+
+  /// No description provided for @reportsLoadError.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل التقرير.'**
+  String get reportsLoadError;
+
+  /// No description provided for @reportsOrdersByStatus.
+  ///
+  /// In ar, this message translates to:
+  /// **'الطلبات حسب الحالة'**
+  String get reportsOrdersByStatus;
+
+  /// No description provided for @reportsDeliveriesByStatus.
+  ///
+  /// In ar, this message translates to:
+  /// **'التوصيلات حسب الحالة'**
+  String get reportsDeliveriesByStatus;
+
+  /// No description provided for @reportsNoRecords.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد سجلات بعد.'**
+  String get reportsNoRecords;
 }
 
 class _AppLocalizationsDelegate

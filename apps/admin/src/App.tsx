@@ -24,6 +24,7 @@ import { DriverDirectory } from "./features/verification/DriverDirectory";
 import { UsersDirectory } from "./features/users/UsersDirectory";
 import { DemoControl } from "./features/demo/DemoControl";
 import { ModuleUnavailable } from "./features/placeholder/ModuleUnavailable";
+import { ReportsPanel } from "./features/reports/ReportsPanel";
 import { ProfilePanel } from "./features/profile/ProfilePanel";
 import {
   hashForModule,
@@ -591,7 +592,7 @@ export function App({
         return <ModuleUnavailable icon="emergency" reason="no-api" />;
 
       case "reports":
-        return <ModuleUnavailable icon="assessment" reason="no-api" />;
+        return <ReportsPanel api={api} token={token} />;
 
       default:
         return null;
@@ -605,6 +606,7 @@ export function App({
     trips: t("tripsDescription"),
     users: t("usersDescription"),
     drivers: t("verificationDescription"),
+    reports: t("reportsDescription"),
     settings: t("settingsDescription"),
     profile: t("profileDescription")
   };

@@ -557,8 +557,6 @@
   "noShipments": "لا توجد شحنات",
   "noShipmentsBody": "أنشئ شحنة جديدة لتظهر هنا.",
   "shipmentsFailed": "تعذّر تحميل الشحنات.",
-  "reportsUnavailable": "التقارير غير متاحة",
-  "reportsUnavailableBody": "لا يوجد نظام خلفي لتوليد التقارير أو تصديرها بصيغة PDF أو Excel.",
   "accountProfile": "الملف الشخصي",
   "accountSupport": "الدعم",
   "supportUnavailable": "الدعم داخل التطبيق غير متاح",
@@ -712,5 +710,10 @@
         "type": "int"
       }
     }
-  }
+  },
+  "reportsDeliveries": "التوصيلات",
+  "reportsLoadError": "تعذّر تحميل التقرير.",
+  "reportsOrdersByStatus": "الطلبات حسب الحالة",
+  "reportsDeliveriesByStatus": "التوصيلات حسب الحالة",
+  "reportsNoRecords": "لا توجد سجلات بعد."
 }

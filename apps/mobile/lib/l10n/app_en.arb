@@ -470,8 +470,6 @@
   "noShipments": "No shipments",
   "noShipmentsBody": "Create a shipment and it will appear here.",
   "shipmentsFailed": "Could not load your shipments.",
-  "reportsUnavailable": "Reports unavailable",
-  "reportsUnavailableBody": "There is no backend for generating or exporting PDF or Excel reports.",
   "accountProfile": "Profile",
   "accountSupport": "Support",
   "supportUnavailable": "In-app support unavailable",
@@ -625,5 +623,10 @@
         "type": "int"
       }
     }
-  }
+  },
+  "reportsDeliveries": "Deliveries",
+  "reportsLoadError": "Could not load the report.",
+  "reportsOrdersByStatus": "Orders by status",
+  "reportsDeliveriesByStatus": "Deliveries by status",
+  "reportsNoRecords": "No records yet."
 }

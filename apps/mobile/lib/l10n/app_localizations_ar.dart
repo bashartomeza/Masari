@@ -1429,13 +1429,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get shipmentsFailed => 'تعذّر تحميل الشحنات.';
 
   @override
-  String get reportsUnavailable => 'التقارير غير متاحة';
-
-  @override
-  String get reportsUnavailableBody =>
-      'لا يوجد نظام خلفي لتوليد التقارير أو تصديرها بصيغة PDF أو Excel.';
-
-  @override
   String get accountProfile => 'الملف الشخصي';
 
   @override
@@ -1770,4 +1763,19 @@ class AppLocalizationsAr extends AppLocalizations {
   String notificationsUnreadCount(int count) {
     return '$count غير مقروءة';
   }
+
+  @override
+  String get reportsDeliveries => 'التوصيلات';
+
+  @override
+  String get reportsLoadError => 'تعذّر تحميل التقرير.';
+
+  @override
+  String get reportsOrdersByStatus => 'الطلبات حسب الحالة';
+
+  @override
+  String get reportsDeliveriesByStatus => 'التوصيلات حسب الحالة';
+
+  @override
+  String get reportsNoRecords => 'لا توجد سجلات بعد.';
 }

@@ -66,7 +66,7 @@ export const NAV_ITEMS: NavItem[] = [
     group: "safety",
     backing: "none"
   },
-  { id: "reports", icon: "assessment", labelKey: "navReports", group: "insights", backing: "none" },
+  { id: "reports", icon: "assessment", labelKey: "navReports", group: "insights", backing: "api" },
   { id: "settings", icon: "settings", labelKey: "navSettings", group: "system", backing: "api" }
 ];
 

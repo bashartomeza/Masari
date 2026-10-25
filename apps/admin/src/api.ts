@@ -25,7 +25,28 @@ export function createApiClient(apiBaseUrl: string, clientOptions: ApiClientOpti
     return data as T;
   }
 
+  async function downloadCsv(path: string, token: string) {
+    const response = await fetch(`${apiBaseUrl}/api/v1${path}`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!response.ok) {
+      const error = new Error(`Export failed with ${response.status}`) as ApiError;
+      error.status = response.status;
+      clientOptions.onSessionEnded?.(error, token);
+      throw error;
+    }
+    return response.blob();
+  }
+
+  function reportQuery(range: ReportRange, extra: Record<string, string> = {}) {
+    const query = new URLSearchParams(extra);
+    if (range.from) query.set("from", range.from);
+    if (range.to) query.set("to", range.to);
+    const text = query.toString();
+    return text ? `?${text}` : "";
+  }
+
 return {
+  reportSummary: (token: string, range: ReportRange) => apiRequest<ReportSummary>(`/admin/reports/summary${reportQuery(range)}`, { token }),
+  reportExport: (token: string, dataset: ReportDataset, range: ReportRange) => downloadCsv(`/admin/reports/export${reportQuery(range, { dataset })}`, token),
   login: (phone: string, password: string) => apiRequest<LoginResponse>("/auth/login", { method: "POST", body: { phone, password } }),
   me: (token: string) => apiRequest<MeResponse>("/me", { token }),
   capabilities: (token: string) => apiRequest<CapabilitiesResponse>("/capabilities", { token }),
@@ -557,6 +578,18 @@ export type ServiceRoute = RouteIdentityDraft & {
   version_count: number;
   created_at: string;
   updated_at: string;
+};
+export type ReportRange = { from?: string; to?: string };
+export type ReportDataset = "requests" | "orders" | "trips";
+type StatusCounts = Record<string, number>;
+export type ReportSummary = {
+  range: { from: string | null; to: string | null };
+  generated_at: string;
+  passenger_requests: { total: number; by_status: StatusCounts };
+  merchant_orders: { total: number; by_status: StatusCounts; parcels: number };
+  trips: { total: number; by_status: StatusCounts };
+  matches: { total: number; by_status: StatusCounts };
+  drivers: { total: number; verified: number; pending_verification: number };
 };
 export type RoutePage = { routes: ServiceRoute[]; page: number; limit: number; total: number };
 export type StopPage = { stops: CanonicalStop[]; page: number; limit: number; total: number };
