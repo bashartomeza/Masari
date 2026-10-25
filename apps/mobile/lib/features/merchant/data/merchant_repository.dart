@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/data/authenticated_api_client.dart';
 import '../../trips/data/trip_models.dart';
 import 'merchant_models.dart';
+import 'merchant_report_models.dart';
 
 final merchantRepositoryProvider = Provider<MerchantRepository>((ref) {
   return MerchantRepository(
@@ -18,6 +19,11 @@ class MerchantRepository {
   Future<List<MerchantOrder>> listOrders() async {
     final json = await apiClient.getJson('/merchant/orders');
     return _list<MerchantOrder>(json, 'orders', MerchantOrder.fromJson);
+  }
+
+  Future<MerchantReportSummary> reportSummary() async {
+    final json = await apiClient.getJson('/merchant/reports/summary');
+    return MerchantReportSummary.fromJson(json);
   }
 
   Future<MerchantOrder> orderDetail(String id) async {

@@ -7,6 +7,7 @@ import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
 import { HttpError } from "../middleware/error.js";
 import { AuditAction, MatchStatus, TripStatus } from "../generated/prisma/enums.js";
 import { advanceLegacyTrip, isLegacyTripTransitionAllowed } from "../services/tripLifecycle.js";
+import { notifyMatchDecision } from "../services/notifications.js";
 import { isLegacyRouteTimely, legacyRouteTimingWhere, legacyParcelUnits, reserveLegacyCapacity, releaseLegacyCapacity, requireEligibleLegacyRoute } from "../services/legacyCapacity.js";
 
 export const tripsRouter = Router();
@@ -270,6 +271,8 @@ tripsRouter.post("/matches/:id/accept", requireAuth, async (req: AuthenticatedRe
           }
         });
 
+        await notifyMatchDecision(tx, match, "accepted");
+
         return { trip, matchId: match.id };
       }, { isolationLevel: "ReadCommitted" });
     } catch (error) {
@@ -288,7 +291,10 @@ tripsRouter.post("/matches/:id/accept", requireAuth, async (req: AuthenticatedRe
 tripsRouter.post("/matches/:id/reject", requireAuth, async (req: AuthenticatedRequest, res, next) => {
   try {
     const matchId = routeParam(req.params.id);
-    const match = await prisma.match.findUnique({ where: { id: matchId }, include: { driver_route: { include: { driver: true } } } });
+    const match = await prisma.match.findUnique({
+      where: { id: matchId },
+      include: { driver_route: { include: { driver: true } }, passenger_request: true, merchant_order: true }
+    });
     if (!match) throw new HttpError(404, "match_not_found");
     if (req.user!.role !== "admin" && (req.user!.role !== "driver" || match.driver_route.driver.user_id !== req.user!.id)) {
       throw new HttpError(403, "forbidden");
@@ -348,6 +354,7 @@ tripsRouter.post("/matches/:id/reject", requireAuth, async (req: AuthenticatedRe
       });
       return { ...match, status: MatchStatus.rejected, legacy_demand_key: null };
     });
+    await notifyMatchDecision(prisma, match, "rejected");
     res.json({ match: updated });
   } catch (error) {
     next(error);

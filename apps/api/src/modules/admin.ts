@@ -7,6 +7,7 @@ import { requireAuth, requireRole, type AuthenticatedRequest } from "../middlewa
 import { HttpError } from "../middleware/error.js";
 import { AccountStatus, AuditAction, DriverVerificationStatus } from "../generated/prisma/enums.js";
 import { Prisma } from "../generated/prisma/client.js";
+import { notifyDriverVerification } from "../services/notifications.js";
 
 export const adminRouter = Router();
 
@@ -114,7 +115,7 @@ function createUserRoleContext(
     };
   }
   if (user.role === "merchant") {
-    return { kind: "merchant", merchant_approval_connected: false };
+    return { kind: "merchant", merchant_approval_connected: true };
   }
   if (user.role === "admin") return { kind: "admin" };
   return { kind: "passenger" };
@@ -164,8 +165,13 @@ const adminUserListQuerySchema = z.object({
 
 const driverVerificationInclude = {
   user: { select: { ...safeUserSelect, driver_profile: true } },
-  reviewed_by: { select: { id: true, name: true } }
-} as const;
+  reviewed_by: { select: { id: true, name: true } },
+  decisions: {
+    orderBy: [{ created_at: "desc" }, { id: "desc" }],
+    take: 20,
+    include: { decided_by: { select: { id: true, name: true } } }
+  }
+} satisfies Prisma.DriverVerificationInclude;
 
 type DriverVerificationRecord = Prisma.DriverVerificationGetPayload<{
   include: typeof driverVerificationInclude;
@@ -183,6 +189,14 @@ function serializeDriverVerification(verification: DriverVerificationRecord) {
     reviewer: verification.reviewed_by,
     candidate: serializeSafeUser(candidate),
     driver_profile: driverProfile,
+    history: verification.decisions.map((entry) => ({
+      id: entry.id,
+      revision: entry.revision,
+      decision: entry.decision,
+      reason: entry.reason,
+      decided_by: entry.decided_by,
+      created_at: entry.created_at
+    })),
     evidence: { status: "not_collected" as const }
   };
 }
@@ -422,6 +436,10 @@ adminRouter.post("/admin/driver-verifications/:userId/approve", async (req: Auth
             request_id: req.requestId
           }
         });
+        await tx.driverVerificationDecision.create({
+          data: { verification_id: current.id, revision: current.revision, decision: "approved", decided_by_id: req.user!.id }
+        });
+        await notifyDriverVerification(tx, current.user_id, current.id, current.revision, "approved");
         return tx.driverVerification.findUniqueOrThrow({
           where: { id: current.id },
           include: driverVerificationInclude
@@ -485,6 +503,16 @@ adminRouter.post("/admin/driver-verifications/:userId/reject", async (req: Authe
             request_id: req.requestId
           }
         });
+        await tx.driverVerificationDecision.create({
+          data: {
+            verification_id: current.id,
+            revision: current.revision,
+            decision: "rejected",
+            reason: input.reason,
+            decided_by_id: req.user!.id
+          }
+        });
+        await notifyDriverVerification(tx, current.user_id, current.id, current.revision, "rejected", input.reason);
         return tx.driverVerification.findUniqueOrThrow({
           where: { id: current.id },
           include: driverVerificationInclude
@@ -497,6 +525,162 @@ adminRouter.post("/admin/driver-verifications/:userId/reject", async (req: Authe
     next(isTransactionWriteConflict(error) ? new HttpError(409, "driver_verification_state_conflict") : error);
   }
 });
+
+const reopenVerificationSchema = z.object({
+  expected_revision: z.number().int().min(1),
+  reason: z
+    .string()
+    .min(3)
+    .max(500)
+    .transform((value) => value.trim().replace(/\s+/g, " "))
+    .refine((value) => value.length >= 3 && !/[\u0000-\u001f\u007f]/.test(value), "Invalid value")
+});
+
+/**
+ * Sends a rejected application back to the pending queue for a fresh decision,
+ * e.g. after the applicant corrected what the rejection named. The earlier
+ * outcome stays in `history`; nothing about the account itself changes here.
+ */
+adminRouter.post("/admin/driver-verifications/:userId/reopen", async (req: AuthenticatedRequest, res, next) => {
+  try {
+    const userId = requestParam(req.params.userId);
+    const input = reopenVerificationSchema.parse(req.body);
+    const result = await prisma.$transaction(
+      async (tx) => {
+        const current = await tx.driverVerification.findUnique({
+          where: { user_id: userId },
+          include: driverVerificationInclude
+        });
+        if (!current) throw new HttpError(404, "driver_verification_not_found");
+        if (current.user.role !== "driver") throw new HttpError(409, "driver_verification_role_conflict");
+        if (current.user.account_status !== AccountStatus.pending && current.user.account_status !== AccountStatus.active) {
+          throw new HttpError(409, "driver_account_status_conflict");
+        }
+        if (current.status !== DriverVerificationStatus.rejected || current.revision !== input.expected_revision) {
+          throw new HttpError(409, "driver_verification_state_conflict");
+        }
+
+        const now = new Date();
+        const transitioned = await tx.driverVerification.updateMany({
+          where: { id: current.id, status: DriverVerificationStatus.rejected, revision: input.expected_revision },
+          data: {
+            status: DriverVerificationStatus.pending,
+            rejection_reason: null,
+            submitted_at: now,
+            reviewed_at: null,
+            reviewed_by_id: null,
+            revision: { increment: 1 }
+          }
+        });
+        if (transitioned.count !== 1) throw new HttpError(409, "driver_verification_state_conflict");
+
+        await tx.driverVerificationDecision.create({
+          data: {
+            verification_id: current.id,
+            revision: current.revision,
+            decision: "reopened",
+            reason: input.reason,
+            decided_by_id: req.user!.id
+          }
+        });
+        await auditEvent(tx, {
+          userId: req.user!.id,
+          action: AuditAction.admin_action,
+          entityType: "DriverVerification",
+          entityId: current.id,
+          metadata: {
+            action: "driver_verification_reopened",
+            target_user_id: current.user_id,
+            previous_status: current.status,
+            new_status: DriverVerificationStatus.pending,
+            reason: input.reason,
+            previous_revision: current.revision,
+            request_id: req.requestId
+          }
+        });
+        return tx.driverVerification.findUniqueOrThrow({ where: { id: current.id }, include: driverVerificationInclude });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+    );
+    res.json({ verification: serializeDriverVerification(result) });
+  } catch (error) {
+    next(isTransactionWriteConflict(error) ? new HttpError(409, "driver_verification_state_conflict") : error);
+  }
+});
+
+const merchantDecisionSchema = z.object({
+  reason: z
+    .string()
+    .max(500)
+    .transform((value) => value.trim().replace(/\s+/g, " "))
+    .refine((value) => !/[\u0000-\u001f\u007f]/.test(value), "Invalid value")
+    .optional()
+});
+
+/**
+ * Merchant onboarding review: a pending merchant is either activated or
+ * refused. This is deliberately separate from the generic account-status
+ * endpoint, which still rejects pending → active for non-passengers.
+ */
+async function decideMerchant(req: AuthenticatedRequest, decision: "approve" | "reject") {
+  const userId = requestParam(req.params.userId);
+  const input = merchantDecisionSchema.parse(req.body ?? {});
+  if (decision === "reject" && (!input.reason || input.reason.length < 3)) {
+    throw new HttpError(400, "reason_required");
+  }
+  return prisma.$transaction(async (tx) => {
+    const target = await tx.user.findUnique({ where: { id: userId }, select: safeUserSelect });
+    if (!target) throw new HttpError(404, "user_not_found");
+    if (target.role !== "merchant") throw new HttpError(409, "merchant_role_required");
+    if (target.account_status !== AccountStatus.pending) throw new HttpError(409, "account_status_conflict");
+
+    const now = new Date();
+    const nextStatus = decision === "approve" ? AccountStatus.active : AccountStatus.disabled;
+    const changed = await tx.user.updateMany({
+      where: { id: target.id, role: "merchant", account_status: AccountStatus.pending },
+      data: {
+        account_status: nextStatus,
+        status_reason: decision === "reject" ? input.reason! : null,
+        status_updated_at: now,
+        ...(decision === "reject" ? { security_version: { increment: 1 } } : {})
+      }
+    });
+    if (changed.count !== 1) throw new HttpError(409, "account_status_conflict");
+    if (decision === "reject") {
+      await revokeAllUserSessions(tx, { userId: target.id, reason: "merchant_rejected", now });
+      await tx.onboardingSession.updateMany({
+        where: { user_id: target.id, purpose: "pending_status", revoked_at: null },
+        data: { revoked_at: now, revoke_reason: "merchant_rejected" }
+      });
+    }
+    await auditEvent(tx, {
+      userId: req.user!.id,
+      action: AuditAction.account_status_changed,
+      entityType: "User",
+      entityId: target.id,
+      metadata: {
+        kind: "merchant_approval",
+        decision,
+        target_user_id: target.id,
+        previous_status: target.account_status,
+        new_status: nextStatus,
+        reason: input.reason ?? null,
+        request_id: req.requestId
+      }
+    });
+    return tx.user.findUniqueOrThrow({ where: { id: target.id }, select: safeUserSelect });
+  });
+}
+
+for (const decision of ["approve", "reject"] as const) {
+  adminRouter.post(`/admin/merchant-approvals/:userId/${decision}`, async (req: AuthenticatedRequest, res, next) => {
+    try {
+      res.json({ user: serializeSafeUser(await decideMerchant(req, decision)) });
+    } catch (error) {
+      next(error);
+    }
+  });
+}
 
 const accountStatusSchema = z
   .object({
@@ -590,7 +774,20 @@ adminRouter.patch("/admin/users/:id/status", async (req: AuthenticatedRequest, r
 
 adminRouter.get("/admin/dashboard", async (req: AuthenticatedRequest, res, next) => {
   try {
-    const [users, drivers, routes, requests, orders, parcels, recentRequests, recentOrders, recentRoutes] =
+    const [
+      users,
+      drivers,
+      routes,
+      requests,
+      orders,
+      parcels,
+      activeDriverGroups,
+      pendingDriverApprovals,
+      openIncidents,
+      recentRequests,
+      recentOrders,
+      recentRoutes
+    ] =
       await Promise.all([
         prisma.user.count(),
         prisma.driverProfile.count(),
@@ -598,6 +795,14 @@ adminRouter.get("/admin/dashboard", async (req: AuthenticatedRequest, res, next)
         prisma.passengerRequest.count(),
         prisma.merchantOrder.count(),
         prisma.parcel.count(),
+        // Active driver = verified driver with a route in service: waiting for work
+        // (active), holding an accepted job (assigned), or driving it (on_trip).
+        prisma.driverRoute.groupBy({
+          by: ["driver_id"],
+          where: { status: { in: ["active", "assigned", "on_trip"] }, driver: { verified: true } }
+        }),
+        prisma.driverVerification.count({ where: { status: "pending" } }),
+        prisma.incident.count({ where: { status: { not: "resolved" } } }),
         prisma.passengerRequest.findMany({ orderBy: { created_at: "desc" }, take: 5 }),
         prisma.merchantOrder.findMany({ orderBy: { created_at: "desc" }, take: 5, include: { parcels: true } }),
         prisma.driverRoute.findMany({ orderBy: { activated_at: "desc" }, take: 5 })
@@ -611,7 +816,17 @@ adminRouter.get("/admin/dashboard", async (req: AuthenticatedRequest, res, next)
     });
 
     res.json({
-      counts: { users, drivers, routes, passenger_requests: requests, merchant_orders: orders, parcels },
+      counts: {
+        users,
+        drivers,
+        routes,
+        passenger_requests: requests,
+        merchant_orders: orders,
+        parcels,
+        active_drivers: activeDriverGroups.length,
+        pending_driver_approvals: pendingDriverApprovals,
+        open_incidents: openIncidents
+      },
       recent: { passenger_requests: recentRequests, merchant_orders: recentOrders, routes: recentRoutes }
     });
   } catch (error) {

@@ -47,6 +47,25 @@ export function createApiClient(apiBaseUrl: string, clientOptions: ApiClientOpti
     return data as T;
   }
 
+  async function downloadCsv(path: string, token: string) {
+    const response = await fetch(`${apiBaseUrl}/api/v1${path}`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!response.ok) {
+      const error = new Error(`Export failed with ${response.status}`) as ApiError;
+      error.status = response.status;
+      clientOptions.onSessionEnded?.(error, token);
+      throw error;
+    }
+    return response.blob();
+  }
+
+  function reportQuery(range: ReportRange, extra: Record<string, string> = {}) {
+    const query = new URLSearchParams(extra);
+    if (range.from) query.set("from", range.from);
+    if (range.to) query.set("to", range.to);
+    const text = query.toString();
+    return text ? `?${text}` : "";
+  }
+
   function withQuery(path: string, values: Record<string, string | number | undefined>) {
     const query = new URLSearchParams();
     for (const [key, value] of Object.entries(values)) {
@@ -57,6 +76,18 @@ export function createApiClient(apiBaseUrl: string, clientOptions: ApiClientOpti
   }
 
 return {
+  incidents: (token: string, query: { status?: IncidentStatus; page?: number; limit?: number } = {}) => {
+    const params = new URLSearchParams();
+    if (query.status) params.set("status", query.status);
+    if (query.page) params.set("page", String(query.page));
+    if (query.limit) params.set("limit", String(query.limit));
+    const text = params.toString();
+    return apiRequest<IncidentPage>(`/admin/incidents${text ? `?${text}` : ""}`, { token });
+  },
+  updateIncident: (token: string, id: string, body: { status: Exclude<IncidentStatus, "open">; expected_revision: number; note?: string }) =>
+    apiRequest<{ incident: IncidentRecord }>(`/admin/incidents/${encodeURIComponent(id)}`, { method: "PATCH", token, body }),
+  reportSummary: (token: string, range: ReportRange) => apiRequest<ReportSummary>(`/admin/reports/summary${reportQuery(range)}`, { token }),
+  reportExport: (token: string, dataset: ReportDataset, range: ReportRange) => downloadCsv(`/admin/reports/export${reportQuery(range, { dataset })}`, token),
   login: (email: string, password: string) => apiRequest<LoginResponse>("/auth/admin/login", { method: "POST", body: { email, password } }),
   googleLogin: (id_token: string) => apiRequest<LoginResponse>("/auth/admin/google", { method: "POST", body: { id_token } }),
   authCapabilities: () => apiRequest<{ google_admin_login_available: boolean; google_admin_client_id: string | null }>("/auth/capabilities"),
@@ -124,6 +155,16 @@ return {
     apiRequest<{ verification: DriverVerification }>(
       `/admin/driver-verifications/${encodeURIComponent(userId)}/reject`,
       { method: "POST", token, body: { expected_revision: expectedRevision, reason } }
+    ),
+  reopenDriverVerification: (token: string, userId: string, expectedRevision: number, reason: string) =>
+    apiRequest<{ verification: DriverVerification }>(
+      `/admin/driver-verifications/${encodeURIComponent(userId)}/reopen`,
+      { method: "POST", token, body: { expected_revision: expectedRevision, reason } }
+    ),
+  decideMerchantApproval: (token: string, userId: string, decision: "approve" | "reject", reason?: string) =>
+    apiRequest<{ user: AdminUser }>(
+      `/admin/merchant-approvals/${encodeURIComponent(userId)}/${decision}`,
+      { method: "POST", token, body: reason ? { reason } : {} }
     ),
   consentReleases: (token: string) =>
     apiRequest<{ releases: ConsentRelease[] }>("/admin/consent-releases", { token }),
@@ -347,7 +388,16 @@ export type DriverVerification = {
   reviewer: { id: string; name: string } | null;
   candidate: AdminUser;
   driver_profile: DriverProfile | null;
+  history: DriverVerificationHistoryEntry[];
   evidence: { status: "not_collected" };
+};
+export type DriverVerificationHistoryEntry = {
+  id: string;
+  revision: number;
+  decision: "approved" | "rejected" | "reopened";
+  reason: string | null;
+  decided_by: { id: string; name: string } | null;
+  created_at: string;
 };
 export type DriverVerificationPage = {
   verifications: DriverVerification[];
@@ -410,6 +460,9 @@ export type DashboardResponse = {
     passenger_requests: number;
     merchant_orders: number;
     parcels: number;
+    active_drivers: number;
+    pending_driver_approvals: number;
+    open_incidents: number;
   };
 };
 
@@ -609,6 +662,33 @@ export type ServiceRoute = RouteIdentityDraft & {
   version_count: number;
   created_at: string;
   updated_at: string;
+};
+export type IncidentStatus = "open" | "reviewing" | "resolved";
+export type IncidentRecord = {
+  id: string;
+  trip_id: string | null;
+  category: string;
+  description: string;
+  status: IncidentStatus;
+  admin_note: string | null;
+  revision: number;
+  reviewed_at: string | null;
+  resolved_at: string | null;
+  created_at: string;
+  reporter?: { id: string; name: string; role: string };
+};
+export type IncidentPage = { incidents: IncidentRecord[]; page: number; limit: number; total: number; open_total: number };
+export type ReportRange = { from?: string; to?: string };
+export type ReportDataset = "requests" | "orders" | "trips";
+type StatusCounts = Record<string, number>;
+export type ReportSummary = {
+  range: { from: string | null; to: string | null };
+  generated_at: string;
+  passenger_requests: { total: number; by_status: StatusCounts };
+  merchant_orders: { total: number; by_status: StatusCounts; parcels: number };
+  trips: { total: number; by_status: StatusCounts };
+  matches: { total: number; by_status: StatusCounts };
+  drivers: { total: number; verified: number; pending_verification: number };
 };
 export type RoutePage = { routes: ServiceRoute[]; page: number; limit: number; total: number };
 export type StopPage = { stops: CanonicalStop[]; page: number; limit: number; total: number };

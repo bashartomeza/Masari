@@ -1,6 +1,7 @@
 import type { Prisma } from "../generated/prisma/client.js";
 import { AuditAction, TripStatus } from "../generated/prisma/enums.js";
 import { HttpError } from "../middleware/error.js";
+import { notifyTripStatus } from "./notifications.js";
 
 export const LEGACY_TRIP_TRANSITIONS: Readonly<Record<string, readonly TripStatus[]>> = {
   accepted: [TripStatus.pickup_started, TripStatus.cancelled],
@@ -216,6 +217,8 @@ export async function advanceLegacyTrip(
       metadata: { from: trip.status, to: nextStatus },
     },
   });
+
+  await notifyTripStatus(tx, trip, nextStatus);
 
   return updated;
 }

@@ -61,6 +61,20 @@ describe("User Management view", () => {
     expect(markup).toContain("Previous"); expect(markup).toContain("Next"); expect(markup).toContain("Page 2 of 2");
   });
 
+  it("offers approve and reject for a pending merchant once the workflow is connected", () => {
+    const onMerchantDecision = vi.fn();
+    const markup = render("en", <UsersDirectoryView {...props({ onMerchantDecision })} />);
+    expect(markup).toContain("Approve merchant");
+    expect(markup).toContain("Reject merchant");
+    expect(markup).toContain("Awaiting Admin approval");
+    expect(markup).not.toContain("Merchant approval workflow is not connected");
+  });
+
+  it("hides merchant decisions while the console cannot act", () => {
+    const markup = render("en", <UsersDirectoryView {...props({ onMerchantDecision: vi.fn(), canAct: false })} />);
+    expect(markup).not.toContain("Approve merchant");
+  });
+
   it("shows approved-driver context and honest pending driver/merchant boundaries", () => {
     const markup = render("en", <UsersDirectoryView {...props()} />);
     expect(markup).toContain("Approved");
@@ -72,7 +86,7 @@ describe("User Management view", () => {
   it("renders passenger and driver detail panels without edit fields", () => {
     const passengerMarkup = render("en", <UsersDirectoryView {...props({ selectedId: detail.id, detail })} />);
     expect(passengerMarkup).toContain("User details"); expect(passengerMarkup).toContain("Passenger requests"); expect(passengerMarkup).toContain("Suspend account");
-    const driverDetail: UserDetail = { ...detail, ...approvedDriver, role: "driver", driver_profile: { id: "profile_1", vehicle_type: "sedan", seats_total: 4, parcel_capacity: 3, verified: true, trust_score: 80, created_at: "2026-08-23T10:00:00.000Z" }, driver_verification: { id: "verification_1", revision: 2, status: "approved", rejection_reason: null, submitted_at: "2026-08-23T10:00:00.000Z", reviewed_at: "2026-08-23T10:00:00.000Z", reviewer: { id: "admin_1", name: "QA Admin" }, candidate: approvedDriver, driver_profile: null, evidence: { status: "not_collected" } } };
+    const driverDetail: UserDetail = { ...detail, ...approvedDriver, role: "driver", driver_profile: { id: "profile_1", vehicle_type: "sedan", seats_total: 4, parcel_capacity: 3, verified: true, trust_score: 80, created_at: "2026-08-23T10:00:00.000Z" }, driver_verification: { id: "verification_1", revision: 2, status: "approved", history: [], rejection_reason: null, submitted_at: "2026-08-23T10:00:00.000Z", reviewed_at: "2026-08-23T10:00:00.000Z", reviewer: { id: "admin_1", name: "QA Admin" }, candidate: approvedDriver, driver_profile: null, evidence: { status: "not_collected" } } };
     const driverMarkup = render("en", <UsersDirectoryView {...props({ selectedId: driverDetail.id, detail: driverDetail })} />);
     expect(driverMarkup).toContain("sedan"); expect(driverMarkup).toContain("Approved"); expect(driverMarkup).not.toContain("password");
   });

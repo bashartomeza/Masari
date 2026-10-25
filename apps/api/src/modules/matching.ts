@@ -8,6 +8,7 @@ import { HttpError } from "../middleware/error.js";
 import { LOCKED_CORRIDOR_KEY, LOCKED_CORRIDOR_LABEL } from "./demoReset.js";
 import type { Prisma } from "../generated/prisma/client.js";
 import { AuditAction, MatchStatus } from "../generated/prisma/enums.js";
+import { notifyMatchOffered } from "../services/notifications.js";
 import { isLegacyRouteTimely, legacyRouteTimingWhere, reserveLegacyCapacity, requireEligibleLegacyRoute } from "../services/legacyCapacity.js";
 
 const runMatchSchema = z
@@ -527,6 +528,8 @@ async function createBestMatch(req: AuthenticatedRequest, input: MatchInput) {
     }
     throw error;
   }
+
+  await notifyMatchOffered(prisma, match);
 
   return { match, scoringBreakdown: best.breakdown, candidatesConsidered: candidates.length };
 }

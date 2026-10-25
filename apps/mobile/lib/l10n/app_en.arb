@@ -272,7 +272,6 @@
   "privacyNotice": "Privacy Notice",
   "confirmAdult": "I confirm I am 18 or older",
   "acceptAndContinue": "Accept and continue",
-  "createAccount": "Create account",
   "accountCreated": "Account created",
   "signInToContinue": "Your account was created. Sign in to continue.",
   "applicationUnderReview": "Application under review",
@@ -304,18 +303,32 @@
   "directionLoop": "Loop",
   "orderedStops": "Ordered stops",
   "stopSequence": "Stop {sequence}",
-  "@stopSequence": {"placeholders": {"sequence": {"type": "int"}}},
+  "@stopSequence": {
+    "placeholders": {
+      "sequence": {
+        "type": "int"
+      }
+    }
+  },
   "driverAvailabilities": "Route availability",
   "newAvailability": "Create route availability",
   "noAvailabilities": "No route availability has been created.",
   "departureTime": "Departure time",
   "availabilityWindowEnd": "Availability window end (optional)",
   "seatCapacity": "Seat capacity",
-  "parcelCapacity": "Parcel capacity",
   "reviewAndConfirm": "Review and confirm",
   "availabilityRecorded": "Availability recorded",
   "remainingCapacity": "Remaining: {seats} seats, {parcels} parcels",
-  "@remainingCapacity": {"placeholders": {"seats": {"type": "int"}, "parcels": {"type": "int"}}},
+  "@remainingCapacity": {
+    "placeholders": {
+      "seats": {
+        "type": "int"
+      },
+      "parcels": {
+        "type": "int"
+      }
+    }
+  },
   "activateAvailability": "Activate availability",
   "pauseAvailability": "Pause availability",
   "resumeAvailability": "Resume availability",
@@ -327,24 +340,15 @@
   "dropoffStop": "Drop-off stop",
   "departureFrom": "Departure from",
   "departureUntil": "Departure until",
-  "passengerCount": "Passenger count",
   "requestRecorded": "Your route request was recorded.",
   "matchingDisabledNotice": "Matching is not enabled in this milestone. No driver has been assigned and no trip has been created.",
   "canonicalMerchantOrder": "Route parcel order",
   "canonicalMerchantOrderBody": "Create one atomic order on an approved route.",
   "parcelPickupStop": "Parcel pickup stop",
-  "addParcel": "Add parcel",
-  "removeParcel": "Remove parcel",
   "parcelDestination": "Parcel destination",
-  "parcelSize": "Parcel size",
   "parcelPriority": "Parcel priority",
-  "priorityLow": "Low",
-  "priorityNormal": "Normal",
-  "priorityHigh": "High",
   "orderRecorded": "Your route parcel order was recorded.",
   "batchingMatchingDisabledNotice": "Batching and matching are not enabled in this milestone. No driver has been assigned and no delivery trip has been created.",
-  "submitRequest": "Submit request",
-  "submitOrder": "Submit order",
   "submitAvailability": "Submit availability",
   "selectDateTime": "Select date and time",
   "invalidDepartureWindow": "Choose a valid future departure window.",
@@ -360,11 +364,9 @@
   "canonicalRecoveryRequired": "A previous operation is unresolved. Sign in with the original account and retry the exact operation, or contact support if its recovery window expired.",
   "transactionRetryRequired": "A temporary transaction conflict occurred. Retry this operation.",
   "refreshRoutes": "Refresh routes",
-  "statusActive": "Active",
   "statusPaused": "Paused",
   "statusFilled": "Filled",
   "statusDeparted": "Departed",
-  "statusExpired": "Expired",
   "returnToDashboard": "Return to dashboard",
   "canonicalDriverOffers": "Route offers",
   "canonicalDriverOffersBody": "Review current passenger and parcel assignments for your route availability.",
@@ -439,7 +441,6 @@
   "completedTripsToday": "{count} completed trips",
   "activateYourRoute": "Activate your route",
   "activateRouteHint": "Set your destination to receive requests along your way",
-  "deactivateRoute": "Deactivate route",
   "mapNoLocation": "No location data yet.",
   "batchSavings": "Consolidation savings",
   "batchSavingsCaption": "Saved by consolidating shipments",
@@ -456,7 +457,6 @@
   "liveTracking": "Live tracking",
   "recentOrders": "Recent orders",
   "orderReference": "Order #{reference}",
-
   "navRequests": "Requests",
   "navMyTrip": "My trip",
   "navPerformance": "Earnings",
@@ -464,7 +464,6 @@
   "navMapAlerts": "Map",
   "navShipments": "Shipments",
   "navReports": "Reports",
-
   "myTrips": "My trips",
   "tripsActiveSection": "Active trip",
   "tripsUpcomingSection": "Upcoming trips",
@@ -473,20 +472,17 @@
   "noTripsYet": "No trips yet",
   "noTripsYetBody": "Your trips will appear here once you create your first request.",
   "tripHistoryFailed": "Could not load your trip history.",
-
   "mapsUnavailable": "Map unavailable",
   "mapsUnavailableBody": "Map services are not enabled in this build, so no live position can be shown.",
   "incidentReports": "Reports",
   "incidentReportingUnavailable": "Incident reporting unavailable",
   "incidentReportingUnavailableBody": "There is no backend to receive incident reports yet, so nothing would be submitted from here.",
   "notificationsUnavailableBody": "There is no notification service in this build. Updates appear inside the trip screen.",
-
   "performanceTitle": "Earnings and performance",
   "earningsNotTracked": "Earnings are not tracked",
   "earningsNotTrackedBody": "The database holds no fare or pricing data, so no real earnings figure can be shown.",
   "completedTripsTotal": "Completed trips in total",
   "acceptanceRateUnavailable": "Acceptance rate unavailable",
-
   "destinationCount": "{count} destinations",
   "shipmentsTitle": "Shipments",
   "noShipments": "No shipments",
@@ -494,7 +490,6 @@
   "shipmentsFailed": "Could not load your shipments.",
   "reportsUnavailable": "Reports unavailable",
   "reportsUnavailableBody": "There is no backend for generating or exporting PDF or Excel reports.",
-
   "accountProfile": "Profile",
   "accountSupport": "Support",
   "supportUnavailable": "In-app support unavailable",
@@ -575,15 +570,27 @@
   "mapDriverRoute": "Available driver route",
   "mapOriginLabel": "Origin: {name}",
   "@mapOriginLabel": {
-    "placeholders": { "name": { "type": "String" } }
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   },
   "mapDestinationLabel": "Destination: {name}",
   "@mapDestinationLabel": {
-    "placeholders": { "name": { "type": "String" } }
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   },
   "mapStopLabel": "Stop: {name}",
   "@mapStopLabel": {
-    "placeholders": { "name": { "type": "String" } }
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   },
   "mapLegend": "Legend",
   "locationServiceDisabled": "Location services are off on this device. Turn them on to show your position.",
@@ -599,7 +606,11 @@
   "checkpointsEmpty": "No barriers recorded on this route.",
   "checkpointCount": "{count, plural, =0{No barriers} =1{1 barrier} other{{count} barriers}}",
   "@checkpointCount": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "checkpointOpen": "Open",
   "checkpointCongested": "Congested",
@@ -608,8 +619,12 @@
   "checkpointLabel": "{name} — {status}",
   "@checkpointLabel": {
     "placeholders": {
-      "name": { "type": "String" },
-      "status": { "type": "String" }
+      "name": {
+        "type": "String"
+      },
+      "status": {
+        "type": "String"
+      }
     }
   },
   "checkpointUnnamed": "Barrier",
@@ -632,5 +647,64 @@
   "checkpointDirectoryGenerated": "Provider response generated",
   "checkpointDirectoryEnteringUpdated": "Entering status last changed (status unavailable)",
   "checkpointDirectoryLeavingUpdated": "Leaving status last changed (status unavailable)",
-  "checkpointDirectoryTimezoneUnspecified": "timezone unspecified"
+  "checkpointDirectoryTimezoneUnspecified": "timezone unspecified",
+  "notifMatchOfferedTitle": "New match offer",
+  "notifMatchOfferedBody": "A new request is waiting for your response.",
+  "notifMatchAcceptedTitle": "Your request was accepted",
+  "notifMatchAcceptedBody": "A driver accepted your request.",
+  "notifMatchRejectedTitle": "Driver declined",
+  "notifMatchRejectedBody": "The driver declined the request. You can look for another match.",
+  "notifTripStatusTitle": "Trip update",
+  "notifTripStatusBody": "The trip is now: {status}",
+  "@notifTripStatusBody": {
+    "placeholders": {
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "notifVerificationApprovedTitle": "Account approved",
+  "notifVerificationApprovedBody": "Your driver account was approved. You can start working now.",
+  "notifVerificationRejectedTitle": "Verification rejected",
+  "notifVerificationRejectedBody": "Your account verification was not approved.",
+  "notifVerificationRejectedReason": "Reason: {reason}",
+  "@notifVerificationRejectedReason": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "notifUnknownTitle": "New notification",
+  "notificationsMarkAllRead": "Mark all as read",
+  "notificationsLoadError": "Could not load notifications.",
+  "notificationsUnreadCount": "{count} unread",
+  "@notificationsUnreadCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "reportsDeliveries": "Deliveries",
+  "reportsLoadError": "Could not load the report.",
+  "reportsOrdersByStatus": "Orders by status",
+  "reportsDeliveriesByStatus": "Deliveries by status",
+  "reportsNoRecords": "No records yet.",
+  "incidentReportAction": "Report a problem",
+  "incidentReportTitle": "Report a problem",
+  "incidentReportNotice": "Your report is recorded for Admin review. This is not an emergency service; if you are in danger, contact the authorities directly.",
+  "incidentDescriptionLabel": "Describe the problem",
+  "incidentSubmit": "Send report",
+  "incidentSubmitted": "Report sent.",
+  "incidentSubmitFailed": "The report could not be sent. Try again.",
+  "incidentTooMany": "You already have several reports under review. Wait for them to be handled before sending another.",
+  "incidentCategorySafety": "Safety",
+  "incidentCategoryDelay": "Delay",
+  "incidentCategoryParcelDamage": "Damaged parcel",
+  "incidentCategoryBehavior": "Behavior",
+  "incidentCategoryOther": "Other",
+  "notifIncidentUpdatedTitle": "Update on your report",
+  "notifIncidentReviewingBody": "Your report is under review.",
+  "notifIncidentResolvedBody": "Your report has been resolved."
 }

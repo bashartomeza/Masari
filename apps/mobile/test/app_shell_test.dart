@@ -515,6 +515,41 @@ void main() {
     );
   });
 
+  testWidgets('a failed login leaves the button usable again', (tester) async {
+    await _pumpApp(
+      tester,
+      handler: (request) async =>
+          http.Response('{"error":"invalid_credentials"}', 401),
+    );
+
+    await tester.ensureVisible(find.byKey(const ValueKey('demo-passenger')));
+    await tester.tap(find.byKey(const ValueKey('demo-passenger')));
+    await tester.pump();
+    await tester.ensureVisible(find.byKey(const ValueKey('loginButton')));
+    await tester.tap(find.byKey(const ValueKey('loginButton')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('البريد الإلكتروني أو كلمة المرور غير صحيحة.'),
+      findsOneWidget,
+    );
+    final button = tester.widget<FilledButton>(
+      find.byKey(const ValueKey('loginButton')),
+    );
+    expect(
+      button.onPressed,
+      isNotNull,
+      reason: 'the button must not stay disabled after the error is shown',
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('loginButton')),
+        matching: find.byType(CircularProgressIndicator),
+      ),
+      findsNothing,
+    );
+  });
+
   testWidgets(
     'editing credentials while login is pending discards that attempt error',
     (tester) async {

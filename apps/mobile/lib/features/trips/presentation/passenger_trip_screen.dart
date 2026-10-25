@@ -15,6 +15,8 @@ import '../../../core/widgets/language_switch.dart';
 import '../../../core/widgets/masari_map.dart';
 import '../../../core/widgets/state_views.dart';
 import '../../checkpoints/application/checkpoint_controller.dart';
+import '../../../core/widgets/masari_bottom_nav.dart';
+import '../../incidents/presentation/report_incident_sheet.dart';
 import '../application/passenger_trip_controller.dart';
 
 class PassengerTripScreen extends ConsumerStatefulWidget {
@@ -270,6 +272,14 @@ class _PassengerTripScreenState extends ConsumerState<PassengerTripScreen> {
               ),
               const Spacer(),
               _buildLanguageButton(),
+              const SizedBox(width: 8),
+              _buildFloatingButton(
+                icon: Icons.flag_outlined,
+                onPressed: () => showMasariBottomSheet<void>(
+                  context: context,
+                  child: ReportIncidentForm(tripId: widget.tripId),
+                ),
+              ),
               const SizedBox(width: 8),
               _buildFloatingButton(
                 icon: Icons.my_location_rounded,

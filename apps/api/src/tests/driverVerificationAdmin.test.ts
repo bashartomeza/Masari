@@ -13,6 +13,7 @@ const prismaMock = vi.hoisted(() => ({
     updateMany: vi.fn()
   },
   driverProfile: { create: vi.fn(), update: vi.fn() },
+  driverVerificationDecision: { create: vi.fn() },
   auditEvent: { create: vi.fn() }
 }));
 
@@ -58,6 +59,7 @@ const pendingVerification = {
   created_at: now,
   updated_at: now,
   user: candidate,
+  decisions: [],
   reviewed_by: null
 };
 
@@ -171,6 +173,7 @@ describe("Admin driver verification lifecycle", () => {
     expect(prismaMock.driverProfile.create).toHaveBeenCalledWith({ data: expect.objectContaining({ user_id: candidate.id, vehicle_type: "family sedan", verified: true }) });
     expect(prismaMock.user.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ account_status: "active" }) }));
     expect(prismaMock.auditEvent.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ action: "admin_action", metadata: expect.objectContaining({ action: "driver_verification_approved", target_user_id: candidate.id }) }) }));
+    expect(prismaMock.driverVerificationDecision.create).toHaveBeenCalledWith({ data: expect.objectContaining({ verification_id: "verification_1", revision: 1, decision: "approved", decided_by_id: "admin_1" }) });
     expect(prismaMock.$transaction).toHaveBeenCalledWith(expect.any(Function), { isolationLevel: "Serializable" });
   });
 
@@ -188,6 +191,7 @@ describe("Admin driver verification lifecycle", () => {
     expect(response.body.verification).toEqual(expect.objectContaining({ status: "rejected", rejection_reason: "Licence image is unreadable" }));
     expect(prismaMock.driverProfile.update).toHaveBeenCalledWith({ where: { id: "profile_1" }, data: { verified: false } });
     expect(prismaMock.user.update).not.toHaveBeenCalled();
+    expect(prismaMock.driverVerificationDecision.create).toHaveBeenCalledWith({ data: expect.objectContaining({ decision: "rejected", reason: "Licence image is unreadable", revision: 1 }) });
     expect(prismaMock.auditEvent.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ metadata: expect.objectContaining({ action: "driver_verification_rejected", reason: "Licence image is unreadable" }) }) }));
   });
 

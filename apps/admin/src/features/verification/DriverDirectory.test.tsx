@@ -50,6 +50,7 @@ const verification: DriverVerification = {
   submitted_at: "2026-08-18T10:00:00.000Z",
   reviewed_at: null,
   reviewer: null,
+  history: [],
   candidate: { ...driver.user!, account_status: "pending" },
   driver_profile: null,
   evidence: { status: "not_collected" }
@@ -134,6 +135,36 @@ describe("driver verification module", () => {
     expect(markup).toContain("Demo Admin");
     expect(markup).not.toContain("Approve driver");
     expect(markup).not.toContain("Reject driver");
+  });
+
+  it("offers re-review of a rejected application, and shows the prior decision history", () => {
+    const rejected = {
+      ...verification,
+      status: "rejected",
+      revision: 2,
+      rejection_reason: "Licence image was unreadable",
+      history: [{ id: "h1", revision: 1, decision: "rejected", reason: "Licence image was unreadable", decided_by: { id: "admin_1", name: "Demo Admin" }, created_at: "2026-08-19T09:00:00.000Z" }]
+    } satisfies DriverVerification;
+    const markup = textOf(withLocale("en", <DriverReviewPanel verification={rejected} {...panelProps} />));
+
+    expect(markup).toContain("Reopen for review");
+    expect(markup).toContain("Decision history");
+    expect(markup).toContain("Licence image was unreadable");
+  });
+
+  it("asks for a reason before reopening", () => {
+    const rejected = { ...verification, status: "rejected", revision: 2, rejection_reason: "x y z" } satisfies DriverVerification;
+    const markup = textOf(withLocale("en", <DriverReviewPanel verification={rejected} {...panelProps} action="reopen" />));
+
+    expect(markup).toContain("Reason for reopening");
+    expect(markup).toContain("Confirm reopening");
+  });
+
+  it("keeps an approved application final", () => {
+    const approved = { ...verification, status: "approved", revision: 2 } satisfies DriverVerification;
+    const markup = textOf(withLocale("en", <DriverReviewPanel verification={approved} {...panelProps} />));
+
+    expect(markup).not.toContain("Reopen for review");
   });
 
   it("offers suspension for an active account and reactivation for a suspended one", () => {

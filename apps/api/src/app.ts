@@ -60,6 +60,9 @@ import type { PassengerAssistantService } from "./services/passengerAssistant.js
 import { createAdminConsentRouter } from "./modules/adminConsents.js";
 import type { ConsentReleaseService } from "./services/consentReleases.js";
 import { adminTripsRouter } from "./modules/adminTrips.js";
+import { notificationsRouter } from "./modules/notifications.js";
+import { reportsRouter } from "./modules/reports.js";
+import { incidentsRouter } from "./modules/incidents.js";
 import { createAdminMatchingMonitoringRouter } from "./modules/adminMatchingMonitoring.js";
 import type { MonitoringService } from "./services/adminMatchingMonitoring/contracts.js";
 import { requireCompleteProfile } from "./middleware/profileState.js";
@@ -160,6 +163,9 @@ export function createApp(
       dependencies.canonicalSharedMatchingService,
     ),
   );
+  app.use("/api/v1", notificationsRouter);
+  app.use("/api/v1", reportsRouter);
+  app.use("/api/v1", incidentsRouter);
   app.use("/api/v1", passengerRouter);
   app.use(
     "/api/v1",

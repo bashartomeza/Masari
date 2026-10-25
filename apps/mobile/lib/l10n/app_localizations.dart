@@ -3613,6 +3613,234 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'المنطقة الزمنية غير محددة'**
   String get checkpointDirectoryTimezoneUnspecified;
+
+  /// No description provided for @notifMatchOfferedTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض مطابقة جديد'**
+  String get notifMatchOfferedTitle;
+
+  /// No description provided for @notifMatchOfferedBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'لديك طلب جديد بانتظار ردّك.'**
+  String get notifMatchOfferedBody;
+
+  /// No description provided for @notifMatchAcceptedTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم قبول طلبك'**
+  String get notifMatchAcceptedTitle;
+
+  /// No description provided for @notifMatchAcceptedBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'قَبِل أحد السائقين طلبك.'**
+  String get notifMatchAcceptedBody;
+
+  /// No description provided for @notifMatchRejectedTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'اعتذر السائق'**
+  String get notifMatchRejectedTitle;
+
+  /// No description provided for @notifMatchRejectedBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'اعتذر السائق عن الطلب. يمكنك البحث عن مطابقة أخرى.'**
+  String get notifMatchRejectedBody;
+
+  /// No description provided for @notifTripStatusTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'تحديث على الرحلة'**
+  String get notifTripStatusTitle;
+
+  /// No description provided for @notifTripStatusBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'حالة الرحلة الآن: {status}'**
+  String notifTripStatusBody(String status);
+
+  /// No description provided for @notifVerificationApprovedTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'تمت الموافقة على حسابك'**
+  String get notifVerificationApprovedTitle;
+
+  /// No description provided for @notifVerificationApprovedBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'تمت الموافقة على حساب السائق. يمكنك الآن البدء بالعمل.'**
+  String get notifVerificationApprovedBody;
+
+  /// No description provided for @notifVerificationRejectedTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم رفض طلب التحقق'**
+  String get notifVerificationRejectedTitle;
+
+  /// No description provided for @notifVerificationRejectedBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم تتم الموافقة على طلب التحقق من حسابك.'**
+  String get notifVerificationRejectedBody;
+
+  /// No description provided for @notifVerificationRejectedReason.
+  ///
+  /// In ar, this message translates to:
+  /// **'السبب: {reason}'**
+  String notifVerificationRejectedReason(String reason);
+
+  /// No description provided for @notifUnknownTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'إشعار جديد'**
+  String get notifUnknownTitle;
+
+  /// No description provided for @notificationsMarkAllRead.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعليم الكل كمقروء'**
+  String get notificationsMarkAllRead;
+
+  /// No description provided for @notificationsLoadError.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل الإشعارات.'**
+  String get notificationsLoadError;
+
+  /// No description provided for @notificationsUnreadCount.
+  ///
+  /// In ar, this message translates to:
+  /// **'{count} غير مقروءة'**
+  String notificationsUnreadCount(int count);
+
+  /// No description provided for @reportsDeliveries.
+  ///
+  /// In ar, this message translates to:
+  /// **'التوصيلات'**
+  String get reportsDeliveries;
+
+  /// No description provided for @reportsLoadError.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل التقرير.'**
+  String get reportsLoadError;
+
+  /// No description provided for @reportsOrdersByStatus.
+  ///
+  /// In ar, this message translates to:
+  /// **'الطلبات حسب الحالة'**
+  String get reportsOrdersByStatus;
+
+  /// No description provided for @reportsDeliveriesByStatus.
+  ///
+  /// In ar, this message translates to:
+  /// **'التوصيلات حسب الحالة'**
+  String get reportsDeliveriesByStatus;
+
+  /// No description provided for @reportsNoRecords.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد سجلات بعد.'**
+  String get reportsNoRecords;
+
+  /// No description provided for @incidentReportAction.
+  ///
+  /// In ar, this message translates to:
+  /// **'الإبلاغ عن مشكلة'**
+  String get incidentReportAction;
+
+  /// No description provided for @incidentReportTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'الإبلاغ عن مشكلة'**
+  String get incidentReportTitle;
+
+  /// No description provided for @incidentReportNotice.
+  ///
+  /// In ar, this message translates to:
+  /// **'يُسجَّل بلاغك لتراجعه الإدارة. هذه ليست خدمة طوارئ؛ في حال الخطر اتصل بالجهات المختصة مباشرة.'**
+  String get incidentReportNotice;
+
+  /// No description provided for @incidentDescriptionLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'صف المشكلة'**
+  String get incidentDescriptionLabel;
+
+  /// No description provided for @incidentSubmit.
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال البلاغ'**
+  String get incidentSubmit;
+
+  /// No description provided for @incidentSubmitted.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إرسال البلاغ.'**
+  String get incidentSubmitted;
+
+  /// No description provided for @incidentSubmitFailed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر إرسال البلاغ. حاول مرة أخرى.'**
+  String get incidentSubmitFailed;
+
+  /// No description provided for @incidentTooMany.
+  ///
+  /// In ar, this message translates to:
+  /// **'لديك عدة بلاغات قيد المراجعة. انتظر معالجتها قبل إرسال بلاغ جديد.'**
+  String get incidentTooMany;
+
+  /// No description provided for @incidentCategorySafety.
+  ///
+  /// In ar, this message translates to:
+  /// **'السلامة'**
+  String get incidentCategorySafety;
+
+  /// No description provided for @incidentCategoryDelay.
+  ///
+  /// In ar, this message translates to:
+  /// **'تأخير'**
+  String get incidentCategoryDelay;
+
+  /// No description provided for @incidentCategoryParcelDamage.
+  ///
+  /// In ar, this message translates to:
+  /// **'تلف طرد'**
+  String get incidentCategoryParcelDamage;
+
+  /// No description provided for @incidentCategoryBehavior.
+  ///
+  /// In ar, this message translates to:
+  /// **'سلوك'**
+  String get incidentCategoryBehavior;
+
+  /// No description provided for @incidentCategoryOther.
+  ///
+  /// In ar, this message translates to:
+  /// **'أخرى'**
+  String get incidentCategoryOther;
+
+  /// No description provided for @notifIncidentUpdatedTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'تحديث على بلاغك'**
+  String get notifIncidentUpdatedTitle;
+
+  /// No description provided for @notifIncidentReviewingBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'بلاغك قيد المراجعة.'**
+  String get notifIncidentReviewingBody;
+
+  /// No description provided for @notifIncidentResolvedBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'تمت معالجة بلاغك.'**
+  String get notifIncidentResolvedBody;
 }
 
 class _AppLocalizationsDelegate

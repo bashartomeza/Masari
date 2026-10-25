@@ -5,7 +5,7 @@ import { AlertItem, BentoGrid, Button, Card, CardHeader, DataTable, EmptyState, 
 import type { OverviewResourceState } from "../overview/overviewState";
 import { matchesSearch } from "../search";
 
-type VerificationApi = Pick<ApiClient, "driverVerifications" | "driverVerification" | "approveDriverVerification" | "rejectDriverVerification">;
+type VerificationApi = Pick<ApiClient, "driverVerifications" | "driverVerification" | "approveDriverVerification" | "rejectDriverVerification" | "reopenDriverVerification">;
 type ProfileForm = { vehicle_type: string; seats_total: string; parcel_capacity: string };
 type DriverAccountChange = { driver: DriverProfile; status: AccountStatus; expectedStatus: UserAccountStatus };
 
@@ -31,11 +31,11 @@ function ReviewField({ label, children }: { label: string; children: ReactNode }
 export function DriverReviewPanel({ verification, busy, action, reason, profile, error, onAction, onReasonChange, onProfileChange, onConfirm, onClose }: {
   verification: DriverVerification;
   busy: boolean;
-  action: "approve" | "reject" | null;
+  action: "approve" | "reject" | "reopen" | null;
   reason: string;
   profile: ProfileForm;
   error?: string | null;
-  onAction: (action: "approve" | "reject" | null) => void;
+  onAction: (action: "approve" | "reject" | "reopen" | null) => void;
   onReasonChange: (reason: string) => void;
   onProfileChange: (profile: ProfileForm) => void;
   onConfirm: () => void;
@@ -45,7 +45,7 @@ export function DriverReviewPanel({ verification, busy, action, reason, profile,
   const candidate = verification.candidate;
   const driver = verification.driver_profile;
   const profileValid = profile.vehicle_type.trim().length >= 2 && Number.isInteger(Number(profile.seats_total)) && Number(profile.seats_total) >= 1 && Number(profile.seats_total) <= 8 && Number.isInteger(Number(profile.parcel_capacity)) && Number(profile.parcel_capacity) >= 0 && Number(profile.parcel_capacity) <= 20;
-  const confirmDisabled = busy || (action === "reject" && reason.trim().length < 3) || (action === "approve" && !driver && !profileValid);
+  const confirmDisabled = busy || ((action === "reject" || action === "reopen") && reason.trim().length < 3) || (action === "approve" && !driver && !profileValid);
 
   return <>
     <Card span={12} id="driver-review" aria-labelledby="driver-review-title">
@@ -82,21 +82,34 @@ export function DriverReviewPanel({ verification, busy, action, reason, profile,
     </Card>
     <Card span={6}>
       <CardHeader title={t("reviewDecisionSection")} />
-      {verification.status !== "pending" ? <AlertItem tone={verification.status === "approved" ? "success" : "warning"} title={t("verificationDecisionRecorded")} description={t("verificationDecisionFinal")} /> : action === null ? <>
+      {verification.status === "approved" ? <AlertItem tone={verification.status === "approved" ? "success" : "warning"} title={t("verificationDecisionRecorded")} description={t("verificationDecisionFinal")} /> : verification.status === "rejected" && action === null ? <>
+        <AlertItem tone="warning" title={t("verificationDecisionRecorded")} description={t("verificationReopenDescription")} />
+        <div className="card__actions"><Button variant="secondary" icon="refresh" disabled={busy} onClick={() => onAction("reopen")}>{t("reopenVerification")}</Button></div>
+      </> : action === null ? <>
         <p className="muted">{t("verificationDecisionDescription")}</p>
         <div className="card__actions"><Button variant="primary" icon="check_circle" disabled={busy} onClick={() => onAction("approve")}>{t("approveDriver")}</Button><Button variant="secondary" icon="block" disabled={busy} onClick={() => onAction("reject")}>{t("rejectDriver")}</Button></div>
       </> : <div className="stack">
-        <AlertItem tone={action === "approve" ? "info" : "warning"} title={action === "approve" ? t("confirmDriverApproval") : t("confirmDriverRejection")} description={action === "approve" ? t("approvalEffectDescription") : t("rejectionEffectDescription")} />
+        <AlertItem tone={action === "approve" || action === "reopen" ? "info" : "warning"} title={action === "approve" ? t("confirmDriverApproval") : action === "reopen" ? t("confirmReopenVerification") : t("confirmDriverRejection")} description={action === "approve" ? t("approvalEffectDescription") : action === "reopen" ? t("reopenEffectDescription") : t("rejectionEffectDescription")} />
         {action === "approve" && !driver && <>
           <label className="field">{t("vehicleType")}<input value={profile.vehicle_type} maxLength={80} onChange={(event) => onProfileChange({ ...profile, vehicle_type: event.target.value })} /></label>
           <label className="field">{t("seatCapacity")}<input type="number" min={1} max={8} value={profile.seats_total} onChange={(event) => onProfileChange({ ...profile, seats_total: event.target.value })} /></label>
           <label className="field">{t("parcelCapacity")}<input type="number" min={0} max={20} value={profile.parcel_capacity} onChange={(event) => onProfileChange({ ...profile, parcel_capacity: event.target.value })} /></label>
         </>}
+        {action === "reopen" && <label className="field">{t("reopenReason")}<textarea value={reason} minLength={3} maxLength={500} onChange={(event) => onReasonChange(event.target.value)} /></label>}
         {action === "reject" && <label className="field">{t("verificationRejectionReason")}<textarea value={reason} minLength={3} maxLength={500} onChange={(event) => onReasonChange(event.target.value)} /></label>}
         {error && <p role="alert" className="overview-resource-note overview-resource-note--error">{error}</p>}
         <div className="card__actions"><Button variant="primary" disabled={confirmDisabled} onClick={onConfirm}>{busy ? t("saving") : t("confirm")}</Button><Button variant="ghost" disabled={busy} onClick={() => onAction(null)}>{t("cancel")}</Button></div>
       </div>}
     </Card>
+    {verification.history.length > 0 && <Card span={12}>
+      <CardHeader title={t("verificationHistory")} />
+      <div className="stack stack--tight">
+        {verification.history.map((entry) => <div className="split" key={entry.id}>
+          <span><StatusBadge tone={entry.decision === "approved" ? "success" : entry.decision === "rejected" ? "danger" : "info"}>{t(`verificationHistory_${entry.decision}`)}</StatusBadge> {entry.reason && <span className="muted">{entry.reason}</span>}</span>
+          <span className="muted">{entry.decided_by?.name ?? "—"} · {dateTime(entry.created_at)}</span>
+        </div>)}
+      </div>
+    </Card>}
   </>;
 }
 
@@ -122,7 +135,7 @@ export function DriverDirectory({ api, token, drivers, search, busy, onUpdateSta
   const [selected, setSelected] = useState<DriverVerification | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [decisionBusy, setDecisionBusy] = useState(false);
-  const [decision, setDecision] = useState<"approve" | "reject" | null>(null);
+  const [decision, setDecision] = useState<"approve" | "reject" | "reopen" | null>(null);
   const [decisionReason, setDecisionReason] = useState("");
   const [decisionError, setDecisionError] = useState<string | null>(null);
   const [profile, setProfile] = useState<ProfileForm>({ vehicle_type: "", seats_total: "", parcel_capacity: "" });
@@ -159,7 +172,9 @@ export function DriverDirectory({ api, token, drivers, search, busy, onUpdateSta
     setDecisionBusy(true);
     setDecisionError(null);
     try {
-      const result = decision === "approve"
+      const result = decision === "reopen"
+        ? await api.reopenDriverVerification(token, selected.candidate.id, selected.revision, decisionReason)
+        : decision === "approve"
         ? await api.approveDriverVerification(token, selected.candidate.id, selected.revision, selected.driver_profile ? undefined : ({ vehicle_type: profile.vehicle_type.trim(), seats_total: Number(profile.seats_total), parcel_capacity: Number(profile.parcel_capacity) } satisfies DriverProfileDraft))
         : await api.rejectDriverVerification(token, selected.candidate.id, selected.revision, decisionReason);
       setSelected(result.verification);
