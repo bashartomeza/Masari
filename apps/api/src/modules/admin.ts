@@ -792,10 +792,11 @@ adminRouter.get("/admin/dashboard", async (req: AuthenticatedRequest, res, next)
         prisma.passengerRequest.count(),
         prisma.merchantOrder.count(),
         prisma.parcel.count(),
-        // Active driver = verified driver with at least one route currently open for matching.
+        // Active driver = verified driver with a route in service: waiting for work
+        // (active), holding an accepted job (assigned), or driving it (on_trip).
         prisma.driverRoute.groupBy({
           by: ["driver_id"],
-          where: { status: "active", driver: { verified: true } }
+          where: { status: { in: ["active", "assigned", "on_trip"] }, driver: { verified: true } }
         }),
         prisma.driverVerification.count({ where: { status: "pending" } }),
         prisma.incident.count({ where: { status: { not: "resolved" } } }),

@@ -384,6 +384,10 @@ describe("manual role APIs", () => {
     const response = await request(createApp()).get("/api/v1/admin/dashboard").set(auth("admin_1")).expect(200);
     expect(response.body.counts.users).toBe(5);
     expect(response.body.counts.active_drivers).toBe(2);
+    expect(prismaMock.driverRoute.groupBy.mock.calls[0][0].where).toEqual({
+      status: { in: ["active", "assigned", "on_trip"] },
+      driver: { verified: true }
+    });
     expect(response.body.counts.pending_driver_approvals).toBe(3);
     expect(response.body.counts.open_incidents).toBe(4);
   });
