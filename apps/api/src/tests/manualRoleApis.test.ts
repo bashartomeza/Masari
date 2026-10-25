@@ -8,7 +8,8 @@ const prismaMock = vi.hoisted(() => ({
   auditEvent: { create: vi.fn() },
   passengerRequest: { create: vi.fn(), findMany: vi.fn(), findFirst: vi.fn(), update: vi.fn(), count: vi.fn() },
   driverProfile: { findUnique: vi.fn(), findMany: vi.fn(), count: vi.fn() },
-  driverRoute: { create: vi.fn(), findMany: vi.fn(), findFirst: vi.fn(), update: vi.fn(), count: vi.fn() },
+  driverRoute: { create: vi.fn(), findMany: vi.fn(), findFirst: vi.fn(), update: vi.fn(), count: vi.fn(), groupBy: vi.fn() },
+  driverVerification: { count: vi.fn() },
   merchantOrder: { create: vi.fn(), findMany: vi.fn(), findFirst: vi.fn(), count: vi.fn() },
   parcel: { count: vi.fn() }
 }));
@@ -372,12 +373,16 @@ describe("manual role APIs", () => {
     prismaMock.passengerRequest.count.mockResolvedValue(1);
     prismaMock.merchantOrder.count.mockResolvedValue(1);
     prismaMock.parcel.count.mockResolvedValue(5);
+    prismaMock.driverRoute.groupBy.mockResolvedValue([{ driver_id: "d1" }, { driver_id: "d2" }]);
+    prismaMock.driverVerification.count.mockResolvedValue(3);
     prismaMock.passengerRequest.findMany.mockResolvedValue([{ id: "req_1" }]);
     prismaMock.merchantOrder.findMany.mockResolvedValue([{ id: "order_1", parcels: [] }]);
     prismaMock.driverRoute.findMany.mockResolvedValue([{ id: "route_1" }]);
 
     const response = await request(createApp()).get("/api/v1/admin/dashboard").set(auth("admin_1")).expect(200);
     expect(response.body.counts.users).toBe(5);
+    expect(response.body.counts.active_drivers).toBe(2);
+    expect(response.body.counts.pending_driver_approvals).toBe(3);
   });
 
   it("non-admin cannot read dashboard", async () => {

@@ -587,7 +587,19 @@ adminRouter.patch("/admin/users/:id/status", async (req: AuthenticatedRequest, r
 
 adminRouter.get("/admin/dashboard", async (req: AuthenticatedRequest, res, next) => {
   try {
-    const [users, drivers, routes, requests, orders, parcels, recentRequests, recentOrders, recentRoutes] =
+    const [
+      users,
+      drivers,
+      routes,
+      requests,
+      orders,
+      parcels,
+      activeDriverGroups,
+      pendingDriverApprovals,
+      recentRequests,
+      recentOrders,
+      recentRoutes
+    ] =
       await Promise.all([
         prisma.user.count(),
         prisma.driverProfile.count(),
@@ -595,6 +607,12 @@ adminRouter.get("/admin/dashboard", async (req: AuthenticatedRequest, res, next)
         prisma.passengerRequest.count(),
         prisma.merchantOrder.count(),
         prisma.parcel.count(),
+        // Active driver = verified driver with at least one route currently open for matching.
+        prisma.driverRoute.groupBy({
+          by: ["driver_id"],
+          where: { status: "active", driver: { verified: true } }
+        }),
+        prisma.driverVerification.count({ where: { status: "pending" } }),
         prisma.passengerRequest.findMany({ orderBy: { created_at: "desc" }, take: 5 }),
         prisma.merchantOrder.findMany({ orderBy: { created_at: "desc" }, take: 5, include: { parcels: true } }),
         prisma.driverRoute.findMany({ orderBy: { activated_at: "desc" }, take: 5 })
@@ -608,7 +626,16 @@ adminRouter.get("/admin/dashboard", async (req: AuthenticatedRequest, res, next)
     });
 
     res.json({
-      counts: { users, drivers, routes, passenger_requests: requests, merchant_orders: orders, parcels },
+      counts: {
+        users,
+        drivers,
+        routes,
+        passenger_requests: requests,
+        merchant_orders: orders,
+        parcels,
+        active_drivers: activeDriverGroups.length,
+        pending_driver_approvals: pendingDriverApprovals
+      },
       recent: { passenger_requests: recentRequests, merchant_orders: recentOrders, routes: recentRoutes }
     });
   } catch (error) {

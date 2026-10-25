@@ -356,6 +356,8 @@ export type DashboardResponse = {
     passenger_requests: number;
     merchant_orders: number;
     parcels: number;
+    active_drivers: number;
+    pending_driver_approvals: number;
   };
 };
 
