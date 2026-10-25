@@ -499,7 +499,7 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
                 Row(
                   children: [
                     Expanded(
-                      child: _QuickInfoItem(
+                      child: _quickInfoItem(
                         icon: Icons.people_alt_rounded,
                         value: '${trip.passengerRequest?.passengerCount ?? 0}',
                         label: l10n.passengerCount,
@@ -511,7 +511,7 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
                     if ((trip.merchantOrder?.parcelCount ?? 0) > 0) ...[
                       const SizedBox(width: 8),
                       Expanded(
-                        child: _QuickInfoItem(
+                        child: _quickInfoItem(
                           icon: Icons.inventory_2_rounded,
                           value: '${trip.merchantOrder?.parcelCount ?? 0}',
                           label: l10n.parcelCount,
@@ -522,7 +522,7 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
                     const SizedBox(width: 8),
 
                     Expanded(
-                      child: _QuickInfoItem(
+                      child: _quickInfoItem(
                         icon: Icons.traffic_rounded,
                         value: '${checkpointSnapshot.checkpoints.length}',
                         label: 'الحواجز',
@@ -594,20 +594,20 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
   // ============================================================
   // QUICK INFO ITEM
   // ============================================================
-  Widget _QuickInfoItem({
+  Widget _quickInfoItem({
     required IconData icon,
     required String value,
     required String label,
     VoidCallback? onTap,
   }) {
     final content = Container(
-      height: 66,
+      height: 74,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
       decoration: BoxDecoration(
-        color: onTap != null ? orangeSoft.withOpacity(0.45) : background,
+        color: onTap != null ? orangeSoft.withValues(alpha: 0.45) : background,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: onTap != null ? orange.withOpacity(0.15) : border,
+          color: onTap != null ? orange.withValues(alpha: 0.15) : border,
         ),
       ),
       child: Column(

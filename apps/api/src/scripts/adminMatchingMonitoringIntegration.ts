@@ -88,7 +88,7 @@ function safePage<T>(page: Page<T>, inspect: (row: T) => void) {
 }
 async function session(role: "admin" | "passenger" | "driver" | "merchant", suffix: string = role, state?: "expired" | "revoked") {
   const userId = id(`user_${suffix}`);
-  await prisma.user.create({ data: { id: userId, name: marker, phone: `${prefix}-${suffix}`, password_hash: marker, role } });
+  await prisma.user.create({ data: { id: userId, name: marker, email: `${prefix}-${suffix}@monitoring.invalid`, email_verified_at: new Date(), profile_state: "complete", password_hash: marker, role } });
   const sessionId = id(`session_${suffix}`);
   await prisma.authSession.create({ data: { id: sessionId, user_id: userId, client_type: "admin", security_version_at_issue: 1,
     expires_at: new Date(Date.now() + (state === "expired" ? -60_000 : 3_600_000)), revoked_at: state === "revoked" ? new Date() : null } });
@@ -150,7 +150,7 @@ try {
   const expired = await session("admin", "expired", "expired");
   const revoked = await session("admin", "revoked", "revoked");
   for (const role of ["passenger", "driver", "merchant"] as const) {
-    await prisma.user.create({ data: { id: id(`demo_${role}`), name: marker, phone: `${prefix}-demo-${role}`, password_hash: marker, role, demo_account: true } });
+    await prisma.user.create({ data: { id: id(`demo_${role}`), name: marker, email: `${prefix}-demo-${role}@monitoring.invalid`, email_verified_at: new Date(), profile_state: "complete", password_hash: marker, role, demo_account: true } });
   }
   await prisma.driverProfile.createMany({ data: [
     { id: id("profile"), user_id: id("user_driver"), vehicle_type: marker, seats_total: 4, parcel_capacity: 30 },
@@ -174,7 +174,9 @@ try {
   await prisma.passengerRequest.create({ data: requestData("canonical_request", { ...canonical, dropoff_stop_id: id("stop1") }) });
   await prisma.merchantOrder.create({ data: orderData("canonical_order", canonical) });
   await prisma.parcel.create({ data: { id: id("canonical_parcel"), order_id: id("canonical_order"), ...location, size: marker, priority: marker, operational_mode: "canonical_route_v1", canonical_entry_version: "canonical_route_v1", route_version_id: id("version"), destination_stop_id: id("stop1"), batch_id: id("batch_00") } });
-  const batchStatuses = Object.values(ParcelBatchStatus);
+  // The fixtures spread 60 batches evenly over six statuses; later lifecycle states
+  // (cancelled, failed, expired) are not part of this volume matrix.
+  const batchStatuses: Array<"created" | "proposed" | "assigned" | "picked_up" | "in_transit" | "delivered"> = ["created", "proposed", "assigned", "picked_up", "in_transit", "delivered"];
   const matchStatuses = Object.values(MatchStatus);
   await prisma.parcelBatch.createMany({ data: Array.from({ length: 60 }, (_, index) => batchData(`batch_${String(index).padStart(2, "0")}`, { status: batchStatuses[index % 6] })) });
   await prisma.parcelBatch.createMany({ data: [batchData("old_batch", { created_at: old }), batchData("empty_batch", { merchant_order_id: id("empty_order"), driver_route_id: null, created_at: old }),
@@ -276,7 +278,7 @@ try {
   }
   const overview = (await get<Observed<Overview>>(`/overview${query(range)}`)).data;
   keys(overview, ["range", "pending_passenger_requests", "submitted_merchant_orders", "match_results_by_status", "batches_by_status", "active_batches", "capabilities"]);
-  keys(overview.match_results_by_status, matchStatuses); keys(overview.batches_by_status, batchStatuses); keys(overview.range, ["from", "until"]);
+  keys(overview.match_results_by_status, matchStatuses); keys(overview.batches_by_status, Object.values(ParcelBatchStatus)); keys(overview.range, ["from", "until"]);
   assert.deepEqual(overview.capabilities, { canonical_monitoring: "unavailable", failed_attempt_history: "not_recorded", completed_batches: "not_supported" });
   assert.equal(overview.pending_passenger_requests - baseline.pending_passenger_requests, 2);
   assert.equal(overview.submitted_merchant_orders - baseline.submitted_merchant_orders, 2);
