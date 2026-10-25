@@ -62,11 +62,11 @@
   },
   "overrides": {
     "@prisma/adapter-mariadb": {
-      "mariadb": "3.4.7"
+      "mariadb": "3.5.4"
     },
     "deepmerge-ts": "8.0.1",
-    "fast-uri": "3.1.6",
-    "mariadb": "3.4.7",
+    "fast-uri": "3.1.9",
+    "mariadb": "3.5.4",
     "mysql2": "3.23.1",
     "prisma": {
       "mysql2": "3.23.1"
@@ -75,6 +75,7 @@
   },
   "packageManager": "npm@10.9.2",
   "devDependencies": {
+    "vite": "8.3.5",
     "yaml": "2.9.0"
   }
 }
