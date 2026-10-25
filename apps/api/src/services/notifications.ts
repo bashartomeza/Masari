@@ -51,8 +51,11 @@ type MatchParties = {
   merchant_order?: { merchant_id: string } | null;
 };
 
-function demandOwnerId(match: MatchParties) {
-  return match.passenger_request?.passenger_id ?? match.merchant_order?.merchant_id;
+/** A match can serve a passenger request, a merchant order, or both at once. */
+function demandOwnerIds(match: MatchParties) {
+  return [match.passenger_request?.passenger_id, match.merchant_order?.merchant_id].filter(
+    (id): id is string => typeof id === "string"
+  );
 }
 
 export async function notifyMatchOffered(db: Db, match: MatchParties) {
@@ -66,13 +69,15 @@ export async function notifyMatchOffered(db: Db, match: MatchParties) {
 }
 
 export async function notifyMatchDecision(db: Db, match: MatchParties, decision: "accepted" | "rejected") {
-  await notify(db, {
-    userId: demandOwnerId(match),
-    type: decision === "accepted" ? "match_accepted" : "match_rejected",
-    entityType: "Match",
-    entityId: match.id,
-    dedupeKey: `match_${decision}:${match.id}`
-  });
+  for (const userId of demandOwnerIds(match)) {
+    await notify(db, {
+      userId,
+      type: decision === "accepted" ? "match_accepted" : "match_rejected",
+      entityType: "Match",
+      entityId: match.id,
+      dedupeKey: `match_${decision}:${match.id}`
+    });
+  }
 }
 
 /** Tells the passenger and/or merchant behind a trip that its status moved. */

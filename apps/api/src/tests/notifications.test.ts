@@ -141,6 +141,18 @@ describe("notification emission", () => {
     expect(created[0]).toMatchObject({ type: "trip_status", dedupe_key: "trip_status:t1:in_transit", params: { status: "in_transit" } });
   });
 
+  it("tells both the passenger and the merchant when one match serves them together", async () => {
+    prismaMock.notification.create.mockResolvedValue({});
+    await service.notifyMatchDecision(
+      prismaMock as never,
+      { id: "m9", passenger_request: { passenger_id: "pax" }, merchant_order: { merchant_id: "mer" } },
+      "accepted"
+    );
+    const created = prismaMock.notification.create.mock.calls.map((call) => call[0].data);
+    expect(created.map((data) => data.user_id)).toEqual(["pax", "mer"]);
+    expect(created.every((data) => data.type === "match_accepted" && data.dedupe_key === "match_accepted:m9")).toBe(true);
+  });
+
   it("sends a match offer to the driver and the decision to the demand owner", async () => {
     prismaMock.notification.create.mockResolvedValue({});
     const match = {
