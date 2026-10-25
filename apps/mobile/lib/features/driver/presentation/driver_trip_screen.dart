@@ -21,7 +21,6 @@ import '../../checkpoints/application/checkpoint_controller.dart';
 import '../../checkpoints/domain/checkpoint_models.dart';
 import '../../checkpoints/presentation/checkpoint_sheet.dart';
 import '../../checkpoint_directory/presentation/checkpoint_directory_screen.dart';
-import '../../../core/widgets/masari_bottom_nav.dart';
 import '../../incidents/presentation/report_incident_sheet.dart';
 import '../application/driver_controller.dart';
 import '../data/driver_models.dart';
@@ -165,16 +164,6 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen> {
               const SizedBox(width: 8),
 
               _buildFloatingButton(
-                icon: Icons.flag_outlined,
-                onPressed: () => showMasariBottomSheet<void>(
-                  context: context,
-                  child: ReportIncidentForm(tripId: widget.tripId),
-                ),
-              ),
-
-              const SizedBox(width: 8),
-
-              _buildFloatingButton(
                 icon: Icons.my_location_rounded,
                 onPressed: () {
                   setState(() {});
@@ -278,6 +267,11 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen> {
   // ============================================================
 
   Widget _buildLanguageButton() {
+    // Inside the shell the app bar already carries the language control, and the
+    // switch renders nothing; skip its pill so no empty white sliver is left.
+    if (ShellLanguageControl.isProvided(context)) {
+      return const SizedBox.shrink();
+    }
     return Container(
       height: 46,
       padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -532,6 +526,8 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen> {
                 const SizedBox(height: 9),
 
                 _buildTripActions(context, l10n, state),
+
+                ReportIncidentButton(tripId: widget.tripId),
               ],
             ),
           ),

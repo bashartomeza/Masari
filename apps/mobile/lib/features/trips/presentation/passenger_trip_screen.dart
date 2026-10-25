@@ -15,7 +15,6 @@ import '../../../core/widgets/language_switch.dart';
 import '../../../core/widgets/masari_map.dart';
 import '../../../core/widgets/state_views.dart';
 import '../../checkpoints/application/checkpoint_controller.dart';
-import '../../../core/widgets/masari_bottom_nav.dart';
 import '../../incidents/presentation/report_incident_sheet.dart';
 import '../application/passenger_trip_controller.dart';
 
@@ -274,14 +273,6 @@ class _PassengerTripScreenState extends ConsumerState<PassengerTripScreen> {
               _buildLanguageButton(),
               const SizedBox(width: 8),
               _buildFloatingButton(
-                icon: Icons.flag_outlined,
-                onPressed: () => showMasariBottomSheet<void>(
-                  context: context,
-                  child: ReportIncidentForm(tripId: widget.tripId),
-                ),
-              ),
-              const SizedBox(width: 8),
-              _buildFloatingButton(
                 icon: Icons.my_location_rounded,
                 onPressed: () {
                   setState(() {});
@@ -364,6 +355,11 @@ class _PassengerTripScreenState extends ConsumerState<PassengerTripScreen> {
   // ============================================================
 
   Widget _buildLanguageButton() {
+    // Inside the shell the app bar already carries the language control, and the
+    // switch renders nothing; skip its pill so no empty white sliver is left.
+    if (ShellLanguageControl.isProvided(context)) {
+      return const SizedBox.shrink();
+    }
     return Container(
       height: 46,
       padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -606,6 +602,8 @@ class _PassengerTripScreenState extends ConsumerState<PassengerTripScreen> {
                 // REFRESH
                 // ==================================================
                 _buildRefreshButton(context, l10n),
+
+                ReportIncidentButton(tripId: widget.tripId),
               ],
             ),
           ),
