@@ -42,6 +42,10 @@ const query = (values: Record<string, string | number>) => `?${new URLSearchPara
 const times: Record<string, number[]> = {};
 let adminToken = "";
 let phase = "setup";
+// The API process runs the legacy dispatch worker, which expires pending requests whose
+// preferred time has passed (and their matches). These fixtures must stay untouched while
+// the script compares before/after snapshots, so their requests are never overdue.
+const neverOverdue = new Date("2099-01-01T00:00:00.000Z");
 const readBudgetMs = 10_000;
 
 async function get<T>(path: string, token = adminToken, status = 200): Promise<T> {
@@ -97,7 +101,7 @@ async function session(role: "admin" | "passenger" | "driver" | "merchant", suff
 const location = { destination_label: marker, destination_lat: "31.7", destination_lng: "35.2" };
 const pickup = { pickup_label: marker, pickup_lat: "31.5", pickup_lng: "35.1" };
 function requestData(suffix: string, extra: Partial<Prisma.PassengerRequestUncheckedCreateInput> = {}): Prisma.PassengerRequestUncheckedCreateInput {
-  return { id: id(suffix), passenger_id: id("user_passenger"), ...pickup, ...location, preferred_time: created, passenger_count: 2, source: "manual", created_at: created, ...extra };
+  return { id: id(suffix), passenger_id: id("user_passenger"), ...pickup, ...location, preferred_time: neverOverdue, passenger_count: 2, source: "manual", created_at: created, ...extra };
 }
 function orderData(suffix: string, extra: Partial<Prisma.MerchantOrderUncheckedCreateInput> = {}): Prisma.MerchantOrderUncheckedCreateInput {
   return { id: id(suffix), merchant_id: id("user_merchant"), ...pickup, created_at: created, ...extra };
