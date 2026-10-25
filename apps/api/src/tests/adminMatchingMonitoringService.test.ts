@@ -3,8 +3,11 @@ import { Prisma, type PrismaClient } from "../generated/prisma/client.js";
 import { MatchStatus, ParcelBatchStatus } from "../generated/prisma/enums.js";
 import { HttpError } from "../middleware/error.js";
 import { parseMatchQuery } from "../services/adminMatchingMonitoring/contracts.js";
-import { batchSelect, eligibleBatch, eligibleMatch, eligibleOrder, eligibleParcel, eligiblePassenger, matchSelect, parcelSelect } from "../services/adminMatchingMonitoring/policy.js";
+import { batchSelect, eligibilityFor, eligibleParcel, eligiblePassenger, matchSelect, ordersWithIneligibleParcels, parcelSelect } from "../services/adminMatchingMonitoring/policy.js";
 import { createMonitoringService } from "../services/adminMatchingMonitoring/service.js";
+
+// With no order holding an ineligible parcel, the rules reduce to the base order rule.
+const { eligibleBatch, eligibleMatch, eligibleOrder } = eligibilityFor([]);
 
 const now = new Date("2026-09-10T12:00:00.000Z");
 const range = { from: "2026-09-03T12:00:00.000Z", until: now.toISOString() };
@@ -33,7 +36,7 @@ function database() {
   const mutation = vi.fn(() => { throw new Error("domain mutation attempted"); });
   const tx = {
     passengerRequest: { count: vi.fn() },
-    merchantOrder: { count: vi.fn() },
+    merchantOrder: { count: vi.fn(), findMany: vi.fn().mockResolvedValue([]) },
     match: { findMany: vi.fn(), findFirst: vi.fn(), count: vi.fn(), groupBy: vi.fn(), create: mutation, update: mutation, delete: mutation },
     parcelBatch: { findMany: vi.fn(), findFirst: vi.fn(), count: vi.fn(), groupBy: vi.fn(), create: mutation, update: mutation, delete: mutation },
     parcel: { findMany: vi.fn(), count: vi.fn(), create: mutation, update: mutation, delete: mutation },
@@ -184,5 +187,20 @@ describe("admin matching monitoring service", () => {
     }
     transaction.mockRejectedValueOnce(new Error("serializer bug"));
     await expect(service.overview(range)).rejects.toThrow("serializer bug");
+  });
+  it("excludes orders that hold an ineligible parcel by id, resolved once per read", async () => {
+    const { db, tx } = database();
+    tx.merchantOrder.findMany.mockResolvedValue([{ id: "order_bad" }]);
+    tx.match.findMany.mockResolvedValue([]);
+    tx.match.count.mockResolvedValue(0);
+
+    await createMonitoringService(db, () => now).matches(parseMatchQuery({}, now));
+
+    expect(tx.merchantOrder.findMany).toHaveBeenCalledTimes(1);
+    expect(tx.merchantOrder.findMany).toHaveBeenCalledWith({ where: ordersWithIneligibleParcels, select: { id: true } });
+    const rules = eligibilityFor(["order_bad"]);
+    expect(rules.eligibleOrder).toMatchObject({ id: { notIn: ["order_bad"] }, operational_mode: "legacy" });
+    expect(rules.eligibleOrder).not.toHaveProperty("parcels");
+    expect(tx.match.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { AND: [rules.eligibleMatch, expect.anything()] } }));
   });
 });
