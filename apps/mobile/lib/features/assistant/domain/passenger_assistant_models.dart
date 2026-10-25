@@ -205,7 +205,15 @@ enum PassengerAssistantPhase {
   error,
 }
 
-enum PassengerAssistantFailure { unavailable, network, generic }
+enum PassengerAssistantFailure {
+  unavailable,
+  selectedDriverUnavailable,
+  network,
+  expired,
+  unknownBooking,
+  savedBooking,
+  generic,
+}
 
 class PassengerAssistantState {
   const PassengerAssistantState({
@@ -221,6 +229,8 @@ class PassengerAssistantState {
     this.tripOptions = const [],
     this.selectingTripId,
     this.selectionFailure,
+    this.savedRequestId,
+    this.selectionRequestId,
   });
 
   final PassengerAssistantPhase phase;
@@ -235,6 +245,10 @@ class PassengerAssistantState {
   final List<PassengerAssistantTripOption> tripOptions;
   final String? selectingTripId;
   final PassengerAssistantFailure? selectionFailure;
+  final String? savedRequestId;
+
+  /// Saved request resolved by this selection attempt, never a previous search.
+  final String? selectionRequestId;
 }
 
 String _requiredString(Map<String, dynamic> json, String key) {

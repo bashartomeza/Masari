@@ -298,6 +298,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get selectedDriver => 'Selected driver';
 
   @override
+  String get selectedDriverUnavailable =>
+      'The selected driver route is no longer available. Please search again.';
+
+  @override
   String get selectedRoute => 'Selected route';
 
   @override
@@ -1457,6 +1461,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'There is no backend to receive incident reports yet, so nothing would be submitted from here.';
 
   @override
+  String get notificationsUnavailableBody =>
+      'There is no notification service in this build. Updates appear inside the trip screen.';
+
+  @override
   String get performanceTitle => 'Earnings and performance';
 
   @override
@@ -1488,6 +1496,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get shipmentsFailed => 'Could not load your shipments.';
+
+  @override
+  String get reportsUnavailable => 'Reports unavailable';
+
+  @override
+  String get reportsUnavailableBody =>
+      'There is no backend for generating or exporting PDF or Excel reports.';
 
   @override
   String get accountProfile => 'Profile';
@@ -1844,6 +1859,71 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mapSelectRoute => 'Choose a route to show it on the map.';
+
+  @override
+  String get recoverMerchantOrder => 'Recover order';
+
+  @override
+  String get merchantOrderUncertain =>
+      'The order may have been saved. Recover it before creating another order.';
+
+  @override
+  String get merchantOrderRecoveryExpired =>
+      'The retry window has expired. Only a saved-order lookup is allowed. Contact support if recovery remains unresolved.';
+
+  @override
+  String get merchantOrderRecoveryUnavailable =>
+      'Order recovery is unavailable. Sign in to the original merchant account or contact support. Do not submit a replacement order.';
+
+  @override
+  String get bookingTimePassed =>
+      'This departure time has passed. Choose an upcoming time.';
+
+  @override
+  String get bookingOutcomeUnknown =>
+      'The booking may already be saved. We will verify it when the connection returns. Do not create another booking.';
+
+  @override
+  String get verifyBooking => 'Verify booking';
+
+  @override
+  String get checkpointDirectoryTitle => 'Checkpoint directory';
+
+  @override
+  String get checkpointDirectoryDisabled =>
+      'Checkpoint directory is not enabled.';
+
+  @override
+  String get checkpointDirectoryLoadFailed =>
+      'Checkpoint directory could not be loaded.';
+
+  @override
+  String get checkpointDirectorySearch => 'Search checkpoints or cities';
+
+  @override
+  String get checkpointDirectoryNoResults => 'No matching checkpoints';
+
+  @override
+  String get checkpointDirectoryTrafficUnavailable =>
+      'Traffic status unavailable';
+
+  @override
+  String get checkpointDirectoryLimitedNotice =>
+      'Limited provider dataset: up to seven checkpoints per city. This is not the complete directory.';
+
+  @override
+  String get checkpointDirectoryGenerated => 'Provider response generated';
+
+  @override
+  String get checkpointDirectoryEnteringUpdated =>
+      'Entering status last changed (status unavailable)';
+
+  @override
+  String get checkpointDirectoryLeavingUpdated =>
+      'Leaving status last changed (status unavailable)';
+
+  @override
+  String get checkpointDirectoryTimezoneUnspecified => 'timezone unspecified';
 
   @override
   String get notifMatchOfferedTitle => 'New match offer';

@@ -300,6 +300,10 @@ class AppLocalizationsAr extends AppLocalizations {
   String get selectedDriver => 'السائق المختار';
 
   @override
+  String get selectedDriverUnavailable =>
+      'مسار السائق المختار لم يعد متاحاً. اختر رحلة أخرى.';
+
+  @override
   String get selectedRoute => 'المسار المختار';
 
   @override
@@ -1449,6 +1453,10 @@ class AppLocalizationsAr extends AppLocalizations {
       'لا يوجد حتى الآن نظام خلفي لاستقبال البلاغات، ولن يتم إرسال أي بلاغ من هنا.';
 
   @override
+  String get notificationsUnavailableBody =>
+      'لا يوجد نظام إشعارات في هذه النسخة. ستصلك التحديثات داخل شاشة الرحلة.';
+
+  @override
   String get performanceTitle => 'الأرباح والأداء';
 
   @override
@@ -1480,6 +1488,13 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get shipmentsFailed => 'تعذّر تحميل الشحنات.';
+
+  @override
+  String get reportsUnavailable => 'التقارير غير متاحة';
+
+  @override
+  String get reportsUnavailableBody =>
+      'لا يوجد نظام خلفي لتوليد التقارير أو تصديرها بصيغة PDF أو Excel.';
 
   @override
   String get accountProfile => 'الملف الشخصي';
@@ -1834,6 +1849,68 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get mapSelectRoute => 'اختر مساراً لعرضه على الخريطة.';
+
+  @override
+  String get recoverMerchantOrder => 'استعادة الطلب';
+
+  @override
+  String get merchantOrderUncertain =>
+      'قد يكون الطلب قد حُفظ. استعده قبل إنشاء طلب آخر.';
+
+  @override
+  String get merchantOrderRecoveryExpired =>
+      'انتهت مهلة إعادة المحاولة. يُسمح فقط بالتحقق من الطلب المحفوظ. تواصل مع الدعم إذا لم تُحسم نتيجة الطلب.';
+
+  @override
+  String get merchantOrderRecoveryUnavailable =>
+      'استعادة الطلب غير متاحة. سجّل الدخول إلى حساب التاجر الأصلي أو تواصل مع الدعم. لا ترسل طلباً بديلاً.';
+
+  @override
+  String get bookingTimePassed => 'وقت المغادرة هذا قد مضى. اختر وقتاً قادماً.';
+
+  @override
+  String get bookingOutcomeUnknown =>
+      'قد يكون الحجز محفوظًا بالفعل. سنتحقق منه عند عودة الاتصال. لا تنشئ حجزًا آخر.';
+
+  @override
+  String get verifyBooking => 'التحقق من الحجز';
+
+  @override
+  String get checkpointDirectoryTitle => 'دليل الحواجز';
+
+  @override
+  String get checkpointDirectoryDisabled => 'دليل الحواجز غير مفعّل.';
+
+  @override
+  String get checkpointDirectoryLoadFailed => 'تعذر تحميل دليل الحواجز.';
+
+  @override
+  String get checkpointDirectorySearch => 'ابحث عن حاجز أو مدينة';
+
+  @override
+  String get checkpointDirectoryNoResults => 'لا توجد حواجز مطابقة';
+
+  @override
+  String get checkpointDirectoryTrafficUnavailable => 'حالة المرور غير متاحة';
+
+  @override
+  String get checkpointDirectoryLimitedNotice =>
+      'بيانات محدودة من المزود: حتى سبع نقاط في كل مدينة. هذه ليست القائمة الكاملة.';
+
+  @override
+  String get checkpointDirectoryGenerated => 'وقت إنشاء استجابة المزود';
+
+  @override
+  String get checkpointDirectoryEnteringUpdated =>
+      'آخر تغيير لحالة الدخول (الحالة غير متاحة)';
+
+  @override
+  String get checkpointDirectoryLeavingUpdated =>
+      'آخر تغيير لحالة الخروج (الحالة غير متاحة)';
+
+  @override
+  String get checkpointDirectoryTimezoneUnspecified =>
+      'المنطقة الزمنية غير محددة';
 
   @override
   String get notifMatchOfferedTitle => 'عرض مطابقة جديد';

@@ -650,6 +650,12 @@ abstract class AppLocalizations {
   /// **'السائق المختار'**
   String get selectedDriver;
 
+  /// No description provided for @selectedDriverUnavailable.
+  ///
+  /// In ar, this message translates to:
+  /// **'مسار السائق المختار لم يعد متاحاً. اختر رحلة أخرى.'**
+  String get selectedDriverUnavailable;
+
   /// No description provided for @selectedRoute.
   ///
   /// In ar, this message translates to:
@@ -2810,6 +2816,12 @@ abstract class AppLocalizations {
   /// **'لا يوجد حتى الآن نظام خلفي لاستقبال البلاغات، ولن يتم إرسال أي بلاغ من هنا.'**
   String get incidentReportingUnavailableBody;
 
+  /// No description provided for @notificationsUnavailableBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد نظام إشعارات في هذه النسخة. ستصلك التحديثات داخل شاشة الرحلة.'**
+  String get notificationsUnavailableBody;
+
   /// No description provided for @performanceTitle.
   ///
   /// In ar, this message translates to:
@@ -2869,6 +2881,18 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'تعذّر تحميل الشحنات.'**
   String get shipmentsFailed;
+
+  /// No description provided for @reportsUnavailable.
+  ///
+  /// In ar, this message translates to:
+  /// **'التقارير غير متاحة'**
+  String get reportsUnavailable;
+
+  /// No description provided for @reportsUnavailableBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد نظام خلفي لتوليد التقارير أو تصديرها بصيغة PDF أو Excel.'**
+  String get reportsUnavailableBody;
 
   /// No description provided for @accountProfile.
   ///
@@ -3481,6 +3505,114 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'اختر مساراً لعرضه على الخريطة.'**
   String get mapSelectRoute;
+
+  /// No description provided for @recoverMerchantOrder.
+  ///
+  /// In ar, this message translates to:
+  /// **'استعادة الطلب'**
+  String get recoverMerchantOrder;
+
+  /// No description provided for @merchantOrderUncertain.
+  ///
+  /// In ar, this message translates to:
+  /// **'قد يكون الطلب قد حُفظ. استعده قبل إنشاء طلب آخر.'**
+  String get merchantOrderUncertain;
+
+  /// No description provided for @merchantOrderRecoveryExpired.
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت مهلة إعادة المحاولة. يُسمح فقط بالتحقق من الطلب المحفوظ. تواصل مع الدعم إذا لم تُحسم نتيجة الطلب.'**
+  String get merchantOrderRecoveryExpired;
+
+  /// No description provided for @merchantOrderRecoveryUnavailable.
+  ///
+  /// In ar, this message translates to:
+  /// **'استعادة الطلب غير متاحة. سجّل الدخول إلى حساب التاجر الأصلي أو تواصل مع الدعم. لا ترسل طلباً بديلاً.'**
+  String get merchantOrderRecoveryUnavailable;
+
+  /// No description provided for @bookingTimePassed.
+  ///
+  /// In ar, this message translates to:
+  /// **'وقت المغادرة هذا قد مضى. اختر وقتاً قادماً.'**
+  String get bookingTimePassed;
+
+  /// No description provided for @bookingOutcomeUnknown.
+  ///
+  /// In ar, this message translates to:
+  /// **'قد يكون الحجز محفوظًا بالفعل. سنتحقق منه عند عودة الاتصال. لا تنشئ حجزًا آخر.'**
+  String get bookingOutcomeUnknown;
+
+  /// No description provided for @verifyBooking.
+  ///
+  /// In ar, this message translates to:
+  /// **'التحقق من الحجز'**
+  String get verifyBooking;
+
+  /// No description provided for @checkpointDirectoryTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'دليل الحواجز'**
+  String get checkpointDirectoryTitle;
+
+  /// No description provided for @checkpointDirectoryDisabled.
+  ///
+  /// In ar, this message translates to:
+  /// **'دليل الحواجز غير مفعّل.'**
+  String get checkpointDirectoryDisabled;
+
+  /// No description provided for @checkpointDirectoryLoadFailed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذر تحميل دليل الحواجز.'**
+  String get checkpointDirectoryLoadFailed;
+
+  /// No description provided for @checkpointDirectorySearch.
+  ///
+  /// In ar, this message translates to:
+  /// **'ابحث عن حاجز أو مدينة'**
+  String get checkpointDirectorySearch;
+
+  /// No description provided for @checkpointDirectoryNoResults.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد حواجز مطابقة'**
+  String get checkpointDirectoryNoResults;
+
+  /// No description provided for @checkpointDirectoryTrafficUnavailable.
+  ///
+  /// In ar, this message translates to:
+  /// **'حالة المرور غير متاحة'**
+  String get checkpointDirectoryTrafficUnavailable;
+
+  /// No description provided for @checkpointDirectoryLimitedNotice.
+  ///
+  /// In ar, this message translates to:
+  /// **'بيانات محدودة من المزود: حتى سبع نقاط في كل مدينة. هذه ليست القائمة الكاملة.'**
+  String get checkpointDirectoryLimitedNotice;
+
+  /// No description provided for @checkpointDirectoryGenerated.
+  ///
+  /// In ar, this message translates to:
+  /// **'وقت إنشاء استجابة المزود'**
+  String get checkpointDirectoryGenerated;
+
+  /// No description provided for @checkpointDirectoryEnteringUpdated.
+  ///
+  /// In ar, this message translates to:
+  /// **'آخر تغيير لحالة الدخول (الحالة غير متاحة)'**
+  String get checkpointDirectoryEnteringUpdated;
+
+  /// No description provided for @checkpointDirectoryLeavingUpdated.
+  ///
+  /// In ar, this message translates to:
+  /// **'آخر تغيير لحالة الخروج (الحالة غير متاحة)'**
+  String get checkpointDirectoryLeavingUpdated;
+
+  /// No description provided for @checkpointDirectoryTimezoneUnspecified.
+  ///
+  /// In ar, this message translates to:
+  /// **'المنطقة الزمنية غير محددة'**
+  String get checkpointDirectoryTimezoneUnspecified;
 
   /// No description provided for @notifMatchOfferedTitle.
   ///

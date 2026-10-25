@@ -37,6 +37,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _googleBusy = false;
   bool _openingOnboarding = false;
   bool _restorationNavigationScheduled = false;
+  bool _showAttemptError = false;
   String? _googleErrorKey;
 
   @override
@@ -54,10 +55,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         _submitting ||
         _googleBusy ||
         _openingOnboarding ||
-        // A failed attempt publishes an error but keeps the previous value, which
-        // is still `authenticating`; the error means the attempt is over.
-        (!auth.hasError && auth.value?.status == AuthStatus.authenticating);
-    final error = auth.error;
+        auth.value?.status == AuthStatus.authenticating;
+    final loginFailure = ref.read(authControllerProvider.notifier).loginFailure;
+    final error = _showAttemptError || identical(loginFailure, auth.error)
+        ? auth.error
+        : null;
     final sessionEndReason = auth.value?.sessionEndReason;
     final demoAccounts = demoAccountsFor(ref.watch(appConfigProvider));
     final onboarding = ref.watch(onboardingControllerProvider).value;
@@ -137,6 +139,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         TextFormField(
                           key: const ValueKey('emailField'),
                           controller: _emailController,
+                          onChanged: (_) => _clearAttemptError(),
                           keyboardType: TextInputType.emailAddress,
                           autofillHints: const [AutofillHints.email],
                           inputFormatters: [
@@ -151,6 +154,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         TextFormField(
                           key: const ValueKey('passwordField'),
                           controller: _passwordController,
+                          onChanged: (_) => _clearAttemptError(),
                           obscureText: !_showPassword,
                           autofillHints: const [AutofillHints.password],
                           onFieldSubmitted: (_) => _login(),
@@ -340,15 +344,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   void _fillDemo(DemoAccount account) {
+    _clearAttemptError();
     _emailController.text = account.email;
     _passwordController.text = account.password;
   }
 
   Future<void> _login() async {
     if (_submitting) return;
-    setState(() => _googleErrorKey = null);
+    _clearAttemptError();
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    setState(() => _submitting = true);
+    setState(() {
+      _submitting = true;
+      _showAttemptError = true;
+    });
     await ref
         .read(authControllerProvider.notifier)
         .login(
@@ -359,9 +367,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _loginWithGoogle(String idToken) async {
+    _clearAttemptError();
     setState(() {
-      _googleErrorKey = null;
       _googleBusy = true;
+      _showAttemptError = true;
     });
     await ref
         .read(authControllerProvider.notifier)
@@ -373,8 +382,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (!mounted) return;
     setState(() {
       _googleBusy = false;
+      _showAttemptError = false;
       _googleErrorKey = 'failed';
     });
+  }
+
+  void _clearAttemptError() {
+    setState(() {
+      _showAttemptError = false;
+      _googleErrorKey = null;
+    });
+    ref.read(authControllerProvider.notifier).clearError();
   }
 
   Future<void> _openSignUp() async {

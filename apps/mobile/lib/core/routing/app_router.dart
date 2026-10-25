@@ -97,11 +97,20 @@ final _merchantAccountKey = GlobalKey<NavigatorState>(
 );
 
 final appRouterProvider = Provider<GoRouter>((ref) {
-  final auth = ref.watch(authControllerProvider.select(authRoutingSnapshotFor));
-  final authenticating = auth.status == AuthStatus.authenticating;
+  // Auth changes refresh redirects without replacing the router or mounted
+  // forms. In particular, clearing a failed login must preserve its first edit.
+  final refresh = ValueNotifier(
+    authRoutingSnapshotFor(ref.read(authControllerProvider)),
+  );
+  ref.listen(authControllerProvider.select(authRoutingSnapshotFor), (_, next) {
+    refresh.value = next;
+  });
 
-  return GoRouter(
-    initialLocation: authenticating ? '/login' : '/splash',
+  final router = GoRouter(
+    initialLocation: refresh.value.status == AuthStatus.authenticating
+        ? '/login'
+        : '/splash',
+    refreshListenable: refresh,
     routes: [
       GoRoute(path: '/', redirect: (context, state) => '/splash'),
       GoRoute(
@@ -495,6 +504,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
     ],
     redirect: (context, state) {
+      final auth = authRoutingSnapshotFor(ref.read(authControllerProvider));
+      final authenticating = auth.status == AuthStatus.authenticating;
       final path = state.uri.path;
       if (auth.isLoading) {
         if (authenticating || path == '/login') {
@@ -553,6 +564,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       return target;
     },
   );
+  ref.onDispose(() {
+    router.dispose();
+    refresh.dispose();
+  });
+  return router;
 });
 
 typedef AuthRoutingSnapshot = ({

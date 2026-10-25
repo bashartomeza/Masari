@@ -1,9 +1,10 @@
 import request from "supertest";
 import jwt from "jsonwebtoken";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const prismaMock = vi.hoisted(() => ({
   $transaction: vi.fn(),
+  $queryRaw: vi.fn(),
   user: { findUnique: vi.fn(), count: vi.fn() },
   authSession: { findUnique: vi.fn(), update: vi.fn() },
   auditEvent: { create: vi.fn() },
@@ -69,8 +70,12 @@ const merchantBody = {
 };
 
 describe("manual role APIs", () => {
+  afterEach(() => vi.useRealTimers());
   beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-07-02T08:00:00.000Z"));
     vi.clearAllMocks();
+    prismaMock.$queryRaw.mockResolvedValue([{ id: "req_1" }]);
     prismaMock.user.findUnique.mockImplementation(({ where }: { where: { id?: string } }) => {
       if (!where.id) return null;
       const user = users[where.id];
@@ -102,6 +107,8 @@ describe("manual role APIs", () => {
     prismaMock.merchantOrder.updateMany.mockResolvedValue({ count: 1 });
     prismaMock.merchantOrder.findUniqueOrThrow.mockImplementation(({ where }: { where: { id: string } }) => ({ id: where.id, merchant_id: "merchant_1", status: "cancelled", parcels: [], parcel_batches: [], batch_members: [] }));
     prismaMock.$transaction.mockImplementation((callback: (tx: typeof prismaMock) => unknown) => callback(prismaMock));
+    prismaMock.$queryRaw.mockResolvedValue([{ id: "profile_1" }]);
+    prismaMock.driverRoute.findFirst.mockResolvedValue(null);
   });
 
   it("passenger can create request", async () => {
@@ -115,6 +122,13 @@ describe("manual role APIs", () => {
 
     expect(response.body.request.status).toBe("pending");
     expect(prismaMock.passengerRequest.create).toHaveBeenCalledOnce();
+  });
+
+  it("rejects a past passenger departure before inserting a request", async () => {
+    prismaMock.passengerRequest.create.mockResolvedValue({ id: "must_not_exist", status: "pending" });
+    await request(createApp()).post("/api/v1/passenger/requests").set(auth("passenger_1"))
+      .send({ ...passengerBody, preferred_time: new Date(Date.now() - 1_000).toISOString() }).expect(400);
+    expect(prismaMock.passengerRequest.create).not.toHaveBeenCalled();
   });
 
   it("accepts valid coordinate boundaries and existing numeric-string inputs", async () => {
@@ -235,6 +249,7 @@ describe("manual role APIs", () => {
   });
 
   it("merchant can cancel a matched batched order and releases reserved parcel capacity", async () => {
+    prismaMock.merchantOrder.updateMany.mockResolvedValue({ count: 2 });
     prismaMock.merchantOrder.findFirst.mockResolvedValue({
       id: "order_1",
       merchant_id: "merchant_1",
@@ -283,6 +298,41 @@ describe("manual role APIs", () => {
       .expect(201);
 
     expect(response.body.route.status).toBe("active");
+  });
+
+  it("rolls driver route creation back when its audit fails", async () => {
+    let routes: unknown[] = [];
+    prismaMock.driverProfile.findUnique.mockResolvedValue({ id: "profile_1", user_id: "driver_1" });
+    prismaMock.driverRoute.create.mockImplementation(async ({ data }) => {
+      const row = { id: "route_1", ...data }; routes.push(row); return row;
+    });
+    prismaMock.auditEvent.create.mockRejectedValueOnce(new Error("audit unavailable"));
+    prismaMock.$transaction.mockImplementation(async (callback: (tx: typeof prismaMock) => unknown) => {
+      const before = [...routes];
+      try { return await callback(prismaMock); } catch (error) { routes = before; throw error; }
+    });
+    await request(createApp()).post("/api/v1/driver/routes").set(auth("driver_1"))
+      .send({ seats_available: 2, parcel_capacity_available: 5 }).expect(500);
+    expect(routes).toHaveLength(0);
+  });
+
+  it("recovers an exact driver route creation retry without another operational route", async () => {
+    prismaMock.driverProfile.findUnique.mockResolvedValue({ id: "profile_1", user_id: "driver_1" });
+    prismaMock.driverRoute.findFirst.mockResolvedValue({ id: "original_route", status: "active", seats_available: 2, parcel_capacity_available: 5 });
+    const response = await request(createApp()).post("/api/v1/driver/routes").set(auth("driver_1"))
+      .send({ seats_available: 2, parcel_capacity_available: 5 }).expect(201);
+    expect(response.body.route.id).toBe("original_route");
+    expect(prismaMock.driverRoute.create).not.toHaveBeenCalled();
+    expect(prismaMock.auditEvent.create).not.toHaveBeenCalled();
+    expect(prismaMock.$queryRaw).toHaveBeenCalledOnce();
+  });
+
+  it("does not create another route while a driver has a different operational route", async () => {
+    prismaMock.driverProfile.findUnique.mockResolvedValue({ id: "profile_1", user_id: "driver_1" });
+    prismaMock.driverRoute.findFirst.mockResolvedValue({ id: "existing_route", status: "active", seats_available: 1, parcel_capacity_available: 0 });
+    await request(createApp()).post("/api/v1/driver/routes").set(auth("driver_1"))
+      .send({ seats_available: 2, parcel_capacity_available: 5 }).expect(409);
+    expect(prismaMock.driverRoute.create).not.toHaveBeenCalled();
   });
 
   it("non-driver cannot create route", async () => {

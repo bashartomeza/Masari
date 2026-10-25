@@ -47,7 +47,8 @@ async function claimCreate(
     keyDigest: digest(actor.idempotencyKey),
     keyVersion: 1,
     requestDigest: digest(JSON.stringify({ actor_id: actor.id, payload })),
-    expiresAt: new Date(Date.now() + 86_400_000)
+    expiresAt: new Date(Date.now() + 86_400_000),
+    retainCompleted: true,
   });
   if (claim.kind === "conflict") throw new HttpError(409, "idempotency_conflict");
   if (claim.kind === "in_progress") throw new HttpError(409, "idempotency_in_progress");
@@ -128,7 +129,6 @@ export function createCanonicalDemandService(db: PrismaClient = prisma) {
       if (!Number.isInteger(input.passengerCount) || input.passengerCount < 1 || input.passengerCount > CANONICAL_ENTRY_LIMITS.maximumPassengerCount) {
         throw new HttpError(400, "invalid_passenger_count");
       }
-      validateDepartureWindow(input.requestedDepartureFrom, input.requestedDepartureUntil);
       return db.$transaction(async (tx) => {
         const payload = {
           route_version_id: input.routeVersionId,
@@ -149,6 +149,7 @@ export function createCanonicalDemandService(db: PrismaClient = prisma) {
           if (!resource) throw new HttpError(409, "idempotency_replay_unavailable");
           return { resource, replayed: true };
         }
+        validateDepartureWindow(input.requestedDepartureFrom, input.requestedDepartureUntil);
         const route = await requireEligibleOperationalRoute(tx, input.routeVersionId, {
           requiredStopIds: [input.pickupStopId, input.dropoffStopId],
           lockForUpdate: true
@@ -213,7 +214,6 @@ export function createCanonicalDemandService(db: PrismaClient = prisma) {
       if (input.parcels.length < 1 || input.parcels.length > CANONICAL_ENTRY_LIMITS.maximumParcels) {
         throw new HttpError(400, "invalid_parcel_count");
       }
-      validateDepartureWindow(input.requestedDepartureFrom, input.requestedDepartureUntil);
       return db.$transaction(async (tx) => {
         const payload = {
           route_version_id: input.routeVersionId,
@@ -238,6 +238,7 @@ export function createCanonicalDemandService(db: PrismaClient = prisma) {
           if (!resource) throw new HttpError(409, "idempotency_replay_unavailable");
           return { resource, replayed: true };
         }
+        validateDepartureWindow(input.requestedDepartureFrom, input.requestedDepartureUntil);
         const destinationIds = input.parcels.map((parcel) => parcel.destinationStopId);
         const route = await requireEligibleOperationalRoute(tx, input.routeVersionId, {
           requiredStopIds: [input.pickupStopId, ...destinationIds],
