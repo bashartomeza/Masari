@@ -7,6 +7,7 @@ import { requireAuth, requireRole, type AuthenticatedRequest } from "../middlewa
 import { HttpError } from "../middleware/error.js";
 import { AccountStatus, AuditAction, DriverVerificationStatus } from "../generated/prisma/enums.js";
 import { Prisma } from "../generated/prisma/client.js";
+import { notifyDriverVerification } from "../services/notifications.js";
 
 export const adminRouter = Router();
 
@@ -419,6 +420,7 @@ adminRouter.post("/admin/driver-verifications/:userId/approve", async (req: Auth
             request_id: req.requestId
           }
         });
+        await notifyDriverVerification(tx, current.user_id, current.id, current.revision, "approved");
         return tx.driverVerification.findUniqueOrThrow({
           where: { id: current.id },
           include: driverVerificationInclude
@@ -482,6 +484,7 @@ adminRouter.post("/admin/driver-verifications/:userId/reject", async (req: Authe
             request_id: req.requestId
           }
         });
+        await notifyDriverVerification(tx, current.user_id, current.id, current.revision, "rejected", input.reason);
         return tx.driverVerification.findUniqueOrThrow({
           where: { id: current.id },
           include: driverVerificationInclude

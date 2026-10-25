@@ -49,6 +49,7 @@ import { createRoutePreviewRouter } from "./modules/routePreview.js";
 import { createAdminConsentRouter } from "./modules/adminConsents.js";
 import type { ConsentReleaseService } from "./services/consentReleases.js";
 import { adminTripsRouter } from "./modules/adminTrips.js";
+import { notificationsRouter } from "./modules/notifications.js";
 
 export const HTTP_JSON_LIMIT = "64kb";
 export const CONSENT_RELEASE_JSON_LIMIT = "256kb";
@@ -122,6 +123,7 @@ export function createApp(
       dependencies.canonicalSharedMatchingService,
     ),
   );
+  app.use("/api/v1", notificationsRouter);
   app.use("/api/v1", passengerRouter);
   app.use(
     "/api/v1",

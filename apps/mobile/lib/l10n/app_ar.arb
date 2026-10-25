@@ -117,7 +117,7 @@
   "seatsAvailable": "المقاعد المتاحة",
   "parcelCapacity": "سعة الطرود",
   "activateRoute": "تفعيل المسار",
-  "deactivateRoute": "إلغاء تفعيل المسار",
+  "deactivateRoute": "إيقاف المسار",
   "routeActivated": "تم تفعيل المسار",
   "routeDeactivated": "تم إلغاء تفعيل المسار",
   "routeStatus": "حالة المسار",
@@ -161,7 +161,7 @@
   "statusSentToDriver": "أرسلت إلى السائق",
   "statusRejected": "مرفوضة",
   "statusExpired": "منتهية",
-  "statusActive": "نشط",
+  "statusActive": "نشطة",
   "statusInactive": "غير نشط",
   "statusAssigned": "مخصص",
   "statusOnTrip": "في رحلة",
@@ -286,18 +286,32 @@
   "directionLoop": "دائري",
   "orderedStops": "المحطات بالترتيب",
   "stopSequence": "المحطة {sequence}",
-  "@stopSequence": {"placeholders": {"sequence": {"type": "int"}}},
+  "@stopSequence": {
+    "placeholders": {
+      "sequence": {
+        "type": "int"
+      }
+    }
+  },
   "driverAvailabilities": "إتاحة المسار",
   "newAvailability": "إنشاء إتاحة لمسار",
   "noAvailabilities": "لم تُنشأ إتاحة لمسار بعد.",
   "departureTime": "وقت الانطلاق",
   "availabilityWindowEnd": "نهاية نافذة الإتاحة (اختياري)",
   "seatCapacity": "سعة المقاعد",
-  "parcelCapacity": "سعة الطرود",
   "reviewAndConfirm": "مراجعة وتأكيد",
   "availabilityRecorded": "تم تسجيل الإتاحة",
   "remainingCapacity": "المتبقي: {seats} مقاعد، {parcels} طرود",
-  "@remainingCapacity": {"placeholders": {"seats": {"type": "int"}, "parcels": {"type": "int"}}},
+  "@remainingCapacity": {
+    "placeholders": {
+      "seats": {
+        "type": "int"
+      },
+      "parcels": {
+        "type": "int"
+      }
+    }
+  },
   "activateAvailability": "تفعيل الإتاحة",
   "pauseAvailability": "إيقاف الإتاحة مؤقتاً",
   "resumeAvailability": "استئناف الإتاحة",
@@ -309,24 +323,15 @@
   "dropoffStop": "محطة النزول",
   "departureFrom": "بداية وقت الانطلاق",
   "departureUntil": "نهاية وقت الانطلاق",
-  "passengerCount": "عدد الركاب",
   "requestRecorded": "تم تسجيل طلب المسار.",
   "matchingDisabledNotice": "المطابقة غير مفعلة في هذه المرحلة. لم يُعيَّن سائق ولم تُنشأ رحلة.",
   "canonicalMerchantOrder": "طلب طرود عبر مسار",
   "canonicalMerchantOrderBody": "أنشئ طلباً واحداً متكاملاً على مسار معتمد.",
   "parcelPickupStop": "محطة استلام الطرود",
-  "addParcel": "إضافة طرد",
-  "removeParcel": "إزالة الطرد",
   "parcelDestination": "وجهة الطرد",
-  "parcelSize": "حجم الطرد",
   "parcelPriority": "أولوية الطرد",
-  "priorityLow": "منخفضة",
-  "priorityNormal": "عادية",
-  "priorityHigh": "مرتفعة",
   "orderRecorded": "تم تسجيل طلب الطرود عبر المسار.",
   "batchingMatchingDisabledNotice": "التجميع والمطابقة غير مفعلين في هذه المرحلة. لم يُعيَّن سائق ولم تُنشأ رحلة توصيل.",
-  "submitRequest": "إرسال الطلب",
-  "submitOrder": "إرسال الطلب",
   "submitAvailability": "إرسال الإتاحة",
   "selectDateTime": "اختر التاريخ والوقت",
   "invalidDepartureWindow": "اختر نافذة انطلاق مستقبلية وصحيحة.",
@@ -342,11 +347,9 @@
   "canonicalRecoveryRequired": "توجد عملية سابقة غير محسومة. سجّل الدخول بالحساب الأصلي وأعد العملية نفسها، أو تواصل مع الدعم إذا انتهت مهلة الاسترداد.",
   "transactionRetryRequired": "حدث تعارض مؤقت في المعاملة. أعد محاولة هذه العملية.",
   "refreshRoutes": "تحديث المسارات",
-  "statusActive": "نشطة",
   "statusPaused": "متوقفة مؤقتاً",
   "statusFilled": "ممتلئة",
   "statusDeparted": "انطلقت",
-  "statusExpired": "منتهية",
   "returnToDashboard": "العودة إلى لوحة التحكم",
   "canonicalDriverOffers": "عروض المسار",
   "canonicalDriverOffersBody": "راجع طلبات الركاب والطرود الحالية المرتبطة بإتاحة مسارك.",
@@ -470,7 +473,6 @@
   },
   "activateYourRoute": "فعّل مسارك",
   "activateRouteHint": "قم بتحديد وجهتك لاستقبال الطلبات على طريقك",
-  "deactivateRoute": "إيقاف المسار",
   "mapNoLocation": "لا توجد بيانات موقع بعد.",
   "batchSavings": "توفير التجميع",
   "batchSavingsCaption": "تم توفيرها عبر دمج الشحنات",
@@ -518,7 +520,6 @@
       }
     }
   },
-
   "navRequests": "الطلبات",
   "navMyTrip": "رحلتي",
   "navPerformance": "الأرباح والأداء",
@@ -526,7 +527,6 @@
   "navMapAlerts": "الخرائط والبلاغات",
   "navShipments": "الشحنات",
   "navReports": "التقارير",
-
   "myTrips": "رحلاتي",
   "tripsActiveSection": "الرحلة النشطة",
   "tripsUpcomingSection": "الرحلات القادمة",
@@ -535,20 +535,16 @@
   "noTripsYet": "لا توجد رحلات بعد",
   "noTripsYetBody": "ستظهر رحلاتك هنا بعد إنشاء أول طلب.",
   "tripHistoryFailed": "تعذّر تحميل سجل الرحلات.",
-
   "mapsUnavailable": "الخريطة غير متاحة",
   "mapsUnavailableBody": "لم يتم تفعيل خدمة الخرائط في هذه النسخة، لذلك لا يمكن عرض موقع مباشر.",
   "incidentReports": "البلاغات",
   "incidentReportingUnavailable": "الإبلاغ عن حادث غير متاح",
   "incidentReportingUnavailableBody": "لا يوجد حتى الآن نظام خلفي لاستقبال البلاغات، ولن يتم إرسال أي بلاغ من هنا.",
-  "notificationsUnavailableBody": "لا يوجد نظام إشعارات في هذه النسخة. ستصلك التحديثات داخل شاشة الرحلة.",
-
   "performanceTitle": "الأرباح والأداء",
   "earningsNotTracked": "لا يتم احتساب الأرباح",
   "earningsNotTrackedBody": "لا تحتوي قاعدة البيانات على أي بيانات أسعار أو أجرة، لذلك لا يمكن عرض رقم أرباح حقيقي.",
   "completedTripsTotal": "إجمالي الرحلات المكتملة",
   "acceptanceRateUnavailable": "نسبة القبول غير متاحة",
-
   "destinationCount": "{count} وجهات",
   "@destinationCount": {
     "placeholders": {
@@ -563,7 +559,6 @@
   "shipmentsFailed": "تعذّر تحميل الشحنات.",
   "reportsUnavailable": "التقارير غير متاحة",
   "reportsUnavailableBody": "لا يوجد نظام خلفي لتوليد التقارير أو تصديرها بصيغة PDF أو Excel.",
-
   "accountProfile": "الملف الشخصي",
   "accountSupport": "الدعم",
   "supportUnavailable": "الدعم داخل التطبيق غير متاح",
@@ -620,15 +615,27 @@
   "mapDriverRoute": "مسار السائق المتاح",
   "mapOriginLabel": "نقطة الانطلاق: {name}",
   "@mapOriginLabel": {
-    "placeholders": { "name": { "type": "String" } }
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   },
   "mapDestinationLabel": "الوجهة: {name}",
   "@mapDestinationLabel": {
-    "placeholders": { "name": { "type": "String" } }
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   },
   "mapStopLabel": "محطة: {name}",
   "@mapStopLabel": {
-    "placeholders": { "name": { "type": "String" } }
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   },
   "mapLegend": "دليل الرموز",
   "locationServiceDisabled": "خدمة الموقع متوقفة على الجهاز. فعّلها لعرض موقعك على الخريطة.",
@@ -644,7 +651,11 @@
   "checkpointsEmpty": "لا توجد حواجز مسجّلة على هذا المسار.",
   "checkpointCount": "{count, plural, =0{لا حواجز} =1{حاجز واحد} =2{حاجزان} few{{count} حواجز} other{{count} حاجزاً}}",
   "@checkpointCount": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "checkpointOpen": "مفتوح",
   "checkpointCongested": "ازدحام",
@@ -653,11 +664,53 @@
   "checkpointLabel": "{name} — {status}",
   "@checkpointLabel": {
     "placeholders": {
-      "name": { "type": "String" },
-      "status": { "type": "String" }
+      "name": {
+        "type": "String"
+      },
+      "status": {
+        "type": "String"
+      }
     }
   },
   "checkpointUnnamed": "حاجز",
   "mapRouteMissingCoordinates": "لا توجد إحداثيات لهذا المسار، لذلك لا يمكن رسمه على الخريطة.",
-  "mapSelectRoute": "اختر مساراً لعرضه على الخريطة."
+  "mapSelectRoute": "اختر مساراً لعرضه على الخريطة.",
+  "notifMatchOfferedTitle": "عرض مطابقة جديد",
+  "notifMatchOfferedBody": "لديك طلب جديد بانتظار ردّك.",
+  "notifMatchAcceptedTitle": "تم قبول طلبك",
+  "notifMatchAcceptedBody": "قَبِل أحد السائقين طلبك.",
+  "notifMatchRejectedTitle": "اعتذر السائق",
+  "notifMatchRejectedBody": "اعتذر السائق عن الطلب. يمكنك البحث عن مطابقة أخرى.",
+  "notifTripStatusTitle": "تحديث على الرحلة",
+  "notifTripStatusBody": "حالة الرحلة الآن: {status}",
+  "@notifTripStatusBody": {
+    "placeholders": {
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "notifVerificationApprovedTitle": "تمت الموافقة على حسابك",
+  "notifVerificationApprovedBody": "تمت الموافقة على حساب السائق. يمكنك الآن البدء بالعمل.",
+  "notifVerificationRejectedTitle": "تم رفض طلب التحقق",
+  "notifVerificationRejectedBody": "لم تتم الموافقة على طلب التحقق من حسابك.",
+  "notifVerificationRejectedReason": "السبب: {reason}",
+  "@notifVerificationRejectedReason": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "notifUnknownTitle": "إشعار جديد",
+  "notificationsMarkAllRead": "تعليم الكل كمقروء",
+  "notificationsLoadError": "تعذّر تحميل الإشعارات.",
+  "notificationsUnreadCount": "{count} غير مقروءة",
+  "@notificationsUnreadCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

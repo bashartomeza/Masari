@@ -7,6 +7,7 @@ import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
 import { HttpError } from "../middleware/error.js";
 import { AuditAction, MatchStatus, TripStatus } from "../generated/prisma/enums.js";
 import { advanceLegacyTrip, isLegacyTripTransitionAllowed } from "../services/tripLifecycle.js";
+import { notifyMatchDecision } from "../services/notifications.js";
 
 export const tripsRouter = Router();
 export const trackingSimulationRouter = Router();
@@ -111,6 +112,8 @@ tripsRouter.post("/matches/:id/accept", requireAuth, async (req: AuthenticatedRe
         data: { user_id: req.user!.id, action: AuditAction.match_accepted, entity_type: "Match", entity_id: match.id }
       });
 
+      await notifyMatchDecision(tx, match, "accepted");
+
       return { trip, matchId: match.id };
     });
 
@@ -123,7 +126,10 @@ tripsRouter.post("/matches/:id/accept", requireAuth, async (req: AuthenticatedRe
 tripsRouter.post("/matches/:id/reject", requireAuth, async (req: AuthenticatedRequest, res, next) => {
   try {
     const matchId = routeParam(req.params.id);
-    const match = await prisma.match.findUnique({ where: { id: matchId }, include: { driver_route: { include: { driver: true } } } });
+    const match = await prisma.match.findUnique({
+      where: { id: matchId },
+      include: { driver_route: { include: { driver: true } }, passenger_request: true, merchant_order: true }
+    });
     if (!match) throw new HttpError(404, "match_not_found");
     if (req.user!.role !== "admin" && (req.user!.role !== "driver" || match.driver_route.driver.user_id !== req.user!.id)) {
       throw new HttpError(403, "forbidden");
@@ -133,6 +139,7 @@ tripsRouter.post("/matches/:id/reject", requireAuth, async (req: AuthenticatedRe
 
     const updated = await prisma.match.update({ where: { id: match.id }, data: { status: MatchStatus.rejected } });
     await auditEvent(prisma, { userId: req.user!.id, action: AuditAction.match_rejected, entityType: "Match", entityId: match.id });
+    await notifyMatchDecision(prisma, match, "rejected");
     res.json({ match: updated });
   } catch (error) {
     next(error);

@@ -1396,10 +1396,6 @@ class AppLocalizationsAr extends AppLocalizations {
       'لا يوجد حتى الآن نظام خلفي لاستقبال البلاغات، ولن يتم إرسال أي بلاغ من هنا.';
 
   @override
-  String get notificationsUnavailableBody =>
-      'لا يوجد نظام إشعارات في هذه النسخة. ستصلك التحديثات داخل شاشة الرحلة.';
-
-  @override
   String get performanceTitle => 'الأرباح والأداء';
 
   @override
@@ -1714,4 +1710,64 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get mapSelectRoute => 'اختر مساراً لعرضه على الخريطة.';
+
+  @override
+  String get notifMatchOfferedTitle => 'عرض مطابقة جديد';
+
+  @override
+  String get notifMatchOfferedBody => 'لديك طلب جديد بانتظار ردّك.';
+
+  @override
+  String get notifMatchAcceptedTitle => 'تم قبول طلبك';
+
+  @override
+  String get notifMatchAcceptedBody => 'قَبِل أحد السائقين طلبك.';
+
+  @override
+  String get notifMatchRejectedTitle => 'اعتذر السائق';
+
+  @override
+  String get notifMatchRejectedBody =>
+      'اعتذر السائق عن الطلب. يمكنك البحث عن مطابقة أخرى.';
+
+  @override
+  String get notifTripStatusTitle => 'تحديث على الرحلة';
+
+  @override
+  String notifTripStatusBody(String status) {
+    return 'حالة الرحلة الآن: $status';
+  }
+
+  @override
+  String get notifVerificationApprovedTitle => 'تمت الموافقة على حسابك';
+
+  @override
+  String get notifVerificationApprovedBody =>
+      'تمت الموافقة على حساب السائق. يمكنك الآن البدء بالعمل.';
+
+  @override
+  String get notifVerificationRejectedTitle => 'تم رفض طلب التحقق';
+
+  @override
+  String get notifVerificationRejectedBody =>
+      'لم تتم الموافقة على طلب التحقق من حسابك.';
+
+  @override
+  String notifVerificationRejectedReason(String reason) {
+    return 'السبب: $reason';
+  }
+
+  @override
+  String get notifUnknownTitle => 'إشعار جديد';
+
+  @override
+  String get notificationsMarkAllRead => 'تعليم الكل كمقروء';
+
+  @override
+  String get notificationsLoadError => 'تعذّر تحميل الإشعارات.';
+
+  @override
+  String notificationsUnreadCount(int count) {
+    return '$count غير مقروءة';
+  }
 }

@@ -380,6 +380,7 @@ model User {
   service_route_versions_retired   ServiceRouteVersion[]  @relation("ServiceRouteVersionRetirer")
   stops_created                    Stop[]                 @relation("StopCreator")
   stops_retired                    Stop[]                 @relation("StopRetirer")
+  notifications                    Notification[]
 
   @@map("users")
 }
@@ -1369,4 +1370,25 @@ model AuditEvent {
   @@index([action])
   @@index([user_id])
   @@map("audit_events")
+}
+
+/// In-app inbox entry. Rows are written best-effort by the same code paths that
+/// commit the underlying event; clients localize from `type` and `params`.
+model Notification {
+  id          String    @id @default(cuid())
+  user_id     String
+  type        String    @db.VarChar(60)
+  entity_type String?   @db.VarChar(60)
+  entity_id   String?   @db.VarChar(191)
+  dedupe_key  String    @db.VarChar(191)
+  params      Json?
+  read_at     DateTime?
+  created_at  DateTime  @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, dedupe_key])
+  @@index([user_id, created_at])
+  @@index([user_id, read_at])
+  @@map("notifications")
 }

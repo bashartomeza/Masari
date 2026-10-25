@@ -8,6 +8,7 @@ import { HttpError } from "../middleware/error.js";
 import { LOCKED_CORRIDOR_KEY, LOCKED_CORRIDOR_LABEL } from "./demoReset.js";
 import type { Prisma } from "../generated/prisma/client.js";
 import { AuditAction, MatchStatus } from "../generated/prisma/enums.js";
+import { notifyMatchOffered } from "../services/notifications.js";
 
 const runMatchSchema = z
   .object({
@@ -280,6 +281,8 @@ async function createBestMatch(req: AuthenticatedRequest, input: MatchInput) {
     },
     include: { driver_route: { include: { driver: true } }, passenger_request: true, merchant_order: true, parcel_batch: true }
   });
+
+  await notifyMatchOffered(prisma, match);
 
   await auditEvent(prisma, {
     userId: req.user!.id,

@@ -1407,10 +1407,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'There is no backend to receive incident reports yet, so nothing would be submitted from here.';
 
   @override
-  String get notificationsUnavailableBody =>
-      'There is no notification service in this build. Updates appear inside the trip screen.';
-
-  @override
   String get performanceTitle => 'Earnings and performance';
 
   @override
@@ -1725,4 +1721,65 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mapSelectRoute => 'Choose a route to show it on the map.';
+
+  @override
+  String get notifMatchOfferedTitle => 'New match offer';
+
+  @override
+  String get notifMatchOfferedBody =>
+      'A new request is waiting for your response.';
+
+  @override
+  String get notifMatchAcceptedTitle => 'Your request was accepted';
+
+  @override
+  String get notifMatchAcceptedBody => 'A driver accepted your request.';
+
+  @override
+  String get notifMatchRejectedTitle => 'Driver declined';
+
+  @override
+  String get notifMatchRejectedBody =>
+      'The driver declined the request. You can look for another match.';
+
+  @override
+  String get notifTripStatusTitle => 'Trip update';
+
+  @override
+  String notifTripStatusBody(String status) {
+    return 'The trip is now: $status';
+  }
+
+  @override
+  String get notifVerificationApprovedTitle => 'Account approved';
+
+  @override
+  String get notifVerificationApprovedBody =>
+      'Your driver account was approved. You can start working now.';
+
+  @override
+  String get notifVerificationRejectedTitle => 'Verification rejected';
+
+  @override
+  String get notifVerificationRejectedBody =>
+      'Your account verification was not approved.';
+
+  @override
+  String notifVerificationRejectedReason(String reason) {
+    return 'Reason: $reason';
+  }
+
+  @override
+  String get notifUnknownTitle => 'New notification';
+
+  @override
+  String get notificationsMarkAllRead => 'Mark all as read';
+
+  @override
+  String get notificationsLoadError => 'Could not load notifications.';
+
+  @override
+  String notificationsUnreadCount(int count) {
+    return '$count unread';
+  }
 }

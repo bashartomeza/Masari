@@ -2714,12 +2714,6 @@ abstract class AppLocalizations {
   /// **'لا يوجد حتى الآن نظام خلفي لاستقبال البلاغات، ولن يتم إرسال أي بلاغ من هنا.'**
   String get incidentReportingUnavailableBody;
 
-  /// No description provided for @notificationsUnavailableBody.
-  ///
-  /// In ar, this message translates to:
-  /// **'لا يوجد نظام إشعارات في هذه النسخة. ستصلك التحديثات داخل شاشة الرحلة.'**
-  String get notificationsUnavailableBody;
-
   /// No description provided for @performanceTitle.
   ///
   /// In ar, this message translates to:
@@ -3259,6 +3253,108 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'اختر مساراً لعرضه على الخريطة.'**
   String get mapSelectRoute;
+
+  /// No description provided for @notifMatchOfferedTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض مطابقة جديد'**
+  String get notifMatchOfferedTitle;
+
+  /// No description provided for @notifMatchOfferedBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'لديك طلب جديد بانتظار ردّك.'**
+  String get notifMatchOfferedBody;
+
+  /// No description provided for @notifMatchAcceptedTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم قبول طلبك'**
+  String get notifMatchAcceptedTitle;
+
+  /// No description provided for @notifMatchAcceptedBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'قَبِل أحد السائقين طلبك.'**
+  String get notifMatchAcceptedBody;
+
+  /// No description provided for @notifMatchRejectedTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'اعتذر السائق'**
+  String get notifMatchRejectedTitle;
+
+  /// No description provided for @notifMatchRejectedBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'اعتذر السائق عن الطلب. يمكنك البحث عن مطابقة أخرى.'**
+  String get notifMatchRejectedBody;
+
+  /// No description provided for @notifTripStatusTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'تحديث على الرحلة'**
+  String get notifTripStatusTitle;
+
+  /// No description provided for @notifTripStatusBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'حالة الرحلة الآن: {status}'**
+  String notifTripStatusBody(String status);
+
+  /// No description provided for @notifVerificationApprovedTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'تمت الموافقة على حسابك'**
+  String get notifVerificationApprovedTitle;
+
+  /// No description provided for @notifVerificationApprovedBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'تمت الموافقة على حساب السائق. يمكنك الآن البدء بالعمل.'**
+  String get notifVerificationApprovedBody;
+
+  /// No description provided for @notifVerificationRejectedTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم رفض طلب التحقق'**
+  String get notifVerificationRejectedTitle;
+
+  /// No description provided for @notifVerificationRejectedBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم تتم الموافقة على طلب التحقق من حسابك.'**
+  String get notifVerificationRejectedBody;
+
+  /// No description provided for @notifVerificationRejectedReason.
+  ///
+  /// In ar, this message translates to:
+  /// **'السبب: {reason}'**
+  String notifVerificationRejectedReason(String reason);
+
+  /// No description provided for @notifUnknownTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'إشعار جديد'**
+  String get notifUnknownTitle;
+
+  /// No description provided for @notificationsMarkAllRead.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعليم الكل كمقروء'**
+  String get notificationsMarkAllRead;
+
+  /// No description provided for @notificationsLoadError.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل الإشعارات.'**
+  String get notificationsLoadError;
+
+  /// No description provided for @notificationsUnreadCount.
+  ///
+  /// In ar, this message translates to:
+  /// **'{count} غير مقروءة'**
+  String notificationsUnreadCount(int count);
 }
 
 class _AppLocalizationsDelegate
