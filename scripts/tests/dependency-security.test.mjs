@@ -32,12 +32,15 @@ test("security remediation keeps vulnerable dependency floors fixed", () => {
   const expected = {
     "node_modules/deepmerge-ts": "8.0.1",
     "node_modules/body-parser": "2.4.0",
-    "node_modules/fast-uri": "3.1.9",
     "node_modules/mariadb": "3.5.4",
     "node_modules/mysql2": "3.23.1",
     "node_modules/qs": "6.16.1",
     "node_modules/vitest": "4.1.12"
   };
+  // fast-uri is held at its fixed floor by the override. Prisma 7.10 dropped the tooling
+  // that pulled it in, so it may be absent; if anything reintroduces it, it must be the fixed one.
+  const fastUri = lockfile.packages["node_modules/fast-uri"]?.version;
+  if (fastUri) assert.equal(fastUri, "3.1.9");
   for (const [path, version] of Object.entries(expected)) {
     assert.equal(lockfile.packages[path]?.version, version, `${path} must stay on ${version}`);
   }
