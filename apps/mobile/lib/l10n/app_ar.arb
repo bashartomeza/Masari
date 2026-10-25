@@ -715,5 +715,21 @@
   "reportsLoadError": "تعذّر تحميل التقرير.",
   "reportsOrdersByStatus": "الطلبات حسب الحالة",
   "reportsDeliveriesByStatus": "التوصيلات حسب الحالة",
-  "reportsNoRecords": "لا توجد سجلات بعد."
+  "reportsNoRecords": "لا توجد سجلات بعد.",
+  "incidentReportAction": "الإبلاغ عن مشكلة",
+  "incidentReportTitle": "الإبلاغ عن مشكلة",
+  "incidentReportNotice": "يُسجَّل بلاغك لتراجعه الإدارة. هذه ليست خدمة طوارئ؛ في حال الخطر اتصل بالجهات المختصة مباشرة.",
+  "incidentDescriptionLabel": "صف المشكلة",
+  "incidentSubmit": "إرسال البلاغ",
+  "incidentSubmitted": "تم إرسال البلاغ.",
+  "incidentSubmitFailed": "تعذّر إرسال البلاغ. حاول مرة أخرى.",
+  "incidentTooMany": "لديك عدة بلاغات قيد المراجعة. انتظر معالجتها قبل إرسال بلاغ جديد.",
+  "incidentCategorySafety": "السلامة",
+  "incidentCategoryDelay": "تأخير",
+  "incidentCategoryParcelDamage": "تلف طرد",
+  "incidentCategoryBehavior": "سلوك",
+  "incidentCategoryOther": "أخرى",
+  "notifIncidentUpdatedTitle": "تحديث على بلاغك",
+  "notifIncidentReviewingBody": "بلاغك قيد المراجعة.",
+  "notifIncidentResolvedBody": "تمت معالجة بلاغك."
 }

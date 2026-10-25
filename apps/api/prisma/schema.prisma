@@ -381,6 +381,8 @@ model User {
   stops_created                    Stop[]                 @relation("StopCreator")
   stops_retired                    Stop[]                 @relation("StopRetirer")
   notifications                    Notification[]
+  incidents_reported                Incident[]             @relation("IncidentReporter")
+  incidents_reviewed               Incident[]             @relation("IncidentReviewer")
 
   @@map("users")
 }
@@ -1110,6 +1112,7 @@ model Trip {
   canonical_assignment_key String?  @db.Char(64)
   canonical_availability_key String? @unique @db.VarChar(191)
 
+  incidents         Incident[]
   driver_route      DriverRoute       @relation(fields: [driver_route_id], references: [id], onDelete: Restrict)
   mode_driver_route DriverRoute       @relation("TripAvailabilityMode", fields: [driver_route_id, operational_mode], references: [id, operational_mode], onDelete: Restrict, onUpdate: Restrict)
   passenger_request PassengerRequest? @relation(fields: [passenger_request_id], references: [id], onDelete: Restrict)
@@ -1391,4 +1394,45 @@ model Notification {
   @@index([user_id, created_at])
   @@index([user_id, read_at])
   @@map("notifications")
+}
+
+enum IncidentCategory {
+  safety
+  delay
+  parcel_damage
+  behavior
+  other
+}
+
+enum IncidentStatus {
+  open
+  reviewing
+  resolved
+}
+
+/// A user-filed problem report, optionally tied to a trip they took part in.
+/// Admins triage it; this is a record for follow-up, not an emergency channel.
+model Incident {
+  id             String           @id @default(cuid())
+  reporter_id    String
+  trip_id        String?
+  category       IncidentCategory
+  description    String           @db.VarChar(1000)
+  status         IncidentStatus   @default(open)
+  admin_note     String?          @db.VarChar(1000)
+  revision       Int              @default(1)
+  reviewed_by_id String?
+  reviewed_at    DateTime?
+  resolved_at    DateTime?
+  created_at     DateTime         @default(now())
+  updated_at     DateTime         @updatedAt
+
+  reporter    User  @relation("IncidentReporter", fields: [reporter_id], references: [id], onDelete: Cascade)
+  reviewed_by User? @relation("IncidentReviewer", fields: [reviewed_by_id], references: [id], onDelete: SetNull)
+  trip        Trip? @relation(fields: [trip_id], references: [id], onDelete: SetNull)
+
+  @@index([status, created_at])
+  @@index([reporter_id, created_at])
+  @@index([trip_id])
+  @@map("incidents")
 }

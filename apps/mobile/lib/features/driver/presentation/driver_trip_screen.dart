@@ -11,6 +11,7 @@ import '../../../core/widgets/masari_section.dart';
 import '../../../core/widgets/route_chip.dart';
 import '../../../core/widgets/state_views.dart';
 import '../../../core/widgets/timeline_tracker.dart';
+import '../../incidents/presentation/report_incident_sheet.dart';
 import '../../security/presentation/session_status_banner.dart';
 import '../application/driver_controller.dart';
 import '../data/driver_models.dart';
@@ -92,6 +93,7 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
             ),
             children: [
               const SessionStatusBanner(),
+              ReportIncidentButton(tripId: widget.tripId),
               const SizedBox(height: AppTokens.spaceMedium),
               tripState.when(
                 loading: () => const Column(

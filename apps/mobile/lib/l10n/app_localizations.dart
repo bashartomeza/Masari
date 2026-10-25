@@ -3373,6 +3373,102 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'لا توجد سجلات بعد.'**
   String get reportsNoRecords;
+
+  /// No description provided for @incidentReportAction.
+  ///
+  /// In ar, this message translates to:
+  /// **'الإبلاغ عن مشكلة'**
+  String get incidentReportAction;
+
+  /// No description provided for @incidentReportTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'الإبلاغ عن مشكلة'**
+  String get incidentReportTitle;
+
+  /// No description provided for @incidentReportNotice.
+  ///
+  /// In ar, this message translates to:
+  /// **'يُسجَّل بلاغك لتراجعه الإدارة. هذه ليست خدمة طوارئ؛ في حال الخطر اتصل بالجهات المختصة مباشرة.'**
+  String get incidentReportNotice;
+
+  /// No description provided for @incidentDescriptionLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'صف المشكلة'**
+  String get incidentDescriptionLabel;
+
+  /// No description provided for @incidentSubmit.
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال البلاغ'**
+  String get incidentSubmit;
+
+  /// No description provided for @incidentSubmitted.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إرسال البلاغ.'**
+  String get incidentSubmitted;
+
+  /// No description provided for @incidentSubmitFailed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر إرسال البلاغ. حاول مرة أخرى.'**
+  String get incidentSubmitFailed;
+
+  /// No description provided for @incidentTooMany.
+  ///
+  /// In ar, this message translates to:
+  /// **'لديك عدة بلاغات قيد المراجعة. انتظر معالجتها قبل إرسال بلاغ جديد.'**
+  String get incidentTooMany;
+
+  /// No description provided for @incidentCategorySafety.
+  ///
+  /// In ar, this message translates to:
+  /// **'السلامة'**
+  String get incidentCategorySafety;
+
+  /// No description provided for @incidentCategoryDelay.
+  ///
+  /// In ar, this message translates to:
+  /// **'تأخير'**
+  String get incidentCategoryDelay;
+
+  /// No description provided for @incidentCategoryParcelDamage.
+  ///
+  /// In ar, this message translates to:
+  /// **'تلف طرد'**
+  String get incidentCategoryParcelDamage;
+
+  /// No description provided for @incidentCategoryBehavior.
+  ///
+  /// In ar, this message translates to:
+  /// **'سلوك'**
+  String get incidentCategoryBehavior;
+
+  /// No description provided for @incidentCategoryOther.
+  ///
+  /// In ar, this message translates to:
+  /// **'أخرى'**
+  String get incidentCategoryOther;
+
+  /// No description provided for @notifIncidentUpdatedTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'تحديث على بلاغك'**
+  String get notifIncidentUpdatedTitle;
+
+  /// No description provided for @notifIncidentReviewingBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'بلاغك قيد المراجعة.'**
+  String get notifIncidentReviewingBody;
+
+  /// No description provided for @notifIncidentResolvedBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'تمت معالجة بلاغك.'**
+  String get notifIncidentResolvedBody;
 }
 
 class _AppLocalizationsDelegate

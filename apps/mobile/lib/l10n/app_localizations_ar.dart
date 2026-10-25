@@ -1778,4 +1778,54 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get reportsNoRecords => 'لا توجد سجلات بعد.';
+
+  @override
+  String get incidentReportAction => 'الإبلاغ عن مشكلة';
+
+  @override
+  String get incidentReportTitle => 'الإبلاغ عن مشكلة';
+
+  @override
+  String get incidentReportNotice =>
+      'يُسجَّل بلاغك لتراجعه الإدارة. هذه ليست خدمة طوارئ؛ في حال الخطر اتصل بالجهات المختصة مباشرة.';
+
+  @override
+  String get incidentDescriptionLabel => 'صف المشكلة';
+
+  @override
+  String get incidentSubmit => 'إرسال البلاغ';
+
+  @override
+  String get incidentSubmitted => 'تم إرسال البلاغ.';
+
+  @override
+  String get incidentSubmitFailed => 'تعذّر إرسال البلاغ. حاول مرة أخرى.';
+
+  @override
+  String get incidentTooMany =>
+      'لديك عدة بلاغات قيد المراجعة. انتظر معالجتها قبل إرسال بلاغ جديد.';
+
+  @override
+  String get incidentCategorySafety => 'السلامة';
+
+  @override
+  String get incidentCategoryDelay => 'تأخير';
+
+  @override
+  String get incidentCategoryParcelDamage => 'تلف طرد';
+
+  @override
+  String get incidentCategoryBehavior => 'سلوك';
+
+  @override
+  String get incidentCategoryOther => 'أخرى';
+
+  @override
+  String get notifIncidentUpdatedTitle => 'تحديث على بلاغك';
+
+  @override
+  String get notifIncidentReviewingBody => 'بلاغك قيد المراجعة.';
+
+  @override
+  String get notifIncidentResolvedBody => 'تمت معالجة بلاغك.';
 }

@@ -72,7 +72,7 @@ describe("admin navigation", () => {
     expect(isModuleAvailable("routes", allOff)).toBe(false);
     expect(isModuleAvailable("matchingBatching", allOn)).toBe(true);
     expect(isModuleAvailable("matchingBatching", allOff)).toBe(false);
-    expect(isModuleAvailable("incidentsSafety", allOn)).toBe(false);
+    expect(isModuleAvailable("incidentsSafety", allOn)).toBe(true);
     expect(isModuleAvailable("reports", allOn)).toBe(true);
   });
 

@@ -45,6 +45,16 @@ export function createApiClient(apiBaseUrl: string, clientOptions: ApiClientOpti
   }
 
 return {
+  incidents: (token: string, query: { status?: IncidentStatus; page?: number; limit?: number } = {}) => {
+    const params = new URLSearchParams();
+    if (query.status) params.set("status", query.status);
+    if (query.page) params.set("page", String(query.page));
+    if (query.limit) params.set("limit", String(query.limit));
+    const text = params.toString();
+    return apiRequest<IncidentPage>(`/admin/incidents${text ? `?${text}` : ""}`, { token });
+  },
+  updateIncident: (token: string, id: string, body: { status: Exclude<IncidentStatus, "open">; expected_revision: number; note?: string }) =>
+    apiRequest<{ incident: IncidentRecord }>(`/admin/incidents/${encodeURIComponent(id)}`, { method: "PATCH", token, body }),
   reportSummary: (token: string, range: ReportRange) => apiRequest<ReportSummary>(`/admin/reports/summary${reportQuery(range)}`, { token }),
   reportExport: (token: string, dataset: ReportDataset, range: ReportRange) => downloadCsv(`/admin/reports/export${reportQuery(range, { dataset })}`, token),
   login: (phone: string, password: string) => apiRequest<LoginResponse>("/auth/login", { method: "POST", body: { phone, password } }),
@@ -379,6 +389,7 @@ export type DashboardResponse = {
     parcels: number;
     active_drivers: number;
     pending_driver_approvals: number;
+    open_incidents: number;
   };
 };
 
@@ -579,6 +590,21 @@ export type ServiceRoute = RouteIdentityDraft & {
   created_at: string;
   updated_at: string;
 };
+export type IncidentStatus = "open" | "reviewing" | "resolved";
+export type IncidentRecord = {
+  id: string;
+  trip_id: string | null;
+  category: string;
+  description: string;
+  status: IncidentStatus;
+  admin_note: string | null;
+  revision: number;
+  reviewed_at: string | null;
+  resolved_at: string | null;
+  created_at: string;
+  reporter?: { id: string; name: string; role: string };
+};
+export type IncidentPage = { incidents: IncidentRecord[]; page: number; limit: number; total: number; open_total: number };
 export type ReportRange = { from?: string; to?: string };
 export type ReportDataset = "requests" | "orders" | "trips";
 type StatusCounts = Record<string, number>;

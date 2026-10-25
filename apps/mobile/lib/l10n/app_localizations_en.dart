@@ -1790,4 +1790,54 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get reportsNoRecords => 'No records yet.';
+
+  @override
+  String get incidentReportAction => 'Report a problem';
+
+  @override
+  String get incidentReportTitle => 'Report a problem';
+
+  @override
+  String get incidentReportNotice =>
+      'Your report is recorded for Admin review. This is not an emergency service; if you are in danger, contact the authorities directly.';
+
+  @override
+  String get incidentDescriptionLabel => 'Describe the problem';
+
+  @override
+  String get incidentSubmit => 'Send report';
+
+  @override
+  String get incidentSubmitted => 'Report sent.';
+
+  @override
+  String get incidentSubmitFailed => 'The report could not be sent. Try again.';
+
+  @override
+  String get incidentTooMany =>
+      'You already have several reports under review. Wait for them to be handled before sending another.';
+
+  @override
+  String get incidentCategorySafety => 'Safety';
+
+  @override
+  String get incidentCategoryDelay => 'Delay';
+
+  @override
+  String get incidentCategoryParcelDamage => 'Damaged parcel';
+
+  @override
+  String get incidentCategoryBehavior => 'Behavior';
+
+  @override
+  String get incidentCategoryOther => 'Other';
+
+  @override
+  String get notifIncidentUpdatedTitle => 'Update on your report';
+
+  @override
+  String get notifIncidentReviewingBody => 'Your report is under review.';
+
+  @override
+  String get notifIncidentResolvedBody => 'Your report has been resolved.';
 }

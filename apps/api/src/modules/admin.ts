@@ -599,6 +599,7 @@ adminRouter.get("/admin/dashboard", async (req: AuthenticatedRequest, res, next)
       parcels,
       activeDriverGroups,
       pendingDriverApprovals,
+      openIncidents,
       recentRequests,
       recentOrders,
       recentRoutes
@@ -616,6 +617,7 @@ adminRouter.get("/admin/dashboard", async (req: AuthenticatedRequest, res, next)
           where: { status: "active", driver: { verified: true } }
         }),
         prisma.driverVerification.count({ where: { status: "pending" } }),
+        prisma.incident.count({ where: { status: { not: "resolved" } } }),
         prisma.passengerRequest.findMany({ orderBy: { created_at: "desc" }, take: 5 }),
         prisma.merchantOrder.findMany({ orderBy: { created_at: "desc" }, take: 5, include: { parcels: true } }),
         prisma.driverRoute.findMany({ orderBy: { activated_at: "desc" }, take: 5 })
@@ -637,7 +639,8 @@ adminRouter.get("/admin/dashboard", async (req: AuthenticatedRequest, res, next)
         merchant_orders: orders,
         parcels,
         active_drivers: activeDriverGroups.length,
-        pending_driver_approvals: pendingDriverApprovals
+        pending_driver_approvals: pendingDriverApprovals,
+        open_incidents: openIncidents
       },
       recent: { passenger_requests: recentRequests, merchant_orders: recentOrders, routes: recentRoutes }
     });

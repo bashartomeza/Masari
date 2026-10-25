@@ -20,6 +20,7 @@ Entries carry `type` and `params`, never display text; each client words them in
 | `match_accepted` / `match_rejected` | Passenger or Merchant behind the match | The driver accepts or rejects. |
 | `trip_status` (`params.status`) | Passenger and/or Merchant on the trip | The trip advances (driver or Admin). |
 | `driver_verification_approved` / `_rejected` (`params.reason`) | The driver | An Admin decides their verification. |
+| `incident_updated` (`params.status`) | The reporter | An Admin moves their incident report forward. |
 
 ## Guarantees
 

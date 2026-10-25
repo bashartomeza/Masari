@@ -8,7 +8,8 @@ export type NotificationType =
   | "match_rejected"
   | "trip_status"
   | "driver_verification_approved"
-  | "driver_verification_rejected";
+  | "driver_verification_rejected"
+  | "incident_updated";
 
 type NotifyInput = {
   userId: string | null | undefined;

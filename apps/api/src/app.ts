@@ -51,6 +51,7 @@ import type { ConsentReleaseService } from "./services/consentReleases.js";
 import { adminTripsRouter } from "./modules/adminTrips.js";
 import { notificationsRouter } from "./modules/notifications.js";
 import { reportsRouter } from "./modules/reports.js";
+import { incidentsRouter } from "./modules/incidents.js";
 
 export const HTTP_JSON_LIMIT = "64kb";
 export const CONSENT_RELEASE_JSON_LIMIT = "256kb";
@@ -126,6 +127,7 @@ export function createApp(
   );
   app.use("/api/v1", notificationsRouter);
   app.use("/api/v1", reportsRouter);
+  app.use("/api/v1", incidentsRouter);
   app.use("/api/v1", passengerRouter);
   app.use(
     "/api/v1",

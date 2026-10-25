@@ -174,6 +174,7 @@ class _NotificationTile extends StatelessWidget {
     'trip_status' => Icons.route_outlined,
     'driver_verification_approved' => Icons.verified_outlined,
     'driver_verification_rejected' => Icons.gpp_bad_outlined,
+    'incident_updated' => Icons.flag_outlined,
     _ => Icons.notifications_none_outlined,
   };
 
@@ -226,6 +227,15 @@ class _NotificationTile extends StatelessWidget {
         body: reason is String && reason.isNotEmpty
             ? l10n.notifVerificationRejectedReason(reason)
             : l10n.notifVerificationRejectedBody,
+      );
+    case 'incident_updated':
+      return (
+        title: l10n.notifIncidentUpdatedTitle,
+        body: switch (notification.params['status']) {
+          'reviewing' => l10n.notifIncidentReviewingBody,
+          'resolved' => l10n.notifIncidentResolvedBody,
+          _ => null,
+        },
       );
     default:
       return (title: l10n.notifUnknownTitle, body: null);

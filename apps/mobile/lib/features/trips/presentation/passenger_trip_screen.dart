@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:masari_mobile/l10n/app_localizations.dart';
+import '../../incidents/presentation/report_incident_sheet.dart';
 
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/semantic_colors.dart';
@@ -66,6 +67,7 @@ class _PassengerTripScreenState extends ConsumerState<PassengerTripScreen>
               l10n.passengerTrip,
               style: Theme.of(context).textTheme.headlineMedium,
             ),
+            ReportIncidentButton(tripId: widget.tripId),
             const SizedBox(height: AppTokens.spaceLarge),
             const SessionStatusBanner(),
             const SizedBox(height: AppTokens.spaceMedium),

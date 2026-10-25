@@ -45,7 +45,7 @@ function resourceStates(phase: OverviewResourcePhase, hasData: boolean): Overvie
 }
 
 const zeroDashboard = {
-  counts: { users: 0, drivers: 0, routes: 0, passenger_requests: 0, merchant_orders: 0, parcels: 0, active_drivers: 0, pending_driver_approvals: 0 }
+  counts: { users: 0, drivers: 0, routes: 0, passenger_requests: 0, merchant_orders: 0, parcels: 0, active_drivers: 0, pending_driver_approvals: 0, open_incidents: 0 }
 };
 const emptyOverview = {
   dashboard: zeroDashboard,
@@ -189,7 +189,7 @@ describe("overview dashboard", () => {
     expect(markup).toContain("No pending approvals");
     expect(markup).toContain("No orders");
     expect(markup).toContain("No requests");
-    expect(markup).toContain("—");
+    expect(markup).toContain("No open incidents");
   });
 
   it("renders only supported metric values from their owning API resources", () => {
@@ -298,16 +298,17 @@ describe("overview dashboard", () => {
     expect(textOf(markup)).toContain("Total orders — Data could not be loaded");
   });
 
-  it("never invents an incident count and localizes the unavailable contract", () => {
-    const english = withLocale("en", <OverviewDashboard data={emptyOverview} search="" busy={false} onRefresh={() => undefined} />);
-    const arabic = withLocale("ar", <OverviewDashboard data={emptyOverview} search="" busy={false} onRefresh={() => undefined} />);
+  it("shows the open-incident count from the API and localizes the empty state", () => {
+    const data = {
+      ...emptyOverview,
+      dashboard: { ...zeroDashboard, counts: { ...zeroDashboard.counts, open_incidents: 4 } }
+    };
+    const english = withLocale("en", <OverviewDashboard data={data} search="" busy={false} onRefresh={() => undefined} />);
     const incidentCardText = textOf(english.split('data-metric="incidents"')[1].split("</section>")[0]);
+    expect(incidentCardText).toContain("Incidents 4");
 
-    expect(incidentCardText).toContain("Incidents");
-    expect(incidentCardText).toContain("Incident service is not connected");
-    expect(incidentCardText).not.toMatch(/\d/);
-    expect(arabic).toContain("السائقون النشطون");
-    expect(arabic).toContain("خدمة الحوادث غير متصلة");
+    const empty = withLocale("ar", <OverviewDashboard data={emptyOverview} search="" busy={false} onRefresh={() => undefined} />);
+    expect(empty).toContain("لا توجد بلاغات مفتوحة");
   });
 
   it("derives alerts only from data the API actually returned", () => {

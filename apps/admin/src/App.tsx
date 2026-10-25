@@ -25,6 +25,7 @@ import { UsersDirectory } from "./features/users/UsersDirectory";
 import { DemoControl } from "./features/demo/DemoControl";
 import { ModuleUnavailable } from "./features/placeholder/ModuleUnavailable";
 import { ReportsPanel } from "./features/reports/ReportsPanel";
+import { IncidentsPanel } from "./features/incidents/IncidentsPanel";
 import { ProfilePanel } from "./features/profile/ProfilePanel";
 import {
   hashForModule,
@@ -589,7 +590,7 @@ export function App({
         );
 
       case "incidentsSafety":
-        return <ModuleUnavailable icon="emergency" reason="no-api" />;
+        return <IncidentsPanel api={api} token={token} />;
 
       case "reports":
         return <ReportsPanel api={api} token={token} />;
@@ -607,6 +608,7 @@ export function App({
     users: t("usersDescription"),
     drivers: t("verificationDescription"),
     reports: t("reportsDescription"),
+    incidentsSafety: t("incidentsDescription"),
     settings: t("settingsDescription"),
     profile: t("profileDescription")
   };

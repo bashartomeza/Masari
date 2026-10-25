@@ -628,5 +628,21 @@
   "reportsLoadError": "Could not load the report.",
   "reportsOrdersByStatus": "Orders by status",
   "reportsDeliveriesByStatus": "Deliveries by status",
-  "reportsNoRecords": "No records yet."
+  "reportsNoRecords": "No records yet.",
+  "incidentReportAction": "Report a problem",
+  "incidentReportTitle": "Report a problem",
+  "incidentReportNotice": "Your report is recorded for Admin review. This is not an emergency service; if you are in danger, contact the authorities directly.",
+  "incidentDescriptionLabel": "Describe the problem",
+  "incidentSubmit": "Send report",
+  "incidentSubmitted": "Report sent.",
+  "incidentSubmitFailed": "The report could not be sent. Try again.",
+  "incidentTooMany": "You already have several reports under review. Wait for them to be handled before sending another.",
+  "incidentCategorySafety": "Safety",
+  "incidentCategoryDelay": "Delay",
+  "incidentCategoryParcelDamage": "Damaged parcel",
+  "incidentCategoryBehavior": "Behavior",
+  "incidentCategoryOther": "Other",
+  "notifIncidentUpdatedTitle": "Update on your report",
+  "notifIncidentReviewingBody": "Your report is under review.",
+  "notifIncidentResolvedBody": "Your report has been resolved."
 }
