@@ -32,10 +32,11 @@ class NotificationsScreen extends ConsumerWidget {
         title: Text(l10n.notifications),
         actions: [
           if (unread > 0)
-            TextButton(
+            IconButton(
               key: const ValueKey('notificationsMarkAllRead'),
+              tooltip: l10n.notificationsMarkAllRead,
               onPressed: controller.markAllRead,
-              child: Text(l10n.notificationsMarkAllRead),
+              icon: const Icon(Icons.done_all),
             ),
           const LanguageSwitch(),
           const SizedBox(width: AppTokens.spaceSmall),
