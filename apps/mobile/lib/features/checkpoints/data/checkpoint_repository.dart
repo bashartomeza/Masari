@@ -40,21 +40,6 @@ class CheckpointRepository {
     if (decoded is! Map<String, dynamic>) {
       throw const FormatException('Invalid AweenRayeh response');
     }
-    final rawCheckpoints = decoded['checkpoints'];
-
-if (rawCheckpoints is List) {
-  for (final item in rawCheckpoints) {
-    if (item is Map<String, dynamic>) {
-      print(
-        'CHECKPOINT_DATA: '
-        '${item['id']} | '
-        '${item['checkpoint']} | '
-        '${item['city']}',
-      );
-    }
-  }
-}
-
     return CheckpointSnapshot.fromJson(decoded);
   }
 }
