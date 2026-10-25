@@ -24,20 +24,12 @@ class NotificationsScreen extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final inbox = ref.watch(notificationsControllerProvider);
     final controller = ref.read(notificationsControllerProvider.notifier);
-    final unread = inbox.value?.unreadCount ?? 0;
 
     return Scaffold(
       key: const ValueKey('notificationsTab'),
       appBar: AppBar(
         title: Text(l10n.notifications),
         actions: [
-          if (unread > 0)
-            IconButton(
-              key: const ValueKey('notificationsMarkAllRead'),
-              tooltip: l10n.notificationsMarkAllRead,
-              onPressed: controller.markAllRead,
-              icon: const Icon(Icons.done_all),
-            ),
           const LanguageSwitch(),
           const SizedBox(width: AppTokens.spaceSmall),
         ],
@@ -73,11 +65,17 @@ class NotificationsScreen extends ConsumerWidget {
                       AppTokens.marginMobile,
                       AppTokens.spaceExtraLarge,
                     ),
-                    itemCount: data.items.length,
+                    itemCount: data.items.length + 1,
                     separatorBuilder: (_, _) =>
                         const SizedBox(height: AppTokens.spaceSmall),
                     itemBuilder: (context, index) {
-                      final item = data.items[index];
+                      if (index == 0) {
+                        return _UnreadHeader(
+                          unread: data.unreadCount,
+                          onMarkAll: controller.markAllRead,
+                        );
+                      }
+                      final item = data.items[index - 1];
                       return _NotificationTile(
                         key: ValueKey('notification-${item.id}'),
                         notification: item,
@@ -88,6 +86,37 @@ class NotificationsScreen extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Unread count with a "mark all as read" action, kept out of the app bar so
+/// the page title keeps its room in both languages.
+class _UnreadHeader extends StatelessWidget {
+  const _UnreadHeader({required this.unread, required this.onMarkAll});
+
+  final int unread;
+  final VoidCallback onMarkAll;
+
+  @override
+  Widget build(BuildContext context) {
+    if (unread == 0) return const SizedBox.shrink();
+    final l10n = AppLocalizations.of(context);
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            l10n.notificationsUnreadCount(unread),
+            style: Theme.of(context).textTheme.labelLarge,
+          ),
+        ),
+        TextButton.icon(
+          key: const ValueKey('notificationsMarkAllRead'),
+          onPressed: onMarkAll,
+          icon: const Icon(Icons.done_all, size: 18),
+          label: Text(l10n.notificationsMarkAllRead),
+        ),
+      ],
     );
   }
 }
