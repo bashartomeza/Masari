@@ -8,6 +8,7 @@ import '../../../core/widgets/masari_section.dart';
 import '../../../core/widgets/state_views.dart';
 import '../../../core/widgets/status_chip.dart';
 import '../../auth/domain/auth_models.dart';
+import '../../auth/presentation/credential_actions.dart';
 import '../application/session_controller.dart';
 import 'security_actions.dart';
 import 'session_status_banner.dart';
@@ -53,6 +54,7 @@ class _SessionManagementScreenState
             ),
             children: [
               const SessionStatusBanner(),
+              const CredentialSettings(),
               if (_actionFailed) ...[
                 const SizedBox(height: AppTokens.spaceMedium),
                 OfflineBanner(

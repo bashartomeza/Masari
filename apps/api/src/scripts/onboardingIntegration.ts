@@ -10,6 +10,7 @@ import { consumeOnboardingSession, createOnboardingSession, revokeOnboardingSess
 import { createOnboardingAttempt } from "../lib/onboardingAttempts.js";
 import { normalizePhoneToE164 } from "../lib/phone.js";
 import { prisma } from "../lib/prisma.js";
+import { DEMO_ACCOUNTS } from "../modules/demoReset.js";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -503,14 +504,14 @@ async function main() {
   const loginResponse = await fetch(`${api}/api/v1/auth/login`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ phone: admin.phone, password: config.demo!.adminPassword, client_type: "admin" })
+    body: JSON.stringify({ email: DEMO_ACCOUNTS.admin.email, password: config.demo!.adminPassword })
   });
   assert(loginResponse.ok, "Admin login failed for invitation integration");
   const token = (await json(loginResponse)).access_token;
   const passenger = await prisma.user.findFirstOrThrow({ where: { role: "passenger", demo_account: true } });
   const passengerLogin = await fetch(`${api}/api/v1/auth/login`, {
     method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({ phone: passenger.phone, password: config.demo!.passengerPassword, client_type: "mobile" })
+    body: JSON.stringify({ email: DEMO_ACCOUNTS.passenger.email, password: config.demo!.passengerPassword })
   });
   const passengerToken = (await json(passengerLogin)).access_token;
   const forbidden = await fetch(`${api}/api/v1/admin/invitations`, { headers: { authorization: `Bearer ${passengerToken}` } });

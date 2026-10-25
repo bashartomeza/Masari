@@ -84,6 +84,13 @@ class _MerchantOrderDetailScreenState
           statusLabel: merchantStatusLabel(l10n, order.status),
           statusTone: statusToneFor(order.status),
           statusKey: const ValueKey('merchantOrderStatus'),
+          primaryAction: order.canCancel
+              ? CardAction(
+                  key: const ValueKey('cancelMerchantOrderButton'),
+                  label: l10n.cancelRequest,
+                  onPressed: _busy ? null : _cancelOrder,
+                )
+              : null,
           body: Column(
             children: [
               DetailRow(
@@ -164,6 +171,12 @@ class _MerchantOrderDetailScreenState
       ],
     );
   }
+
+  Future<void> _cancelOrder() => _action(() async {
+    await ref
+        .read(merchantOrderProvider(widget.orderId).notifier)
+        .cancelOrder();
+  });
 
   Future<void> _createBatch() => _action(() async {
     await ref

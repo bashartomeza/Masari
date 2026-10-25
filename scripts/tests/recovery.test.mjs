@@ -94,6 +94,12 @@ test("release metadata is reproducible with SOURCE_DATE_EPOCH and excludes secre
       "20260819150000_driver_verification_approval",
       "20260820120000_global_e164_phone_constraints",
       "20260821120000_consent_management_workflow",
+      "20260910120000_email_google_self_service_auth",
+      "20260915130000_external_identity_profile_state",
+      "20260915130100_backfill_legacy_google_external_identities",
+      "20261006110000_complete_passenger_trip_lifecycle",
+      "20261008190000_complete_capacity_batching_failure_states",
+      "20261012165000_allow_legacy_offer_lifecycle_timestamps",
       "20261025120000_in_app_notifications",
       "20261025140000_incident_reports",
       "20261025160000_driver_verification_history"

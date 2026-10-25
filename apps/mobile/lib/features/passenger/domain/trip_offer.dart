@@ -33,6 +33,7 @@ class TripOffer {
     this.ratingOutOfFive,
     this.completedTrips,
     this.trustScore,
+    this.matchScore,
     this.priceLabel,
     this.departureAt,
     this.remainingSeats,
@@ -56,6 +57,9 @@ class TripOffer {
 
   /// 0..100, the value the schema actually stores.
   final int? trustScore;
+
+  /// 0..1. Present only when this offer came from the matching search API.
+  final double? matchScore;
 
   /// Already formatted with its currency by the caller.
   final String? priceLabel;

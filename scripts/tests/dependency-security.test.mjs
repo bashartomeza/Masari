@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
-const root = resolve(new URL("../../", import.meta.url).pathname.replace(/^\/(\w:)/, "$1"));
+const root = fileURLToPath(new URL("../../", import.meta.url));
 const packageJson = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8"));
 const apiPackageJson = JSON.parse(readFileSync(resolve(root, "apps/api/package.json"), "utf8"));
 const adminPackageJson = JSON.parse(readFileSync(resolve(root, "apps/admin/package.json"), "utf8"));

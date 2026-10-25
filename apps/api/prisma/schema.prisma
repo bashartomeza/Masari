@@ -101,16 +101,23 @@ enum RequestStatus {
   picked_up
   in_transit
   delivered
+  completed
   cancelled
+  expired
 }
 
 enum MerchantOrderStatus {
   draft
   submitted
   batched
+  matched
   assigned
   in_transit
+  delivered
   completed
+  cancelled
+  failed
+  expired
 }
 
 enum ParcelStatus {
@@ -120,6 +127,9 @@ enum ParcelStatus {
   picked_up
   in_transit
   delivered
+  cancelled
+  failed
+  expired
 }
 
 enum ParcelBatchStatus {
@@ -129,6 +139,9 @@ enum ParcelBatchStatus {
   picked_up
   in_transit
   delivered
+  cancelled
+  failed
+  expired
 }
 
 enum MatchStatus {
@@ -191,10 +204,14 @@ enum TripStatus {
   delivered
   completed
   cancelled
+  failed
 }
 
 enum AuditAction {
   auth_login
+  auth_register
+  auth_google_login
+  auth_google_link
   session_created
   session_refreshed
   session_revoked
@@ -345,11 +362,34 @@ enum IdempotencyState {
   failed
 }
 
+enum ProfileState {
+  phone_required
+  complete
+}
+
+enum ExternalIdentityProvider {
+  google
+}
+
+enum AuthActionPurpose {
+  email_verification
+  password_reset
+  password_set
+  email_change
+  google_registration
+  phone_verification
+}
+
 model User {
   id                String        @id @default(cuid())
   name              String
-  phone             String        @unique
-  password_hash     String
+  phone             String?       @unique @db.VarChar(32)
+  phone_verified_at DateTime?
+  email             String?       @unique @db.VarChar(191)
+  email_verified_at DateTime?
+  google_sub        String?       @unique
+  password_hash     String?
+  profile_state     ProfileState  @default(phone_required)
   role              UserRole
   account_status    AccountStatus @default(active)
   security_version  Int           @default(1)
@@ -372,6 +412,8 @@ model User {
   onboarding_attempts              OnboardingAttempt[]    @relation("CompletedOnboardingUser")
   onboarding_sessions              OnboardingSession[]
   consents                         UserConsent[]
+  external_identities              ExternalIdentity[]
+  auth_action_tokens               AuthActionToken[]
   service_routes_created           ServiceRoute[]         @relation("ServiceRouteCreator")
   service_routes_retired           ServiceRoute[]         @relation("ServiceRouteRetirer")
   service_route_versions_created   ServiceRouteVersion[]  @relation("ServiceRouteVersionCreator")
@@ -386,6 +428,43 @@ model User {
   incidents_reviewed               Incident[]             @relation("IncidentReviewer")
 
   @@map("users")
+}
+
+model ExternalIdentity {
+  id                      String                   @id @default(cuid())
+  user_id                 String
+  provider                ExternalIdentityProvider
+  provider_subject        String                   @db.VarChar(191)
+  provider_email_snapshot String?                  @db.VarChar(191)
+  created_at              DateTime                 @default(now())
+  updated_at              DateTime                 @updatedAt
+  last_authenticated_at   DateTime?
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([provider, provider_subject])
+  @@unique([user_id, provider])
+  @@index([user_id])
+  @@map("external_identities")
+}
+
+model AuthActionToken {
+  id                String            @id @default(cuid())
+  purpose           AuthActionPurpose
+  user_id           String?
+  subject_digest    String?           @db.Char(64)
+  token_digest      String            @unique @db.Char(64)
+  token_key_version Int
+  payload           Json?
+  expires_at        DateTime
+  consumed_at       DateTime?
+  created_at        DateTime          @default(now())
+
+  user User? @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([purpose, expires_at, consumed_at])
+  @@index([user_id, purpose, expires_at])
+  @@map("auth_action_tokens")
 }
 
 model Invitation {
@@ -955,6 +1034,7 @@ model MerchantOrder {
   route_version  ServiceRouteVersion? @relation(fields: [route_version_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
   parcels        Parcel[]
   parcel_batches ParcelBatch[]
+  batch_members  ParcelBatchOrder[]
   matches        Match[]
   trips          Trip[]
   canonical_dispatch CanonicalDemandDispatch?
@@ -1002,8 +1082,26 @@ model ParcelBatch {
   driver_route   DriverRoute?  @relation(fields: [driver_route_id], references: [id], onDelete: SetNull)
   matches        Match[]
   trips          Trip[]
+  members        ParcelBatchOrder[]
 
+  @@index([driver_route_id, status])
   @@map("parcel_batches")
+}
+
+model ParcelBatchOrder {
+  id                String   @id @default(cuid())
+  parcel_batch_id   String
+  merchant_order_id String
+  active            Boolean  @default(true)
+  active_membership_key String? @unique @db.VarChar(191)
+  created_at        DateTime @default(now())
+
+  parcel_batch   ParcelBatch   @relation(fields: [parcel_batch_id], references: [id], onDelete: Cascade)
+  merchant_order MerchantOrder @relation(fields: [merchant_order_id], references: [id], onDelete: Cascade)
+
+  @@unique([parcel_batch_id, merchant_order_id], map: "parcel_batch_orders_unique")
+  @@index([merchant_order_id, created_at])
+  @@map("parcel_batch_orders")
 }
 
 model Match {
@@ -1039,6 +1137,8 @@ model Match {
   canonical_assignment_key String? @db.Char(64)
   expiry_failure_count Int         @default(0)
   expiry_last_failed_at DateTime?
+  legacy_demand_key    String?     @unique @db.VarChar(191)
+  legacy_capacity_held Boolean     @default(false)
 
   driver_route      DriverRoute       @relation(fields: [driver_route_id], references: [id], onDelete: Restrict)
   mode_driver_route DriverRoute       @relation("MatchAvailabilityMode", fields: [driver_route_id, operational_mode], references: [id, operational_mode], onDelete: Restrict, onUpdate: Restrict)
@@ -1113,6 +1213,7 @@ model Trip {
   canonical_dispatch_id  String?    @unique
   canonical_assignment_key String?  @db.Char(64)
   canonical_availability_key String? @unique @db.VarChar(191)
+  legacy_assignment_key String? @unique @db.VarChar(191)
 
   incidents         Incident[]
   driver_route      DriverRoute       @relation(fields: [driver_route_id], references: [id], onDelete: Restrict)

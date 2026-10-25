@@ -6,7 +6,9 @@ class MatchResult {
     required this.explanation,
     required this.driverName,
     required this.routeLabel,
+    required this.seatsAvailable,
     required this.breakdown,
+    required this.passengerRequestId,
   });
 
   final String id;
@@ -15,7 +17,9 @@ class MatchResult {
   final String explanation;
   final String driverName;
   final String routeLabel;
+  final int seatsAvailable;
   final ScoringBreakdown breakdown;
+  final String? passengerRequestId;
 
   factory MatchResult.fromJson(
     Map<String, dynamic> json,
@@ -28,10 +32,12 @@ class MatchResult {
       status: _string(json, 'status'),
       score: _double(json, 'score'),
       explanation: _string(json, 'explanation'),
-      driverName: driver?['vehicle_type'] as String? ?? 'Driver route',
+      driverName: driver?['name'] as String? ?? 'Driver route',
       routeLabel:
           '${_string(route, 'origin_label')} -> ${_string(route, 'destination_label')}',
+      seatsAvailable: _intOrZero(route['seats_available']),
       breakdown: ScoringBreakdown.fromJson(scoring),
+      passengerRequestId: _nestedIdOrNull(json['passenger_request']),
     );
   }
 }
@@ -77,3 +83,13 @@ double _double(Map<String, dynamic> json, String key) {
   if (value is String) return double.parse(value);
   throw FormatException('Missing $key');
 }
+
+String? _nestedIdOrNull(Object? value) {
+  if (value is Map<String, dynamic> && value['id'] is String) {
+    return value['id'] as String;
+  }
+  return null;
+}
+
+int _intOrZero(Object? value) =>
+    value is num ? value.toInt() : int.tryParse(value?.toString() ?? '') ?? 0;

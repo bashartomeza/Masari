@@ -25,6 +25,9 @@ jobs:
         with:
           distribution: temurin
           java-version: ${{ steps.versions.outputs.java }}
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version-file: .nvmrc
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           flutter-version: ${{ steps.versions.outputs.flutter }}
@@ -40,6 +43,10 @@ jobs:
         working-directory: apps/mobile
       - run: flutter test
         working-directory: apps/mobile
+      - name: Test compiled APK location policy
+        run: node --test scripts/tests/apk-location-policy.test.mjs scripts/tests/apk-build-tools.test.mjs
+        env:
+          MASARI_TEST_ANDROID_TOOLS: "true"
       - name: Build unsigned production-like APK
         working-directory: apps/mobile
         run: >-

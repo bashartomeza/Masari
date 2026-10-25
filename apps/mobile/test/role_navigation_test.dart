@@ -1,3 +1,4 @@
+import 'package:masari_mobile/core/widgets/role_nav_scaffold.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -21,18 +22,18 @@ void main() {
     testWidgets('bottom navigation survives every tab', (tester) async {
       await _pumpApp(tester, handler: _driverHandler);
 
-      expect(_bar(tester).selectedIndex, 0);
+      expect(_bar(tester).currentIndex, 0);
 
       // Every destination, then back down again: the diagram gives the driver
       // five, and each must keep the bar alive.
       for (final index in [1, 2, 3, 4, 0, 4, 3, 2, 1, 0]) {
         await _tapTab(tester, index);
         expect(
-          find.byType(NavigationBar),
+          find.byType(RoleShellScaffold),
           findsOneWidget,
           reason: 'bar disappeared on tab $index',
         );
-        expect(_bar(tester).selectedIndex, index);
+        expect(_bar(tester).currentIndex, index);
       }
     });
 
@@ -45,8 +46,8 @@ void main() {
         await _tapTab(tester, i.isEven ? 1 : 0);
       }
 
-      expect(find.byType(NavigationBar), findsOneWidget);
-      expect(_bar(tester).selectedIndex, 0);
+      expect(find.byType(RoleShellScaffold), findsOneWidget);
+      expect(_bar(tester).currentIndex, 0);
     });
 
     testWidgets('a detail keeps the bar, its tab, and the branch stack', (
@@ -59,8 +60,8 @@ void main() {
       await tester.pumpAndSettle();
 
       // Nested detail: bar stays, and its own tab stays highlighted.
-      expect(find.byType(NavigationBar), findsOneWidget);
-      expect(_bar(tester).selectedIndex, 1);
+      expect(find.byType(RoleShellScaffold), findsOneWidget);
+      expect(_bar(tester).currentIndex, 1);
       expect(
         find.byKey(const ValueKey('driverScoringBreakdown')),
         findsOneWidget,
@@ -86,7 +87,7 @@ void main() {
         findsNothing,
       );
       expect(find.byKey(const ValueKey('openMatch-match_1')), findsOneWidget);
-      expect(_bar(tester).selectedIndex, 1);
+      expect(_bar(tester).currentIndex, 1);
     });
 
     testWidgets('re-tapping the active tab pops instead of stacking', (
@@ -117,12 +118,12 @@ void main() {
       await _pumpApp(tester, handler: _driverHandler);
 
       GoRouter.of(
-        tester.element(find.byType(NavigationBar)),
+        tester.element(find.byType(RoleShellScaffold)),
       ).go('/driver/match/match_1');
       await tester.pumpAndSettle();
 
-      expect(find.byType(NavigationBar), findsOneWidget);
-      expect(_bar(tester).selectedIndex, 1);
+      expect(find.byType(RoleShellScaffold), findsOneWidget);
+      expect(_bar(tester).currentIndex, 1);
     });
 
     testWidgets('a full-screen flow deliberately has no navigation bar', (
@@ -131,11 +132,11 @@ void main() {
       await _pumpApp(tester, handler: _driverHandler);
 
       GoRouter.of(
-        tester.element(find.byType(NavigationBar)),
+        tester.element(find.byType(RoleShellScaffold)),
       ).go('/driver/trip/trip_1');
       await tester.pumpAndSettle();
 
-      expect(find.byType(NavigationBar), findsNothing);
+      expect(find.byType(RoleShellScaffold), findsNothing);
     });
   });
 
@@ -145,8 +146,8 @@ void main() {
 
       for (final index in [1, 2, 3, 4, 0, 1]) {
         await _tapTab(tester, index);
-        expect(find.byType(NavigationBar), findsOneWidget);
-        expect(_bar(tester).selectedIndex, index);
+        expect(find.byType(RoleShellScaffold), findsOneWidget);
+        expect(_bar(tester).currentIndex, index);
       }
     });
 
@@ -163,8 +164,30 @@ void main() {
         find.byKey(const ValueKey('passengerTrip-request_1')),
         findsOneWidget,
       );
-      expect(find.text('الرحلات السابقة'), findsOneWidget);
-      expect(find.byType(NavigationBar), findsOneWidget);
+      expect(find.byType(NavigationBar), findsNothing);
+      expect(find.byType(RoleShellScaffold), findsOneWidget);
+    });
+
+    testWidgets('the assistant opens inside the passenger home branch', (
+      tester,
+    ) async {
+      await _pumpApp(tester, handler: _passengerHandler);
+
+      await tester.tap(find.byKey(const ValueKey('openPassengerAssistant')));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('passengerAssistantScreen')),
+        findsOneWidget,
+      );
+      expect(find.byType(RoleShellScaffold), findsOneWidget);
+      expect(_bar(tester).currentIndex, 0);
+      expect(
+        Directionality.of(
+          tester.element(find.byKey(const ValueKey('assistantTextInput'))),
+        ),
+        TextDirection.rtl,
+      );
     });
 
     testWidgets('the account tab reaches session management', (tester) async {
@@ -172,7 +195,7 @@ void main() {
 
       await _tapTab(tester, _accountTab(tester));
       expect(find.text('الأمان والجلسات'), findsWidgets);
-      expect(find.byType(NavigationBar), findsOneWidget);
+      expect(find.byType(RoleShellScaffold), findsOneWidget);
     });
 
     testWidgets('the legacy security link lands on the account tab', (
@@ -185,8 +208,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('الأمان والجلسات'), findsWidgets);
-      expect(find.byType(NavigationBar), findsOneWidget);
-      expect(_bar(tester).selectedIndex, account);
+      expect(find.byType(RoleShellScaffold), findsOneWidget);
+      expect(_bar(tester).currentIndex, account);
     });
   });
 
@@ -196,8 +219,8 @@ void main() {
 
       for (final index in [1, 2, 3, 4, 0, 1]) {
         await _tapTab(tester, index);
-        expect(find.byType(NavigationBar), findsOneWidget);
-        expect(_bar(tester).selectedIndex, index);
+        expect(find.byType(RoleShellScaffold), findsOneWidget);
+        expect(_bar(tester).currentIndex, index);
       }
     });
 
@@ -211,23 +234,23 @@ void main() {
         find.byKey(const ValueKey('merchantShipmentsList')),
         findsOneWidget,
       );
-      expect(find.byType(NavigationBar), findsOneWidget);
+      expect(find.byType(RoleShellScaffold), findsOneWidget);
     });
   });
 
   testWidgets('Arabic lays the bar out right-to-left', (tester) async {
     await _pumpApp(tester, handler: _driverHandler);
 
-    final bar = find.byType(NavigationBar);
+    final bar = find.byType(RoleShellScaffold);
     expect(Directionality.of(tester.element(bar)), TextDirection.rtl);
 
     // Under RTL the first destination sits on the trailing (right) edge.
     final home = tester.getCenter(_tabIcon(0));
     final account = tester.getCenter(_tabIcon(_accountTab(tester)));
     expect(
-      home.dx,
-      greaterThan(account.dx),
-      reason: 'first destination should be rightmost in Arabic',
+      home.dy,
+      lessThan(account.dy),
+      reason: 'home should precede account in the sidebar',
     );
   });
 
@@ -239,12 +262,12 @@ void main() {
     );
 
     expect(
-      Directionality.of(tester.element(find.byType(NavigationBar))),
+      Directionality.of(tester.element(find.byType(RoleShellScaffold))),
       TextDirection.ltr,
     );
     expect(
-      tester.getCenter(_tabIcon(0)).dx,
-      lessThan(tester.getCenter(_tabIcon(_accountTab(tester))).dx),
+      tester.getCenter(_tabIcon(0)).dy,
+      lessThan(tester.getCenter(_tabIcon(_accountTab(tester))).dy),
     );
   });
 }
@@ -253,24 +276,25 @@ void main() {
 // Helpers.
 // ---------------------------------------------------------------------------
 
-NavigationBar _bar(WidgetTester tester) =>
-    tester.widget<NavigationBar>(find.byType(NavigationBar));
+StatefulNavigationShell _bar(WidgetTester tester) => tester
+    .widget<RoleShellScaffold>(find.byType(RoleShellScaffold))
+    .navigationShell;
 
 /// The account tab's index: always the last destination, in every role.
 ///
 /// Derived rather than hardcoded so adding a destination to a shell does not
 /// silently point these assertions at the wrong tab.
-int _accountTab(WidgetTester tester) => _bar(tester).destinations.length - 1;
+int _accountTab(WidgetTester tester) =>
+    tester
+        .widget<RoleShellScaffold>(find.byType(RoleShellScaffold))
+        .destinations
+        .length -
+    1;
 
 /// The destination at [index], scoped to the bar so it never collides with the
 /// same icon used inside a screen's content. Indexing destinations rather than
 /// icons keeps this tied to branch order.
-Finder _tabIcon(int index) => find
-    .descendant(
-      of: find.byType(NavigationBar),
-      matching: find.byType(NavigationDestination),
-    )
-    .at(index);
+Finder _tabIcon(int index) => find.byKey(ValueKey('roleNavigation-$index'));
 
 Future<void> _tapTab(WidgetTester tester, int index) async {
   await tester.tap(_tabIcon(index));
@@ -288,7 +312,7 @@ Future<void> _pumpApp(
   Map<String, Object> localeValues = const {},
   AppConfig config = demoTestAppConfig,
 }) async {
-  tester.view.physicalSize = const Size(900, 2000);
+  tester.view.physicalSize = const Size(1200, 2000);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);

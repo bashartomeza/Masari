@@ -1,6 +1,9 @@
 import express from "express";
 import type { Logger } from "pino";
-import { authRouter } from "./modules/auth.js";
+import { createAuthRouter } from "./modules/auth.js";
+import type { EmailDelivery } from "./services/emailAuth.js";
+import type { PhoneVerificationProvider } from "./services/identityProfile.js";
+import type { GoogleVerifier } from "./lib/googleIdentity.js";
 import { createDemoRouter } from "./modules/demoReset.js";
 import { passengerRouter } from "./modules/passenger.js";
 import { createDriverRouter } from "./modules/driver.js";
@@ -46,18 +49,26 @@ import type { LegacyDriverOnlineStateService } from "./services/legacyDriverOnli
 import { createRouteProvider } from "./maps/liveProviders.js";
 import { createRoutePreviewService, type RoutePreviewService } from "./maps/previewService.js";
 import { createRoutePreviewRouter } from "./modules/routePreview.js";
+import { createPassengerAssistantRouter } from "./modules/passengerAssistant.js";
+import type { PassengerAssistantService } from "./services/passengerAssistant.js";
 import { createAdminConsentRouter } from "./modules/adminConsents.js";
 import type { ConsentReleaseService } from "./services/consentReleases.js";
 import { adminTripsRouter } from "./modules/adminTrips.js";
 import { notificationsRouter } from "./modules/notifications.js";
 import { reportsRouter } from "./modules/reports.js";
 import { incidentsRouter } from "./modules/incidents.js";
+import { createAdminMatchingMonitoringRouter } from "./modules/adminMatchingMonitoring.js";
+import type { MonitoringService } from "./services/adminMatchingMonitoring/contracts.js";
+import { requireCompleteProfile } from "./middleware/profileState.js";
 
 export const HTTP_JSON_LIMIT = "64kb";
 export const CONSENT_RELEASE_JSON_LIMIT = "256kb";
 export const HTTP_FORM_LIMIT = "16kb";
 
 type AppDependencies = {
+  phoneVerificationProvider?: PhoneVerificationProvider;
+  googleVerifier?: GoogleVerifier;
+  emailDelivery?: EmailDelivery;
   logger?: Logger;
   readinessCheck?: ReadinessCheck;
   otpProvider?: OtpProvider;
@@ -69,7 +80,9 @@ type AppDependencies = {
   checkpointService?: CheckpointService;
   legacyDriverOnlineStateService?: LegacyDriverOnlineStateService;
   routePreviewService?: RoutePreviewService;
+  passengerAssistantService?: PassengerAssistantService;
   consentReleaseService?: ConsentReleaseService;
+  adminMatchingMonitoringService?: MonitoringService;
 };
 
 export function createApp(
@@ -94,13 +107,21 @@ export function createApp(
     createHealthRouter(appConfig, dependencies.readinessCheck),
   );
   app.use("/api/v1", createGlobalRateLimiter(appConfig));
-  app.use("/api/v1/auth/login", createLoginRateLimiter(appConfig));
+  app.use(
+    ["/api/v1/auth/login", "/api/v1/auth/register", "/api/v1/auth/google", "/api/v1/auth/mobile", "/api/v1/auth/admin", "/api/v1/auth/email", "/api/v1/auth/password"],
+    createLoginRateLimiter(appConfig),
+  );
   app.use(
     "/api/v1",
     createPublicOnboardingRouter(appConfig, dependencies.otpProvider),
   );
 
-  app.use("/api/v1", authRouter);
+  // This mount is intentionally before every product router below. It makes
+  // complete-profile enforcement the default for future authenticated product
+  // surfaces, while profile-completion-safe paths are explicitly exempted.
+  app.use("/api/v1", requireCompleteProfile);
+
+  app.use("/api/v1", createAuthRouter(appConfig, dependencies));
   app.use("/api/v1", createCapabilitiesRouter(appConfig));
   app.use(
     "/api/v1",
@@ -129,6 +150,10 @@ export function createApp(
   app.use("/api/v1", reportsRouter);
   app.use("/api/v1", incidentsRouter);
   app.use("/api/v1", passengerRouter);
+  app.use(
+    "/api/v1",
+    createPassengerAssistantRouter(appConfig, dependencies.passengerAssistantService),
+  );
   app.use(
     "/api/v1",
     createDriverAvailabilityRouter(
@@ -169,6 +194,10 @@ export function createApp(
   app.use("/api/v1", createRoutePreviewRouter(appConfig, routePreviewService));
   app.use("/api/v1", createAdminConsentRouter(dependencies.consentReleaseService));
   app.use("/api/v1", adminTripsRouter);
+  app.use(
+    "/api/v1",
+    createAdminMatchingMonitoringRouter(dependencies.adminMatchingMonitoringService),
+  );
   app.use("/api/v1", adminRouter);
 
   app.use(notFoundHandler);

@@ -16,13 +16,23 @@ const driverPassword = process.env.DEMO_DRIVER_PASSWORD;
 if (!merchantPassword || !driverPassword) throw new Error("DEMO_MERCHANT_PASSWORD and DEMO_DRIVER_PASSWORD are required");
 
 const PHONES = { merchant: "+970590000006", rejectedDriver: "+970590000007", pendingDriver: "+970590000008" } as const;
+const EMAILS: Record<string, string> = {
+  [PHONES.merchant]: "demo.pending.merchant@masari.app",
+  [PHONES.rejectedDriver]: "demo.rejected.driver@masari.app",
+  [PHONES.pendingDriver]: "demo.pending.driver@masari.app"
+};
 
 async function account(phone: string, name: string, role: "merchant" | "driver", password: string) {
   await prisma.user.deleteMany({ where: { phone, demo_account: true } });
+  await prisma.user.deleteMany({ where: { email: EMAILS[phone], demo_account: true } });
   return prisma.user.create({
     data: {
       name,
       phone,
+      email: EMAILS[phone],
+      email_verified_at: new Date(),
+      phone_verified_at: new Date(),
+      profile_state: "complete",
       password_hash: await bcrypt.hash(password, 10),
       role,
       account_status: "pending",

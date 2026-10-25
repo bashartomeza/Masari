@@ -7,6 +7,19 @@ function response(body: unknown, status = 200) {
 
 describe("Admin driver verification API client", () => {
   afterEach(() => vi.unstubAllGlobals());
+  it("sends Google credentials only to the Admin endpoint", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(response({ token: "admin-token" }));
+    vi.stubGlobal("fetch", fetchMock);
+    await createApiClient("http://api.test").googleLogin("credential");
+    expect(fetchMock).toHaveBeenCalledWith("http://api.test/api/v1/auth/admin/google", expect.objectContaining({ body: JSON.stringify({ id_token: "credential" }) }));
+  });
+
+  it("uses the Admin email boundary with no phone payload", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(response({ token: "admin-token" }));
+    vi.stubGlobal("fetch", fetchMock);
+    await createApiClient("http://api.test").login("admin@example.com", "secret");
+    expect(fetchMock).toHaveBeenCalledWith("http://api.test/api/v1/auth/admin/login", expect.objectContaining({ body: JSON.stringify({ email: "admin@example.com", password: "secret" }) }));
+  });
 
   it("loads the pending queue and detail with the Admin bearer token", async () => {
     const fetchMock = vi.fn()
@@ -114,5 +127,157 @@ describe("Admin driver verification API client", () => {
       method: "POST",
       body: JSON.stringify({ status: "pickup_started", expected_status: "accepted" }),
     }));
+  });
+
+  it("sends observed current-version expectations for every route lifecycle mutation", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(response({ version: { id: "version_1" } }))
+      .mockResolvedValueOnce(response({ version: { id: "version_1" } }))
+      .mockResolvedValueOnce(response({ version: { id: "version_1" } }))
+      .mockResolvedValueOnce(response({ route: { id: "route_1" } }));
+    vi.stubGlobal("fetch", fetchMock);
+    const api = createApiClient("http://api.test");
+
+    await api.routeVersionAction(
+      "admin-token",
+      "version_1",
+      "pause",
+      { reason: "review", expected_current_version_id: "version_1" },
+      "pause-key"
+    );
+    await api.routeVersionAction(
+      "admin-token",
+      "version_1",
+      "resume",
+      { expected_current_version_id: "version_1" },
+      "resume-key"
+    );
+    await api.routeVersionAction(
+      "admin-token",
+      "version_1",
+      "retire",
+      { reason: "superseded", expected_current_version_id: "version_1" },
+      "retire-key"
+    );
+    await api.retireServiceRoute(
+      "admin-token",
+      "route_1",
+      { reason: "service ended", expected_current_version_id: null },
+      "route-retire-key"
+    );
+
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+      reason: "review",
+      expected_current_version_id: "version_1"
+    });
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({ expected_current_version_id: "version_1" });
+    expect(JSON.parse(fetchMock.mock.calls[2][1].body)).toEqual({
+      reason: "superseded",
+      expected_current_version_id: "version_1"
+    });
+    expect(JSON.parse(fetchMock.mock.calls[3][1].body)).toEqual({
+      reason: "service ended",
+      expected_current_version_id: null
+    });
+  });
+});
+
+describe("Admin matching and batching monitoring API client", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("uses the six read-only monitoring endpoints with encoded query values and IDs", async () => {
+    const parcelPage = {
+      observed_at: "2026-09-11T10:00:00.000Z",
+      scope: "production_supported_legacy",
+      data: {
+        items: [{ id: "parcel_1", status: "pending" }],
+        page: 2,
+        limit: 25,
+        total: 26,
+        has_more: false,
+        range: null,
+        contents_semantics: "current_eligible_order_contents",
+        merchant_order_id: "order_1"
+      }
+    };
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(response({ data: {} }))
+      .mockResolvedValueOnce(response({ data: { items: [] } }))
+      .mockResolvedValueOnce(response({ data: { id: "match_1" } }))
+      .mockResolvedValueOnce(response({ data: { items: [] } }))
+      .mockResolvedValueOnce(response({ data: { id: "batch_1" } }))
+      .mockResolvedValueOnce(response(parcelPage));
+    vi.stubGlobal("fetch", fetchMock);
+    const api = createApiClient("http://api.test");
+
+    await api.monitoringOverview("admin-token", {
+      from: "2026-09-01T00:00:00.000Z",
+      until: "2026-09-08T00:00:00.000Z"
+    });
+    await api.monitoringMatches("admin-token", {
+      page: 3,
+      limit: 25,
+      from: "2026-09-01T00:00:00.000Z",
+      until: "2026-09-08T00:00:00.000Z",
+      status: "sent_to_driver",
+      demand_kind: "combined",
+      search: "match/id + one"
+    });
+    await api.monitoringMatch("admin-token", "match/id one");
+    await api.monitoringBatches("admin-token", {
+      page: 4,
+      limit: 10,
+      status: "in_transit",
+      search: "batch/id + one"
+    });
+    await api.monitoringBatch("admin-token", "batch/id one");
+    await expect(api.monitoringParcels("admin-token", "batch/id one", { page: 2, limit: 25 })).resolves.toEqual(parcelPage);
+
+    const expectedUrls = [
+      "http://api.test/api/v1/admin/matching-batching/overview?from=2026-09-01T00%3A00%3A00.000Z&until=2026-09-08T00%3A00%3A00.000Z",
+      "http://api.test/api/v1/admin/matching-batching/matches?page=3&limit=25&from=2026-09-01T00%3A00%3A00.000Z&until=2026-09-08T00%3A00%3A00.000Z&status=sent_to_driver&demand_kind=combined&search=match%2Fid+%2B+one",
+      "http://api.test/api/v1/admin/matching-batching/matches/match%2Fid%20one",
+      "http://api.test/api/v1/admin/matching-batching/batches?page=4&limit=10&status=in_transit&search=batch%2Fid+%2B+one",
+      "http://api.test/api/v1/admin/matching-batching/batches/batch%2Fid%20one",
+      "http://api.test/api/v1/admin/matching-batching/batches/batch%2Fid%20one/parcels?page=2&limit=25"
+    ];
+    expectedUrls.forEach((url, index) => {
+      expect(fetchMock).toHaveBeenNthCalledWith(index + 1, url, {
+        method: "GET",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer admin-token" },
+        body: undefined
+      });
+    });
+  });
+
+  it("omits the default date range instead of manufacturing browser dates", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(response({ data: {} }))
+      .mockResolvedValueOnce(response({ data: { items: [] } }))
+      .mockResolvedValueOnce(response({ data: { items: [] } }));
+    vi.stubGlobal("fetch", fetchMock);
+    const api = createApiClient("http://api.test");
+
+    await api.monitoringOverview("admin-token");
+    await api.monitoringMatches("admin-token", {});
+    await api.monitoringBatches("admin-token", {});
+
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      "http://api.test/api/v1/admin/matching-batching/overview",
+      "http://api.test/api/v1/admin/matching-batching/matches",
+      "http://api.test/api/v1/admin/matching-batching/batches"
+    ]);
+  });
+
+  it.each([400, 401, 403, 404, 503])("propagates monitoring HTTP %s through shared session handling", async (status) => {
+    const fetchMock = vi.fn().mockResolvedValue(response({ error: `monitoring_${status}` }, status));
+    vi.stubGlobal("fetch", fetchMock);
+    const onSessionEnded = vi.fn();
+    const api = createApiClient("http://api.test", { onSessionEnded });
+
+    await expect(api.monitoringMatch("admin-token", "match_1")).rejects.toEqual(
+      expect.objectContaining({ message: `monitoring_${status}`, status })
+    );
+    expect(onSessionEnded).toHaveBeenCalledWith(expect.objectContaining({ status }), "admin-token");
   });
 });

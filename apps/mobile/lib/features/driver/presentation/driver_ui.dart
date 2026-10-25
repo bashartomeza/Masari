@@ -17,6 +17,7 @@ String driverStatusLabel(AppLocalizations l10n, String status) =>
       'delivered' => l10n.statusDelivered,
       'completed' => l10n.statusCompleted,
       'cancelled' => l10n.statusCancelled,
+      'failed' => l10n.requestFailed,
       'rejected' => l10n.statusRejected,
       'expired' => l10n.statusExpired,
       'active' => l10n.statusActive,

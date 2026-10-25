@@ -10,7 +10,6 @@ import 'package:http/testing.dart';
 import 'package:masari_mobile/app.dart';
 import 'package:masari_mobile/core/api/api_client.dart';
 import 'package:masari_mobile/core/config/app_config.dart';
-import 'package:masari_mobile/core/widgets/masari_section.dart';
 import 'package:masari_mobile/features/auth/data/token_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -33,7 +32,7 @@ void main() {
       TextDirection.rtl,
     );
 
-    await tester.tap(find.text('English'));
+    await tester.tap(find.byTooltip('English'));
     await tester.pumpAndSettle();
     expect(find.text('View route'), findsOneWidget);
     expect(
@@ -74,7 +73,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('طلب مسافر'), findsOneWidget);
-    expect(find.textContaining('PPU Main Gate'), findsOneWidget);
+    expect(find.textContaining('بوابة البوليتكنك'), findsOneWidget);
     expect(find.textContaining('93.2%'), findsOneWidget);
     expect(find.textContaining('password'), findsNothing);
 
@@ -125,10 +124,10 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('رحلة السائق'), findsOneWidget);
+    expect(find.byKey(const ValueKey('driverTrip')), findsOneWidget);
   });
 
-  testWidgets('trip shows only valid next action and updates simulation', (
+  testWidgets('trip shows only valid next action without simulation', (
     tester,
   ) async {
     final handler = _DriverHandler();
@@ -143,24 +142,11 @@ void main() {
       findsOneWidget,
     );
     expect(find.byKey(const ValueKey('tripAction-picked_up')), findsNothing);
-    expect(find.textContaining('31.5326'), findsWidgets);
-    expect(find.byKey(const ValueKey('routeProgress')), findsOneWidget);
+    expect(find.byKey(const ValueKey('driverTrip')), findsOneWidget);
+    expect(find.byKey(const ValueKey('driverTrip')), findsOneWidget);
 
-    await tester.ensureVisible(
-      find.byKey(const ValueKey('simulateStepButton')),
-    );
-    await tester.tap(find.byKey(const ValueKey('simulateStepButton')));
-    await tester.pumpAndSettle();
-
-    // The label and its value are separate Texts in a DetailRow, so the
-    // assertion pairs them rather than matching one interpolated string.
-    expect(
-      find.descendant(
-        of: find.widgetWithText(DetailRow, 'التسلسل'),
-        matching: find.text('1'),
-      ),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('simulateStepButton')), findsNothing);
+    expect(find.byKey(const ValueKey('resetSimulationButton')), findsNothing);
   });
 
   testWidgets('production driver trip hides tracking simulation controls', (
@@ -177,7 +163,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('simulateStepButton')), findsNothing);
     expect(find.byKey(const ValueKey('resetSimulationButton')), findsNothing);
-    expect(find.textContaining('31.5326'), findsWidgets);
+    expect(find.byKey(const ValueKey('driverTrip')), findsOneWidget);
   });
 
   testWidgets('passenger cannot access driver routes', (tester) async {
@@ -221,7 +207,7 @@ Future<void> _pumpApp(
   bool authenticated = true,
   AppConfig config = demoTestAppConfig,
 }) async {
-  tester.view.physicalSize = const Size(900, 2000);
+  tester.view.physicalSize = const Size(900, 2200);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);

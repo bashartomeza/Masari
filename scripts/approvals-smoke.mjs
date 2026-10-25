@@ -27,22 +27,24 @@ async function request(path, { token, method = "GET", body, expected = 200 } = {
   return text ? JSON.parse(text) : null;
 }
 
-const login = (phone, password, expected = 200) => request("/auth/login", { method: "POST", body: { phone, password }, expected });
+const login = (email, password, expected = 200) => request("/auth/login", { method: "POST", body: { email, password }, expected });
 
 async function run() {
-  const admin = (await login("+970590000005", process.env.DEMO_ADMIN_PASSWORD)).token;
+  const admin = (await login("demo.admin@masari.app", process.env.DEMO_ADMIN_PASSWORD)).token;
   const merchantPhone = "+970590000006";
   const driverPhone = "+970590000007";
+  const merchantEmail = "demo.pending.merchant@masari.app";
+  const driverEmail = "demo.rejected.driver@masari.app";
 
   // Merchant approval -------------------------------------------------------
   const pendingMerchants = await request("/admin/users?role=merchant&account_status=pending", { token: admin });
   const merchant = pendingMerchants.users.find((user) => user.phone === merchantPhone);
   assert(merchant, "seeded pending merchant is missing (run the approvals seed first)");
   assert(merchant.role_context.merchant_approval_connected === true, "merchant approval should be connected");
-  await login(merchantPhone, process.env.DEMO_MERCHANT_PASSWORD, 403);
+  await login(merchantEmail, process.env.DEMO_MERCHANT_PASSWORD, 403);
   await request(`/admin/merchant-approvals/${merchant.id}/reject`, { token: admin, method: "POST", body: {}, expected: 400 });
   await request(`/admin/merchant-approvals/${merchant.id}/approve`, { token: admin, method: "POST", body: {} });
-  const merchantToken = (await login(merchantPhone, process.env.DEMO_MERCHANT_PASSWORD)).token;
+  const merchantToken = (await login(merchantEmail, process.env.DEMO_MERCHANT_PASSWORD)).token;
   await request("/merchant/reports/summary", { token: merchantToken });
   await request(`/admin/merchant-approvals/${merchant.id}/approve`, { token: admin, method: "POST", body: {}, expected: 409 });
 
@@ -65,7 +67,7 @@ async function run() {
     token: admin, method: "POST", body: { expected_revision: reopened.revision, profile: { vehicle_type: "Demo sedan", seats_total: 4, parcel_capacity: 3 } }
   })).verification;
   assert(approved.status === "approved" && approved.history[0].decision === "approved", "approval after re-review failed");
-  await login(driverPhone, process.env.DEMO_DRIVER_PASSWORD);
+  await login(driverEmail, process.env.DEMO_DRIVER_PASSWORD);
   const dashboard = await request("/admin/dashboard", { token: admin });
   assert(dashboard.counts.pending_driver_approvals === 1, "the seeded pending driver should still be waiting");
   return { ok: true };

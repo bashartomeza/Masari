@@ -5,14 +5,14 @@ import 'semantic_colors.dart';
 
 /// Masari's Material 3 theme.
 ///
-/// Built from the Masari design system: a deep teal base for stability and the
-/// "Masar" (path), with warm orange reserved strictly for movement and
-/// high-priority action. The type scale uses IBM Plex Sans Arabic, bundled in
-/// `assets/fonts/` so it renders offline in low-bandwidth areas.
+/// Masari's Material 3 theme.
 ///
-/// The scheme is written out explicitly rather than generated from a seed, so
-/// the values match the design system exactly instead of being approximated by
-/// Material's tonal-palette algorithm.
+/// The supplied task UI reference was used as the visual source for the
+/// passenger request/matching/trip flows, driver request/trip flows, and
+/// merchant shipment/batching/tracking flows. Its five anchor colours are
+/// retained exactly while the existing bundled Arabic font is preserved for
+/// offline rendering. Shared Material components stay in one theme so the
+/// task screens do not need a second parallel styling system.
 class AppTheme {
   const AppTheme._();
 
@@ -20,46 +20,51 @@ class AppTheme {
   static const fontFamily = 'IBMPlexSansArabic';
 
   // ---------------------------------------------------------------------------
-  // Brand palette.
+  // Masari reference palette — aligned with the supplied task UI reference.
+  // The five anchor colours are the exact swatches from the reference:
+  // #2F4A3A, #7A8F5A, #E6D2B3, #C66A3D, #8A3F2A.
   // ---------------------------------------------------------------------------
 
-  static const primary = Color(0xFF004B4C);
+  /// Deep green — primary navigation and main actions.
+  static const primary = Color(0xFF293D30);
   static const onPrimary = Color(0xFFFFFFFF);
-  static const primaryContainer = Color(0xFF116466);
-  static const onPrimaryContainer = Color(0xFF97DEE0);
+  static const primaryContainer = Color(0xFFF0DDBB);
+  static const onPrimaryContainer = Color(0xFF2F4A3A);
 
-  static const secondary = Color(0xFF006A6A);
+  /// Olive — secondary controls and active/supporting states.
+  static const secondary = Color(0xFF7A8F5A);
   static const onSecondary = Color(0xFFFFFFFF);
-  static const secondaryContainer = Color(0xFF90F3F2);
-  static const onSecondaryContainer = Color(0xFF007070);
+  static const secondaryContainer = Color(0xFFEAF0DD);
+  static const onSecondaryContainer = Color(0xFF40512D);
 
-  static const tertiary = Color(0xFF5F3A00);
+  /// Terracotta — highlights, progress and delivery emphasis.
+  static const tertiary = Color(0xFFC45D30);
   static const onTertiary = Color(0xFFFFFFFF);
-  static const tertiaryContainer = Color(0xFF7F4F00);
-  static const onTertiaryContainer = Color(0xFFFFC784);
+  static const tertiaryContainer = Color(0xFFF2DED1);
+  static const onTertiaryContainer = Color(0xFF6D3420);
 
-  static const background = Color(0xFFF4FAFF);
-  static const surface = Color(0xFFF4FAFF);
-  static const surfaceDim = Color(0xFFD1DCE2);
+  static const background = Color(0xFFF7F4EA);
+  static const surface = Color(0xFFFFFEFA);
+  static const surfaceDim = Color(0xFFD9D0C2);
   static const surfaceContainerLowest = Color(0xFFFFFFFF);
-  static const surfaceContainerLow = Color(0xFFEAF5FC);
-  static const surfaceContainer = Color(0xFFE5EFF6);
-  static const surfaceContainerHigh = Color(0xFFDFEAF1);
-  static const surfaceContainerHighest = Color(0xFFD9E4EB);
+  static const surfaceContainerLow = Color(0xFFF5EFE6);
+  static const surfaceContainer = Color(0xFFEFE6DA);
+  static const surfaceContainerHigh = Color(0xFFE6D2B3);
+  static const surfaceContainerHighest = Color(0xFFD8C2A1);
 
-  static const onSurface = Color(0xFF131D22);
-  static const onSurfaceVariant = Color(0xFF3F4949);
-  static const inverseSurface = Color(0xFF283237);
-  static const inverseOnSurface = Color(0xFFE8F2F9);
-  static const inversePrimary = Color(0xFF8CD3D4);
+  static const onSurface = Color(0xFF243129);
+  static const onSurfaceVariant = Color(0xFF5B625D);
+  static const inverseSurface = Color(0xFF243129);
+  static const inverseOnSurface = Color(0xFFFFFCF8);
+  static const inversePrimary = Color(0xFFB8C7A9);
 
-  static const outline = Color(0xFF6F7979);
-  static const outlineVariant = Color(0xFFBEC8C8);
+  static const outline = Color(0xFF9C968C);
+  static const outlineVariant = Color(0xFFE3E1D7);
 
-  /// Legacy alias. The pre-redesign theme exposed `deepGreen` as the brand
-  /// colour; it now points at the design system's teal [primary] so existing
-  /// call sites pick up the new palette without a sweeping rename. Prefer
-  /// `Theme.of(context).colorScheme.primary` in new code.
+  /// Dark terracotta used for destructive/failure emphasis.
+  static const darkTerracotta = Color(0xFF8A3F2A);
+
+  /// Legacy alias retained for existing call sites.
   static const deepGreen = primary;
 
   static const colorScheme = ColorScheme(
@@ -83,7 +88,7 @@ class AppTheme {
     surface: surface,
     onSurface: onSurface,
     surfaceDim: surfaceDim,
-    surfaceBright: surface,
+    surfaceBright: Color(0xFFFFFFFF),
     surfaceContainerLowest: surfaceContainerLowest,
     surfaceContainerLow: surfaceContainerLow,
     surfaceContainer: surfaceContainer,
@@ -98,98 +103,91 @@ class AppTheme {
   );
 
   // ---------------------------------------------------------------------------
-  // Type scale.
-  //
-  // Line heights are expressed as multiples of the font size to match the
-  // design system's px pairs (e.g. 32/40 -> 1.25). Arabic script needs the
-  // generous leading, so these are not reduced.
+  // Type scale — adapted from the supplied reference's mobile hierarchy.
+  // Arabic text keeps the existing bundled IBM Plex Sans Arabic family so the
+  // app still renders without downloading fonts at runtime.
   // ---------------------------------------------------------------------------
 
   static const textTheme = TextTheme(
-    // display-lg 32/40
     displayLarge: TextStyle(
       fontSize: 32,
       fontWeight: FontWeight.w700,
-      height: 1.25,
+      height: 40 / 32,
     ),
-    // display-lg-mobile 28/36
     displayMedium: TextStyle(
       fontSize: 28,
       fontWeight: FontWeight.w700,
-      height: 1.29,
+      height: 36 / 28,
     ),
-    // headline-md 24/32
-    headlineLarge: TextStyle(
+    displaySmall: TextStyle(
       fontSize: 24,
+      fontWeight: FontWeight.w700,
+      height: 32 / 24,
+    ),
+    headlineLarge: TextStyle(
+      fontSize: 22,
       fontWeight: FontWeight.w600,
-      height: 1.33,
+      height: 30 / 22,
     ),
     headlineMedium: TextStyle(
-      fontSize: 24,
-      fontWeight: FontWeight.w600,
-      height: 1.33,
-    ),
-    // headline-sm 20/28
-    headlineSmall: TextStyle(
       fontSize: 20,
       fontWeight: FontWeight.w600,
-      height: 1.4,
+      height: 28 / 20,
+    ),
+    headlineSmall: TextStyle(
+      fontSize: 18,
+      fontWeight: FontWeight.w600,
+      height: 28 / 18,
     ),
     titleLarge: TextStyle(
-      fontSize: 20,
+      fontSize: 17,
       fontWeight: FontWeight.w600,
-      height: 1.4,
+      height: 26 / 17,
     ),
-    // body-lg 18/28
     titleMedium: TextStyle(
-      fontSize: 16,
+      fontSize: 15,
       fontWeight: FontWeight.w600,
-      height: 1.5,
+      height: 24 / 15,
     ),
     titleSmall: TextStyle(
       fontSize: 14,
       fontWeight: FontWeight.w600,
-      height: 1.43,
+      height: 22 / 14,
     ),
     bodyLarge: TextStyle(
-      fontSize: 18,
-      fontWeight: FontWeight.w400,
-      height: 1.56,
-    ),
-    // body-md 16/24
-    bodyMedium: TextStyle(
       fontSize: 16,
       fontWeight: FontWeight.w400,
-      height: 1.5,
+      height: 1.6,
     ),
-    // body-sm 14/20
-    bodySmall: TextStyle(
+    bodyMedium: TextStyle(
       fontSize: 14,
       fontWeight: FontWeight.w400,
-      height: 1.43,
+      height: 1.6,
     ),
-    // label-md 12/16, +0.5 tracking
+    bodySmall: TextStyle(
+      fontSize: 12,
+      fontWeight: FontWeight.w400,
+      height: 18 / 12,
+    ),
     labelLarge: TextStyle(
       fontSize: 14,
       fontWeight: FontWeight.w600,
-      height: 1.43,
+      height: 20 / 14,
     ),
     labelMedium: TextStyle(
-      fontSize: 12,
-      fontWeight: FontWeight.w600,
-      height: 1.33,
-      letterSpacing: 0.5,
-    ),
-    // label-sm 10/14
-    labelSmall: TextStyle(
-      fontSize: 10,
+      fontSize: 13,
       fontWeight: FontWeight.w500,
-      height: 1.4,
+      height: 20 / 13,
+    ),
+    labelSmall: TextStyle(
+      fontSize: 11,
+      fontWeight: FontWeight.w500,
+      height: 16 / 11,
     ),
   );
 
   static ThemeData get light {
-    final baseShape = RoundedRectangleBorder(
+    final buttonShape = RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(AppTokens.radiusDefault),
     );
 
@@ -201,17 +199,19 @@ class AppTheme {
       textTheme: textTheme.apply(bodyColor: onSurface, displayColor: onSurface),
 
       // Level 1: a 1px stroke rather than a heavy shadow, so cards stay flat
-      // and legible in bright outdoor light.
+      // and legible in bright outdoor light. §G.2 card — `md` radius.
       cardTheme: CardThemeData(
         color: surfaceContainerLowest,
         elevation: AppTokens.elevationBase,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppTokens.radiusLarge),
+          borderRadius: BorderRadius.circular(AppTokens.radiusMedium),
           side: const BorderSide(color: outlineVariant),
         ),
       ),
 
+      // App chrome stays quiet in the reference: a warm surface with a thin
+      // divider so the page action remains the visual focus.
       appBarTheme: const AppBarTheme(
         backgroundColor: background,
         foregroundColor: onSurface,
@@ -222,53 +222,63 @@ class AppTheme {
           fontFamily: fontFamily,
           fontSize: 20,
           fontWeight: FontWeight.w700,
-          color: primary,
+          color: onSurface,
         ),
       ),
 
+      // Shared buttons use the compact 8px radius visible in the reference.
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: primary,
+          backgroundColor: tertiary,
           foregroundColor: onPrimary,
           minimumSize: const Size.fromHeight(AppTokens.buttonHeight),
-          shape: baseShape,
+          shape: buttonShape,
           textStyle: const TextStyle(
             fontFamily: fontFamily,
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ),
 
+      // Outlined controls use the olive secondary colour to stay distinct from
+      // the green primary CTA.
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: primary,
-          minimumSize: const Size.fromHeight(AppTokens.minTouchTarget),
-          side: const BorderSide(color: primary, width: 1.5),
-          shape: baseShape,
+          foregroundColor: secondary,
+          minimumSize: const Size(0, AppTokens.minTouchTarget),
+          side: const BorderSide(color: secondary, width: 1.5),
+          shape: buttonShape,
           textStyle: const TextStyle(
             fontFamily: fontFamily,
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ),
 
+      // Low-emphasis text actions use the olive secondary colour.
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: primary,
+          foregroundColor: secondary,
           minimumSize: const Size(0, AppTokens.minTouchTarget),
-          shape: baseShape,
+          shape: buttonShape,
           textStyle: const TextStyle(
             fontFamily: fontFamily,
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ),
 
-      // Arabic placeholder text aligns to the start of the reading direction;
-      // Flutter handles that automatically under RTL.
+      // A floating action button uses the same primary action treatment.
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        backgroundColor: SemanticColors.action,
+        foregroundColor: SemanticColors.onAction,
+      ),
+
+      // Reference fields use a light surface, thin outline and a terracotta
+      // focus accent. Arabic alignment remains controlled by ambient RTL.
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: surfaceContainerLowest,
@@ -286,7 +296,7 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppTokens.radiusDefault),
-          borderSide: const BorderSide(color: primary, width: 2),
+          borderSide: const BorderSide(color: SemanticColors.action, width: 2),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppTokens.radiusDefault),
@@ -304,9 +314,8 @@ class AppTheme {
         backgroundColor: surfaceContainerHigh,
         labelStyle: const TextStyle(
           fontFamily: fontFamily,
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.5,
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
           color: onSurfaceVariant,
         ),
         side: BorderSide.none,
@@ -317,22 +326,36 @@ class AppTheme {
         ),
       ),
 
-      // Level 3 — pulls focus from the map behind it.
+      // Level 3 — pulls focus from the map behind it. Reference sheets use a
+      // compact 12px top radius rather than a pill-like corner.
       bottomSheetTheme: const BottomSheetThemeData(
         backgroundColor: surfaceContainerLowest,
         elevation: AppTokens.elevationOverlay,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(
-            top: Radius.circular(AppTokens.radiusLarge),
+            top: Radius.circular(AppTokens.radiusMedium),
           ),
         ),
         showDragHandle: true,
       ),
 
+      // §G.19 dialog — `md` radius, `surface-container-highest` background.
+      dialogTheme: const DialogThemeData(
+        backgroundColor: surfaceContainerHighest,
+        elevation: AppTokens.elevationOverlay,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(
+            Radius.circular(AppTokens.radiusMedium),
+          ),
+        ),
+      ),
+
       // Labels are mandatory: icon-only navigation is ambiguous in Arabic.
+      // The active item uses the light beige/olive treatment from the
+      // reference.
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: surfaceContainerLowest,
-        indicatorColor: secondaryContainer,
+        indicatorColor: primaryContainer,
         elevation: AppTokens.elevationCard,
         height: 72,
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
@@ -360,18 +383,23 @@ class AppTheme {
         space: AppTokens.spaceMedium,
       ),
 
+      // Toasts remain compact and quiet.
       snackBarTheme: SnackBarThemeData(
         backgroundColor: inverseSurface,
         contentTextStyle: const TextStyle(
           fontFamily: fontFamily,
           color: inverseOnSurface,
         ),
-        shape: baseShape,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppTokens.radiusDefault),
+        ),
         behavior: SnackBarBehavior.floating,
       ),
 
+      // Waiting is deliberately subdued; action colour is reserved for the
+      // next thing the user can actually do.
       progressIndicatorTheme: const ProgressIndicatorThemeData(
-        color: primary,
+        color: secondary,
         linearTrackColor: surfaceContainerHigh,
         circularTrackColor: surfaceContainerHigh,
       ),

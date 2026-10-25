@@ -1,3 +1,4 @@
+import '../../../core/widgets/masari_back_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -143,7 +144,10 @@ class _DriverAvailabilityFormScreenState
     final l10n = AppLocalizations.of(context);
     return CanonicalFeatureGate(
       child: Scaffold(
-        appBar: AppBar(title: Text(l10n.newAvailability)),
+        appBar: AppBar(
+          title: Text(l10n.newAvailability),
+          leading: const MasariBackButton(fallback: '/driver'),
+        ),
         body: SafeArea(
           child: ref
               .watch(canonicalRouteCatalogProvider)
