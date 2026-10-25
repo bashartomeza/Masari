@@ -16,11 +16,10 @@ import type {
 } from "./contracts.js";
 import {
   batchSelect,
-  eligibleBatch,
-  eligibleMatch,
-  eligibleOrder,
+  eligibilityFor,
   eligibleParcel,
   eligiblePassenger,
+  ordersWithIneligibleParcels,
   matchSelect,
   parcelSelect
 } from "./policy.js";
@@ -131,6 +130,12 @@ function pageData<T>(items: T[], query: PageQuery, total: number, range: Range |
 }
 
 export function createMonitoringService(db: PrismaClient, clock: () => Date = () => new Date()): MonitoringService {
+  /** Eligibility rules for this read, resolved inside its transaction (see `eligibilityFor`). */
+  async function rules(tx: Prisma.TransactionClient) {
+    const ineligible = await tx.merchantOrder.findMany({ where: ordersWithIneligibleParcels, select: { id: true } });
+    return eligibilityFor(ineligible.map((order) => order.id));
+  }
+
   async function read<T>(operation: (tx: Prisma.TransactionClient) => Promise<T>): Promise<Observed<T>> {
     const observed_at = clock().toISOString();
     try {
@@ -147,6 +152,7 @@ export function createMonitoringService(db: PrismaClient, clock: () => Date = ()
   return {
     async overview(query): Promise<Observed<Overview>> {
       return read(async (tx) => {
+        const { eligibleBatch, eligibleMatch, eligibleOrder } = await rules(tx);
         const [pendingPassengers, submittedOrders, matchGroups, batchGroups] = await Promise.all([
           tx.passengerRequest.count({ where: { AND: [eligiblePassenger, { status: "pending" }] } }),
           tx.merchantOrder.count({ where: { AND: [eligibleOrder, { status: "submitted" }] } }),
@@ -180,6 +186,7 @@ export function createMonitoringService(db: PrismaClient, clock: () => Date = ()
     async matches(query): Promise<Page<MatchRow>> {
       const filters = matchFilters(query);
       return read(async (tx) => {
+        const { eligibleMatch } = await rules(tx);
         const where: Prisma.MatchWhereInput = { AND: [eligibleMatch, filters] };
         const [rows, total] = await Promise.all([
           tx.match.findMany({
@@ -197,6 +204,7 @@ export function createMonitoringService(db: PrismaClient, clock: () => Date = ()
 
     async match(id): Promise<Observed<MatchRow>> {
       return read(async (tx) => {
+        const { eligibleMatch } = await rules(tx);
         const row = await tx.match.findFirst({ where: { AND: [eligibleMatch, { id }] }, select: matchSelect });
         if (!row) throw new HttpError(404, "not_found");
         return serializeMatch(row);
@@ -206,6 +214,7 @@ export function createMonitoringService(db: PrismaClient, clock: () => Date = ()
     async batches(query): Promise<Page<BatchRow>> {
       const filters = batchFilters(query);
       return read(async (tx) => {
+        const { eligibleBatch } = await rules(tx);
         const where: Prisma.ParcelBatchWhereInput = { AND: [eligibleBatch, filters] };
         const [rows, total] = await Promise.all([
           tx.parcelBatch.findMany({
@@ -223,6 +232,7 @@ export function createMonitoringService(db: PrismaClient, clock: () => Date = ()
 
     async batch(id): Promise<Observed<BatchRow>> {
       return read(async (tx) => {
+        const { eligibleBatch } = await rules(tx);
         const row = await tx.parcelBatch.findFirst({ where: { AND: [eligibleBatch, { id }] }, select: batchSelect });
         if (!row) throw new HttpError(404, "not_found");
         return serializeBatch(row);
@@ -231,6 +241,7 @@ export function createMonitoringService(db: PrismaClient, clock: () => Date = ()
 
     async parcels(id, query): Promise<CurrentOrderParcelsPage> {
       return read(async (tx) => {
+        const { eligibleBatch } = await rules(tx);
         const batch = await tx.parcelBatch.findFirst({ where: { AND: [eligibleBatch, { id }] }, select: batchSelect });
         if (!batch) throw new HttpError(404, "not_found");
         const where: Prisma.ParcelWhereInput = { AND: [eligibleParcel, { order_id: batch.merchant_order.id }] };
