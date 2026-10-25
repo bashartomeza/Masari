@@ -16,6 +16,8 @@ apps/mobile/build/
 apps/mobile/android/build/
 apps/admin/dist/
 .staging-data/
+# Provider redistribution permission is pending; research data stays local.
+**/Masari_AweenRayeh_173_Directory_Import.json
 
 # Flutter/Dart generated state
 **/.dart_tool/

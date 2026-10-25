@@ -161,22 +161,18 @@ export async function advanceLegacyTrip(
   }
 
   const completedAt = nextStatus === TripStatus.completed || nextStatus === TripStatus.failed ? new Date() : undefined;
-  let updated;
-  try {
-    updated = await tx.trip.update({
-      where: { id: trip.id, status: options.expectedStatus },
-      data: {
-        status: nextStatus,
-        started_at: nextStatus === TripStatus.pickup_started ? new Date() : undefined,
-        completed_at: completedAt,
-      },
-    });
-  } catch (error) {
-    if (error && typeof error === "object" && "code" in error && error.code === "P2025") {
-      throw new HttpError(409, "trip_status_conflict");
-    }
-    throw error;
-  }
+  // A conditional single-record update can return its earlier snapshot after a
+  // competing MySQL write. Claim by affected-row count before any side effects.
+  const claimed = await tx.trip.updateMany({
+    where: { id: trip.id, status: options.expectedStatus },
+    data: {
+      status: nextStatus,
+      started_at: nextStatus === TripStatus.pickup_started ? new Date() : undefined,
+      completed_at: completedAt,
+    },
+  });
+  if (claimed.count !== 1) throw new HttpError(409, "trip_status_conflict");
+  const updated = await tx.trip.findUniqueOrThrow({ where: { id: trip.id } });
 
   if (nextStatus === TripStatus.pickup_started) {
     await tx.driverRoute.update({ where: { id: trip.driver_route_id }, data: { status: "on_trip", departed_at: null } });

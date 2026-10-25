@@ -7,7 +7,7 @@ import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
 import { HttpError } from "../middleware/error.js";
 import { AuditAction, MatchStatus, TripStatus } from "../generated/prisma/enums.js";
 import { advanceLegacyTrip, isLegacyTripTransitionAllowed } from "../services/tripLifecycle.js";
-import { legacyParcelUnits, reserveLegacyCapacity, releaseLegacyCapacity } from "../services/legacyCapacity.js";
+import { isLegacyRouteTimely, legacyRouteTimingWhere, legacyParcelUnits, reserveLegacyCapacity, releaseLegacyCapacity, requireEligibleLegacyRoute } from "../services/legacyCapacity.js";
 
 export const tripsRouter = Router();
 export const trackingSimulationRouter = Router();
@@ -77,6 +77,27 @@ tripsRouter.post("/matches/:id/accept", requireAuth, async (req: AuthenticatedRe
         if (match.status !== MatchStatus.proposed && match.status !== MatchStatus.sent_to_driver) {
           throw new HttpError(409, "match_cannot_be_accepted");
         }
+        const now = new Date();
+        if (match.expires_at && match.expires_at <= now) throw new HttpError(409, "match_expired");
+        if (!isLegacyRouteTimely(match.driver_route, now)) throw new HttpError(409, "driver_route_not_available");
+        if (match.passenger_request && match.passenger_request.preferred_time <= now) {
+          throw new HttpError(409, "passenger_request_expired");
+        }
+
+        if (match.merchant_order_id) {
+          // Re-read demand after taking its write lock, before assigning any parcel.
+          const orders = await tx.$queryRaw<Array<{ status: string }>>`
+            SELECT status FROM merchant_orders WHERE id = ${match.merchant_order_id} FOR UPDATE
+          `;
+          if (orders[0]?.status !== "matched") throw new HttpError(409, "merchant_order_not_matchable");
+          const offers = await tx.$queryRaw<Array<{ status: string; expires_at: Date | null }>>`
+            SELECT status, expires_at FROM matches WHERE id = ${match.id} FOR UPDATE
+          `;
+          const now = await requireEligibleLegacyRoute(tx, match.driver_route_id);
+          if (!offers[0] || !["proposed", "sent_to_driver"].includes(offers[0].status)) throw new HttpError(409, "match_cannot_be_accepted");
+          if (offers[0].expires_at && offers[0].expires_at <= now) throw new HttpError(409, "match_expired");
+        }
+
 
         const duplicate = await tx.trip.findFirst({
           where: match.passenger_request_id
@@ -98,7 +119,8 @@ tripsRouter.post("/matches/:id/accept", requireAuth, async (req: AuthenticatedRe
           const claimedRequest = await tx.passengerRequest.updateMany({
             where: {
               id: match.passenger_request_id,
-              status: { in: ["pending", "matched"] }
+              status: { in: ["pending", "matched"] },
+              preferred_time: { gt: new Date() },
             },
             data: { status: "accepted" }
           });
@@ -123,18 +145,21 @@ tripsRouter.post("/matches/:id/accept", requireAuth, async (req: AuthenticatedRe
         const claimedMatch = await tx.match.updateMany({
           where: {
             id: match.id,
-            status: { in: [MatchStatus.proposed, MatchStatus.sent_to_driver] }
+            status: { in: [MatchStatus.proposed, MatchStatus.sent_to_driver] },
+            OR: [{ expires_at: null }, { expires_at: { gt: new Date() } }],
           },
           data: { status: MatchStatus.accepted, accepted_at: new Date(), legacy_capacity_held: true }
         });
         if (claimedMatch.count !== 1) throw new HttpError(409, "match_cannot_be_accepted");
 
         const claimedRoute = await tx.driverRoute.updateMany({
-          where: { id: match.driver_route_id, status: "active" },
+          where: { id: match.driver_route_id, status: "active", ...legacyRouteTimingWhere() },
           data: { status: "assigned" }
         });
         if (claimedRoute.count !== 1) throw new HttpError(409, "driver_route_not_available");
 
+        // The route claim blocks new holds. Read committed proposals here,
+        // including those created after this transaction first read its offer.
         const staleMatches = await tx.match.findMany({
           where: {
             id: { not: match.id },
@@ -174,6 +199,18 @@ tripsRouter.post("/matches/:id/accept", requireAuth, async (req: AuthenticatedRe
               if (ids.length) await tx.merchantOrder.updateMany({ where: { id: { in: ids }, status: "matched" }, data: { status: "batched" } });
             }
           }
+          // Standalone legacy cargo must remain eligible for manual batching or
+          // matching after this route accepts a different delivery.
+          const unbatchedMerchantIds = [...new Set(staleMatches
+            .filter((item) => item.parcel_batch_id === null)
+            .map((item) => item.merchant_order_id)
+            .filter((id): id is string => id !== null))];
+          if (unbatchedMerchantIds.length > 0) {
+            await tx.merchantOrder.updateMany({
+              where: { id: { in: unbatchedMerchantIds }, operational_mode: "legacy", canonical_entry_version: null, status: "matched" },
+              data: { status: "submitted" }
+            });
+          }
           const passengerIds = staleMatches
             .map((item) => item.passenger_request_id)
             .filter((id): id is string => id !== null);
@@ -184,6 +221,14 @@ tripsRouter.post("/matches/:id/accept", requireAuth, async (req: AuthenticatedRe
             });
           }
         }
+
+        // Competitor cleanup may itself wait on locks. Revalidate the held
+        // demand, offer and approved supply with a fresh DB clock after that wait.
+        await requireEligibleLegacyRoute(tx, match.driver_route_id, {
+          passengerRequestId: match.passenger_request_id,
+          matchId: match.id,
+          assigned: true,
+        });
 
         const trip = await tx.trip.create({
           data: {
@@ -226,7 +271,7 @@ tripsRouter.post("/matches/:id/accept", requireAuth, async (req: AuthenticatedRe
         });
 
         return { trip, matchId: match.id };
-      });
+      }, { isolationLevel: "ReadCommitted" });
     } catch (error) {
       if (error && typeof error === "object" && "code" in error && error.code === "P2002") {
         throw new HttpError(409, "duplicate_active_trip");
@@ -289,7 +334,6 @@ tripsRouter.post("/matches/:id/reject", requireAuth, async (req: AuthenticatedRe
         }
       }
 
-      await tx.driverRoute.update({ where: { id: match.driver_route_id }, data: { status: "active" } });
 
       const changed = await tx.match.updateMany({
         where: {
@@ -398,7 +442,7 @@ trackingSimulationRouter.post("/trips/:id/simulate/reset", requireAuth, async (r
 tripsRouter.get("/trips/:id/location", requireAuth, async (req: AuthenticatedRequest, res, next) => {
   try {
     const trip = await getVisibleTrip(routeParam(req.params.id), req);
-    const location = await prisma.locationEvent.findFirst({ where: { trip_id: trip.id }, orderBy: { sequence: "desc" } });
+    const location = await prisma.locationEvent.findFirst({ where: { trip_id: trip.id }, orderBy: [{ sequence: "desc" }, { recorded_at: "desc" }, { id: "desc" }] });
     res.json({ location });
   } catch (error) {
     next(error);

@@ -12,8 +12,8 @@ class TripRepository {
 
   final AuthenticatedApiClient apiClient;
 
-  Future<List<PassengerTrip>> listTrips() async {
-    final json = await apiClient.getJson('/trips');
+  Future<List<PassengerTrip>> listTrips({void Function()? beforeSend}) async {
+    final json = await apiClient.getJson('/trips', beforeSend: beforeSend);
     final list = json['trips'];
 
     if (list is! List) {

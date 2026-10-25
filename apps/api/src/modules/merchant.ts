@@ -1,6 +1,9 @@
+import { createHash } from "node:crypto";
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
+import { claimIdempotency, completeIdempotency } from "../lib/idempotency.js";
+import { Prisma } from "../generated/prisma/client.js";
 import { auditEvent } from "../lib/audit.js";
 import { requireAuth, requireRole, type AuthenticatedRequest } from "../middleware/auth.js";
 import { HttpError } from "../middleware/error.js";
@@ -22,6 +25,11 @@ const createOrderSchema = z.object({
   pickup_lng: longitudeSchema,
   parcels: z.array(parcelSchema).min(1).max(10)
 });
+
+const MERCHANT_CREATE_OPERATION = "legacy_merchant_order_create_v1";
+const MERCHANT_CREATE_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+const merchantCreateIdempotencyKey = z.string().regex(/^[A-Za-z0-9._:-]{8,128}$/);
+const merchantCreateDigest = (value: string) => createHash("sha256").update(value).digest("hex");
 
 export const merchantRouter = Router();
 
@@ -197,41 +205,119 @@ function routeParam(value: string | string[] | undefined) {
 
 merchantRouter.use("/merchant", requireAuth, requireRole("merchant"));
 
+// Read-only reconciliation remains safe even after the client's mutation window.
+// Keep the operation key in a header, outside URL/access-log paths.
+merchantRouter.get("/merchant/order-operation", async (req: AuthenticatedRequest, res, next) => {
+  try {
+    const key = merchantCreateIdempotencyKey.parse(req.header("idempotency-key"));
+    const record = await prisma.idempotencyRecord.findUnique({
+      where: { operation_scope_digest_idempotency_key_key_version: {
+        operation: MERCHANT_CREATE_OPERATION,
+        scope_digest: merchantCreateDigest(`${MERCHANT_CREATE_OPERATION}:${req.user!.id}`),
+        idempotency_key: merchantCreateDigest(key), key_version: 1
+      } }
+    });
+    if (!record) throw new HttpError(404, "merchant_order_operation_not_found");
+    if (record.state !== "completed" || record.resource_type !== "MerchantOrder" || !record.resource_id) {
+      throw new HttpError(409, "idempotency_replay_unavailable");
+    }
+    const order = await prisma.merchantOrder.findFirst({
+      where: { id: record.resource_id, merchant_id: req.user!.id, canonical_entry_version: null },
+      include: { parcels: true }
+    });
+    if (!order) throw new HttpError(409, "idempotency_replay_unavailable");
+    res.json({ order: serializeLegacyMerchantOrder(order as unknown as Record<string, unknown>), replayed: true });
+  } catch (error) { next(error); }
+});
+
 merchantRouter.post("/merchant/orders", async (req: AuthenticatedRequest, res, next) => {
   try {
     const input = createOrderSchema.parse(req.body);
-    const order = await prisma.merchantOrder.create({
-      data: {
-        merchant_id: req.user!.id,
-        pickup_label: input.pickup_label,
-        pickup_lat: input.pickup_lat.toFixed(6),
-        pickup_lng: input.pickup_lng.toFixed(6),
-        status: "submitted",
-        parcels: {
-          create: input.parcels.map((parcel) => ({
-            destination_label: parcel.destination_label,
-            destination_lat: parcel.destination_lat.toFixed(6),
-            destination_lng: parcel.destination_lng.toFixed(6),
-            size: parcel.size,
-            priority: parcel.priority,
-            status: "pending" as const
-          }))
+    // Old clients without an Idempotency-Key remain supported; new clients send
+    // one durable key per user-confirmed order to obtain replay-safe creation.
+    const rawKey = req.header("idempotency-key");
+    const key = rawKey === undefined ? undefined : merchantCreateIdempotencyKey.parse(rawKey);
+    const normalized = {
+      pickup_label: input.pickup_label,
+      pickup_lat: input.pickup_lat.toFixed(6),
+      pickup_lng: input.pickup_lng.toFixed(6),
+      parcels: input.parcels.map((parcel) => ({
+        destination_label: parcel.destination_label,
+        destination_lat: parcel.destination_lat.toFixed(6),
+        destination_lng: parcel.destination_lng.toFixed(6),
+        size: parcel.size,
+        priority: parcel.priority
+      }))
+    };
+    const result = await prisma.$transaction(async (tx) => {
+      const claim = key === undefined ? undefined : await claimIdempotency(tx, {
+        operation: MERCHANT_CREATE_OPERATION,
+        scopeDigest: merchantCreateDigest(`${MERCHANT_CREATE_OPERATION}:${req.user!.id}`),
+        keyDigest: merchantCreateDigest(key),
+        keyVersion: 1,
+        requestDigest: merchantCreateDigest(JSON.stringify(normalized)),
+        preserveCompleted: true,
+        // Completed keys are never reclaimed into a different order. Mobile
+        // creation retries stop at seven days; older recovery uses read-only lookup.
+        expiresAt: new Date(Date.now() + MERCHANT_CREATE_RETENTION_MS)
+      });
+      if (claim?.kind === "conflict") throw new HttpError(409, "idempotency_conflict");
+      if (claim?.kind === "failed") throw new HttpError(409, "idempotency_failed");
+      if (claim?.kind === "in_progress") throw new HttpError(409, "idempotency_in_progress");
+      if (claim?.kind === "replay") {
+        if (claim.record.resource_type !== "MerchantOrder" || !claim.record.resource_id) {
+          throw new HttpError(409, "idempotency_replay_unavailable");
         }
-      },
-      include: { parcels: true }
-    });
+        const original = await tx.merchantOrder.findFirst({
+          where: { id: claim.record.resource_id, merchant_id: req.user!.id, canonical_entry_version: null },
+          include: { parcels: true }
+        });
+        if (!original) throw new HttpError(409, "idempotency_replay_unavailable");
+        return { order: original, replayed: true };
+      }
 
-    await auditEvent(prisma, {
-      userId: req.user!.id,
-      action: AuditAction.merchant_order_created,
-      entityType: "MerchantOrder",
-      entityId: order.id,
-      metadata: { parcel_count: order.parcels.length }
-    });
+      const order = await tx.merchantOrder.create({
+        data: {
+          merchant_id: req.user!.id,
+          pickup_label: normalized.pickup_label,
+          pickup_lat: normalized.pickup_lat,
+          pickup_lng: normalized.pickup_lng,
+          status: "submitted",
+          parcels: {
+            create: normalized.parcels.map((parcel) => ({
+              ...parcel,
+              status: "pending" as const
+            }))
+          }
+        },
+        include: { parcels: true }
+      });
+      await auditEvent(tx, {
+        userId: req.user!.id,
+        action: AuditAction.merchant_order_created,
+        entityType: "MerchantOrder",
+        entityId: order.id,
+        metadata: { parcel_count: order.parcels.length }
+      });
+      if (claim?.kind === "claimed") {
+        await completeIdempotency(tx, {
+          recordId: claim.record.id,
+          claimVersion: claim.record.claim_version,
+          resourceType: "MerchantOrder",
+          resourceId: order.id,
+          responseStatus: 201
+        });
+      }
+      return { order, replayed: false };
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
-    res.status(201).json({ order: serializeLegacyMerchantOrder(order as unknown as Record<string, unknown>) });
+    res.status(result.replayed ? 200 : 201).json({
+      order: serializeLegacyMerchantOrder(result.order as unknown as Record<string, unknown>),
+      ...(key === undefined ? {} : { replayed: result.replayed })
+    });
   } catch (error) {
-    next(error);
+    next(error && typeof error === "object" && "code" in error && error.code === "P2034"
+      ? new HttpError(409, "transaction_retry_required") : error);
   }
 });
 
@@ -258,7 +344,14 @@ merchantRouter.patch("/merchant/orders/:id/cancel", async (req: AuthenticatedReq
       const batch = order.parcel_batches[0] ?? order.batch_members[0]?.parcel_batch ?? null;
       if (batch) {
         const members = await tx.parcelBatchOrder.findMany({ where: { parcel_batch_id: batch.id }, select: { merchant_order_id: true } });
-        const ids = members.map((member) => member.merchant_order_id);
+        const ids = [...new Set([order.id, ...members.map((member) => member.merchant_order_id)])];
+        // A current write claim serializes cancellation with matching/acceptance,
+        // including cancellation through a secondary order in the same batch.
+        const claimed = await tx.merchantOrder.updateMany({
+          where: { id: { in: ids }, merchant_id: req.user!.id, canonical_entry_version: null, status: order.status },
+          data: { status: "cancelled" }
+        });
+        if (claimed.count !== ids.length) throw new HttpError(409, "order_cannot_be_cancelled");
         const activeMatches = await tx.match.findMany({
           where: { parcel_batch_id: batch.id, operational_mode: "legacy", status: { in: ["proposed", "sent_to_driver"] } },
           select: { id: true, driver_route_id: true, legacy_capacity_held: true }
@@ -283,10 +376,12 @@ merchantRouter.patch("/merchant/orders/:id/cancel", async (req: AuthenticatedReq
         await tx.parcelBatch.update({ where: { id: batch.id }, data: { status: "cancelled", driver_route_id: null } });
         await tx.parcelBatchOrder.updateMany({ where: { parcel_batch_id: batch.id }, data: { active: false, active_membership_key: null } });
         await tx.parcel.updateMany({ where: { batch_id: batch.id }, data: { status: "cancelled" } });
-        if (ids.length) {
-          await tx.merchantOrder.updateMany({ where: { id: { in: ids }, status: { in: ["submitted", "batched", "matched"] } }, data: { status: "cancelled" } });
-        }
       } else {
+        const claimed = await tx.merchantOrder.updateMany({
+          where: { id: order.id, merchant_id: req.user!.id, canonical_entry_version: null, status: order.status },
+          data: { status: "cancelled" }
+        });
+        if (claimed.count !== 1) throw new HttpError(409, "order_cannot_be_cancelled");
         const activeMatches = await tx.match.findMany({
           where: { merchant_order_id: order.id, operational_mode: "legacy", status: { in: ["proposed", "sent_to_driver"] } },
           select: { id: true, driver_route_id: true, legacy_capacity_held: true }
@@ -319,7 +414,7 @@ merchantRouter.patch("/merchant/orders/:id/cancel", async (req: AuthenticatedReq
         metadata: { action: "merchant_order_cancelled" }
       });
       return tx.merchantOrder.findUniqueOrThrow({ where: { id: order.id }, include: merchantOrderInclude });
-    });
+    }, { isolationLevel: "ReadCommitted" });
     res.json({ order: serializeLegacyMerchantOrder(result as unknown as Record<string, unknown>) });
   } catch (error) {
     next(error);

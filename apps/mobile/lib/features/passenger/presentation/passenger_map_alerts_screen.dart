@@ -8,6 +8,7 @@ import 'package:masari_mobile/l10n/app_localizations.dart';
 
 import '../../../core/location/location_service.dart';
 import '../../../core/maps/osrm_route_service.dart';
+import '../../../core/maps/checkpoint_map_markers.dart';
 import '../../../core/presentation/localized_labels.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -19,6 +20,8 @@ import '../../../core/widgets/masari_section.dart';
 import '../../../core/widgets/state_views.dart';
 import '../../checkpoints/application/checkpoint_controller.dart';
 import '../../checkpoints/domain/checkpoint_models.dart';
+import '../../checkpoints/presentation/checkpoint_sheet.dart';
+import '../../checkpoint_directory/presentation/checkpoint_directory_screen.dart';
 import '../../security/presentation/session_status_banner.dart';
 import '../../trips/application/passenger_trip_controller.dart';
 import '../application/passenger_map_controller.dart';
@@ -40,8 +43,11 @@ class PassengerMapAlertsScreen extends ConsumerWidget {
       appBar: _buildAppBar(context, l10n),
       body: SafeArea(
         child: view.when(
-          loading: () => const Center(
-            child: CircularProgressIndicator(color: Color(0xFFF97316)),
+          loading: () => const _MapBody(
+            view: PassengerMapView(
+              mapsAvailable: true,
+              checkpointsAvailable: true,
+            ),
           ),
           error: (_, _) => ErrorStateView(
             title: l10n.mapLoadFailed,
@@ -69,10 +75,7 @@ class PassengerMapAlertsScreen extends ConsumerWidget {
       toolbarHeight: 76,
       leading: IconButton(
         tooltip: 'Back',
-        icon: const Icon(
-          Icons.arrow_back_rounded,
-          size: 26,
-        ),
+        icon: const Icon(Icons.arrow_back_rounded, size: 26),
         onPressed: () => context.go('/passenger'),
       ),
       title: Column(
@@ -98,10 +101,9 @@ class PassengerMapAlertsScreen extends ConsumerWidget {
         ],
       ),
       actions: const [
+        CheckpointDirectoryAction(),
         Padding(
-          padding: EdgeInsetsDirectional.only(
-            end: 8,
-          ),
+          padding: EdgeInsetsDirectional.only(end: 8),
           child: LanguageSwitch(),
         ),
       ],
@@ -123,7 +125,6 @@ class _MapBodyState extends ConsumerState<_MapBody> {
   static const Color _navy = Color(0xFF292524);
   static const Color _navyLight = Color(0xFFF97316);
   static const Color _orange = Color(0xFFF97316);
-  static const Color _pageBackground = Color(0xFFF4F7FA);
   static const Color _mutedText = Color(0xFF64748B);
   static const Color _border = Color(0xFFE2E8F0);
 
@@ -430,12 +431,7 @@ class _MapBodyState extends ConsumerState<_MapBody> {
       },
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(
-          16,
-          18,
-          16,
-          28,
-        ),
+        padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
         children: [
           // ==================================================================
           // TRIP SUMMARY
@@ -542,10 +538,7 @@ class _MapBodyState extends ConsumerState<_MapBody> {
           // ==================================================================
           // CHECKPOINTS / ALERTS
           // ==================================================================
-
-          const SizedBox(
-            height: AppTokens.spaceMedium,
-          ),
+          const SizedBox(height: AppTokens.spaceMedium),
 
           MasariSection(
             title: l10n.checkpoints,
@@ -752,10 +745,9 @@ class _MapBodyState extends ConsumerState<_MapBody> {
                       attributionLabel: l10n.mapAttribution,
                       height: 390,
 
-                      // The current CheckpointSnapshot does not contain
-                      // a "stale" field. Therefore no stale banner is
-                      // calculated here.
-                      banner: null,
+                      banner: checkpointSnapshot.stale
+                          ? Text(l10n.checkpointsStale)
+                          : null,
 
                       paths: [
                         if (pathPoints.length >= 2)
@@ -773,14 +765,9 @@ class _MapBodyState extends ConsumerState<_MapBody> {
                         if (origin != null)
                           MasariMapMarker(
                             position: origin,
-                            icon:
-                                Icons.trip_origin_rounded,
-                            color: SemanticColors
-                                .upcomingRoute,
-                            label:
-                                l10n.mapOriginLabel(
-                              'Hebron',
-                            ),
+                            icon: Icons.trip_origin_rounded,
+                            color: SemanticColors.upcomingRoute,
+                            label: l10n.mapOriginLabel('Hebron'),
                             size: 42,
                           ),
 
@@ -791,12 +778,8 @@ class _MapBodyState extends ConsumerState<_MapBody> {
                           MasariMapMarker(
                             position: destination,
                             icon: Icons.flag_rounded,
-                            color: SemanticColors
-                                .completedRoute,
-                            label:
-                                l10n.mapDestinationLabel(
-                              'Bethlehem',
-                            ),
+                            color: SemanticColors.completedRoute,
+                            label: l10n.mapDestinationLabel('Bethlehem'),
                             size: 42,
                           ),
 
@@ -809,12 +792,9 @@ class _MapBodyState extends ConsumerState<_MapBody> {
                               position.value!.latitude,
                               position.value!.longitude,
                             ),
-                            icon:
-                                Icons.my_location_rounded,
-                            color:
-                                SemanticColors.passenger,
-                            label:
-                                l10n.mapYourLocation,
+                            icon: Icons.my_location_rounded,
+                            color: SemanticColors.passenger,
+                            label: l10n.mapYourLocation,
                             size: 40,
                           ),
 
@@ -845,20 +825,11 @@ class _MapBodyState extends ConsumerState<_MapBody> {
                               _stopMarker(l10n, stop, stopName(stop), route),
 
                         // --------------------------------------------------
+                        for (final checkpoint in checkpointSnapshot.checkpoints)
+                          checkpointTrafficMarker(checkpoint),
                         // CHECKPOINTS
                         //
-                        // IMPORTANT:
-                        // The current AweenRayeh API gives checkpoint
-                        // names/cities/timestamps but does NOT provide
-                        // coordinates.
-                        //
-                        // Checkpoint.position currently defaults to
-                        // GeoPoint(0, 0) when no local position is supplied.
-                        // Therefore checkpoints must NOT be drawn on the
-                        // map here, otherwise they would appear at (0, 0).
-                        //
-                        // They are displayed correctly in the checkpoints
-                        // section below using nameAr, city and timestamps.
+                        // Invalid or absent coordinates are omitted at parsing.
                         // --------------------------------------------------
                       ],
                     ),
@@ -873,8 +844,7 @@ class _MapBodyState extends ConsumerState<_MapBody> {
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
                           color: _navy,
-                          borderRadius:
-                              BorderRadius.circular(18),
+                          borderRadius: BorderRadius.circular(18),
                         ),
                         child: Row(
                           children: [
@@ -887,21 +857,17 @@ class _MapBodyState extends ConsumerState<_MapBody> {
                               child: Text(
                                 'الوقت المتبقي: '
                                 '${routeResult.formattedDuration}',
-                                style:
-                                    const TextStyle(
+                                style: const TextStyle(
                                   color: Colors.white,
-                                  fontWeight:
-                                      FontWeight.w800,
+                                  fontWeight: FontWeight.w800,
                                 ),
                               ),
                             ),
                             Text(
                               '${routeResult.distanceKilometers.toStringAsFixed(1)} km',
-                              style:
-                                  const TextStyle(
+                              style: const TextStyle(
                                 color: Colors.white70,
-                                fontWeight:
-                                    FontWeight.w700,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
                           ],
@@ -1158,16 +1124,12 @@ class _DriverArrivalCard extends StatelessWidget {
                 width: 50,
                 height: 50,
                 decoration: BoxDecoration(
-                  color:
-                      theme.colorScheme.primaryContainer,
-                  borderRadius:
-                      BorderRadius.circular(16),
+                  color: theme.colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 child: Icon(
                   Icons.local_shipping_rounded,
-                  color: theme
-                      .colorScheme
-                      .onPrimaryContainer,
+                  color: theme.colorScheme.onPrimaryContainer,
                   size: 28,
                 ),
               ),
@@ -1258,14 +1220,8 @@ class _DriverArrivalMetric extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Icon(
-            icon,
-            color: theme.colorScheme.primary,
-            size: 25,
-          ),
-          const SizedBox(
-            height: AppTokens.spaceExtraSmall,
-          ),
+          Icon(icon, color: theme.colorScheme.primary, size: 25),
+          const SizedBox(height: AppTokens.spaceExtraSmall),
           Text(
             value,
             style: theme.textTheme.titleLarge?.copyWith(
@@ -1326,8 +1282,7 @@ class _PassengerRouteSummary extends StatelessWidget {
           if (view.pickup != null)
             _PassengerRoutePoint(
               icon: Icons.location_on_rounded,
-              color:
-                  SemanticColors.upcomingRoute,
+              color: SemanticColors.upcomingRoute,
               title: 'نقطة الالتقاء',
               value: stopName(view.pickup!),
             ),
@@ -1345,8 +1300,7 @@ class _PassengerRouteSummary extends StatelessWidget {
           if (view.dropoff != null)
             _PassengerRoutePoint(
               icon: Icons.flag_rounded,
-              color:
-                  SemanticColors.completedRoute,
+              color: SemanticColors.completedRoute,
               title: 'الوجهة',
               value: stopName(view.dropoff!),
             ),
@@ -1583,7 +1537,11 @@ class _ReportsPanelState extends State<_ReportsPanel> {
               ),
               child: const Column(
                 children: [
-                  Icon(Icons.mark_chat_unread_outlined, color: Color(0xFFB8A69A), size: 28),
+                  Icon(
+                    Icons.mark_chat_unread_outlined,
+                    color: Color(0xFFB8A69A),
+                    size: 28,
+                  ),
                   SizedBox(height: 8),
                   Text(
                     'ما في بلاغات مضافة لحد الآن',
@@ -1597,28 +1555,24 @@ class _ReportsPanelState extends State<_ReportsPanel> {
                   Text(
                     'إذا لاحظت مشكلة بالطريق، أضف بلاغًا ليساعد الركاب الآخرين.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: _muted,
-                      fontSize: 11,
-                      height: 1.5,
-                    ),
+                    style: TextStyle(color: _muted, fontSize: 11, height: 1.5),
                   ),
                 ],
               ),
             )
           else
-            ..._reports.take(5).map((report) => Padding(
-              padding: const EdgeInsets.only(bottom: 9),
-              child: _RoadReportTile(report: report),
-            )),
+            ..._reports
+                .take(5)
+                .map(
+                  (report) => Padding(
+                    padding: const EdgeInsets.only(bottom: 9),
+                    child: _RoadReportTile(report: report),
+                  ),
+                ),
           const SizedBox(height: 4),
           const Text(
             'ملاحظة: البلاغات المضافة هنا تجريبية ومحفوظة مؤقتًا على الشاشة فقط.',
-            style: TextStyle(
-              color: _muted,
-              fontSize: 10,
-              height: 1.4,
-            ),
+            style: TextStyle(color: _muted, fontSize: 10, height: 1.4),
           ),
         ],
       ),
@@ -1667,27 +1621,60 @@ class _RoadReportTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(report.issue, style: const TextStyle(color: ink, fontSize: 12.5, fontWeight: FontWeight.w900)),
+                Text(
+                  report.issue,
+                  style: const TextStyle(
+                    color: ink,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
                 if (report.location.isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      const Icon(Icons.location_on_outlined, size: 13, color: muted),
+                      const Icon(
+                        Icons.location_on_outlined,
+                        size: 13,
+                        color: muted,
+                      ),
                       const SizedBox(width: 3),
-                      Expanded(child: Text(report.location, style: const TextStyle(color: muted, fontSize: 11))),
+                      Expanded(
+                        child: Text(
+                          report.location,
+                          style: const TextStyle(color: muted, fontSize: 11),
+                        ),
+                      ),
                     ],
                   ),
                 ],
                 if (report.details.isNotEmpty) ...[
                   const SizedBox(height: 5),
-                  Text(report.details, style: const TextStyle(color: muted, fontSize: 11.5, height: 1.4)),
+                  Text(
+                    report.details,
+                    style: const TextStyle(
+                      color: muted,
+                      fontSize: 11.5,
+                      height: 1.4,
+                    ),
+                  ),
                 ],
                 const SizedBox(height: 7),
                 Row(
                   children: [
-                    Text(report.category, style: const TextStyle(color: orange, fontSize: 10.5, fontWeight: FontWeight.w800)),
+                    Text(
+                      report.category,
+                      style: const TextStyle(
+                        color: orange,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                     const SizedBox(width: 8),
-                    const Text('• بانتظار التحقق', style: TextStyle(color: muted, fontSize: 10.5)),
+                    const Text(
+                      '• بانتظار التحقق',
+                      style: TextStyle(color: muted, fontSize: 10.5),
+                    ),
                   ],
                 ),
               ],
@@ -1717,10 +1704,30 @@ class _CreateRoadReportSheetState extends State<_CreateRoadReportSheet> {
     'السلامة',
   ];
   static const Map<String, List<String>> _issues = {
-    'الطريق': ['ازدحام شديد', 'حادث على الطريق', 'إغلاق طريق', 'أعمال صيانة', 'عائق على الطريق'],
-    'الحواجز': ['تغيّر حالة الحاجز', 'انتظار طويل', 'الحاجز مغلق', 'معلومات الحاجز غير دقيقة'],
-    'الرحلة والمواصلات': ['تأخر المركبة', 'السائق لم يصل', 'مشكلة في نقطة الالتقاء', 'اختلاف مسار الرحلة'],
-    'السلامة': ['خطر على الطريق', 'عائق يهدد السلامة', 'حالة طارئة أثناء الرحلة'],
+    'الطريق': [
+      'ازدحام شديد',
+      'حادث على الطريق',
+      'إغلاق طريق',
+      'أعمال صيانة',
+      'عائق على الطريق',
+    ],
+    'الحواجز': [
+      'تغيّر حالة الحاجز',
+      'انتظار طويل',
+      'الحاجز مغلق',
+      'معلومات الحاجز غير دقيقة',
+    ],
+    'الرحلة والمواصلات': [
+      'تأخر المركبة',
+      'السائق لم يصل',
+      'مشكلة في نقطة الالتقاء',
+      'اختلاف مسار الرحلة',
+    ],
+    'السلامة': [
+      'خطر على الطريق',
+      'عائق يهدد السلامة',
+      'حالة طارئة أثناء الرحلة',
+    ],
   };
 
   final _locationController = TextEditingController();
@@ -1767,15 +1774,35 @@ class _CreateRoadReportSheetState extends State<_CreateRoadReportSheet> {
                 child: Container(
                   width: 42,
                   height: 4,
-                  decoration: BoxDecoration(color: const Color(0xFFE7DDD6), borderRadius: BorderRadius.circular(8)),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE7DDD6),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
               ),
               const SizedBox(height: 18),
-              const Text('إضافة بلاغ جديد', style: TextStyle(color: _ink, fontSize: 20, fontWeight: FontWeight.w900)),
+              const Text(
+                'إضافة بلاغ جديد',
+                style: TextStyle(
+                  color: _ink,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
               const SizedBox(height: 5),
-              const Text('اختاري نوع المشكلة وأضيفي التفاصيل المتوفرة.', style: TextStyle(color: _muted, fontSize: 12, height: 1.5)),
+              const Text(
+                'اختاري نوع المشكلة وأضيفي التفاصيل المتوفرة.',
+                style: TextStyle(color: _muted, fontSize: 12, height: 1.5),
+              ),
               const SizedBox(height: 20),
-              const Text('تصنيف البلاغ', style: TextStyle(color: _ink, fontSize: 12, fontWeight: FontWeight.w800)),
+              const Text(
+                'تصنيف البلاغ',
+                style: TextStyle(
+                  color: _ink,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
               const SizedBox(height: 10),
               Wrap(
                 spacing: 8,
@@ -1788,8 +1815,14 @@ class _CreateRoadReportSheetState extends State<_CreateRoadReportSheet> {
                     showCheckmark: false,
                     selectedColor: const Color(0xFFFFE8D8),
                     backgroundColor: const Color(0xFFFFFAF7),
-                    side: BorderSide(color: selected ? _orange : const Color(0xFFEDE2DA)),
-                    labelStyle: TextStyle(color: selected ? _orange : _ink, fontSize: 11.5, fontWeight: FontWeight.w700),
+                    side: BorderSide(
+                      color: selected ? _orange : const Color(0xFFEDE2DA),
+                    ),
+                    labelStyle: TextStyle(
+                      color: selected ? _orange : _ink,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                    ),
                     onSelected: (_) => setState(() {
                       _category = category;
                       _issue = _issues[category]!.first;
@@ -1798,40 +1831,98 @@ class _CreateRoadReportSheetState extends State<_CreateRoadReportSheet> {
                 }).toList(),
               ),
               const SizedBox(height: 17),
-              const Text('ما المشكلة؟', style: TextStyle(color: _ink, fontSize: 12, fontWeight: FontWeight.w800)),
+              const Text(
+                'ما المشكلة؟',
+                style: TextStyle(
+                  color: _ink,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                value: _issue,
+                initialValue: _issue,
                 isExpanded: true,
                 decoration: InputDecoration(
                   filled: true,
                   fillColor: const Color(0xFFFFFAF7),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 13, vertical: 13),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFEDE2DA))),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFEDE2DA))),
-                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: _orange, width: 1.5)),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 13,
+                    vertical: 13,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: Color(0xFFEDE2DA)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: Color(0xFFEDE2DA)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: _orange, width: 1.5),
+                  ),
                 ),
-                items: _issues[_category]!.map((issue) => DropdownMenuItem(value: issue, child: Text(issue, style: const TextStyle(fontSize: 12)))).toList(),
-                onChanged: (value) { if (value != null) setState(() => _issue = value); },
+                items: _issues[_category]!
+                    .map(
+                      (issue) => DropdownMenuItem(
+                        value: issue,
+                        child: Text(
+                          issue,
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) {
+                  if (value != null) setState(() => _issue = value);
+                },
               ),
               const SizedBox(height: 17),
-              const Text('الموقع أو اسم المنطقة (اختياري)', style: TextStyle(color: _ink, fontSize: 12, fontWeight: FontWeight.w800)),
+              const Text(
+                'الموقع أو اسم المنطقة (اختياري)',
+                style: TextStyle(
+                  color: _ink,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
               const SizedBox(height: 8),
               TextField(
                 controller: _locationController,
                 textInputAction: TextInputAction.next,
                 decoration: InputDecoration(
                   hintText: 'مثال: مدخل الخليل أو شارع الجامعة',
-                  hintStyle: const TextStyle(fontSize: 11.5, color: Color(0xFFB2A39A)),
-                  prefixIcon: const Icon(Icons.location_on_outlined, color: _orange, size: 20),
+                  hintStyle: const TextStyle(
+                    fontSize: 11.5,
+                    color: Color(0xFFB2A39A),
+                  ),
+                  prefixIcon: const Icon(
+                    Icons.location_on_outlined,
+                    color: _orange,
+                    size: 20,
+                  ),
                   filled: true,
                   fillColor: const Color(0xFFFFFAF7),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFEDE2DA))),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFEDE2DA))),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: Color(0xFFEDE2DA)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: Color(0xFFEDE2DA)),
+                  ),
                 ),
               ),
               const SizedBox(height: 17),
-              const Text('تفاصيل إضافية (اختياري)', style: TextStyle(color: _ink, fontSize: 12, fontWeight: FontWeight.w800)),
+              const Text(
+                'تفاصيل إضافية (اختياري)',
+                style: TextStyle(
+                  color: _ink,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
               const SizedBox(height: 8),
               TextField(
                 controller: _detailsController,
@@ -1839,14 +1930,27 @@ class _CreateRoadReportSheetState extends State<_CreateRoadReportSheet> {
                 maxLines: 4,
                 textCapitalization: TextCapitalization.sentences,
                 decoration: InputDecoration(
-                  hintText: 'اكتبي وصفًا مختصرًا يساعد الآخرين على فهم الحالة...',
-                  hintStyle: const TextStyle(fontSize: 11.5, color: Color(0xFFB2A39A)),
+                  hintText:
+                      'اكتبي وصفًا مختصرًا يساعد الآخرين على فهم الحالة...',
+                  hintStyle: const TextStyle(
+                    fontSize: 11.5,
+                    color: Color(0xFFB2A39A),
+                  ),
                   alignLabelWithHint: true,
                   filled: true,
                   fillColor: const Color(0xFFFFFAF7),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFEDE2DA))),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFEDE2DA))),
-                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: _orange, width: 1.5)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: Color(0xFFEDE2DA)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: Color(0xFFEDE2DA)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: _orange, width: 1.5),
+                  ),
                 ),
               ),
               const SizedBox(height: 21),
@@ -1854,13 +1958,27 @@ class _CreateRoadReportSheetState extends State<_CreateRoadReportSheet> {
                 height: 49,
                 child: FilledButton.icon(
                   onPressed: _submit,
-                  style: FilledButton.styleFrom(backgroundColor: _orange, foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _orange,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                  ),
                   icon: const Icon(Icons.send_rounded, size: 18),
-                  label: const Text('إضافة البلاغ', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
+                  label: const Text(
+                    'إضافة البلاغ',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
+                  ),
                 ),
               ),
               const SizedBox(height: 8),
-              const Text('لا تضيفي معلومات شخصية أو تفاصيل حساسة.', textAlign: TextAlign.center, style: TextStyle(color: _muted, fontSize: 10.5)),
+              const Text(
+                'لا تضيفي معلومات شخصية أو تفاصيل حساسة.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: _muted, fontSize: 10.5),
+              ),
             ],
           ),
         ),
@@ -1887,7 +2005,6 @@ class _CheckpointsPanel extends ConsumerWidget {
   static const _navy = Color(0xFF102A43);
   static const _orange = Color(0xFFF97316);
   static const _orangeSoft = Color(0xFFFFF3EA);
-  static const _border = Color(0xFFE5EAF0);
   static const _textMuted = Color(0xFF64748B);
 
   @override
@@ -1928,9 +2045,11 @@ class _CheckpointsPanel extends ConsumerWidget {
         }
         final cities = grouped.keys.toList()..sort();
 
-        final congestedCount = snapshot.checkpoints.where((checkpoint) =>
-            _isCheckpointCongested(checkpoint.enteringStatus) ||
-            _isCheckpointCongested(checkpoint.leavingStatus)).length;
+        final congestedCount = snapshot.checkpoints
+            .where(
+              (checkpoint) => checkpoint.status == CheckpointStatus.congested,
+            )
+            .length;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2002,7 +2121,9 @@ class _CheckpointsPanel extends ConsumerWidget {
                                     Text(
                                       '${snapshot.checkpoints.length} حاجز · ${cities.length} مدينة',
                                       style: TextStyle(
-                                        color: Colors.white.withValues(alpha: 0.72),
+                                        color: Colors.white.withValues(
+                                          alpha: 0.72,
+                                        ),
                                         fontSize: 12,
                                         fontWeight: FontWeight.w600,
                                       ),
@@ -2040,7 +2161,10 @@ class _CheckpointsPanel extends ConsumerWidget {
                           ),
                           const SizedBox(height: 15),
                           Container(
-                            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 12,
+                              horizontal: 14,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(14),
@@ -2048,7 +2172,11 @@ class _CheckpointsPanel extends ConsumerWidget {
                             child: const Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.visibility_rounded, color: _navy, size: 18),
+                                Icon(
+                                  Icons.visibility_rounded,
+                                  color: _navy,
+                                  size: 18,
+                                ),
                                 SizedBox(width: 8),
                                 Text(
                                   'عرض تفاصيل الحواجز وحالتها',
@@ -2074,20 +2202,24 @@ class _CheckpointsPanel extends ConsumerWidget {
                 'آخر تحديث للبيانات: ${_formatCheckpointTime(snapshot.fetchedAt)}',
                 textAlign: TextAlign.end,
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: AppTheme.onSurfaceVariant,
-                    ),
+                  color: AppTheme.onSurfaceVariant,
+                ),
               ),
             ],
             const SizedBox(height: 8),
             Align(
               alignment: AlignmentDirectional.centerEnd,
               child: TextButton.icon(
-                onPressed: () => ref.read(checkpointsProvider.notifier).refresh(),
+                onPressed: () =>
+                    ref.read(checkpointsProvider.notifier).refresh(),
                 icon: const Icon(Icons.refresh_rounded, size: 17),
                 label: const Text('تحديث بيانات الحواجز'),
                 style: TextButton.styleFrom(
                   foregroundColor: _navy,
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
                 ),
               ),
             ),
@@ -2104,8 +2236,9 @@ class _CheckpointsPanel extends ConsumerWidget {
     required Map<String, List<Checkpoint>> grouped,
   }) async {
     final cities = grouped.keys.toList()..sort();
-    await showModalBottomSheet<void>(
+    await showCheckpointSheet<void>(
       context: context,
+      checkpoints: snapshot.checkpoints,
       isScrollControlled: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
@@ -2158,8 +2291,7 @@ class _CheckpointsPanel extends ConsumerWidget {
                     final items = grouped[city]!;
                     final congested = items.any(
                       (checkpoint) =>
-                          _isCheckpointCongested(checkpoint.enteringStatus) ||
-                          _isCheckpointCongested(checkpoint.leavingStatus),
+                          checkpoint.status == CheckpointStatus.congested,
                     );
                     return _CheckpointCityTile(
                       city: city,
@@ -2190,8 +2322,9 @@ class _CheckpointsPanel extends ConsumerWidget {
     required String city,
     required List<Checkpoint> checkpoints,
   }) async {
-    await showModalBottomSheet<void>(
+    await showCheckpointSheet<void>(
       context: context,
+      checkpoints: checkpoints,
       isScrollControlled: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
@@ -2287,20 +2420,35 @@ class _CheckpointMiniMetric extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(icon, color: accent ? const Color(0xFFFFB37A) : Colors.white70, size: 19),
+          Icon(
+            icon,
+            color: accent ? const Color(0xFFFFB37A) : Colors.white70,
+            size: 19,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(value, style: TextStyle(
-                  color: accent ? const Color(0xFFFFB37A) : Colors.white,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w900,
-                )),
+                Text(
+                  value,
+                  style: TextStyle(
+                    color: accent ? const Color(0xFFFFB37A) : Colors.white,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
                 const SizedBox(height: 2),
-                Text(label, maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.w600)),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ],
             ),
           ),
@@ -2330,9 +2478,7 @@ class _CheckpointCityTile extends StatelessWidget {
     final hasCongestion =
         congested ??
         checkpoints.any(
-          (checkpoint) =>
-              _isCheckpointCongested(checkpoint.enteringStatus) ||
-              _isCheckpointCongested(checkpoint.leavingStatus),
+          (checkpoint) => checkpoint.status == CheckpointStatus.congested,
         );
 
     return Material(
@@ -2433,9 +2579,7 @@ class _CheckpointDetailCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name = checkpoint.nameAr.trim().isEmpty
-        ? 'حاجز'
-        : checkpoint.nameAr.trim();
+    final name = checkpoint.displayName;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -2475,6 +2619,7 @@ class _CheckpointDetailCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 13),
+          Text(checkpointStatusLabel(checkpoint.status)),
           Row(
             children: [
               Expanded(
@@ -2590,20 +2735,20 @@ class _CheckpointStatusStyle {
 }
 
 _CheckpointStatusStyle _checkpointStatusStyle(String? status) {
-  switch (status?.trim()) {
-    case 'سالك':
+  switch (parseCheckpointStatus(status)) {
+    case CheckpointStatus.open:
       return const _CheckpointStatusStyle(
         color: Color(0xFF16A34A),
         background: Color(0xFFF0FDF4),
         icon: Icons.check_circle_rounded,
       );
-    case 'أزمة متوسطة':
+    case CheckpointStatus.congested:
       return const _CheckpointStatusStyle(
         color: Color(0xFFF59E0B),
         background: Color(0xFFFFFBEB),
         icon: Icons.traffic_rounded,
       );
-    case 'أزمة':
+    case CheckpointStatus.closed:
       return const _CheckpointStatusStyle(
         color: Color(0xFFDC2626),
         background: Color(0xFFFEF2F2),
@@ -2621,11 +2766,6 @@ _CheckpointStatusStyle _checkpointStatusStyle(String? status) {
 String _checkpointStatusLabel(String? status) {
   final value = status?.trim();
   return value == null || value.isEmpty ? 'الحالة غير متوفرة' : value;
-}
-
-bool _isCheckpointCongested(String? status) {
-  final value = status?.trim();
-  return value == 'أزمة' || value == 'أزمة متوسطة';
 }
 
 class _CheckpointSheetHandle extends StatelessWidget {

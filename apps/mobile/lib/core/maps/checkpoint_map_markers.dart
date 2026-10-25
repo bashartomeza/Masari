@@ -11,7 +11,7 @@ MasariMapMarker checkpointTrafficMarker(Checkpoint checkpoint) {
   final leaving = _normaliseStatus(checkpoint.leavingStatus);
 
   // Use the most severe of the two directions to colour the marker.
-  final status = _worstStatus(entering, leaving);
+  final status = checkpointStatusLabel(checkpoint.status);
 
   return MasariMapMarker(
     position: GeoPoint(
@@ -23,11 +23,7 @@ MasariMapMarker checkpointTrafficMarker(Checkpoint checkpoint) {
     foreground: Colors.white,
     size: 40,
     type: MasariMapMarkerType.checkpoint,
-    label: _buildLabel(
-      checkpoint,
-      entering: entering,
-      leaving: leaving,
-    ),
+    label: _buildLabel(checkpoint, entering: entering, leaving: leaving),
   );
 }
 
@@ -36,13 +32,12 @@ String _buildLabel(
   required String entering,
   required String leaving,
 }) {
-  final name = checkpoint.nameAr.trim().isNotEmpty
-      ? checkpoint.nameAr.trim()
-      : 'حاجز';
+  final name = checkpoint.displayName;
   final city = checkpoint.city.trim();
   return [
     name,
     if (city.isNotEmpty) city,
+    checkpointStatusLabel(checkpoint.status),
     'دخول: $entering',
     'خروج: $leaving',
   ].join('\n');
@@ -53,22 +48,13 @@ String _normaliseStatus(String? status) {
   return value == null || value.isEmpty ? 'غير معروف' : value;
 }
 
-String _worstStatus(String entering, String leaving) {
-  if (entering == 'أزمة' || leaving == 'أزمة') return 'أزمة';
-  if (entering == 'أزمة متوسطة' || leaving == 'أزمة متوسطة') {
-    return 'أزمة متوسطة';
-  }
-  if (entering == 'سالك' || leaving == 'سالك') return 'سالك';
-  return 'غير معروف';
-}
-
 IconData _statusIcon(String status) {
   switch (status) {
     case 'سالك':
       return Icons.directions_car_rounded;
     case 'أزمة متوسطة':
       return Icons.traffic_rounded;
-    case 'أزمة':
+    case 'مغلق':
       return Icons.car_crash_rounded;
     default:
       return Icons.signpost_rounded;
@@ -81,7 +67,7 @@ Color _statusColor(String status) {
       return const Color(0xFF16A34A);
     case 'أزمة متوسطة':
       return const Color(0xFFF59E0B);
-    case 'أزمة':
+    case 'مغلق':
       return const Color(0xFFDC2626);
     default:
       return const Color(0xFF64748B);
