@@ -24,8 +24,8 @@ test("security remediation keeps vulnerable dependency floors fixed", () => {
     },
     qs: "6.16.0"
   });
-  assert.equal(apiPackageJson.devDependencies.vitest, "4.1.11");
-  assert.equal(adminPackageJson.devDependencies.vitest, "4.1.11");
+  assert.equal(apiPackageJson.devDependencies.vitest, "4.1.12");
+  assert.equal(adminPackageJson.devDependencies.vitest, "4.1.12");
   assert.equal(adminPackageJson.dependencies.vite, "8.3.5");
   assert.equal(packageJson.devDependencies.vite, "8.3.5");
   assert.equal(apiPackageJson.dependencies.zod, "4.6.7");
@@ -37,7 +37,7 @@ test("security remediation keeps vulnerable dependency floors fixed", () => {
     "node_modules/zod": "4.6.7",
     "node_modules/mysql2": "3.23.1",
     "node_modules/qs": "6.16.0",
-    "node_modules/vitest": "4.1.11"
+    "node_modules/vitest": "4.1.12"
   };
   // fast-uri is held at its fixed floor by the override, but no longer sits in the
   // tree at all; if something reintroduces it, it must not be a vulnerable one.
