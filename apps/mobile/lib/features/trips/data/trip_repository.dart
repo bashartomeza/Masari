@@ -15,7 +15,11 @@ class TripRepository {
   Future<List<PassengerTrip>> listTrips() async {
     final json = await apiClient.getJson('/trips');
     final list = json['trips'];
-    if (list is! List) throw const FormatException('Missing trips');
+
+    if (list is! List) {
+      throw const FormatException('Missing trips');
+    }
+
     return list
         .cast<Map<String, dynamic>>()
         .map(PassengerTrip.fromJson)
@@ -24,13 +28,18 @@ class TripRepository {
 
   Future<PassengerTrip> tripDetail(String id) async {
     final json = await apiClient.getJson('/trips/$id');
+
     return PassengerTrip.fromJson(json['trip'] as Map<String, dynamic>);
   }
 
   Future<TripLocation?> latestLocation(String id) async {
     final json = await apiClient.getJson('/trips/$id/location');
     final location = json['location'];
-    if (location == null) return null;
+
+    if (location == null) {
+      return null;
+    }
+
     return TripLocation.fromJson(location as Map<String, dynamic>);
   }
 }

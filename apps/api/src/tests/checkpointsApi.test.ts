@@ -60,7 +60,7 @@ describe("checkpoint catalog", () => {
     prismaMock.authSession.findUnique.mockImplementation(({ where }: { where: { id: string } }) => ({
       id: where.id,
       user_id: "passenger_1",
-      user: { id: "passenger_1", role: "passenger", account_status: "active", security_version: 1 },
+      user: { email_verified_at: new Date(), id: "passenger_1", role: "passenger", account_status: "active", security_version: 1 },
       security_version_at_issue: 1,
       expires_at: new Date(Date.now() + 60_000),
       revoked_at: null

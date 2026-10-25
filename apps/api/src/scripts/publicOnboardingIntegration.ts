@@ -64,7 +64,7 @@ async function seedLegalFixtures() {
 
 async function adminToken() {
   const response = await request(app).post("/api/v1/auth/login").send({
-    phone: DEMO_ACCOUNTS.admin.phone,
+    email: DEMO_ACCOUNTS.admin.email,
     password: config.demo!.adminPassword
   });
   assert(response.status === 200, "Admin login failed");
@@ -393,7 +393,7 @@ async function main() {
   check(await prisma.authSession.count({ where: { user_id: passengerUser.id } }) === 0, "passenger completion creates no auth session");
   check(await prisma.refreshToken.count({ where: { session: { user_id: passengerUser.id } } }) === 0, "passenger completion creates no refresh token");
   const login = await request(app).post("/api/v1/auth/login").send({ phone: "٠٥٩٩١١١١١٤", region: "PS", password: passengerPassword });
-  check(login.status === 200 && login.body.user.role === "passenger", "passenger login accepts normalized local digits");
+  check(login.status === 400 && login.body.error === "validation_error", "deprecated phone-only login is rejected by the email contract");
 
   const driverPassword = "driver secure pass 2026";
   const driver = await onboard(admin, "driver", "+970599111115", "سائق مساري", driverPassword);
@@ -423,7 +423,7 @@ async function main() {
   const driverStatus = await request(app).get("/api/v1/onboarding/status").set("authorization", `Onboarding ${driverCompletionReplay.body.onboarding_status_token}`);
   check(driverStatus.status === 200 && driverStatus.body.onboarding_status === "pending_review", "pending status endpoint works");
   check((await request(app).get("/api/v1/driver/routes").set("authorization", `Onboarding ${driver.completed.body.onboarding_status_token}`)).status === 401, "pending token cannot access operational routes");
-  check((await request(app).post("/api/v1/auth/login").send({ phone: "+970599111115", password: driverPassword })).status === 403, "pending driver cannot login");
+  check((await request(app).post("/api/v1/auth/login").send({ phone: "+970599111115", password: driverPassword })).status === 400, "deprecated phone-only login is rejected for pending driver");
   const recovered = await request(app).post("/api/v1/onboarding/status-sessions").send({ phone: "+970599111115", region: "PS", password: driverPassword });
   check(
     recovered.status === 200 &&

@@ -6,6 +6,7 @@ import '../../incidents/presentation/report_incident_sheet.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/presentation/localized_labels.dart';
 import '../../../core/widgets/language_switch.dart';
+import '../../../core/widgets/masari_back_button.dart';
 import '../../../core/widgets/masari_card.dart';
 import '../../security/presentation/session_status_banner.dart';
 import '../application/merchant_controller.dart';
@@ -50,6 +51,14 @@ class _MerchantTripScreenState extends ConsumerState<MerchantTripScreen>
     final l10n = AppLocalizations.of(context);
     final trip = ref.watch(merchantTripProvider(widget.tripId));
     return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          l10n.merchantTrip,
+          key: const ValueKey('merchantTripTitle'),
+        ),
+        leading: const MasariBackButton(fallback: '/merchant/shipments'),
+        actions: const [LanguageSwitch()],
+      ),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () =>
@@ -57,15 +66,6 @@ class _MerchantTripScreenState extends ConsumerState<MerchantTripScreen>
           child: ListView(
             padding: const EdgeInsets.all(AppTokens.spaceLarge),
             children: [
-              const Align(
-                alignment: AlignmentDirectional.centerEnd,
-                child: LanguageSwitch(),
-              ),
-              Text(
-                l10n.merchantTrip,
-                key: const ValueKey('merchantTripTitle'),
-                style: Theme.of(context).textTheme.headlineMedium,
-              ),
               Text(l10n.waitingReadOnly),
               ReportIncidentButton(tripId: widget.tripId),
               const SizedBox(height: AppTokens.spaceLarge),

@@ -21,11 +21,11 @@ function assertResetSafeDatabase() {
 }
 
 const accounts = {
-  passenger: ["+970590000001", process.env.DEMO_PASSENGER_PASSWORD],
-  driver1: ["+970590000002", process.env.DEMO_DRIVER_PASSWORD],
-  driver2: ["+970590000003", process.env.DEMO_DRIVER_PASSWORD],
-  merchant: ["+970590000004", process.env.DEMO_MERCHANT_PASSWORD],
-  admin: ["+970590000005", process.env.DEMO_ADMIN_PASSWORD]
+  passenger: ["demo.passenger@masari.app", process.env.DEMO_PASSENGER_PASSWORD],
+  driver1: ["demo.driver@masari.app", process.env.DEMO_DRIVER_PASSWORD],
+  driver2: ["demo.driver2@masari.app", process.env.DEMO_DRIVER_PASSWORD],
+  merchant: ["demo.merchant@masari.app", process.env.DEMO_MERCHANT_PASSWORD],
+  admin: ["demo.admin@masari.app", process.env.DEMO_ADMIN_PASSWORD]
 };
 
 function assert(condition, message) {
@@ -50,8 +50,8 @@ async function request(path, { token, method = "GET", body, headers = {}, expect
 }
 
 async function login(role) {
-  const [phone, password] = accounts[role];
-  return (await request("/auth/login", { method: "POST", body: { phone, password } })).token;
+  const [email, password] = accounts[role];
+  return (await request("/auth/login", { method: "POST", body: { email, password } })).token;
 }
 
 const typesOf = (inbox) => inbox.notifications.map((item) => item.type);

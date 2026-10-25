@@ -8,7 +8,12 @@ import '../../features/canonical_routes/domain/canonical_route_models.dart';
 /// Each case reads differently to a rider — a disabled radio is fixed in
 /// settings, a denied prompt can be re-asked — so the UI distinguishes them
 /// instead of showing one generic failure.
-enum LocationFailure { serviceDisabled, permissionDenied, permanentlyDenied, unavailable }
+enum LocationFailure {
+  serviceDisabled,
+  permissionDenied,
+  permanentlyDenied,
+  unavailable,
+}
 
 class LocationException implements Exception {
   const LocationException(this.failure);
@@ -67,7 +72,8 @@ final currentPositionProvider =
 
 class CurrentPositionNotifier extends AsyncNotifier<GeoPoint?> {
   @override
-  Future<GeoPoint?> build() => ref.read(locationServiceProvider).currentPosition();
+  Future<GeoPoint?> build() =>
+      ref.read(locationServiceProvider).currentPosition();
 
   Future<void> refresh() async {
     state = const AsyncLoading();

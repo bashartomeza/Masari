@@ -1,5 +1,27 @@
+import type {
+  BatchQueryInput,
+  BatchRow,
+  CurrentOrderParcelsPage,
+  MatchQueryInput,
+  MatchRow,
+  Observed,
+  Overview,
+  Page,
+  PageQuery,
+  Range
+} from "./features/monitoring/contracts";
+
 export type ApiError = Error & { status?: number; details?: unknown };
 export type ApiClientOptions = { onSessionEnded?: (error: ApiError, requestToken: string) => void };
+export type RouteLifecycleExpectation = {
+  expected_current_version_id: string | null;
+};
+type RouteVersionActionPayload = {
+  pause: RouteLifecycleExpectation & { reason: string };
+  resume: RouteLifecycleExpectation;
+  retire: RouteLifecycleExpectation & { reason: string };
+};
+type RouteRetirementPayload = { reason: string; expected_current_version_id: null };
 
 export function createApiClient(apiBaseUrl: string, clientOptions: ApiClientOptions = {}) {
   async function apiRequest<T>(path: string, options: { method?: string; token?: string; body?: unknown; idempotencyKey?: string } = {}) {
@@ -44,6 +66,15 @@ export function createApiClient(apiBaseUrl: string, clientOptions: ApiClientOpti
     return text ? `?${text}` : "";
   }
 
+  function withQuery(path: string, values: Record<string, string | number | undefined>) {
+    const query = new URLSearchParams();
+    for (const [key, value] of Object.entries(values)) {
+      if (value !== undefined) query.set(key, String(value));
+    }
+    const encoded = query.toString();
+    return encoded ? `${path}?${encoded}` : path;
+  }
+
 return {
   incidents: (token: string, query: { status?: IncidentStatus; page?: number; limit?: number } = {}) => {
     const params = new URLSearchParams();
@@ -57,10 +88,27 @@ return {
     apiRequest<{ incident: IncidentRecord }>(`/admin/incidents/${encodeURIComponent(id)}`, { method: "PATCH", token, body }),
   reportSummary: (token: string, range: ReportRange) => apiRequest<ReportSummary>(`/admin/reports/summary${reportQuery(range)}`, { token }),
   reportExport: (token: string, dataset: ReportDataset, range: ReportRange) => downloadCsv(`/admin/reports/export${reportQuery(range, { dataset })}`, token),
-  login: (phone: string, password: string) => apiRequest<LoginResponse>("/auth/login", { method: "POST", body: { phone, password } }),
+  login: (email: string, password: string) => apiRequest<LoginResponse>("/auth/admin/login", { method: "POST", body: { email, password } }),
+  googleLogin: (id_token: string) => apiRequest<LoginResponse>("/auth/admin/google", { method: "POST", body: { id_token } }),
+  authCapabilities: () => apiRequest<{ google_admin_login_available: boolean; google_admin_client_id: string | null }>("/auth/capabilities"),
   me: (token: string) => apiRequest<MeResponse>("/me", { token }),
   capabilities: (token: string) => apiRequest<CapabilitiesResponse>("/capabilities", { token }),
   dashboard: (token: string) => apiRequest<DashboardResponse>("/admin/dashboard", { token }),
+  monitoringOverview: (token: string, query?: Range) =>
+    apiRequest<Observed<Overview>>(withQuery("/admin/matching-batching/overview", query ?? {}), { token }),
+  monitoringMatches: (token: string, query: MatchQueryInput) =>
+    apiRequest<Page<MatchRow>>(withQuery("/admin/matching-batching/matches", query), { token }),
+  monitoringMatch: (token: string, id: string) =>
+    apiRequest<Observed<MatchRow>>(`/admin/matching-batching/matches/${encodeURIComponent(id)}`, { token }),
+  monitoringBatches: (token: string, query: BatchQueryInput) =>
+    apiRequest<Page<BatchRow>>(withQuery("/admin/matching-batching/batches", query), { token }),
+  monitoringBatch: (token: string, id: string) =>
+    apiRequest<Observed<BatchRow>>(`/admin/matching-batching/batches/${encodeURIComponent(id)}`, { token }),
+  monitoringParcels: (token: string, id: string, query: PageQuery) =>
+    apiRequest<CurrentOrderParcelsPage>(
+      withQuery(`/admin/matching-batching/batches/${encodeURIComponent(id)}/parcels`, query),
+      { token }
+    ),
   users: (
     token: string,
     role: UserRoleFilter = "all",
@@ -197,8 +245,14 @@ return {
   updateRouteVersion: (token: string, id: string, body: RouteVersionDraft & { expected_revision: number }) => apiRequest<{ version: ServiceRouteVersion }>(`/admin/route-versions/${id}`, { method: "PATCH", token, body }),
   replaceRouteStops: (token: string, id: string, body: { expected_revision: number; stops: RouteStopDraft[] }) => apiRequest<{ version: ServiceRouteVersion }>(`/admin/route-versions/${id}/stops`, { method: "PUT", token, body }),
   publishRouteVersion: (token: string, id: string, body: { expected_revision: number; expected_current_version_id: string | null }, key: string) => apiRequest<{ version: ServiceRouteVersion }>(`/admin/route-versions/${id}/publish`, { method: "POST", token, body, idempotencyKey: key }),
-  routeVersionAction: (token: string, id: string, action: "pause" | "resume" | "retire", reason: string | undefined, key: string) => apiRequest<{ version: ServiceRouteVersion }>(`/admin/route-versions/${id}/${action}`, { method: "POST", token, body: reason ? { reason } : {}, idempotencyKey: key }),
-  retireServiceRoute: (token: string, id: string, reason: string, key: string) => apiRequest<{ route: ServiceRoute }>(`/admin/service-routes/${id}/retire`, { method: "POST", token, body: { reason }, idempotencyKey: key }),
+  routeVersionAction: <Action extends keyof RouteVersionActionPayload>(
+    token: string,
+    id: string,
+    action: Action,
+    body: RouteVersionActionPayload[Action],
+    key: string
+  ) => apiRequest<{ version: ServiceRouteVersion }>(`/admin/route-versions/${id}/${action}`, { method: "POST", token, body, idempotencyKey: key }),
+  retireServiceRoute: (token: string, id: string, body: RouteRetirementPayload, key: string) => apiRequest<{ route: ServiceRoute }>(`/admin/service-routes/${id}/retire`, { method: "POST", token, body, idempotencyKey: key }),
   canonicalStops: (token: string, query = "") => apiRequest<StopPage>(`/admin/stops${query}`, { token }),
   createCanonicalStop: (token: string, body: CanonicalStopDraft, key: string) => apiRequest<{ stop: CanonicalStop }>("/admin/stops", { method: "POST", token, body, idempotencyKey: key }),
   updateCanonicalStop: (token: string, id: string, body: Omit<CanonicalStopDraft, "stop_key">) => apiRequest<{ stop: CanonicalStop }>(`/admin/stops/${id}`, { method: "PATCH", token, body }),
@@ -469,7 +523,7 @@ export type Comparison = {
 export type Trip = { id: string; status: string; driver_route_id: string; passenger_request_id?: string; merchant_order_id?: string; created_at?: string };
 export type LocationEvent = { id: string; lat: string; lng: string; source: string; sequence: number; recorded_at: string };
 
-export type TripStatus = "created" | "accepted" | "pickup_started" | "picked_up" | "in_transit" | "delivered" | "completed" | "cancelled";
+export type TripStatus = "created" | "accepted" | "pickup_started" | "picked_up" | "in_transit" | "delivered" | "completed" | "cancelled" | "failed";
 export type AdminForwardTripStatus = "pickup_started" | "picked_up" | "in_transit" | "delivered" | "completed";
 export type AdminTripKind = "legacy" | "canonical" | "shared";
 export type AdminTripPerson = { id: string; name: string; phone: string; demo_account: boolean };

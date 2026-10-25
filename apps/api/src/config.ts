@@ -8,6 +8,7 @@ export type RouteProviderId = (typeof ROUTE_PROVIDERS)[number];
 const MINIMUM_JWT_SECRET_LENGTH = 32;
 const MINIMUM_REFRESH_PEPPER_LENGTH = 32;
 const MINIMUM_ONBOARDING_PEPPER_LENGTH = 32;
+const MINIMUM_AUTH_ACTION_PEPPER_LENGTH = 32;
 const PRODUCTION_ACCESS_TOKEN_MIN_SECONDS = 300;
 const PRODUCTION_ACCESS_TOKEN_MAX_SECONDS = 1_800;
 const PRODUCTION_REFRESH_TOKEN_MAX_DAYS = 90;
@@ -27,6 +28,19 @@ function isUnsafeRouteProviderSecret(value: string) {
   return isUnsafeSecret(value) || unsafeRouteProviderSecretMarkers.some((marker) => normalized.includes(marker));
 }
 
+const optionalXaiApiKey = z.preprocess(
+  (value) => typeof value === "string" && value.trim() === "" ? undefined : value,
+  z.string().trim().min(20).optional()
+);
+const optionalGeminiApiKey = z.preprocess(
+  (value) => typeof value === "string" && value.trim() === "" ? undefined : value,
+  z.string().trim().min(20).optional()
+);
+const optionalGroqApiKey = z.preprocess(
+  (value) => typeof value === "string" && value.trim() === "" ? undefined : value,
+  z.string().trim().min(20).optional()
+);
+
 const rawSchema = z.object({
   APP_ENV: z.enum(APP_ENVIRONMENTS),
   DATABASE_URL: z.string().min(1),
@@ -34,6 +48,8 @@ const rawSchema = z.object({
   ACCESS_TOKEN_TTL_SECONDS: z.coerce.number().int().min(60).max(86_400).optional(),
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().min(1).max(365).optional(),
   REFRESH_TOKEN_PEPPER: z.string().min(MINIMUM_REFRESH_PEPPER_LENGTH).optional(),
+  AUTH_ACTION_TOKEN_PEPPER: z.string().min(MINIMUM_AUTH_ACTION_PEPPER_LENGTH).optional(),
+  AUTH_ACTION_TOKEN_KEY_VERSION: z.coerce.number().int().positive().default(1),
   CORS_ORIGINS: z.string().optional(),
   APP_RELEASE: z.string().min(1).optional(),
   ENABLE_DEMO_FEATURES: z.string().optional(),
@@ -75,6 +91,22 @@ const rawSchema = z.object({
   INVITATIONS_ENABLED: z.string().optional(),
   PUBLIC_ONBOARDING_ENABLED: z.string().optional(),
   OTP_PROVIDER: z.enum(["disabled", "fake"]).default("disabled"),
+  SUPPORTED_PHONE_REGIONS: z.string().default("PS"),
+  GOOGLE_OAUTH_CLIENT_IDS: z.string().optional(),
+  GOOGLE_MOBILE_SERVER_CLIENT_ID: z.string().trim().min(1).refine((v) => !v.includes(",")).optional(),
+  GOOGLE_ADMIN_WEB_CLIENT_ID: z.string().trim().min(1).refine((v) => !v.includes(",")).optional(),
+  GOOGLE_PASSENGER_SIGNUP_MODE: z.enum(["disabled", "allowlist", "open"]).default("disabled"),
+  GOOGLE_PASSENGER_ALLOWLIST_HMACS: z.string().optional(),
+  XAI_API_KEY: optionalXaiApiKey,
+  XAI_MODEL: z.string().trim().min(1).max(100).default("grok-4.6"),
+  XAI_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(60_000).default(15_000),
+  ASSISTANT_PROVIDER: z.enum(["xai", "gemini", "groq"]).default("groq"),
+  GEMINI_API_KEY: optionalGeminiApiKey,
+  GEMINI_MODEL: z.string().trim().min(1).max(100).default("gemini-2.5-flash-lite"),
+  GEMINI_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(60_000).default(15_000),
+  GROQ_API_KEY: optionalGroqApiKey,
+  GROQ_MODEL: z.string().trim().min(1).max(100).default("openai/gpt-oss-20b"),
+  GROQ_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(60_000).default(15_000),
   INVITATION_CODE_PEPPER: z.string().min(MINIMUM_ONBOARDING_PEPPER_LENGTH).optional(),
   INVITATION_CODE_KEY_VERSION: z.coerce.number().int().positive().default(1),
   PHONE_DIGEST_PEPPER: z.string().min(MINIMUM_ONBOARDING_PEPPER_LENGTH).optional(),
@@ -284,11 +316,50 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
   if (routeMapsEnabled && raw.ROUTE_PROVIDER_SECRET && [raw.JWT_SECRET, raw.REFRESH_TOKEN_PEPPER].includes(raw.ROUTE_PROVIDER_SECRET)) {
     problems.push("ROUTE_PROVIDER_SECRET must be distinct from operational secrets");
   }
+  if (raw.XAI_API_KEY && isUnsafeSecret(raw.XAI_API_KEY)) {
+    problems.push("XAI_API_KEY uses a known placeholder or default value");
+  }
+  if (raw.GEMINI_API_KEY && isUnsafeSecret(raw.GEMINI_API_KEY)) {
+    problems.push("GEMINI_API_KEY uses a known placeholder or default value");
+  }
+  if (raw.GROQ_API_KEY && isUnsafeSecret(raw.GROQ_API_KEY)) {
+    problems.push("GROQ_API_KEY uses a known placeholder or default value");
+  }
   if (productionLike && raw.ROUTE_PROVIDER_CACHE_TTL_SECONDS !== 0) {
     problems.push("ROUTE_PROVIDER_CACHE_TTL_SECONDS must remain 0 until provider cache rights are approved");
   }
   if (raw.ROUTE_PROVIDER_REQUEST_TIMEOUT_MS < raw.ROUTE_PROVIDER_CONNECT_TIMEOUT_MS) {
     problems.push("ROUTE_PROVIDER_REQUEST_TIMEOUT_MS must be at least the connect timeout");
+  }
+
+  const supportedRegions = raw.SUPPORTED_PHONE_REGIONS.split(",")
+    .map((region) => region.trim().toUpperCase())
+    .filter(Boolean);
+  if (supportedRegions.length !== 1 || supportedRegions[0] !== "PS") {
+    problems.push("SUPPORTED_PHONE_REGIONS must be PS in M6C2B1");
+  }
+
+  const googleOAuthClientIds = (raw.GOOGLE_OAUTH_CLIENT_IDS ?? "")
+    .split(",")
+    .map((clientId) => clientId.trim())
+    .filter(Boolean);
+  const googleMobileClientIds = raw.GOOGLE_MOBILE_SERVER_CLIENT_ID ? [raw.GOOGLE_MOBILE_SERVER_CLIENT_ID] : [];
+  const googleAdminClientIds = raw.GOOGLE_ADMIN_WEB_CLIENT_ID ? [raw.GOOGLE_ADMIN_WEB_CLIENT_ID] : [];
+  const googlePassengerAllowlist = (raw.GOOGLE_PASSENGER_ALLOWLIST_HMACS ?? "").split(",").map((v) => v.trim()).filter(Boolean);
+  if (googlePassengerAllowlist.some((v) => !/^[a-f0-9]{64}$/.test(v))) problems.push("GOOGLE_PASSENGER_ALLOWLIST_HMACS must contain SHA-256 HMAC digests");
+  if ([...googleMobileClientIds, ...googleAdminClientIds].some(isUnsafeSecret)) problems.push("Google endpoint client IDs contain a placeholder value");
+  if (googleMobileClientIds.some((id) => googleAdminClientIds.includes(id))) problems.push("Google mobile and admin audiences must be distinct");
+  if (raw.GOOGLE_PASSENGER_SIGNUP_MODE !== "disabled" && (!googleMobileClientIds.length || !raw.AUTH_ACTION_TOKEN_PEPPER)) problems.push("Google passenger signup requires mobile audiences and AUTH_ACTION_TOKEN_PEPPER");
+  if (raw.GOOGLE_PASSENGER_SIGNUP_MODE === "allowlist" && googlePassengerAllowlist.length === 0) problems.push("Google passenger signup requires nonempty HMAC allowlist");
+  // No approved email/SMS adapter is currently wired into the application.
+  // A configuration assertion cannot substitute for delivery, published legal
+  // releases, and a completed runtime rehearsal. Keep rollout closed until the
+  // approved adapters and their startup checks are implemented together.
+  if (productionLike && raw.GOOGLE_PASSENGER_SIGNUP_MODE !== "disabled") {
+    problems.push("google_signup_prerequisite_missing: approved delivery providers, published legal releases, and runtime rehearsal required");
+  }
+  if (googleOAuthClientIds.some((clientId) => isUnsafeSecret(clientId))) {
+    problems.push("GOOGLE_OAUTH_CLIENT_IDS contains a placeholder value");
   }
 
   const onboardingSecrets = {
@@ -337,6 +408,12 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
   }
   if (productionLike && !raw.REFRESH_TOKEN_PEPPER) {
     problems.push("REFRESH_TOKEN_PEPPER is required in staging and production");
+  }
+  if (raw.AUTH_ACTION_TOKEN_PEPPER && isUnsafeSecret(raw.AUTH_ACTION_TOKEN_PEPPER)) {
+    problems.push("AUTH_ACTION_TOKEN_PEPPER uses a known placeholder or default value");
+  }
+  if (raw.AUTH_ACTION_TOKEN_PEPPER && [raw.JWT_SECRET, raw.REFRESH_TOKEN_PEPPER].includes(raw.AUTH_ACTION_TOKEN_PEPPER)) {
+    problems.push("AUTH_ACTION_TOKEN_PEPPER must be distinct from JWT and refresh-token secrets");
   }
 
   const accessTokenTtlSeconds = raw.ACCESS_TOKEN_TTL_SECONDS ?? (productionLike ? 900 : 28_800);
@@ -424,6 +501,14 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
     accessTokenTtlSeconds,
     refreshTokenTtlDays,
     refreshTokenPepper: raw.REFRESH_TOKEN_PEPPER ?? `masari-non-production:${raw.JWT_SECRET}`,
+    authActions: raw.AUTH_ACTION_TOKEN_PEPPER
+      ? {
+          key: {
+            secret: raw.AUTH_ACTION_TOKEN_PEPPER,
+            version: raw.AUTH_ACTION_TOKEN_KEY_VERSION
+          }
+        }
+      : undefined,
     corsOrigins,
     appRelease: raw.APP_RELEASE ?? "unreleased",
     port: raw.PORT,
@@ -440,6 +525,24 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
     canonicalTripCreationEnabled,
     canonicalSharedTripsEnabled,
     canonicalSharedTripMobileEnabled,
+    assistant: {
+      provider: raw.ASSISTANT_PROVIDER,
+      apiKey: raw.ASSISTANT_PROVIDER === "groq"
+        ? raw.GROQ_API_KEY
+        : raw.ASSISTANT_PROVIDER === "gemini"
+          ? raw.GEMINI_API_KEY
+          : raw.XAI_API_KEY,
+      model: raw.ASSISTANT_PROVIDER === "groq"
+        ? raw.GROQ_MODEL
+        : raw.ASSISTANT_PROVIDER === "gemini"
+          ? raw.GEMINI_MODEL
+          : raw.XAI_MODEL,
+      timeoutMs: raw.ASSISTANT_PROVIDER === "groq"
+        ? raw.GROQ_TIMEOUT_MS
+        : raw.ASSISTANT_PROVIDER === "gemini"
+          ? raw.GEMINI_TIMEOUT_MS
+          : raw.XAI_TIMEOUT_MS
+    },
     mapsEnabled,
     checkpointsEnabled,
     checkpoints: checkpointsEnabled
@@ -503,6 +606,8 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
         }
       : undefined,
     logLevel: raw.LOG_LEVEL ?? (isTest ? "silent" : "info"),
+    googleOAuthClientIds,
+    googleAuth: { mobileClientIds: googleMobileClientIds, adminClientIds: googleAdminClientIds, passengerSignupMode: raw.GOOGLE_PASSENGER_SIGNUP_MODE, passengerAllowlist: googlePassengerAllowlist },
     trustProxy,
     readinessTimeoutMs: raw.READINESS_TIMEOUT_MS,
     rateLimits: {

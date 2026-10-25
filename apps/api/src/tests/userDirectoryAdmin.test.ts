@@ -14,7 +14,7 @@ const { createApp } = await import("../app.js");
 const { signAuthToken } = await import("../middleware/auth.js");
 
 const now = new Date("2026-08-23T10:00:00.000Z");
-const admin = { id: "admin_1", name: "QA Admin", phone: "+15550000001", role: "admin" as const, account_status: "active", security_version: 1, demo_account: false };
+const admin = { email_verified_at: new Date(), id: "admin_1", name: "QA Admin", phone: "+15550000001", role: "admin" as const, account_status: "active", security_version: 1, demo_account: false };
 const passengerAuth = { ...admin, id: "passenger_auth", role: "passenger" as const };
 
 const baseUser = {

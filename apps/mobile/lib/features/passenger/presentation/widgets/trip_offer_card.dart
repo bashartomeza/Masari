@@ -6,6 +6,8 @@ import '../../../../core/theme/app_tokens.dart';
 import '../../../../core/theme/semantic_colors.dart';
 import '../../../../core/widgets/entity_cards.dart';
 import '../../../../core/widgets/masari_card.dart';
+import '../../../../core/widgets/match_widgets.dart';
+import '../../../../core/widgets/route_chip.dart';
 import '../../domain/trip_offer.dart';
 
 /// One bookable trip.
@@ -16,12 +18,22 @@ import '../../domain/trip_offer.dart';
 /// price, rating, or trip count appears, and the card simply reads as driver,
 /// route, departure, and seats.
 class TripOfferCard extends StatelessWidget {
-  const TripOfferCard({required this.offer, this.onBook, super.key});
+  const TripOfferCard({
+    required this.offer,
+    this.onBook,
+    this.actionLabel,
+    this.busy = false,
+    this.enabled = true,
+    super.key,
+  });
 
   final TripOffer offer;
 
   /// Booking is only offered when the caller can actually perform it.
   final VoidCallback? onBook;
+  final String? actionLabel;
+  final bool busy;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -61,7 +73,14 @@ class TripOfferCard extends StatelessWidget {
                   ],
                 ),
               ),
-              if (offer.priceLabel != null) ...[
+              if (offer.matchScore != null) ...[
+                const SizedBox(width: AppTokens.spaceSmall),
+                MatchScore(
+                  score: offer.matchScore!,
+                  label: l10n.matchScore,
+                  compact: true,
+                ),
+              ] else if (offer.priceLabel != null) ...[
                 const SizedBox(width: AppTokens.spaceSmall),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
@@ -87,6 +106,8 @@ class TripOfferCard extends StatelessWidget {
             ],
           ),
           const Divider(height: AppTokens.spaceLarge),
+          RouteChip(from: offer.fromLabel, to: offer.toLabel, compact: true),
+          const SizedBox(height: AppTokens.spaceMedium),
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -118,14 +139,19 @@ class TripOfferCard extends StatelessWidget {
                 const SizedBox(width: AppTokens.spaceSmall),
                 FilledButton(
                   key: ValueKey('bookOffer-${offer.id}'),
-                  onPressed: onBook,
+                  onPressed: busy || !enabled ? null : onBook,
                   style: FilledButton.styleFrom(
                     minimumSize: const Size(0, AppTokens.minTouchTarget),
                     padding: const EdgeInsets.symmetric(
                       horizontal: AppTokens.spaceLarge,
                     ),
                   ),
-                  child: Text(l10n.bookSeat),
+                  child: busy
+                      ? const SizedBox.square(
+                          dimension: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Text(actionLabel ?? l10n.bookSeat),
                 ),
               ],
             ],
@@ -178,7 +204,7 @@ class _Reputation extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(Icons.star, size: 14, color: SemanticColors.actionBright),
+        const Icon(Icons.star, size: 14, color: SemanticColors.warning),
         const SizedBox(width: AppTokens.spaceExtraSmall),
         Flexible(
           child: Text(

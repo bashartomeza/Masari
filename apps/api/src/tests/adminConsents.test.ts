@@ -11,7 +11,7 @@ const { HttpError } = await import("../middleware/error.js");
 const { signAuthToken } = await import("../middleware/auth.js");
 
 const now = new Date("2026-08-21T12:00:00.000Z");
-const admin = { id: "admin_1", name: "Admin", phone: "+970590000005", role: "admin" as const, account_status: "active", security_version: 1, demo_account: false };
+const admin = { email_verified_at: new Date(), id: "admin_1", name: "Admin", phone: "+970590000005", role: "admin" as const, account_status: "active", security_version: 1, demo_account: false };
 const passenger = { ...admin, id: "passenger_1", role: "passenger" as const };
 const documents = (["terms", "privacy", "adult_self_attestation"] as const).flatMap((type) =>
   (["ar", "en"] as const).map((locale, index) => ({

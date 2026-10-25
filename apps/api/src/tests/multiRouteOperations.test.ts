@@ -144,7 +144,7 @@ describe("M7C1 operational APIs", () => {
       return user ? {
         id: where.id,
         user_id: user.id,
-        user: { ...user, security_version: 1 },
+        user: { email_verified_at: new Date(), ...user, security_version: 1 },
         security_version_at_issue: 1,
         expires_at: new Date(Date.now() + 60_000),
         revoked_at: null

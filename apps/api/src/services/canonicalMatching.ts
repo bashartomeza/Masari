@@ -1225,32 +1225,84 @@ export function createCanonicalMatchingService(db: PrismaClient = prisma, appCon
       return result;
     },
 
-    async passengerStatus(ownerId: string, id?: string, limit = 25) {
-      requireAssignmentStatusEnabled();
-      return db.passengerRequest.findMany({
-        where: { passenger_id: ownerId, operational_mode: CANONICAL_MODE, ...(id ? { id } : {}) },
-        include: {
-          route_version: {
+   async passengerStatus(ownerId: string, id?: string, limit = 25) {
+  requireAssignmentStatusEnabled();
+  return db.passengerRequest.findMany({
+    where: {
+      passenger_id: ownerId,
+      operational_mode: CANONICAL_MODE,
+      ...(id ? { id } : {})
+    },
+    include: {
+      route_version: {
+        select: {
+          id: true,
+          name_ar: true,
+          name_en: true,
+
+          // Route geometry used by the mobile map.
+          geometry_status: true,
+          geometry_encoding: true,
+          encoded_geometry: true,
+          geometry_precision: true,
+          estimated_distance_meters: true,
+          estimated_duration_seconds: true,
+
+          service_route: {
             select: {
-              id: true,
-              name_ar: true,
-              name_en: true,
-              service_route: { select: { direction: true } },
-              stops: {
-                select: {
-                  sequence: true,
-                  stop: { select: { id: true, name_ar: true, name_en: true } }
-                },
-                orderBy: { sequence: "asc" }
-              }
+              direction: true
             }
           },
-          canonical_dispatch: { include: { assigned_trip: { select: { id: true, status: true, canonical_trip_version: true, route_version_id: true, created_at: true, driver_route: { select: { departure_at: true, driver: { select: { vehicle_type: true } } } } } } } }
-        },
-        orderBy: [{ created_at: "desc" }, { id: "desc" }],
-        take: Math.min(Math.max(limit, 1), 50)
-      });
+
+          stops: {
+            select: {
+              sequence: true,
+              stop: {
+                select: {
+                  id: true,
+                  name_ar: true,
+                  name_en: true
+                }
+              }
+            },
+            orderBy: {
+              sequence: "asc"
+            }
+          }
+        }
+      },
+
+      canonical_dispatch: {
+        include: {
+          assigned_trip: {
+            select: {
+              id: true,
+              status: true,
+              canonical_trip_version: true,
+              route_version_id: true,
+              created_at: true,
+              driver_route: {
+                select: {
+                  departure_at: true,
+                  driver: {
+                    select: {
+                      vehicle_type: true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     },
+    orderBy: [
+      { created_at: "desc" },
+      { id: "desc" }
+    ],
+    take: Math.min(Math.max(limit, 1), 50)
+  });
+},
 
     async merchantStatus(ownerId: string, id?: string, limit = 25) {
       requireAssignmentStatusEnabled();

@@ -5,6 +5,7 @@ import 'package:masari_mobile/l10n/app_localizations.dart';
 
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/language_switch.dart';
+import '../../../core/widgets/masari_back_button.dart';
 import '../../../core/widgets/masari_card.dart';
 import '../application/merchant_controller.dart';
 import '../data/merchant_models.dart';
@@ -35,18 +36,15 @@ class _CreateMerchantOrderScreenState
       // Arabic string as the passenger's `createRequest` CTA, so matching on
       // text cannot tell the two screens apart.
       key: const ValueKey('merchantCreateOrder'),
+      appBar: AppBar(
+        title: Text(l10n.createOrder),
+        leading: const MasariBackButton(fallback: '/merchant'),
+        actions: const [LanguageSwitch()],
+      ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(AppTokens.spaceLarge),
           children: [
-            const Align(
-              alignment: AlignmentDirectional.centerEnd,
-              child: LanguageSwitch(),
-            ),
-            Text(
-              l10n.createOrder,
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
             const SizedBox(height: AppTokens.spaceLarge),
             MasariCard(
               child: Column(
@@ -83,6 +81,13 @@ class _CreateMerchantOrderScreenState
             FilledButton(
               key: const ValueKey('submitMerchantOrder'),
               onPressed: _busy ? null : _submit,
+              style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.tertiary,
+                foregroundColor: Theme.of(context).colorScheme.onTertiary,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppTokens.radiusAction),
+                ),
+              ),
               child: Text(l10n.submitOrder),
             ),
           ],

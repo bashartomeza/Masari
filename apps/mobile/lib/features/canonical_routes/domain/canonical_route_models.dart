@@ -70,7 +70,9 @@ class RouteGeometry {
 /// points instead of a guess, so a new provider degrades to the stop polyline
 /// until this understands it.
 List<GeoPoint> _decodeGeometry(Object? encoding, Object? encoded) {
-  if (encoding != 'demo-json-v1' || encoded is! String) return const <GeoPoint>[];
+  if (encoding != 'demo-json-v1' || encoded is! String) {
+    return const <GeoPoint>[];
+  }
   final Object? decoded;
   try {
     decoded = jsonDecode(encoded);
@@ -384,7 +386,9 @@ List<CanonicalStop> _validatedStops(List<CanonicalStop> stops) {
       throw const FormatException('Invalid ordered stops');
     }
   }
-  return List.unmodifiable(stops);
+  return List.unmodifiable(
+    [...stops]..sort((a, b) => a.sequence.compareTo(b.sequence)),
+  );
 }
 
 class DriverAvailability {
