@@ -108,6 +108,16 @@ return {
       `/admin/driver-verifications/${encodeURIComponent(userId)}/reject`,
       { method: "POST", token, body: { expected_revision: expectedRevision, reason } }
     ),
+  reopenDriverVerification: (token: string, userId: string, expectedRevision: number, reason: string) =>
+    apiRequest<{ verification: DriverVerification }>(
+      `/admin/driver-verifications/${encodeURIComponent(userId)}/reopen`,
+      { method: "POST", token, body: { expected_revision: expectedRevision, reason } }
+    ),
+  decideMerchantApproval: (token: string, userId: string, decision: "approve" | "reject", reason?: string) =>
+    apiRequest<{ user: AdminUser }>(
+      `/admin/merchant-approvals/${encodeURIComponent(userId)}/${decision}`,
+      { method: "POST", token, body: reason ? { reason } : {} }
+    ),
   consentReleases: (token: string) =>
     apiRequest<{ releases: ConsentRelease[] }>("/admin/consent-releases", { token }),
   currentConsentRelease: (token: string) =>
@@ -324,7 +334,16 @@ export type DriverVerification = {
   reviewer: { id: string; name: string } | null;
   candidate: AdminUser;
   driver_profile: DriverProfile | null;
+  history: DriverVerificationHistoryEntry[];
   evidence: { status: "not_collected" };
+};
+export type DriverVerificationHistoryEntry = {
+  id: string;
+  revision: number;
+  decision: "approved" | "rejected" | "reopened";
+  reason: string | null;
+  decided_by: { id: string; name: string } | null;
+  created_at: string;
 };
 export type DriverVerificationPage = {
   verifications: DriverVerification[];

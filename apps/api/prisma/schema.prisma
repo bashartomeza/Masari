@@ -381,6 +381,7 @@ model User {
   stops_created                    Stop[]                 @relation("StopCreator")
   stops_retired                    Stop[]                 @relation("StopRetirer")
   notifications                    Notification[]
+  driver_verification_decisions    DriverVerificationDecision[]
   incidents_reported                Incident[]             @relation("IncidentReporter")
   incidents_reviewed               Incident[]             @relation("IncidentReviewer")
 
@@ -700,6 +701,7 @@ model DriverVerification {
 
   user        User  @relation("DriverVerificationApplicant", fields: [user_id], references: [id], onDelete: Cascade)
   reviewed_by User? @relation("DriverVerificationReviewer", fields: [reviewed_by_id], references: [id], onDelete: SetNull)
+  decisions   DriverVerificationDecision[]
 
   @@index([status, submitted_at])
   @@index([reviewed_by_id])
@@ -1435,4 +1437,23 @@ model Incident {
   @@index([reporter_id, created_at])
   @@index([trip_id])
   @@map("incidents")
+}
+
+/// Append-only history of verification outcomes, so a re-review never erases
+/// what was decided before it.
+model DriverVerificationDecision {
+  id              String   @id @default(cuid())
+  verification_id String
+  /// The verification revision this decision was taken against.
+  revision        Int
+  decision        String   @db.VarChar(20)
+  reason          String?  @db.VarChar(500)
+  decided_by_id   String?
+  created_at      DateTime @default(now())
+
+  verification DriverVerification @relation(fields: [verification_id], references: [id], onDelete: Cascade)
+  decided_by   User?              @relation(fields: [decided_by_id], references: [id], onDelete: SetNull)
+
+  @@index([verification_id, created_at])
+  @@map("driver_verification_decisions")
 }
