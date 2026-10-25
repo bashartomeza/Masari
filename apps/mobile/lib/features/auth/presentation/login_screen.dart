@@ -46,7 +46,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final loading =
         _submitting ||
         _openingOnboarding ||
-        auth.value?.status == AuthStatus.authenticating;
+        // A failed attempt publishes an error but keeps the previous value, which
+        // is still `authenticating`; the error means the attempt is over.
+        (!auth.hasError && auth.value?.status == AuthStatus.authenticating);
     final error = auth.error;
     final sessionEndReason = auth.value?.sessionEndReason;
     final config = ref.watch(appConfigProvider);
