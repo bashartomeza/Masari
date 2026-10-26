@@ -24,6 +24,18 @@ Closes the register item EDIT-12 as a **starting index**. It lists what was actu
 | Driver documents over HTTP against real MySQL (`masari_demo`) | local, separate server on port 3100 | Passed: real onboarding, upload (content-sniffed type), refusals leave nothing on disk, Admin download byte-identical, applicant delete, refusal after approval, retention purge after backdating |
 | Driver documents on an Android emulator (API 36, English) | local debug APK | Passed: sign-up through the real flow, system file picker, document listed, visible and downloadable by Admin, removed from the app and from disk |
 
+## Exact-head verification of `production-readiness` (EDIT-10, partial)
+
+Checked 2026-10-26 with the owner's approval to verify a concrete head. No merge was performed by this check.
+
+| Item | Value |
+| --- | --- |
+| Head | `29f01ded908ad591222b2423b2020ac84480d1d4` (merge of PR #69 into `production-readiness`) |
+| Hosted workflows on that exact commit (push) | Backend and MySQL CI, Admin CI, Flutter Android CI, Security and Configuration CI: all completed with success |
+| Open pull requests at the time | #70 (domain and deployment guide), #71 (driver acceptance rate), #72 (checkpoint freshness policy); each is separate, unmerged, and verified on its own head only |
+
+This verifies the hosted gates for that head. It does not close EDIT-10: it is not a release attestation, it says nothing about the owner-action items (EDIT-01 to 09), and production deployment remains not authorized. Repeat it for whichever head becomes the release candidate.
+
 ## Earlier evidence (not re-run on this commit)
 
 These come from section 20 of `MASARI_FULL_PRD_AND_REMAINING_EDITS.md` (2026-10-25, `753b489`) and were not repeated here: real-MySQL CI suites on disposable databases, `demo:smoke`, `demo:features`, `demo:approvals`, the Android debug build, the artifact and secret scans, the headless-Chrome pass over the Admin console, and the Android emulator pass. Hosted Backend/MySQL, Admin, Flutter and Security workflows passed on `753b489`. Treat all of it as dated to that commit.
