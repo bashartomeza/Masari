@@ -8,6 +8,27 @@ The pending queue is sourced from `driver_verifications`, created atomically whe
 
 Public onboarding currently collects the driver's display name, normalized phone number, password, role, consent acceptance, and adult self-attestation. It does **not** collect licence files, identity documents, vehicle documents, or other verification evidence. The Admin API therefore returns `evidence.status = "not_collected"`; it never creates fake document rows or fake evidence.
 
+### Admin-recorded evidence
+
+While a verification is `pending`, an Admin can record which kinds of document they sighted (`driver_licence`, `vehicle_registration`, `national_id`, `insurance`, `other`) with an optional note of up to 200 characters, via `POST /api/v1/admin/driver-verifications/:userId/evidence` (`expected_revision`, `kind`, `note`). This is a record of the review, not a document store: **no files and no document numbers are stored**, entries are append-only, capped at 10 per revision, audited, and shown only for the revision they were recorded against. `evidence.status` becomes `recorded` once an entry exists for the current revision; otherwise it stays `not_collected`. Approval does not depend on it. Applicant-side upload, storage, retention and access rules remain undecided and need a legal/security decision before any file handling is built. Migration `20261026120000_driver_verification_evidence` is additive.
+
+### Applicant document upload (server storage)
+
+A driver whose application is `pending` can add documents from the pending-review screen in the app. This reuses the existing pending-status session (`Authorization: Onboarding <token>`); no new sign-in path is created.
+
+- `GET /api/v1/onboarding/driver-documents` lists the applicant's documents for the current revision and the limits.
+- `POST /api/v1/onboarding/driver-documents?kind=<kind>` uploads one file as the raw request body. JPEG, PNG and PDF only, decided by the file's leading bytes (the declared type is ignored), at most 5 MB, at most 6 per revision.
+- `DELETE /api/v1/onboarding/driver-documents/:id` removes one of the applicant's own documents while the application is pending.
+- `GET /api/v1/admin/driver-verifications/:userId/documents/:documentId` is Admin-only. It returns the file as a `no-store`, `nosniff` attachment and records an audit entry for every view.
+
+Files are written to `DRIVER_DOCUMENTS_DIR` under a random 48-character name with owner-only permissions; the database holds only metadata (kind, type, size, SHA-256, storage key). The feature is **off unless** `DRIVER_DOCUMENTS_ENABLED=true` and `DRIVER_DOCUMENTS_DIR` is an absolute path; when off, the endpoints return 404 and the app hides the card.
+
+Deployment notes for the server host: put the directory on persistent storage (not the container's ephemeral layer), outside any web root, owned and readable only by the API user, and include it in backups together with the database. Serve the API over HTTPS only. The files are personal documents; do not put the directory on a shared or public volume.
+
+Retention: documents of a decided application (approved or rejected) are deleted after `DRIVER_DOCUMENT_RETENTION_DAYS` (default 90) by `npm run documents:purge -w @masari/api` (after `npm run build`). It is safe to run repeatedly; schedule it daily on the host. Documents of pending applications are never purged, and an applicant can delete their own while pending. The 90-day default is an engineering default; the product owner should confirm it.
+
+Not covered: malware scanning of uploads, encryption of files at rest beyond the host's disk encryption, and applicant-side upload after a rejection (a rejected applicant still cannot sign in, so a re-review stays Admin-initiated).
+
 ## Lifecycle and operational effect
 
 - `pending -> approved`: requires the current revision. If no profile exists, the Admin must enter the real vehicle type, seat capacity, and parcel capacity. The transaction creates or verifies the profile and activates only an account whose status is still `pending` from onboarding.
@@ -19,7 +40,7 @@ Existing driver availability, online-state, and matching gates continue to requi
 
 ## Re-review boundary
 
-There is no driver resubmission or Admin reopen contract in Card 3. A future re-review flow must define how new evidence is submitted, whether prior decisions remain immutable history, and who may create a new revision. Until then, the Admin UI reports the persisted terminal decision and does not offer another action.
+There is no driver resubmission or Admin reopen contract in Card 3. Admin-initiated re-review exists (see approvals.md); applicant-initiated resubmission does not. Any future flow must define how new evidence is submitted, whether prior decisions remain immutable history, and who may create a new revision. Until then, the Admin UI reports the persisted terminal decision and does not offer another action.
 
 ## Admin API
 

@@ -2050,4 +2050,46 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get notifIncidentResolvedBody => 'Your report has been resolved.';
+
+  @override
+  String get verificationDocuments => 'Verification documents';
+
+  @override
+  String get verificationDocumentsHint =>
+      'Add clear photos or PDFs of the documents the reviewer needs, such as your driving licence and vehicle registration. Files are stored on our server and only the review team can open them.';
+
+  @override
+  String get documentKind => 'Document type';
+
+  @override
+  String get documentKindDriverLicence => 'Driving licence';
+
+  @override
+  String get documentKindVehicleRegistration => 'Vehicle registration';
+
+  @override
+  String get documentKindNationalId => 'National ID';
+
+  @override
+  String get documentKindInsurance => 'Insurance';
+
+  @override
+  String get documentKindOther => 'Other document';
+
+  @override
+  String get addDocument => 'Add a document';
+
+  @override
+  String get removeDocument => 'Remove document';
+
+  @override
+  String get documentTooLarge => 'That file is too large. The limit is 5 MB.';
+
+  @override
+  String get documentTypeUnsupported =>
+      'Only JPEG, PNG or PDF files can be uploaded.';
+
+  @override
+  String get documentLimitReached =>
+      'You have reached the maximum number of documents.';
 }

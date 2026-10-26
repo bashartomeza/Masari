@@ -98,6 +98,9 @@ class OnboardingController extends AsyncNotifier<OnboardingState> {
   OnboardingStorage get _storage => ref.read(onboardingStorageProvider);
 
   OnboardingBundle? _bundle;
+
+  /// The pending-review session token, for features that act on the same application.
+  String? get pendingStatusToken => _bundle?.pendingStatusToken;
   final Map<String, _PendingMutation> _pendingMutations = {};
   int _generation = 0;
   bool _inFlight = false;

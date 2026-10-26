@@ -13,6 +13,7 @@ import '../../../core/widgets/language_switch.dart';
 import '../../../core/widgets/masari_card.dart';
 import '../application/onboarding_controller.dart';
 import '../domain/onboarding_models.dart';
+import 'driver_documents_card.dart';
 
 class OnboardingFlowScreen extends ConsumerStatefulWidget {
   const OnboardingFlowScreen({super.key});
@@ -523,7 +524,7 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
   Widget _pendingCard(BuildContext context, OnboardingState state) {
     final l10n = AppLocalizations.of(context);
     _clearSecrets();
-    return MasariCard(
+    final card = MasariCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -551,6 +552,15 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
           ),
         ],
       ),
+    );
+    if (state.selectedRole != OnboardingRole.driver) return card;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        card,
+        const SizedBox(height: AppTokens.spaceMedium),
+        const DriverDocumentsCard(),
+      ],
     );
   }
 

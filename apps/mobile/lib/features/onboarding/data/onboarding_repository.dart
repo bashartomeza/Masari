@@ -198,6 +198,52 @@ class OnboardingRepository {
     }
   }
 
+  Future<DriverDocumentList> driverDocuments(String onboardingToken) async {
+    final json = await _get(
+      '/onboarding/driver-documents',
+      onboardingToken: onboardingToken,
+    );
+    try {
+      return DriverDocumentList.fromJson(json);
+    } on FormatException {
+      throw const ApiException(ApiErrorType.validation, 'invalid_response');
+    }
+  }
+
+  Future<DriverDocument> uploadDriverDocument(
+    String onboardingToken, {
+    required String kind,
+    required List<int> bytes,
+  }) async {
+    final json = await _send(() {
+      final headers = _headers(onboardingToken);
+      headers[HttpHeaders.contentTypeHeader] = 'application/octet-stream';
+      return client.post(
+        _uri('/onboarding/driver-documents?kind=$kind'),
+        headers: headers,
+        body: bytes,
+      );
+    });
+    final document = json['document'];
+    try {
+      if (document is! Map<String, dynamic>) {
+        throw const FormatException('Missing document');
+      }
+      return DriverDocument.fromJson(document);
+    } on FormatException {
+      throw const ApiException(ApiErrorType.validation, 'invalid_response');
+    }
+  }
+
+  Future<void> deleteDriverDocument(String onboardingToken, String id) async {
+    await _send(() {
+      return client.delete(
+        _uri('/onboarding/driver-documents/${Uri.encodeComponent(id)}'),
+        headers: _headers(onboardingToken),
+      );
+    });
+  }
+
   Future<Map<String, dynamic>> _get(String path, {String? onboardingToken}) {
     return _send(() {
       return client.get(_uri(path), headers: _headers(onboardingToken));
@@ -275,6 +321,7 @@ class OnboardingRepository {
       400 || 422 => ApiErrorType.validation,
       401 => ApiErrorType.unauthorized,
       403 => ApiErrorType.forbidden,
+      413 || 415 => ApiErrorType.validation,
       >= 500 => ApiErrorType.server,
       _ => ApiErrorType.unknown,
     };

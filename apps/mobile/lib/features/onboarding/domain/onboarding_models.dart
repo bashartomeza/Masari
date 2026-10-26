@@ -280,6 +280,69 @@ class CompleteRegistrationResult {
   }
 }
 
+const driverDocumentKinds = <String>[
+  'driver_licence',
+  'vehicle_registration',
+  'national_id',
+  'insurance',
+  'other',
+];
+
+class DriverDocument {
+  const DriverDocument({
+    required this.id,
+    required this.kind,
+    required this.sizeBytes,
+  });
+
+  final String id;
+  final String kind;
+  final int sizeBytes;
+
+  factory DriverDocument.fromJson(Map<String, dynamic> json) {
+    final id = json['id'];
+    final kind = json['kind'];
+    final size = json['size_bytes'];
+    if (id is! String || kind is! String || size is! int) {
+      throw const FormatException('Invalid document');
+    }
+    return DriverDocument(id: id, kind: kind, sizeBytes: size);
+  }
+}
+
+class DriverDocumentList {
+  const DriverDocumentList({
+    required this.documents,
+    required this.maxDocuments,
+    required this.maxBytes,
+  });
+
+  final List<DriverDocument> documents;
+  final int maxDocuments;
+  final int maxBytes;
+
+  factory DriverDocumentList.fromJson(Map<String, dynamic> json) {
+    final documents = json['documents'];
+    final limits = json['limits'];
+    if (documents is! List || limits is! Map<String, dynamic>) {
+      throw const FormatException('Invalid document list');
+    }
+    final maxDocuments = limits['max_documents'];
+    final maxBytes = limits['max_bytes'];
+    if (maxDocuments is! int || maxBytes is! int) {
+      throw const FormatException('Invalid document limits');
+    }
+    return DriverDocumentList(
+      documents: documents
+          .whereType<Map<String, dynamic>>()
+          .map(DriverDocument.fromJson)
+          .toList(growable: false),
+      maxDocuments: maxDocuments,
+      maxBytes: maxBytes,
+    );
+  }
+}
+
 class PendingStatusResult {
   const PendingStatusResult({
     required this.role,

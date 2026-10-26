@@ -170,6 +170,16 @@ const driverVerificationInclude = {
     orderBy: [{ created_at: "desc" }, { id: "desc" }],
     take: 20,
     include: { decided_by: { select: { id: true, name: true } } }
+  },
+  evidence: {
+    orderBy: [{ created_at: "desc" }, { id: "desc" }],
+    take: 50,
+    include: { recorded_by: { select: { id: true, name: true } } }
+  },
+  documents: {
+    orderBy: [{ created_at: "asc" }, { id: "asc" }],
+    take: 20,
+    select: { id: true, revision: true, kind: true, mime_type: true, size_bytes: true, created_at: true }
   }
 } satisfies Prisma.DriverVerificationInclude;
 
@@ -197,9 +207,43 @@ function serializeDriverVerification(verification: DriverVerificationRecord) {
       decided_by: entry.decided_by,
       created_at: entry.created_at
     })),
-    evidence: { status: "not_collected" as const }
+    evidence: serializeEvidence(verification)
   };
 }
+
+export const EVIDENCE_KINDS = ["driver_licence", "vehicle_registration", "national_id", "insurance", "other"] as const;
+/** Per-revision cap, so one review cannot grow without bound. */
+export const MAX_EVIDENCE_PER_REVISION = 10;
+
+/** Only the current revision counts: earlier rounds stay in the table, not on the review. */
+function serializeEvidence(verification: DriverVerificationRecord) {
+  const items = verification.evidence
+    .filter((entry) => entry.revision === verification.revision)
+    .map((entry) => ({
+      id: entry.id,
+      kind: entry.kind,
+      note: entry.note,
+      recorded_by: entry.recorded_by,
+      created_at: entry.created_at
+    }));
+  const documents = verification.documents
+    .filter((entry) => entry.revision === verification.revision)
+    .map(({ id, kind, mime_type, size_bytes, created_at }) => ({ id, kind, mime_type, size_bytes, created_at }));
+  return items.length === 0 && documents.length === 0
+    ? { status: "not_collected" as const, items, documents }
+    : { status: "recorded" as const, items, documents };
+}
+
+const recordEvidenceSchema = z.object({
+  expected_revision: z.number().int().min(1),
+  kind: z.enum(EVIDENCE_KINDS),
+  note: z
+    .string()
+    .max(200)
+    .transform((value) => value.trim().replace(/\s+/g, " "))
+    .refine((value) => !/[ -]/.test(value), "Invalid value")
+    .optional()
+});
 
 const verificationListSchema = z.object({
   status: z
@@ -534,6 +578,62 @@ const reopenVerificationSchema = z.object({
     .max(500)
     .transform((value) => value.trim().replace(/\s+/g, " "))
     .refine((value) => value.length >= 3 && !/[\u0000-\u001f\u007f]/.test(value), "Invalid value")
+});
+
+/**
+ * Records that an Admin sighted a kind of document for the revision under review.
+ * It stores no file and no document number, and approval does not depend on it.
+ */
+adminRouter.post("/admin/driver-verifications/:userId/evidence", async (req: AuthenticatedRequest, res, next) => {
+  try {
+    const userId = requestParam(req.params.userId);
+    const input = recordEvidenceSchema.parse(req.body);
+    const result = await prisma.$transaction(
+      async (tx) => {
+        const current = await tx.driverVerification.findUnique({
+          where: { user_id: userId },
+          include: driverVerificationInclude
+        });
+        if (!current) throw new HttpError(404, "driver_verification_not_found");
+        if (current.user.role !== "driver") throw new HttpError(409, "driver_verification_role_conflict");
+        if (current.status !== DriverVerificationStatus.pending || current.revision !== input.expected_revision) {
+          throw new HttpError(409, "driver_verification_state_conflict");
+        }
+        const recorded = await tx.driverVerificationEvidence.count({
+          where: { verification_id: current.id, revision: current.revision }
+        });
+        if (recorded >= MAX_EVIDENCE_PER_REVISION) throw new HttpError(409, "driver_verification_evidence_limit");
+
+        await tx.driverVerificationEvidence.create({
+          data: {
+            verification_id: current.id,
+            revision: current.revision,
+            kind: input.kind,
+            note: input.note || null,
+            recorded_by_id: req.user!.id
+          }
+        });
+        await auditEvent(tx, {
+          userId: req.user!.id,
+          action: AuditAction.admin_action,
+          entityType: "DriverVerification",
+          entityId: current.id,
+          metadata: {
+            action: "driver_verification_evidence_recorded",
+            target_user_id: current.user_id,
+            kind: input.kind,
+            revision: current.revision,
+            request_id: req.requestId
+          }
+        });
+        return tx.driverVerification.findUniqueOrThrow({ where: { id: current.id }, include: driverVerificationInclude });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+    );
+    res.status(201).json({ verification: serializeDriverVerification(result) });
+  } catch (error) {
+    next(isTransactionWriteConflict(error) ? new HttpError(409, "driver_verification_state_conflict") : error);
+  }
 });
 
 /**

@@ -706,5 +706,18 @@
   "incidentCategoryOther": "Other",
   "notifIncidentUpdatedTitle": "Update on your report",
   "notifIncidentReviewingBody": "Your report is under review.",
-  "notifIncidentResolvedBody": "Your report has been resolved."
+  "notifIncidentResolvedBody": "Your report has been resolved.",
+  "verificationDocuments": "Verification documents",
+  "verificationDocumentsHint": "Add clear photos or PDFs of the documents the reviewer needs, such as your driving licence and vehicle registration. Files are stored on our server and only the review team can open them.",
+  "documentKind": "Document type",
+  "documentKindDriverLicence": "Driving licence",
+  "documentKindVehicleRegistration": "Vehicle registration",
+  "documentKindNationalId": "National ID",
+  "documentKindInsurance": "Insurance",
+  "documentKindOther": "Other document",
+  "addDocument": "Add a document",
+  "removeDocument": "Remove document",
+  "documentTooLarge": "That file is too large. The limit is 5 MB.",
+  "documentTypeUnsupported": "Only JPEG, PNG or PDF files can be uploaded.",
+  "documentLimitReached": "You have reached the maximum number of documents."
 }

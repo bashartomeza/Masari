@@ -2036,4 +2036,45 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get notifIncidentResolvedBody => 'تمت معالجة بلاغك.';
+
+  @override
+  String get verificationDocuments => 'مستندات التوثيق';
+
+  @override
+  String get verificationDocumentsHint =>
+      'أضف صورًا واضحة أو ملفات PDF للمستندات التي يحتاجها المراجع، مثل رخصة القيادة وترخيص المركبة. تُحفظ الملفات على خادمنا ولا يمكن فتحها إلا من فريق المراجعة.';
+
+  @override
+  String get documentKind => 'نوع المستند';
+
+  @override
+  String get documentKindDriverLicence => 'رخصة القيادة';
+
+  @override
+  String get documentKindVehicleRegistration => 'ترخيص المركبة';
+
+  @override
+  String get documentKindNationalId => 'الهوية الوطنية';
+
+  @override
+  String get documentKindInsurance => 'التأمين';
+
+  @override
+  String get documentKindOther => 'مستند آخر';
+
+  @override
+  String get addDocument => 'إضافة مستند';
+
+  @override
+  String get removeDocument => 'إزالة المستند';
+
+  @override
+  String get documentTooLarge => 'الملف كبير جدًا. الحد الأقصى 5 ميغابايت.';
+
+  @override
+  String get documentTypeUnsupported =>
+      'يمكن رفع ملفات JPEG أو PNG أو PDF فقط.';
+
+  @override
+  String get documentLimitReached => 'وصلت إلى الحد الأقصى لعدد المستندات.';
 }
