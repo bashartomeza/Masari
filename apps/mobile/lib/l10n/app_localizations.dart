@@ -3841,6 +3841,84 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'تمت معالجة بلاغك.'**
   String get notifIncidentResolvedBody;
+
+  /// No description provided for @verificationDocuments.
+  ///
+  /// In ar, this message translates to:
+  /// **'مستندات التوثيق'**
+  String get verificationDocuments;
+
+  /// No description provided for @verificationDocumentsHint.
+  ///
+  /// In ar, this message translates to:
+  /// **'أضف صورًا واضحة أو ملفات PDF للمستندات التي يحتاجها المراجع، مثل رخصة القيادة وترخيص المركبة. تُحفظ الملفات على خادمنا ولا يمكن فتحها إلا من فريق المراجعة.'**
+  String get verificationDocumentsHint;
+
+  /// No description provided for @documentKind.
+  ///
+  /// In ar, this message translates to:
+  /// **'نوع المستند'**
+  String get documentKind;
+
+  /// No description provided for @documentKindDriverLicence.
+  ///
+  /// In ar, this message translates to:
+  /// **'رخصة القيادة'**
+  String get documentKindDriverLicence;
+
+  /// No description provided for @documentKindVehicleRegistration.
+  ///
+  /// In ar, this message translates to:
+  /// **'ترخيص المركبة'**
+  String get documentKindVehicleRegistration;
+
+  /// No description provided for @documentKindNationalId.
+  ///
+  /// In ar, this message translates to:
+  /// **'الهوية الوطنية'**
+  String get documentKindNationalId;
+
+  /// No description provided for @documentKindInsurance.
+  ///
+  /// In ar, this message translates to:
+  /// **'التأمين'**
+  String get documentKindInsurance;
+
+  /// No description provided for @documentKindOther.
+  ///
+  /// In ar, this message translates to:
+  /// **'مستند آخر'**
+  String get documentKindOther;
+
+  /// No description provided for @addDocument.
+  ///
+  /// In ar, this message translates to:
+  /// **'إضافة مستند'**
+  String get addDocument;
+
+  /// No description provided for @removeDocument.
+  ///
+  /// In ar, this message translates to:
+  /// **'إزالة المستند'**
+  String get removeDocument;
+
+  /// No description provided for @documentTooLarge.
+  ///
+  /// In ar, this message translates to:
+  /// **'الملف كبير جدًا. الحد الأقصى 5 ميغابايت.'**
+  String get documentTooLarge;
+
+  /// No description provided for @documentTypeUnsupported.
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكن رفع ملفات JPEG أو PNG أو PDF فقط.'**
+  String get documentTypeUnsupported;
+
+  /// No description provided for @documentLimitReached.
+  ///
+  /// In ar, this message translates to:
+  /// **'وصلت إلى الحد الأقصى لعدد المستندات.'**
+  String get documentLimitReached;
 }
 
 class _AppLocalizationsDelegate

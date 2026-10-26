@@ -5,7 +5,7 @@ import { AlertItem, BentoGrid, Button, Card, CardHeader, DataTable, EmptyState, 
 import type { OverviewResourceState } from "../overview/overviewState";
 import { matchesSearch } from "../search";
 
-type VerificationApi = Pick<ApiClient, "driverVerifications" | "driverVerification" | "approveDriverVerification" | "rejectDriverVerification" | "reopenDriverVerification" | "recordDriverEvidence">;
+type VerificationApi = Pick<ApiClient, "driverVerifications" | "driverVerification" | "approveDriverVerification" | "rejectDriverVerification" | "reopenDriverVerification" | "recordDriverEvidence" | "downloadDriverDocument">;
 type ProfileForm = { vehicle_type: string; seats_total: string; parcel_capacity: string };
 type DriverAccountChange = { driver: DriverProfile; status: AccountStatus; expectedStatus: UserAccountStatus };
 
@@ -40,7 +40,7 @@ function EvidenceForm({ busy, onRecord }: { busy: boolean; onRecord: (kind: Evid
   </div>;
 }
 
-export function DriverReviewPanel({ verification, busy, action, reason, profile, error, onRecordEvidence, onAction, onReasonChange, onProfileChange, onConfirm, onClose }: {
+export function DriverReviewPanel({ verification, busy, action, reason, profile, error, onRecordEvidence, onDownloadDocument, onAction, onReasonChange, onProfileChange, onConfirm, onClose }: {
   verification: DriverVerification;
   busy: boolean;
   action: "approve" | "reject" | "reopen" | null;
@@ -48,6 +48,7 @@ export function DriverReviewPanel({ verification, busy, action, reason, profile,
   profile: ProfileForm;
   error?: string | null;
   onRecordEvidence?: (kind: EvidenceKind, note: string) => void;
+  onDownloadDocument?: (documentId: string) => void;
   onAction: (action: "approve" | "reject" | "reopen" | null) => void;
   onReasonChange: (reason: string) => void;
   onProfileChange: (profile: ProfileForm) => void;
@@ -87,7 +88,8 @@ export function DriverReviewPanel({ verification, busy, action, reason, profile,
       <CardHeader title={t("reviewVerificationSection")} />
       <div className="stack stack--tight">
         <ReviewField label={t("verificationSubmittedAt")}>{dateTime(verification.submitted_at)}</ReviewField>
-        <ReviewField label={t("verificationEvidence")}>{verification.evidence.items.length === 0 ? t("verificationEvidenceNotCollected") : t("evidenceRecordedCount", { count: number(verification.evidence.items.length) })}</ReviewField>
+        <ReviewField label={t("verificationEvidence")}>{verification.evidence.items.length === 0 && verification.evidence.documents.length === 0 ? t("verificationEvidenceNotCollected") : t("evidenceRecordedCount", { count: number(verification.evidence.items.length + verification.evidence.documents.length) })}</ReviewField>
+        {verification.evidence.documents.map((item) => <ReviewField key={item.id} label={t(`evidenceKind_${item.kind}`)}><span>{t("uploadedDocument")} <span className="muted">· {number(Math.ceil(item.size_bytes / 1024))} KB · {dateTime(item.created_at)}</span> {onDownloadDocument && <Button size="sm" variant="ghost" icon="id_card" disabled={busy} onClick={() => onDownloadDocument(item.id)}>{t("downloadDocument")}</Button>}</span></ReviewField>)}
         {verification.evidence.items.map((item) => <ReviewField key={item.id} label={t(`evidenceKind_${item.kind}`)}><span>{item.note ?? "—"} <span className="muted">· {item.recorded_by?.name ?? "—"} · {dateTime(item.created_at)}</span></span></ReviewField>)}
         {verification.status === "pending" && onRecordEvidence && <EvidenceForm busy={busy} onRecord={onRecordEvidence} />}
         <ReviewField label={t("verificationReviewedAt")}>{dateTime(verification.reviewed_at ?? undefined)}</ReviewField>
@@ -199,6 +201,22 @@ export function DriverDirectory({ api, token, drivers, search, busy, onUpdateSta
     } finally { setDecisionBusy(false); }
   }
 
+  async function downloadDocument(documentId: string) {
+    if (!api || !token || !selected) return;
+    setDecisionError(null);
+    try {
+      const blob = await api.downloadDriverDocument(token, selected.candidate.id, documentId);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `driver-document-${documentId}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch { setDecisionError(t("documentDownloadFailed")); }
+  }
+
   async function confirmDecision() {
     if (!api || !token || !selected || !decision) return;
     setDecisionBusy(true);
@@ -274,7 +292,7 @@ export function DriverDirectory({ api, token, drivers, search, busy, onUpdateSta
       {queuePhase === "ready" && <DataTable columns={pendingColumns} rows={visiblePending} rowKey={(item) => item.id} empty={<EmptyState compact icon="verified_user" title={search ? t("searchNoResults") : t("noDriverVerificationsForStatus")} />} />}
       {queuePhase === "ready" && pendingTotal > 50 && <div className="card__actions"><Button size="sm" variant="ghost" disabled={queuePage === 1} onClick={() => setQueuePage((page) => Math.max(1, page - 1))}>{t("previousPage")}</Button><span className="muted">{t("pageOf", { page: number(queuePage), pages: number(Math.ceil(pendingTotal / 50)) })}</span><Button size="sm" variant="ghost" disabled={queuePage >= Math.ceil(pendingTotal / 50)} onClick={() => setQueuePage((page) => page + 1)}>{t("nextPage")}</Button></div>}
     </Card>
-    {selected && <DriverReviewPanel verification={selected} busy={decisionBusy} action={decision} reason={decisionReason} profile={profile} error={decisionError} onRecordEvidence={(kind, note) => void recordEvidence(kind, note)} onAction={(next) => { setDecision(next); setDecisionError(null); }} onReasonChange={setDecisionReason} onProfileChange={setProfile} onConfirm={() => void confirmDecision()} onClose={() => setSelected(null)} />}
+    {selected && <DriverReviewPanel verification={selected} busy={decisionBusy} action={decision} reason={decisionReason} profile={profile} error={decisionError} onRecordEvidence={(kind, note) => void recordEvidence(kind, note)} onDownloadDocument={(id) => void downloadDocument(id)} onAction={(next) => { setDecision(next); setDecisionError(null); }} onReasonChange={setDecisionReason} onProfileChange={setProfile} onConfirm={() => void confirmDecision()} onClose={() => setSelected(null)} />}
     {!selected && decisionError && <Card span={12}><AlertItem tone="warning" icon="report" title={t("verificationDetailLoadFailed")} description={decisionError} /></Card>}
     <Card span={12} padded={false}>
       <CardHeader title={t("driverDirectory")} badge={state.hasData ? <StatusBadge tone={unverified > 0 ? "warning" : "success"}>{t("unverifiedCount", { count: number(unverified) })}</StatusBadge> : undefined} />

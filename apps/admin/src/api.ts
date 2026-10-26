@@ -161,6 +161,8 @@ return {
       `/admin/driver-verifications/${encodeURIComponent(userId)}/reopen`,
       { method: "POST", token, body: { expected_revision: expectedRevision, reason } }
     ),
+  downloadDriverDocument: (token: string, userId: string, documentId: string) =>
+    downloadCsv(`/admin/driver-verifications/${encodeURIComponent(userId)}/documents/${encodeURIComponent(documentId)}`, token),
   recordDriverEvidence: (token: string, userId: string, expectedRevision: number, kind: EvidenceKind, note?: string) =>
     apiRequest<{ verification: DriverVerification }>(
       `/admin/driver-verifications/${encodeURIComponent(userId)}/evidence`,
@@ -401,6 +403,7 @@ export type EvidenceKind = (typeof EVIDENCE_KINDS)[number];
 export type DriverVerificationEvidence = {
   status: "not_collected" | "recorded";
   items: { id: string; kind: EvidenceKind; note: string | null; recorded_by: { id: string; name: string } | null; created_at: string }[];
+  documents: { id: string; kind: EvidenceKind; mime_type: string; size_bytes: number; created_at: string }[];
 };
 export type DriverVerificationHistoryEntry = {
   id: string;

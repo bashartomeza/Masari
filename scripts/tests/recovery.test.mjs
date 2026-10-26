@@ -103,7 +103,8 @@ test("release metadata is reproducible with SOURCE_DATE_EPOCH and excludes secre
       "20261025120000_in_app_notifications",
       "20261025140000_incident_reports",
       "20261025160000_driver_verification_history",
-      "20261026120000_driver_verification_evidence"
+      "20261026120000_driver_verification_evidence",
+      "20261026140000_driver_verification_documents"
     ]
   );
   rmSync(directory, { recursive: true, force: true });

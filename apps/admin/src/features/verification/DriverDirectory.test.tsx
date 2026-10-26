@@ -53,7 +53,7 @@ const verification: DriverVerification = {
   history: [],
   candidate: { ...driver.user!, account_status: "pending" },
   driver_profile: null,
-  evidence: { status: "not_collected", items: [] }
+  evidence: { status: "not_collected", items: [], documents: [] }
 };
 
 const panelProps = {
@@ -107,11 +107,14 @@ describe("driver verification module", () => {
   });
 
   it("lists recorded evidence and offers the form only while the review is pending", () => {
-    const withEvidence = { ...verification, evidence: { status: "recorded" as const, items: [{ id: "e1", kind: "driver_licence" as const, note: "Valid to 2028", recorded_by: { id: "admin_1", name: "QA Admin" }, created_at: "2026-10-26T10:00:00.000Z" }] } };
-    const pendingMarkup = textOf(withLocale("en", <DriverReviewPanel verification={{ ...withEvidence, status: "pending" }} {...panelProps} onRecordEvidence={() => undefined} />));
+    const withEvidence = { ...verification, evidence: { status: "recorded" as const, items: [{ id: "e1", kind: "driver_licence" as const, note: "Valid to 2028", recorded_by: { id: "admin_1", name: "QA Admin" }, created_at: "2026-10-26T10:00:00.000Z" }], documents: [{ id: "doc_1", kind: "national_id" as const, mime_type: "image/jpeg", size_bytes: 2048, created_at: "2026-10-26T11:00:00.000Z" }] } };
+    const pendingMarkup = textOf(withLocale("en", <DriverReviewPanel verification={{ ...withEvidence, status: "pending" }} {...panelProps} onRecordEvidence={() => undefined} onDownloadDocument={() => undefined} />));
     expect(pendingMarkup).toContain("Driver licence");
     expect(pendingMarkup).toContain("Valid to 2028");
     expect(pendingMarkup).toContain("Record sighting");
+    expect(pendingMarkup).toContain("Uploaded document");
+    expect(pendingMarkup).toContain("National ID");
+    expect(pendingMarkup).toContain("Download");
 
     const decidedMarkup = textOf(withLocale("en", <DriverReviewPanel verification={{ ...withEvidence, status: "approved" }} {...panelProps} onRecordEvidence={() => undefined} />));
     expect(decidedMarkup).toContain("Valid to 2028");

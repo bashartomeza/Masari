@@ -1,3 +1,4 @@
+import { isAbsolute } from "node:path";
 import { z } from "zod";
 
 export const APP_ENVIRONMENTS = ["local", "test", "demo", "staging", "production"] as const;
@@ -95,6 +96,9 @@ const rawSchema = z.object({
   RATE_LIMIT_LOGIN_MAX: z.coerce.number().int().min(1).max(500).optional(),
   INVITATIONS_ENABLED: z.string().optional(),
   PUBLIC_ONBOARDING_ENABLED: z.string().optional(),
+  DRIVER_DOCUMENTS_ENABLED: z.string().optional(),
+  DRIVER_DOCUMENTS_DIR: z.string().min(1).optional(),
+  DRIVER_DOCUMENT_RETENTION_DAYS: z.coerce.number().int().min(1).max(3650).default(90),
   OTP_PROVIDER: z.enum(["disabled", "fake"]).default("disabled"),
   SUPPORTED_PHONE_REGIONS: z.string().default("PS"),
   GOOGLE_OAUTH_CLIENT_IDS: z.string().optional(),
@@ -205,6 +209,7 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
   const checkpointDirectoryEnabled = parseBoolean("CHECKPOINT_DIRECTORY_ENABLED", raw.CHECKPOINT_DIRECTORY_ENABLED);
   const routeMapsEnabled = parseBoolean("ROUTE_MAPS_ENABLED", raw.ROUTE_MAPS_ENABLED);
   const invitationsEnabled = parseBoolean("INVITATIONS_ENABLED", raw.INVITATIONS_ENABLED);
+  const driverDocumentsEnabled = parseBoolean("DRIVER_DOCUMENTS_ENABLED", raw.DRIVER_DOCUMENTS_ENABLED);
   const publicOnboardingEnabled = parseBoolean("PUBLIC_ONBOARDING_ENABLED", raw.PUBLIC_ONBOARDING_ENABLED);
   const testLegalFixturesEnabled = parseBoolean(
     "ONBOARDING_TEST_LEGAL_FIXTURES_ENABLED",
@@ -218,6 +223,9 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
   // Demo reset removes abuse counters; it must never reset a real provider budget.
   if (limitedCheckpointDirectoryEnabled && demoFeaturesEnabled) {
     problems.push("Limited provider directory cannot run with demo reset features");
+  }
+  if (driverDocumentsEnabled && (!raw.DRIVER_DOCUMENTS_DIR || !isAbsolute(raw.DRIVER_DOCUMENTS_DIR))) {
+    problems.push("DRIVER_DOCUMENTS_DIR must be an absolute path when driver documents are enabled");
   }
   if (checkpointDirectoryEnabled && !raw.CHECKPOINT_DIRECTORY_FILE) {
     problems.push("CHECKPOINT_DIRECTORY_FILE is required when the directory is enabled");
@@ -589,6 +597,9 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
     },
     invitationsEnabled,
     publicOnboardingEnabled,
+    driverDocuments: driverDocumentsEnabled
+      ? { dir: raw.DRIVER_DOCUMENTS_DIR!, retentionDays: raw.DRIVER_DOCUMENT_RETENTION_DAYS }
+      : undefined,
     publicRegistration: publicOnboardingEnabled
       ? {
           attemptTtlSeconds: raw.ONBOARDING_ATTEMPT_TTL_SECONDS,

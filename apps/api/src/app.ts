@@ -28,6 +28,7 @@ import { createHealthRouter } from "./modules/health.js";
 import type { ReadinessCheck } from "./lib/readiness.js";
 import { createAdminInvitationRouter } from "./modules/adminInvitations.js";
 import { createPublicOnboardingRouter } from "./modules/publicOnboarding.js";
+import { createDriverDocumentsRouter } from "./modules/driverDocuments.js";
 import type { OtpProvider } from "./lib/otp.js";
 import {
   createAdminRouteManagementRouter,
@@ -123,6 +124,7 @@ export function createApp(
     "/api/v1",
     createPublicOnboardingRouter(appConfig, dependencies.otpProvider),
   );
+  app.use("/api/v1", createDriverDocumentsRouter(appConfig));
 
   // This mount is intentionally before every product router below. It makes
   // complete-profile enforcement the default for future authenticated product

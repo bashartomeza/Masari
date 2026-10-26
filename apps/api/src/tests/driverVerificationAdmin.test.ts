@@ -61,6 +61,7 @@ const pendingVerification = {
   user: candidate,
   decisions: [],
   evidence: [],
+  documents: [],
   reviewed_by: null
 };
 
@@ -147,7 +148,7 @@ describe("Admin driver verification lifecycle", () => {
       .expect(200);
 
     expect(response.body).toEqual(expect.objectContaining({ page: 1, limit: 25, total: 1 }));
-    expect(response.body.verifications[0]).toEqual(expect.objectContaining({ status: "pending", revision: 1, evidence: { status: "not_collected", items: [] } }));
+    expect(response.body.verifications[0]).toEqual(expect.objectContaining({ status: "pending", revision: 1, evidence: { status: "not_collected", items: [], documents: [] } }));
     expect(prismaMock.driverVerification.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { status: "pending" }, skip: 0, take: 25 }));
     expect(JSON.stringify(response.body)).not.toMatch(/password_hash|security_version|token_hash/);
   });

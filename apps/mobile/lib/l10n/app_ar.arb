@@ -793,5 +793,18 @@
   "incidentCategoryOther": "أخرى",
   "notifIncidentUpdatedTitle": "تحديث على بلاغك",
   "notifIncidentReviewingBody": "بلاغك قيد المراجعة.",
-  "notifIncidentResolvedBody": "تمت معالجة بلاغك."
+  "notifIncidentResolvedBody": "تمت معالجة بلاغك.",
+  "verificationDocuments": "مستندات التوثيق",
+  "verificationDocumentsHint": "أضف صورًا واضحة أو ملفات PDF للمستندات التي يحتاجها المراجع، مثل رخصة القيادة وترخيص المركبة. تُحفظ الملفات على خادمنا ولا يمكن فتحها إلا من فريق المراجعة.",
+  "documentKind": "نوع المستند",
+  "documentKindDriverLicence": "رخصة القيادة",
+  "documentKindVehicleRegistration": "ترخيص المركبة",
+  "documentKindNationalId": "الهوية الوطنية",
+  "documentKindInsurance": "التأمين",
+  "documentKindOther": "مستند آخر",
+  "addDocument": "إضافة مستند",
+  "removeDocument": "إزالة المستند",
+  "documentTooLarge": "الملف كبير جدًا. الحد الأقصى 5 ميغابايت.",
+  "documentTypeUnsupported": "يمكن رفع ملفات JPEG أو PNG أو PDF فقط.",
+  "documentLimitReached": "وصلت إلى الحد الأقصى لعدد المستندات."
 }

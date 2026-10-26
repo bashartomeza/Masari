@@ -63,6 +63,7 @@ const verification = (overrides: Record<string, unknown> = {}) => ({
   user: driverUser(),
   decisions: [],
   evidence: [],
+  documents: [],
   ...overrides
 });
 
