@@ -719,5 +719,26 @@
   "removeDocument": "Remove document",
   "documentTooLarge": "That file is too large. The limit is 5 MB.",
   "documentTypeUnsupported": "Only JPEG, PNG or PDF files can be uploaded.",
-  "documentLimitReached": "You have reached the maximum number of documents."
+  "documentLimitReached": "You have reached the maximum number of documents.",
+  "acceptanceRateTitle": "Acceptance rate",
+  "acceptanceRateValue": "{percent}%",
+  "@acceptanceRateValue": {
+    "placeholders": {
+      "percent": { "type": "int" }
+    }
+  },
+  "acceptanceRateDetail": "{accepted} of {responded} offers you answered were accepted. Offers that expired unanswered are not counted.",
+  "@acceptanceRateDetail": {
+    "placeholders": {
+      "accepted": { "type": "int" },
+      "responded": { "type": "int" }
+    }
+  },
+  "acceptanceRateNeedMore": "Your rate appears after {needed} answered offers ({responded} so far).",
+  "@acceptanceRateNeedMore": {
+    "placeholders": {
+      "needed": { "type": "int" },
+      "responded": { "type": "int" }
+    }
+  }
 }

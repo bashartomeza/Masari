@@ -806,5 +806,26 @@
   "removeDocument": "إزالة المستند",
   "documentTooLarge": "الملف كبير جدًا. الحد الأقصى 5 ميغابايت.",
   "documentTypeUnsupported": "يمكن رفع ملفات JPEG أو PNG أو PDF فقط.",
-  "documentLimitReached": "وصلت إلى الحد الأقصى لعدد المستندات."
+  "documentLimitReached": "وصلت إلى الحد الأقصى لعدد المستندات.",
+  "acceptanceRateTitle": "نسبة القبول",
+  "acceptanceRateValue": "{percent}%",
+  "@acceptanceRateValue": {
+    "placeholders": {
+      "percent": { "type": "int" }
+    }
+  },
+  "acceptanceRateDetail": "تم قبول {accepted} من {responded} عرضًا أجبت عنها. العروض التي انتهت دون رد لا تُحتسب.",
+  "@acceptanceRateDetail": {
+    "placeholders": {
+      "accepted": { "type": "int" },
+      "responded": { "type": "int" }
+    }
+  },
+  "acceptanceRateNeedMore": "تظهر نسبتك بعد {needed} عروض تم الرد عليها ({responded} حتى الآن).",
+  "@acceptanceRateNeedMore": {
+    "placeholders": {
+      "needed": { "type": "int" },
+      "responded": { "type": "int" }
+    }
+  }
 }

@@ -2077,4 +2077,22 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get documentLimitReached => 'وصلت إلى الحد الأقصى لعدد المستندات.';
+
+  @override
+  String get acceptanceRateTitle => 'نسبة القبول';
+
+  @override
+  String acceptanceRateValue(int percent) {
+    return '$percent%';
+  }
+
+  @override
+  String acceptanceRateDetail(int accepted, int responded) {
+    return 'تم قبول $accepted من $responded عرضًا أجبت عنها. العروض التي انتهت دون رد لا تُحتسب.';
+  }
+
+  @override
+  String acceptanceRateNeedMore(int needed, int responded) {
+    return 'تظهر نسبتك بعد $needed عروض تم الرد عليها ($responded حتى الآن).';
+  }
 }

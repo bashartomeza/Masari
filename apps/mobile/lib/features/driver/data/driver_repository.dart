@@ -31,6 +31,56 @@ final driverTrustScoreProvider = FutureProvider.family<int?, String>((
   }
 });
 
+/// How the driver answered the offers they responded to. The percentage is
+/// null until the server has a large enough sample to report one.
+class DriverPerformance {
+  const DriverPerformance({
+    required this.responded,
+    required this.accepted,
+    required this.minSample,
+    this.acceptanceRate,
+  });
+
+  final int responded;
+  final int accepted;
+  final int minSample;
+  final int? acceptanceRate;
+
+  factory DriverPerformance.fromJson(Map<String, dynamic> json) {
+    final responded = json['offers_responded'];
+    final accepted = json['offers_accepted'];
+    final minSample = json['min_sample'];
+    final rate = json['acceptance_rate'];
+    if (responded is! int ||
+        accepted is! int ||
+        minSample is! int ||
+        (rate != null && rate is! int)) {
+      throw const FormatException('Invalid performance response');
+    }
+    return DriverPerformance(
+      responded: responded,
+      accepted: accepted,
+      minSample: minSample,
+      acceptanceRate: rate as int?,
+    );
+  }
+}
+
+final driverPerformanceProvider = FutureProvider<DriverPerformance?>((
+  ref,
+) async {
+  final binding = ref.watch(authenticatedActorBindingProvider);
+  final actorId = binding.actorId;
+  if (actorId == null) return null;
+  try {
+    final result = await ref.watch(driverRepositoryProvider).performance();
+    return binding.actorId == actorId ? result : null;
+  } catch (error, stackTrace) {
+    if (binding.actorId != actorId) return null;
+    Error.throwWithStackTrace(error, stackTrace);
+  }
+});
+
 class DriverRepository {
   const DriverRepository({required this.apiClient});
 
@@ -51,6 +101,11 @@ class DriverRepository {
     if (profile is! Map) return null;
     final value = profile['trust_score'];
     return value is num ? value.toInt() : null;
+  }
+
+  Future<DriverPerformance> performance() async {
+    final json = await apiClient.getJson('/driver/performance');
+    return DriverPerformance.fromJson(json);
   }
 
   Future<List<DriverRoute>> activeRoutes() async {
