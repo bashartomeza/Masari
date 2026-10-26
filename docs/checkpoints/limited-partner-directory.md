@@ -145,7 +145,7 @@ contact the provider, enable production, change permissions or deploy.
 
 `CREDENTIAL_ROTATION = PENDING_OWNER_CONFIRMATION`
 
-`CHECKPOINT_STALE_POLICY = PENDING_OWNER_APPROVAL`
+`CHECKPOINT_STALE_POLICY = APPROVED_FOR_DEMO_ONLY` (see `freshness-policy.md`; production needs a named safety approver)
 
 `MERGE_GATE = BLOCKED_PENDING_USER_APPROVAL`
 
