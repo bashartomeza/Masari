@@ -3919,6 +3919,30 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'وصلت إلى الحد الأقصى لعدد المستندات.'**
   String get documentLimitReached;
+
+  /// No description provided for @acceptanceRateTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'نسبة القبول'**
+  String get acceptanceRateTitle;
+
+  /// No description provided for @acceptanceRateValue.
+  ///
+  /// In ar, this message translates to:
+  /// **'{percent}%'**
+  String acceptanceRateValue(int percent);
+
+  /// No description provided for @acceptanceRateDetail.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم قبول {accepted} من {responded} عرضًا أجبت عنها. العروض التي انتهت دون رد لا تُحتسب.'**
+  String acceptanceRateDetail(int accepted, int responded);
+
+  /// No description provided for @acceptanceRateNeedMore.
+  ///
+  /// In ar, this message translates to:
+  /// **'تظهر نسبتك بعد {needed} عروض تم الرد عليها ({responded} حتى الآن).'**
+  String acceptanceRateNeedMore(int needed, int responded);
 }
 
 class _AppLocalizationsDelegate

@@ -105,6 +105,9 @@ function routeParam(value: string | string[] | undefined) {
   return value;
 }
 
+/** Responses needed before an acceptance percentage is shown. */
+export const ACCEPTANCE_RATE_MIN_SAMPLE = 5;
+
 export function createDriverRouter(
   onlineStateService: LegacyDriverOnlineStateService = legacyDriverOnlineStateService,
 ) {
@@ -230,6 +233,34 @@ export function createDriverRouter(
           route: serializeLegacyDriverRoute(
             route as unknown as Record<string, unknown>,
           ),
+        });
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+
+  /**
+   * How this driver answered the offers they responded to. Counted from the
+   * audit trail of accept/reject decisions, so offers that expired unanswered
+   * are not part of it. No rate is given until there is a meaningful sample.
+   */
+  driverRouter.get(
+    "/driver/performance",
+    async (req: AuthenticatedRequest, res, next) => {
+      try {
+        const [accepted, rejected] = await Promise.all([
+          prisma.auditEvent.count({ where: { user_id: req.user!.id, action: AuditAction.match_accepted } }),
+          prisma.auditEvent.count({ where: { user_id: req.user!.id, action: AuditAction.match_rejected } }),
+        ]);
+        const responded = accepted + rejected;
+        res.json({
+          offers_responded: responded,
+          offers_accepted: accepted,
+          acceptance_rate:
+            responded >= ACCEPTANCE_RATE_MIN_SAMPLE ? Math.round((accepted / responded) * 100) : null,
+          min_sample: ACCEPTANCE_RATE_MIN_SAMPLE,
+          request_id: req.requestId,
         });
       } catch (error) {
         next(error);
