@@ -53,7 +53,7 @@ const verification: DriverVerification = {
   history: [],
   candidate: { ...driver.user!, account_status: "pending" },
   driver_profile: null,
-  evidence: { status: "not_collected" }
+  evidence: { status: "not_collected", items: [] }
 };
 
 const panelProps = {
@@ -104,6 +104,18 @@ describe("driver verification module", () => {
     expect(markup).toContain("does not collect verification documents or evidence");
     expect(markup).toContain("Approve driver");
     expect(markup).toContain("Reject driver");
+  });
+
+  it("lists recorded evidence and offers the form only while the review is pending", () => {
+    const withEvidence = { ...verification, evidence: { status: "recorded" as const, items: [{ id: "e1", kind: "driver_licence" as const, note: "Valid to 2028", recorded_by: { id: "admin_1", name: "QA Admin" }, created_at: "2026-10-26T10:00:00.000Z" }] } };
+    const pendingMarkup = textOf(withLocale("en", <DriverReviewPanel verification={{ ...withEvidence, status: "pending" }} {...panelProps} onRecordEvidence={() => undefined} />));
+    expect(pendingMarkup).toContain("Driver licence");
+    expect(pendingMarkup).toContain("Valid to 2028");
+    expect(pendingMarkup).toContain("Record sighting");
+
+    const decidedMarkup = textOf(withLocale("en", <DriverReviewPanel verification={{ ...withEvidence, status: "approved" }} {...panelProps} onRecordEvidence={() => undefined} />));
+    expect(decidedMarkup).toContain("Valid to 2028");
+    expect(decidedMarkup).not.toContain("Record sighting");
   });
 
   it("preserves equivalent queue and decision semantics in Arabic", () => {

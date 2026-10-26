@@ -424,6 +424,7 @@ model User {
   stops_retired                    Stop[]                 @relation("StopRetirer")
   notifications                    Notification[]
   driver_verification_decisions    DriverVerificationDecision[]
+  driver_verification_evidence     DriverVerificationEvidence[]
   incidents_reported                Incident[]             @relation("IncidentReporter")
   incidents_reviewed               Incident[]             @relation("IncidentReviewer")
 
@@ -781,6 +782,7 @@ model DriverVerification {
   user        User  @relation("DriverVerificationApplicant", fields: [user_id], references: [id], onDelete: Cascade)
   reviewed_by User? @relation("DriverVerificationReviewer", fields: [reviewed_by_id], references: [id], onDelete: SetNull)
   decisions   DriverVerificationDecision[]
+  evidence    DriverVerificationEvidence[]
 
   @@index([status, submitted_at])
   @@index([reviewed_by_id])
@@ -1557,4 +1559,22 @@ model DriverVerificationDecision {
 
   @@index([verification_id, created_at])
   @@map("driver_verification_decisions")
+}
+
+/// What an Admin sighted while reviewing one verification revision. A record of
+/// the review, not a stored document: no files and no document numbers.
+model DriverVerificationEvidence {
+  id              String   @id @default(cuid())
+  verification_id String
+  revision        Int
+  kind            String   @db.VarChar(30)
+  note            String?  @db.VarChar(200)
+  recorded_by_id  String?
+  created_at      DateTime @default(now())
+
+  verification DriverVerification @relation(fields: [verification_id], references: [id], onDelete: Cascade)
+  recorded_by  User?              @relation(fields: [recorded_by_id], references: [id], onDelete: SetNull)
+
+  @@index([verification_id, revision, created_at], map: "dve_verification_revision_idx")
+  @@map("driver_verification_evidence")
 }

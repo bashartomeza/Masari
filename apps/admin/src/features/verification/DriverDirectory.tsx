@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import type { AccountStatus, ApiClient, ApiError, DriverProfile, DriverProfileDraft, DriverVerification, DriverVerificationStatus, UserAccountStatus } from "../../api";
+import { EVIDENCE_KINDS, type AccountStatus, type ApiClient, type ApiError, type DriverProfile, type DriverProfileDraft, type DriverVerification, type DriverVerificationStatus, type EvidenceKind, type UserAccountStatus } from "../../api";
 import { useLocale } from "../../i18n/LocaleContext";
 import { AlertItem, BentoGrid, Button, Card, CardHeader, DataTable, EmptyState, Skeleton, StatusBadge, TechnicalValue, type Column, type Tone } from "../../ui";
 import type { OverviewResourceState } from "../overview/overviewState";
 import { matchesSearch } from "../search";
 
-type VerificationApi = Pick<ApiClient, "driverVerifications" | "driverVerification" | "approveDriverVerification" | "rejectDriverVerification" | "reopenDriverVerification">;
+type VerificationApi = Pick<ApiClient, "driverVerifications" | "driverVerification" | "approveDriverVerification" | "rejectDriverVerification" | "reopenDriverVerification" | "recordDriverEvidence">;
 type ProfileForm = { vehicle_type: string; seats_total: string; parcel_capacity: string };
 type DriverAccountChange = { driver: DriverProfile; status: AccountStatus; expectedStatus: UserAccountStatus };
 
@@ -28,13 +28,26 @@ function ReviewField({ label, children }: { label: string; children: ReactNode }
   return <div className="split"><span className="kv__key">{label}</span><span>{children}</span></div>;
 }
 
-export function DriverReviewPanel({ verification, busy, action, reason, profile, error, onAction, onReasonChange, onProfileChange, onConfirm, onClose }: {
+function EvidenceForm({ busy, onRecord }: { busy: boolean; onRecord: (kind: EvidenceKind, note: string) => void }) {
+  const { t } = useLocale();
+  const [kind, setKind] = useState<EvidenceKind>("driver_licence");
+  const [note, setNote] = useState("");
+  return <div className="stack stack--tight">
+    <label className="field">{t("evidenceKind")}<select value={kind} onChange={(event) => setKind(event.target.value as EvidenceKind)}>{EVIDENCE_KINDS.map((value) => <option key={value} value={value}>{t(`evidenceKind_${value}`)}</option>)}</select></label>
+    <label className="field">{t("evidenceNote")}<input value={note} maxLength={200} onChange={(event) => setNote(event.target.value)} /></label>
+    <p className="muted">{t("evidenceNoNumbersHint")}</p>
+    <div className="card__actions"><Button variant="secondary" size="sm" icon="add" disabled={busy} onClick={() => { onRecord(kind, note.trim()); setNote(""); }}>{t("recordEvidence")}</Button></div>
+  </div>;
+}
+
+export function DriverReviewPanel({ verification, busy, action, reason, profile, error, onRecordEvidence, onAction, onReasonChange, onProfileChange, onConfirm, onClose }: {
   verification: DriverVerification;
   busy: boolean;
   action: "approve" | "reject" | "reopen" | null;
   reason: string;
   profile: ProfileForm;
   error?: string | null;
+  onRecordEvidence?: (kind: EvidenceKind, note: string) => void;
   onAction: (action: "approve" | "reject" | "reopen" | null) => void;
   onReasonChange: (reason: string) => void;
   onProfileChange: (profile: ProfileForm) => void;
@@ -74,7 +87,9 @@ export function DriverReviewPanel({ verification, busy, action, reason, profile,
       <CardHeader title={t("reviewVerificationSection")} />
       <div className="stack stack--tight">
         <ReviewField label={t("verificationSubmittedAt")}>{dateTime(verification.submitted_at)}</ReviewField>
-        <ReviewField label={t("verificationEvidence")}>{t("verificationEvidenceNotCollected")}</ReviewField>
+        <ReviewField label={t("verificationEvidence")}>{verification.evidence.items.length === 0 ? t("verificationEvidenceNotCollected") : t("evidenceRecordedCount", { count: number(verification.evidence.items.length) })}</ReviewField>
+        {verification.evidence.items.map((item) => <ReviewField key={item.id} label={t(`evidenceKind_${item.kind}`)}><span>{item.note ?? "—"} <span className="muted">· {item.recorded_by?.name ?? "—"} · {dateTime(item.created_at)}</span></span></ReviewField>)}
+        {verification.status === "pending" && onRecordEvidence && <EvidenceForm busy={busy} onRecord={onRecordEvidence} />}
         <ReviewField label={t("verificationReviewedAt")}>{dateTime(verification.reviewed_at ?? undefined)}</ReviewField>
         <ReviewField label={t("verificationReviewer")}>{verification.reviewer?.name ?? "—"}</ReviewField>
         {verification.rejection_reason && <ReviewField label={t("verificationRejectionReason")}>{verification.rejection_reason}</ReviewField>}
@@ -167,6 +182,23 @@ export function DriverDirectory({ api, token, drivers, search, busy, onUpdateSta
     finally { setDetailLoading(false); }
   }
 
+  async function recordEvidence(kind: EvidenceKind, note: string) {
+    if (!api || !token || !selected) return;
+    setDecisionBusy(true);
+    setDecisionError(null);
+    try {
+      const result = await api.recordDriverEvidence(token, selected.candidate.id, selected.revision, kind, note || undefined);
+      setSelected(result.verification);
+    } catch (error) {
+      if ((error as ApiError)?.status === 409) {
+        await openReview(selected.candidate.id);
+        setDecisionError(t("verificationStale"));
+      } else {
+        setDecisionError(t("verificationActionFailed"));
+      }
+    } finally { setDecisionBusy(false); }
+  }
+
   async function confirmDecision() {
     if (!api || !token || !selected || !decision) return;
     setDecisionBusy(true);
@@ -242,7 +274,7 @@ export function DriverDirectory({ api, token, drivers, search, busy, onUpdateSta
       {queuePhase === "ready" && <DataTable columns={pendingColumns} rows={visiblePending} rowKey={(item) => item.id} empty={<EmptyState compact icon="verified_user" title={search ? t("searchNoResults") : t("noDriverVerificationsForStatus")} />} />}
       {queuePhase === "ready" && pendingTotal > 50 && <div className="card__actions"><Button size="sm" variant="ghost" disabled={queuePage === 1} onClick={() => setQueuePage((page) => Math.max(1, page - 1))}>{t("previousPage")}</Button><span className="muted">{t("pageOf", { page: number(queuePage), pages: number(Math.ceil(pendingTotal / 50)) })}</span><Button size="sm" variant="ghost" disabled={queuePage >= Math.ceil(pendingTotal / 50)} onClick={() => setQueuePage((page) => page + 1)}>{t("nextPage")}</Button></div>}
     </Card>
-    {selected && <DriverReviewPanel verification={selected} busy={decisionBusy} action={decision} reason={decisionReason} profile={profile} error={decisionError} onAction={(next) => { setDecision(next); setDecisionError(null); }} onReasonChange={setDecisionReason} onProfileChange={setProfile} onConfirm={() => void confirmDecision()} onClose={() => setSelected(null)} />}
+    {selected && <DriverReviewPanel verification={selected} busy={decisionBusy} action={decision} reason={decisionReason} profile={profile} error={decisionError} onRecordEvidence={(kind, note) => void recordEvidence(kind, note)} onAction={(next) => { setDecision(next); setDecisionError(null); }} onReasonChange={setDecisionReason} onProfileChange={setProfile} onConfirm={() => void confirmDecision()} onClose={() => setSelected(null)} />}
     {!selected && decisionError && <Card span={12}><AlertItem tone="warning" icon="report" title={t("verificationDetailLoadFailed")} description={decisionError} /></Card>}
     <Card span={12} padded={false}>
       <CardHeader title={t("driverDirectory")} badge={state.hasData ? <StatusBadge tone={unverified > 0 ? "warning" : "success"}>{t("unverifiedCount", { count: number(unverified) })}</StatusBadge> : undefined} />

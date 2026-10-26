@@ -36,7 +36,8 @@ const expected = {
   "20261012165000_allow_legacy_offer_lifecycle_timestamps": "0a349a0bf2367407e41f89642ae8c407e266fbc17d67d0cf83159e97acedb0be",
   "20261025120000_in_app_notifications": "d33876d062ee63dbc2c80062a4138d28d29a2c769a518b9726897d5f34fb0930",
   "20261025140000_incident_reports": "4f20abbd230778c86f1341a64cefcb83386660ca57da7065f431995b2ac423bb",
-  "20261025160000_driver_verification_history": "01f0b3fef2ec9448cc7c230c33237ea905af651b2425412fe83ab09f21c4dcaf"
+  "20261025160000_driver_verification_history": "01f0b3fef2ec9448cc7c230c33237ea905af651b2425412fe83ab09f21c4dcaf",
+  "20261026120000_driver_verification_evidence": "1964710ac841601a357bb648240b4c3e05adc35aa500859c9714095976cd0911"
 };
 
 function normalizedChecksum(path) {

@@ -8,6 +8,10 @@ The pending queue is sourced from `driver_verifications`, created atomically whe
 
 Public onboarding currently collects the driver's display name, normalized phone number, password, role, consent acceptance, and adult self-attestation. It does **not** collect licence files, identity documents, vehicle documents, or other verification evidence. The Admin API therefore returns `evidence.status = "not_collected"`; it never creates fake document rows or fake evidence.
 
+### Admin-recorded evidence
+
+While a verification is `pending`, an Admin can record which kinds of document they sighted (`driver_licence`, `vehicle_registration`, `national_id`, `insurance`, `other`) with an optional note of up to 200 characters, via `POST /api/v1/admin/driver-verifications/:userId/evidence` (`expected_revision`, `kind`, `note`). This is a record of the review, not a document store: **no files and no document numbers are stored**, entries are append-only, capped at 10 per revision, audited, and shown only for the revision they were recorded against. `evidence.status` becomes `recorded` once an entry exists for the current revision; otherwise it stays `not_collected`. Approval does not depend on it. Applicant-side upload, storage, retention and access rules remain undecided and need a legal/security decision before any file handling is built. Migration `20261026120000_driver_verification_evidence` is additive.
+
 ## Lifecycle and operational effect
 
 - `pending -> approved`: requires the current revision. If no profile exists, the Admin must enter the real vehicle type, seat capacity, and parcel capacity. The transaction creates or verifies the profile and activates only an account whose status is still `pending` from onboarding.

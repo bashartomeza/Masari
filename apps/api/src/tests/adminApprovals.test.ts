@@ -6,6 +6,7 @@ const tx = vi.hoisted(() => ({
   user: { findUnique: vi.fn(), updateMany: vi.fn(), findUniqueOrThrow: vi.fn() },
   driverVerification: { findUnique: vi.fn(), updateMany: vi.fn(), findUniqueOrThrow: vi.fn() },
   driverVerificationDecision: { create: vi.fn() },
+  driverVerificationEvidence: { count: vi.fn(), create: vi.fn() },
   auditEvent: { create: vi.fn() },
   authSession: { findMany: vi.fn(), updateMany: vi.fn() },
   refreshToken: { updateMany: vi.fn() },
@@ -61,6 +62,7 @@ const verification = (overrides: Record<string, unknown> = {}) => ({
   reviewed_by: { id: "admin_1", name: "A" },
   user: driverUser(),
   decisions: [],
+  evidence: [],
   ...overrides
 });
 
@@ -100,6 +102,64 @@ describe("admin approvals", () => {
     });
     prismaMock.$transaction.mockImplementation(async (callback: (client: typeof tx) => unknown) => callback(tx));
     tx.authSession.findMany.mockResolvedValue([]);
+  });
+
+  describe("driver evidence", () => {
+    const record = (body: Record<string, unknown>) =>
+      request(createApp()).post("/api/v1/admin/driver-verifications/drv_user/evidence").set(auth("admin_1")).send(body);
+
+    it("is admin only", async () => {
+      await request(createApp())
+        .post("/api/v1/admin/driver-verifications/drv_user/evidence")
+        .set(auth("passenger_1"))
+        .send({ expected_revision: 1, kind: "driver_licence" })
+        .expect(403);
+    });
+
+    it("records a sighted document kind against the current revision and audits it", async () => {
+      tx.driverVerification.findUnique.mockResolvedValue(verification({ status: "pending", revision: 3 }));
+      tx.driverVerificationEvidence.count.mockResolvedValue(0);
+      tx.driverVerification.findUniqueOrThrow.mockResolvedValue(
+        verification({
+          status: "pending",
+          revision: 3,
+          evidence: [
+            { id: "e0", revision: 2, kind: "national_id", note: null, recorded_by: null, created_at: new Date() },
+            { id: "e1", revision: 3, kind: "driver_licence", note: "Valid to 2028", recorded_by: { id: "admin_1", name: "A" }, created_at: new Date() }
+          ]
+        })
+      );
+
+      const response = await record({ expected_revision: 3, kind: "driver_licence", note: "  Valid   to 2028 " }).expect(201);
+
+      expect(tx.driverVerificationEvidence.create.mock.calls[0][0].data).toEqual({
+        verification_id: "ver_1",
+        revision: 3,
+        kind: "driver_licence",
+        note: "Valid to 2028",
+        recorded_by_id: "admin_1"
+      });
+      expect(tx.auditEvent.create).toHaveBeenCalled();
+      // Evidence from an earlier revision is not shown as evidence for this one.
+      expect(response.body.verification.evidence.status).toBe("recorded");
+      expect(response.body.verification.evidence.items.map((item: { id: string }) => item.id)).toEqual(["e1"]);
+    });
+
+    it("refuses unknown kinds, stale revisions, decided applications and a full revision", async () => {
+      await record({ expected_revision: 1, kind: "passport_number" }).expect(400);
+
+      tx.driverVerification.findUnique.mockResolvedValue(verification({ status: "pending", revision: 3 }));
+      await record({ expected_revision: 2, kind: "insurance" }).expect(409);
+
+      tx.driverVerification.findUnique.mockResolvedValue(verification({ status: "approved", revision: 3 }));
+      await record({ expected_revision: 3, kind: "insurance" }).expect(409);
+
+      tx.driverVerification.findUnique.mockResolvedValue(verification({ status: "pending", revision: 3 }));
+      tx.driverVerificationEvidence.count.mockResolvedValue(10);
+      await record({ expected_revision: 3, kind: "insurance" }).expect(409);
+
+      expect(tx.driverVerificationEvidence.create).not.toHaveBeenCalled();
+    });
   });
 
   describe("driver re-review", () => {

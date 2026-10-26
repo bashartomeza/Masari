@@ -161,6 +161,11 @@ return {
       `/admin/driver-verifications/${encodeURIComponent(userId)}/reopen`,
       { method: "POST", token, body: { expected_revision: expectedRevision, reason } }
     ),
+  recordDriverEvidence: (token: string, userId: string, expectedRevision: number, kind: EvidenceKind, note?: string) =>
+    apiRequest<{ verification: DriverVerification }>(
+      `/admin/driver-verifications/${encodeURIComponent(userId)}/evidence`,
+      { method: "POST", token, body: note ? { expected_revision: expectedRevision, kind, note } : { expected_revision: expectedRevision, kind } }
+    ),
   decideMerchantApproval: (token: string, userId: string, decision: "approve" | "reject", reason?: string) =>
     apiRequest<{ user: AdminUser }>(
       `/admin/merchant-approvals/${encodeURIComponent(userId)}/${decision}`,
@@ -389,7 +394,13 @@ export type DriverVerification = {
   candidate: AdminUser;
   driver_profile: DriverProfile | null;
   history: DriverVerificationHistoryEntry[];
-  evidence: { status: "not_collected" };
+  evidence: DriverVerificationEvidence;
+};
+export const EVIDENCE_KINDS = ["driver_licence", "vehicle_registration", "national_id", "insurance", "other"] as const;
+export type EvidenceKind = (typeof EVIDENCE_KINDS)[number];
+export type DriverVerificationEvidence = {
+  status: "not_collected" | "recorded";
+  items: { id: string; kind: EvidenceKind; note: string | null; recorded_by: { id: string; name: string } | null; created_at: string }[];
 };
 export type DriverVerificationHistoryEntry = {
   id: string;
