@@ -36,6 +36,22 @@ Checked 2026-10-26 with the owner's approval to verify a concrete head. No merge
 
 This verifies the hosted gates for that head. It does not close EDIT-10: it is not a release attestation, it says nothing about the owner-action items (EDIT-01 to 09), and production deployment remains not authorized. Repeat it for whichever head becomes the release candidate.
 
+## Limited partner directory: one live provider-backed read (EDIT-04, partial)
+
+Run 2026-10-27 at 19:47 UTC by the operator tooling in `scripts/provider-key/`, with the owner's explicit authorization for exactly one read and the owner's confirmation that the historical key was revoked or rotated (not independently verified). Source: `production-readiness` at `863a69c84594c19527c87fdb0e4f2c9bce9592a2`. An isolated API (local environment, no demo features, only the limited gate on) used a disposable database that was dropped afterwards, a synthetic passenger session, and the dedicated replacement key from Windows Credential Manager. The read went through Masari's own endpoint, not directly to the provider.
+
+| Check | Result |
+| --- | --- |
+| Authenticated read of `GET /api/v1/limited-checkpoint-directory` | Succeeded (HTTP 200), schema version 1, dataset role `LIMITED_PROVIDER_DIRECTORY` |
+| Counts | 70 records across 10 cities. The service rejects any city above 7, so this is 7 per city. |
+| Row fields | Only the documented names plus the fixed null-coordinate fields; every coordinate was null, `coordinate_verified` and `ready_for_map` are the fixed unverified values, and traffic status is the fixed unavailable value |
+| Generated-at timestamp | Present |
+| Repeat within the cache interval | Served from cache (identical fetched-at; no second provider request) |
+| Error or warning log lines | 0 |
+| Cleanup | API stopped, disposable database dropped, logs deleted |
+
+Not done or not shown: an independent reviewer has not examined this evidence, per-city counts were not tabulated (the 7-per-city figure follows from the service's enforced limit and the totals), timestamp-offset ambiguity was not tabulated, provider-side audit of the request was not obtained, and the provider-permission, redistribution and freshness-for-production items remain open. No provider data, IDs, headers or key material were kept. `AWEENRAYEH_LIVE_CONFORMANCE` is therefore `PASSED_ONE_READ_PENDING_INDEPENDENT_REVIEW`, not approved.
+
 ## Earlier evidence (not re-run on this commit)
 
 These come from section 20 of `MASARI_FULL_PRD_AND_REMAINING_EDITS.md` (2026-10-25, `753b489`) and were not repeated here: real-MySQL CI suites on disposable databases, `demo:smoke`, `demo:features`, `demo:approvals`, the Android debug build, the artifact and secret scans, the headless-Chrome pass over the Admin console, and the Android emulator pass. Hosted Backend/MySQL, Admin, Flutter and Security workflows passed on `753b489`. Treat all of it as dated to that commit.
