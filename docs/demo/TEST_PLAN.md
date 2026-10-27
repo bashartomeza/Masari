@@ -17,6 +17,8 @@ Everything runs on a disposable demo database. Nothing here touches real data, a
 | Sample files on the emulator (Downloads) | `licence.jpg` (valid), `vehicle-registration.pdf` (valid), `not-really-an-image.jpg` (text pretending to be a photo) |
 | Pending / rejected demo accounts | Demo Pending Merchant, Demo Pending Driver, Demo Rejected Driver (already seeded) |
 
+**Maps need internet.** They load tiles from OpenStreetMap. If a map on the phone is a grey box, the emulator has lost its internet: close it and start it again with `emulator -avd Medium_Phone_API_36.0 -no-snapshot-load -dns-server 8.8.8.8,1.1.1.1`.
+
 Start everything: `pwsh -NoProfile -File scripts/test-env/start.ps1`. Stop: `scripts/test-env/stop.ps1`. Back to a clean starting state at any time: `scripts/test-env/reset-data.ps1` (it makes new invitation codes; the sign-up and approval tests use things up, so reset before repeating them).
 
 ## A. Admin site
