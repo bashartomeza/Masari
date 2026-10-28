@@ -1997,6 +1997,35 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
+  String get notifDocsExpiringTitle => 'مستند على وشك الانتهاء';
+
+  @override
+  String notifDocsExpiringBody(String document, String date) {
+    return 'ينتهي $document بتاريخ $date. أرسل مستندات مجددة قبل ذلك لتواصل العمل دون انقطاع.';
+  }
+
+  @override
+  String get notifDocsExpiredTitle => 'انتهت صلاحية مستنداتك';
+
+  @override
+  String get notifDocsExpiredBody =>
+      'تم تقييد حسابك ولا يمكنك الاتصال أو قبول رحلات جديدة حتى تُرسل مستندات مجددة وتتم الموافقة عليها. رحلاتك المقبولة سابقاً لا تتأثر.';
+
+  @override
+  String get notifDocsRenewalSubmittedTitle => 'تم إرسال مستندات التجديد';
+
+  @override
+  String get notifDocsRenewalSubmittedBody =>
+      'سيراجعها فريقنا وتصلك رسالة عند اتخاذ القرار.';
+
+  @override
+  String get documentKindContract => 'العقد';
+
+  @override
+  String get availabilityDocumentsExpired =>
+      'انتهت صلاحية مستنداتك. أرسل مستندات مجددة لاستعادة الوصول.';
+
+  @override
   String get notifUnknownTitle => 'إشعار جديد';
 
   @override

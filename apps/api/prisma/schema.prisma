@@ -25,6 +25,7 @@ enum DriverVerificationStatus {
   pending
   approved
   rejected
+  documents_expired
 }
 
 enum AuthClientType {
@@ -781,6 +782,15 @@ model DriverVerification {
   submitted_at     DateTime                 @default(now())
   reviewed_at      DateTime?
   reviewed_by_id   String?
+  /// Last valid day of each document (inclusive, UTC calendar date). Null: no expiry tracked.
+  licence_expires_at              DateTime? @db.Date
+  vehicle_registration_expires_at DateTime? @db.Date
+  insurance_expires_at            DateTime? @db.Date
+  contract_ends_at                DateTime? @db.Date
+  /// Set when the expiry job restricted the driver; cleared when re-approved.
+  documents_expired_at            DateTime?
+  /// Set when the driver sent renewed documents for re-review; cleared on the decision.
+  renewal_submitted_at            DateTime?
   created_at       DateTime                 @default(now())
   updated_at       DateTime                 @updatedAt
 
@@ -792,6 +802,7 @@ model DriverVerification {
 
   @@index([status, submitted_at])
   @@index([reviewed_by_id])
+  @@index([status, licence_expires_at], map: "dv_status_licence_expiry_idx")
   @@map("driver_verifications")
 }
 

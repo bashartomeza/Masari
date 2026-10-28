@@ -204,6 +204,9 @@ class _NotificationTile extends StatelessWidget {
     'trip_status' => Icons.route_outlined,
     'driver_verification_approved' => Icons.verified_outlined,
     'driver_verification_rejected' => Icons.gpp_bad_outlined,
+    'driver_documents_expiring' => Icons.event_outlined,
+    'driver_documents_expired' => Icons.event_busy_outlined,
+    'driver_documents_renewal_submitted' => Icons.upload_file_outlined,
     'incident_updated' => Icons.flag_outlined,
     _ => Icons.notifications_none_outlined,
   };
@@ -257,6 +260,31 @@ class _NotificationTile extends StatelessWidget {
         body: reason is String && reason.isNotEmpty
             ? l10n.notifVerificationRejectedReason(reason)
             : l10n.notifVerificationRejectedBody,
+      );
+    case 'driver_documents_expiring':
+      final document = switch (notification.params['kind']) {
+        'licence' => l10n.documentKindDriverLicence,
+        'vehicle_registration' => l10n.documentKindVehicleRegistration,
+        'insurance' => l10n.documentKindInsurance,
+        'contract' => l10n.documentKindContract,
+        _ => null,
+      };
+      final date = notification.params['expires_on'];
+      return (
+        title: l10n.notifDocsExpiringTitle,
+        body: document != null && date is String
+            ? l10n.notifDocsExpiringBody(document, '\u202A$date\u202C')
+            : null,
+      );
+    case 'driver_documents_expired':
+      return (
+        title: l10n.notifDocsExpiredTitle,
+        body: l10n.notifDocsExpiredBody,
+      );
+    case 'driver_documents_renewal_submitted':
+      return (
+        title: l10n.notifDocsRenewalSubmittedTitle,
+        body: l10n.notifDocsRenewalSubmittedBody,
       );
     case 'incident_updated':
       return (

@@ -239,6 +239,34 @@ void main() {
       );
     });
 
+    testWidgets('renders document expiry notifications', (tester) async {
+      final repo = _FakeRepository([
+        _note(
+          'a',
+          'driver_documents_expiring',
+          params: {'kind': 'licence', 'expires_on': '2026-11-20'},
+        ),
+        _note('b', 'driver_documents_expired'),
+        _note('c', 'driver_documents_renewal_submitted'),
+      ]);
+      await _pumpScreen(tester, repo);
+
+      expect(find.text('Document expiring soon'), findsOneWidget);
+      expect(find.textContaining('Driving licence expires on'), findsOneWidget);
+      expect(find.text('Your documents have expired'), findsOneWidget);
+      expect(find.textContaining('restricted'), findsOneWidget);
+      expect(find.text('Renewal documents sent'), findsOneWidget);
+    });
+
+    testWidgets('renders document expiry notifications in Arabic', (
+      tester,
+    ) async {
+      final repo = _FakeRepository([_note('b', 'driver_documents_expired')]);
+      await _pumpScreen(tester, repo, locale: const Locale('ar'));
+
+      expect(find.text('انتهت صلاحية مستنداتك'), findsOneWidget);
+    });
+
     testWidgets('renders in Arabic', (tester) async {
       final repo = _FakeRepository([_note('a', 'match_accepted')]);
       await _pumpScreen(tester, repo, locale: const Locale('ar'));

@@ -686,6 +686,24 @@
       }
     }
   },
+  "notifDocsExpiringTitle": "Document expiring soon",
+  "notifDocsExpiringBody": "Your {document} expires on {date}. Send renewed documents before then to keep working without interruption.",
+  "@notifDocsExpiringBody": {
+    "placeholders": {
+      "document": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "notifDocsExpiredTitle": "Your documents have expired",
+  "notifDocsExpiredBody": "Your account is restricted: you cannot go online or accept new trips until you send renewed documents and they are approved. Trips you already accepted are not affected.",
+  "notifDocsRenewalSubmittedTitle": "Renewal documents sent",
+  "notifDocsRenewalSubmittedBody": "Our team will review them and you will be notified of the decision.",
+  "documentKindContract": "Contract",
+  "availabilityDocumentsExpired": "Your documents have expired. Send renewed documents to restore access.",
   "notifUnknownTitle": "New notification",
   "notificationsMarkAllRead": "Mark all as read",
   "notificationsLoadError": "Could not load notifications.",

@@ -33,14 +33,48 @@ Not covered: malware scanning of uploads, encryption of files at rest beyond the
 
 - `pending -> approved`: requires the current revision. If no profile exists, the Admin must enter the real vehicle type, seat capacity, and parcel capacity. The transaction creates or verifies the profile and activates only an account whose status is still `pending` from onboarding.
 - `pending -> rejected`: requires the current revision and a non-empty normalized reason. The reason is persisted and any existing profile is set to `verified = false`.
-- `approved` and `rejected` are terminal in this contract. Duplicate, stale, or conflicting decisions return HTTP 409 and do not partially update the profile or account.
+- `approved` and `rejected` are terminal for Admin decisions; the only other transitions are the expiry restriction `approved -> documents_expired -> pending -> approved/rejected` described under Document expiry. Duplicate, stale, or conflicting decisions return HTTP 409 and do not partially update the profile or account.
 - Suspended or disabled accounts are never reactivated by approval. Account suspension/reactivation remains a separate security control.
 
 Existing driver availability, online-state, and matching gates continue to require `DriverProfile.verified = true`; they also retain their active-account checks. Rejected and unverified drivers therefore remain blocked from driver operations.
 
 ## Re-review boundary
 
-There is no driver resubmission or Admin reopen contract in Card 3. Admin-initiated re-review exists (see approvals.md); applicant-initiated resubmission does not. Any future flow must define how new evidence is submitted, whether prior decisions remain immutable history, and who may create a new revision. Until then, the Admin UI reports the persisted terminal decision and does not offer another action.
+Admin-initiated re-review of a rejected application exists (see approvals.md). Applicant-initiated re-review exists only for expired documents (next section). A rejected applicant still cannot sign in, so their re-review stays Admin-initiated.
+
+## Document expiry and re-review
+
+Migration `20261029190000_driver_document_expiry` is additive. Drivers approved before it have no dates and are never restricted by it.
+
+### Recording expiry dates
+
+When approving (first approval or a re-review), the Admin can record the **last valid day** of each document: `licence`, `vehicle_registration`, `insurance` and an optional `contract` end. Send them as `expiry: { licence: "2027-10-28", ... }` (YYYY-MM-DD, UTC calendar dates) in `POST /admin/driver-verifications/:userId/approve`. A date sets the value, `null` clears it, an omitted field keeps what is recorded. Every resulting date must be today or later (`400 expiry_date_in_past`). On a re-review approval the licence date is required (`400 expiry_dates_required`). `POST /admin/driver-verifications/:userId/expiry` (`expected_revision`, `expiry`) corrects the dates of an approved driver. A document is valid through its whole last day and counts as expired from the next UTC midnight.
+
+### The scheduled check
+
+`npm run documents:expiry -w @masari/api` (after `npm run build`; schedule daily, see the deployment guide) runs `runDriverDocumentExpiryCheck`, the same cron-style mechanism as the retention purge. It is idempotent and takes an injectable clock in tests.
+
+- **Reminders.** An approved, active driver gets an in-app notification (English and Arabic) when a document has 30 days left and again at 7 days. One per document, date and tier: reruns, and a job that was down, never duplicate it (a job first running at 5 days left sends only the 7 day notice). Changing a date creates fresh reminders for the new date.
+- **Restriction.** The day after any recorded date, the verification moves `approved -> documents_expired` in one transaction: the revision is incremented, `DriverProfile.verified` becomes false, a `documents_expired` entry is added to the decision history, an audit event `driver_documents_expired` is written (no actor, system job) and the driver is notified.
+- **Server-side enforcement.** Going online, creating or changing availability, and offering or accepting trips already require `DriverProfile.verified = true` in the API, so the restriction needs no client cooperation. Availability and legacy online-state calls answer `403 driver_documents_expired` (instead of `driver_not_approved`) so the app can explain it. Trips and offers the driver already accepted are not cancelled or changed by the job.
+
+### Renewal by the driver
+
+The driver keeps a normal active session and uses `/api/v1/driver/document-renewal` (requires `DRIVER_DOCUMENTS_ENABLED`, same storage, limits and file checks as applicant uploads):
+
+- `GET /driver/document-renewal` state, uploaded documents for this revision and limits.
+- `POST /driver/document-renewal/documents?kind=<kind>` (raw body) and `DELETE /driver/document-renewal/documents/:id`, only while `documents_expired`.
+- `POST /driver/document-renewal/submit` needs at least one document (`409 renewal_documents_required`); the verification becomes `pending` with `renewal_submitted_at` set and a `renewal_submitted` history entry. Access stays restricted.
+
+Renewal uploads are never purged before a decision (the retention job only purges approved or rejected applications).
+
+### Admin console
+
+In the driver verification queue the status filter has **Documents expired**, **Expiring soon** (window 7/30/60 days, filter by document; includes documents that expired but were not processed yet) and **Re-review queue** (state: awaiting review / awaiting driver / all). The API equivalents are `GET /admin/driver-verifications/expiring?within_days=&kind=` and `GET /admin/driver-verifications/re-review?state=submitted|awaiting_driver|all`. Review the uploaded documents, then Approve and enter the new dates: approval sets `verified = true`, clears the renewal markers and restores access immediately. Rejecting works as for any application (the driver stays restricted).
+
+### Not covered
+
+The mobile app shows the reminders and a clear message when an action is refused because documents expired; the in-app renewal upload screen for an active driver is not built yet (the API above is ready). Contract end is treated like any other expiry. Automatic restoration without Admin approval is deliberately not supported.
 
 ## Admin API
 

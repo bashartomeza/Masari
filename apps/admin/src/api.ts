@@ -145,11 +145,22 @@ return {
     token: string,
     userId: string,
     expectedRevision: number,
-    profile?: DriverProfileDraft
+    profile?: DriverProfileDraft,
+    expiry?: DriverExpiryInput
   ) =>
     apiRequest<{ verification: DriverVerification }>(
       `/admin/driver-verifications/${encodeURIComponent(userId)}/approve`,
-      { method: "POST", token, body: profile ? { expected_revision: expectedRevision, profile } : { expected_revision: expectedRevision } }
+      { method: "POST", token, body: { expected_revision: expectedRevision, ...(profile ? { profile } : {}), ...(expiry && Object.keys(expiry).length ? { expiry } : {}) } }
+    ),
+  driverVerificationsExpiring: (token: string, withinDays = 30, kind?: DriverExpiryKind, page = 1, limit = 50) =>
+    apiRequest<DriverVerificationPage>(
+      `/admin/driver-verifications/expiring?within_days=${withinDays}${kind ? `&kind=${kind}` : ""}&page=${page}&limit=${limit}`,
+      { token }
+    ),
+  driverVerificationsReReview: (token: string, state: DriverReReviewState = "submitted", page = 1, limit = 50) =>
+    apiRequest<DriverVerificationPage>(
+      `/admin/driver-verifications/re-review?state=${state}&page=${page}&limit=${limit}`,
+      { token }
     ),
   rejectDriverVerification: (token: string, userId: string, expectedRevision: number, reason: string) =>
     apiRequest<{ verification: DriverVerification }>(
@@ -386,7 +397,13 @@ export type DriverProfile = {
   user?: AdminUser;
   routes?: DriverRoute[];
 };
-export type DriverVerificationStatus = "pending" | "approved" | "rejected";
+export type DriverVerificationStatus = "pending" | "approved" | "rejected" | "documents_expired";
+export const EXPIRY_KINDS = ["licence", "vehicle_registration", "insurance", "contract"] as const;
+export type DriverExpiryKind = (typeof EXPIRY_KINDS)[number];
+/** YYYY-MM-DD, the last valid day; null clears a recorded date. */
+export type DriverExpiryInput = Partial<Record<DriverExpiryKind, string | null>>;
+export type DriverReReviewState = "submitted" | "awaiting_driver" | "all";
+export type DriverExpiry = Record<DriverExpiryKind, { expires_on: string; days_left: number } | null>;
 export type DriverProfileDraft = {
   vehicle_type: string;
   seats_total: number;
@@ -396,6 +413,9 @@ export type DriverVerification = {
   id: string;
   revision: number;
   status: DriverVerificationStatus;
+  expiry?: DriverExpiry;
+  documents_expired_at?: string | null;
+  renewal_submitted_at?: string | null;
   rejection_reason: string | null;
   submitted_at: string;
   reviewed_at: string | null;
@@ -415,7 +435,7 @@ export type DriverVerificationEvidence = {
 export type DriverVerificationHistoryEntry = {
   id: string;
   revision: number;
-  decision: "approved" | "rejected" | "reopened";
+  decision: "approved" | "rejected" | "reopened" | "documents_expired" | "renewal_submitted";
   reason: string | null;
   decided_by: { id: string; name: string } | null;
   created_at: string;

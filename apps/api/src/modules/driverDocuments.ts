@@ -5,6 +5,7 @@ import { auditEvent } from "../lib/audit.js";
 import type { AppConfig } from "../config.js";
 import { requireAuth, requireRole, type AuthenticatedRequest } from "../middleware/auth.js";
 import { HttpError } from "../middleware/error.js";
+import { notify } from "../services/notifications.js";
 import { requireOnboardingToken, type OnboardingAuthenticatedRequest } from "../middleware/onboardingAuth.js";
 import { AccountStatus, AuditAction, DriverVerificationStatus } from "../generated/prisma/enums.js";
 import { Prisma } from "../generated/prisma/client.js";
@@ -201,6 +202,164 @@ export function createDriverDocumentsRouter(appConfig: AppConfig) {
       }
     }
   );
+
+  // ---- Renewal after documents expired: the driver's normal (active) session ----
+  const driverSession = [requireAuth, requireRole("driver")] as const;
+
+  async function expiredVerificationFor(userId: string) {
+    const verification = await prisma.driverVerification.findUnique({ where: { user_id: userId } });
+    if (!verification || verification.status !== DriverVerificationStatus.documents_expired) {
+      throw new HttpError(409, "driver_verification_state_conflict");
+    }
+    return verification;
+  }
+
+  router.get("/driver/document-renewal", available, ...driverSession, async (req: AuthenticatedRequest, res, next) => {
+    try {
+      const verification = await prisma.driverVerification.findUnique({ where: { user_id: req.user!.id } });
+      if (!verification) throw new HttpError(404, "driver_verification_not_found");
+      const editable = verification.status === DriverVerificationStatus.documents_expired;
+      const documents = await prisma.driverVerificationDocument.findMany({
+        where: { verification_id: verification.id, revision: verification.revision },
+        orderBy: [{ created_at: "asc" }, { id: "asc" }]
+      });
+      res.json({
+        status: verification.status,
+        can_upload: editable,
+        submitted: verification.status === DriverVerificationStatus.pending && Boolean(verification.renewal_submitted_at),
+        documents_expired_at: verification.documents_expired_at,
+        renewal_submitted_at: verification.renewal_submitted_at,
+        documents: documents.map(serializeDocument),
+        limits: { max_documents: MAX_DOCUMENTS_PER_REVISION, max_bytes: MAX_DOCUMENT_BYTES, kinds: DOCUMENT_KINDS },
+        request_id: req.requestId
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post(
+    "/driver/document-renewal/documents",
+    available,
+    ...driverSession,
+    express.raw({ type: () => true, limit: MAX_DOCUMENT_BYTES }),
+    async (req: AuthenticatedRequest, res, next) => {
+      let savedKey: string | null = null;
+      try {
+        const { kind } = uploadQuerySchema.parse(req.query);
+        const verification = await expiredVerificationFor(req.user!.id);
+        const bytes = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
+        if (bytes.length === 0) throw new HttpError(400, "document_empty");
+        const mime = sniffDocumentMime(bytes);
+        if (!mime) throw new HttpError(415, "document_type_unsupported");
+        const saved = await storage!.save(bytes);
+        savedKey = saved.key;
+        const created = await prisma.$transaction(
+          async (tx) => {
+            const current = await tx.driverVerification.findUnique({ where: { id: verification.id } });
+            if (!current || current.status !== DriverVerificationStatus.documents_expired || current.revision !== verification.revision) {
+              throw new HttpError(409, "driver_verification_state_conflict");
+            }
+            const count = await tx.driverVerificationDocument.count({
+              where: { verification_id: current.id, revision: current.revision }
+            });
+            if (count >= MAX_DOCUMENTS_PER_REVISION) throw new HttpError(409, "driver_document_limit");
+            const row = await tx.driverVerificationDocument.create({
+              data: {
+                verification_id: current.id,
+                revision: current.revision,
+                kind,
+                mime_type: mime,
+                size_bytes: bytes.length,
+                sha256: saved.sha256,
+                storage_key: saved.key
+              }
+            });
+            await auditEvent(tx, {
+              userId: req.user!.id,
+              action: AuditAction.driver_verification,
+              entityType: "DriverVerification",
+              entityId: current.id,
+              metadata: { action: "driver_renewal_document_uploaded", kind, size_bytes: bytes.length, request_id: req.requestId }
+            });
+            return row;
+          },
+          { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+        );
+        savedKey = null;
+        res.status(201).json({ document: serializeDocument(created), request_id: req.requestId });
+      } catch (error) {
+        if (savedKey) await storage!.remove(savedKey).catch(() => undefined);
+        next(isWriteConflict(error) ? new HttpError(409, "driver_verification_state_conflict") : error);
+      }
+    }
+  );
+
+  router.delete("/driver/document-renewal/documents/:id", available, ...driverSession, async (req: AuthenticatedRequest, res, next) => {
+    try {
+      const verification = await expiredVerificationFor(req.user!.id);
+      const document = await prisma.driverVerificationDocument.findFirst({
+        where: { id: routeParam(req.params.id), verification_id: verification.id, revision: verification.revision }
+      });
+      if (!document) throw new HttpError(404, "driver_document_not_found");
+      await prisma.$transaction(async (tx) => {
+        await tx.driverVerificationDocument.delete({ where: { id: document.id } });
+        await auditEvent(tx, {
+          userId: req.user!.id,
+          action: AuditAction.driver_verification,
+          entityType: "DriverVerification",
+          entityId: verification.id,
+          metadata: { action: "driver_renewal_document_deleted", kind: document.kind, request_id: req.requestId }
+        });
+      });
+      await storage!.remove(document.storage_key);
+      res.json({ deleted: true, request_id: req.requestId });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  /** Sends the uploaded documents to the Admin re-review queue. Access stays restricted until approval. */
+  router.post("/driver/document-renewal/submit", available, ...driverSession, async (req: AuthenticatedRequest, res, next) => {
+    try {
+      const verification = await expiredVerificationFor(req.user!.id);
+      await prisma.$transaction(
+        async (tx) => {
+          const count = await tx.driverVerificationDocument.count({
+            where: { verification_id: verification.id, revision: verification.revision }
+          });
+          if (count === 0) throw new HttpError(409, "renewal_documents_required");
+          const now = new Date();
+          const moved = await tx.driverVerification.updateMany({
+            where: { id: verification.id, status: DriverVerificationStatus.documents_expired, revision: verification.revision },
+            data: { status: DriverVerificationStatus.pending, submitted_at: now, renewal_submitted_at: now }
+          });
+          if (moved.count !== 1) throw new HttpError(409, "driver_verification_state_conflict");
+          await tx.driverVerificationDecision.create({
+            data: { verification_id: verification.id, revision: verification.revision, decision: "renewal_submitted", decided_by_id: null }
+          });
+          await auditEvent(tx, {
+            userId: req.user!.id,
+            action: AuditAction.driver_verification,
+            entityType: "DriverVerification",
+            entityId: verification.id,
+            metadata: { action: "driver_renewal_submitted", documents: count, request_id: req.requestId }
+          });
+          await notify(tx, {
+            userId: req.user!.id,
+            type: "driver_documents_renewal_submitted",
+            entityType: "DriverVerification",
+            entityId: verification.id,
+            dedupeKey: `driver_documents_renewal_submitted:${verification.id}:${verification.revision}`
+          });
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+      );
+      res.json({ submitted: true, request_id: req.requestId });
+    } catch (error) {
+      next(isWriteConflict(error) ? new HttpError(409, "driver_verification_state_conflict") : error);
+    }
+  });
 
   /** A shop owner's own pending application (pending-status session). */
   function pendingMerchantId(req: OnboardingAuthenticatedRequest) {

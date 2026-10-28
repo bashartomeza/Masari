@@ -3758,6 +3758,54 @@ abstract class AppLocalizations {
   /// **'السبب: {reason}'**
   String notifVerificationRejectedReason(String reason);
 
+  /// No description provided for @notifDocsExpiringTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'مستند على وشك الانتهاء'**
+  String get notifDocsExpiringTitle;
+
+  /// No description provided for @notifDocsExpiringBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'ينتهي {document} بتاريخ {date}. أرسل مستندات مجددة قبل ذلك لتواصل العمل دون انقطاع.'**
+  String notifDocsExpiringBody(String document, String date);
+
+  /// No description provided for @notifDocsExpiredTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت صلاحية مستنداتك'**
+  String get notifDocsExpiredTitle;
+
+  /// No description provided for @notifDocsExpiredBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم تقييد حسابك ولا يمكنك الاتصال أو قبول رحلات جديدة حتى تُرسل مستندات مجددة وتتم الموافقة عليها. رحلاتك المقبولة سابقاً لا تتأثر.'**
+  String get notifDocsExpiredBody;
+
+  /// No description provided for @notifDocsRenewalSubmittedTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إرسال مستندات التجديد'**
+  String get notifDocsRenewalSubmittedTitle;
+
+  /// No description provided for @notifDocsRenewalSubmittedBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'سيراجعها فريقنا وتصلك رسالة عند اتخاذ القرار.'**
+  String get notifDocsRenewalSubmittedBody;
+
+  /// No description provided for @documentKindContract.
+  ///
+  /// In ar, this message translates to:
+  /// **'العقد'**
+  String get documentKindContract;
+
+  /// No description provided for @availabilityDocumentsExpired.
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت صلاحية مستنداتك. أرسل مستندات مجددة لاستعادة الوصول.'**
+  String get availabilityDocumentsExpired;
+
   /// No description provided for @notifUnknownTitle.
   ///
   /// In ar, this message translates to:
