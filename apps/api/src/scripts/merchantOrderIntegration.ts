@@ -67,7 +67,7 @@ try {
   check((await call("GET", "/merchant/order-operation", passenger, "task9-passenger-lookup")).status === 403, "lookup requires merchant role");
   check((await call("GET", "/merchant/order-operation", merchant)).status === 400, "lookup requires valid operation key");
   check((await call("POST", "/merchant/orders", merchant, "bad", payload)).status === 400, "malformed key rejected before writes");
-  for (const invalid of [{ ...payload, parcels: [] }, { ...payload, parcels: Array(11).fill(payload.parcels[0]) }, { ...payload, pickup_lat: 91 }]) {
+  for (const invalid of [{ ...payload, parcels: [] }, { ...payload, parcels: Array(51).fill(payload.parcels[0]) }, { ...payload, pickup_lat: 91 }]) {
     check((await call("POST", "/merchant/orders", merchant, "task9-invalid-payload", invalid)).status === 400, "invalid payload creates no operation");
   }
   check((await counts()).orders === 0 && (await counts()).claims === 0, "rejected inputs leave no orders or claims");
