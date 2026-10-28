@@ -90,6 +90,11 @@ class _PassengerRouteRequestScreenState
                 title: l10n.requestRecorded,
                 body: l10n.matchingDisabledNotice,
               ),
+              fareSnapshotBox(
+                context,
+                _result!.fare,
+                passengers: _result!.passengerCount,
+              ),
               if (_error != null) Text(_errorLabel(l10n, _error!)),
               FilledButton(
                 onPressed: _acknowledgeResult,
@@ -209,6 +214,11 @@ class _PassengerRouteRequestScreenState
                               icon: const Icon(Icons.add),
                             ),
                           ],
+                        ),
+                        passengerFareEstimate(
+                          context,
+                          route.fares,
+                          _passengers,
                         ),
                       ],
                       if (_error != null) Text(_errorLabel(l10n, _error!)),

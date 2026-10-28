@@ -38,6 +38,7 @@ import type { RouteManagementService } from "./services/routeManagement.js";
 import { createDriverAvailabilityRouter } from "./modules/driverAvailability.js";
 import type { DriverAvailabilityService } from "./services/driverAvailability.js";
 import { createCanonicalDemandRouter } from "./modules/canonicalDemand.js";
+import { createAdminRouteFaresRouter } from "./modules/adminRouteFares.js";
 import type { CanonicalDemandService } from "./services/canonicalDemand.js";
 import { createCapabilitiesRouter } from "./modules/capabilities.js";
 import { createCheckpointRouter } from "./modules/checkpoints.js";
@@ -206,6 +207,7 @@ export function createApp(
       dependencies.routeManagementService,
     ),
   );
+  app.use("/api/v1", createAdminRouteFaresRouter(appConfig));
   const routePreviewService = dependencies.routePreviewService ?? createRoutePreviewService({
     provider: createRouteProvider(appConfig),
     cacheTtlMs: appConfig.routeMaps.cacheTtlSeconds * 1_000
