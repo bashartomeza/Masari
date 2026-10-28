@@ -11,7 +11,7 @@ Technical IDs and coordinates are intentionally visible where they demonstrate r
 
 ## Sending the verification emails for real (optional)
 
-By default the demo only writes the normal-user email token to `.staging-data/test-env/email-codes.txt`. To also send it from `basharto20@gmail.com`:
+By default the demo only writes the normal-user email token to `.staging-data/test-env/email-codes.txt`. To also send it from `basharto30@gmail.com`:
 
 1. In that Google account turn on 2-step verification, then create an App Password (Google Account → Security → App passwords). It is 16 letters.
 2. In your own terminal run `pwsh -NoProfile -File scripts/test-env/set-mail-password.ps1` and paste it at the hidden prompt. It is stored in Windows Credential Manager, never in a file or the repo.

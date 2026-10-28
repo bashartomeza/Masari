@@ -50,7 +50,7 @@ $env:AUTH_ACTION_TOKEN_PEPPER = (Get-Content $pepperFile -Raw).Trim()
 # Real verification emails: only when the Gmail App Password was stored (set-mail-password.ps1).
 Import-Module (Join-Path $PSScriptRoot "MailPassword.psm1") -Force
 if (Test-MailPassword) {
-  $env:DEMO_SMTP_USER = "basharto20@gmail.com"
+  $env:DEMO_SMTP_USER = "basharto30@gmail.com"
   $env:DEMO_SMTP_PASSWORD = Get-MailPassword
   $mailMode = "real emails are sent from $($env:DEMO_SMTP_USER)"
 } else {
