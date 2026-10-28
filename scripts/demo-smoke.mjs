@@ -218,13 +218,28 @@ async function primaryStory() {
   assert(orderInTransit.order.parcels.every((parcel) => parcel.status === "in_transit"), "merchant parcels did not enter transit");
   assert(orderInTransit.order.parcel_batches[0].status === "in_transit", "parcel batch did not enter transit");
 
-  for (const status of ["delivered", "completed"]) {
-    await request(`/trips/${trip.id}/status`, {
-      token: tokens.driver1,
-      method: "POST",
-      body: { status }
-    });
-  }
+  // The receiver must confirm: the sender issues the handover code, the driver enters it.
+  const handover = (
+    await request(`/parcel-orders/${merchantOrder.id}/handover/regenerate`, { token: tokens.merchant, method: "POST", body: {} })
+  ).handover;
+  assert(/^d{6}$/.test(handover.code), "sender did not receive a six-digit handover code");
+  await request(`/trips/${trip.id}/delivery-confirmation`, {
+    token: tokens.driver1,
+    method: "POST",
+    body: { method: "receiver_code", code: handover.code === "000000" ? "000001" : "000000" },
+    expected: 422
+  });
+  const delivery = await request(`/trips/${trip.id}/delivery-confirmation`, {
+    token: tokens.driver1,
+    method: "POST",
+    body: { method: "receiver_code", code: handover.code }
+  });
+  assert(delivery.delivered === true, "receiver code did not deliver the trip");
+  await request(`/trips/${trip.id}/status`, {
+    token: tokens.driver1,
+    method: "POST",
+    body: { status: "completed" }
+  });
 
   const comparison = (
     await request("/compare/run", {
