@@ -458,6 +458,28 @@
   },
   "searchForTrip": "ابحث عن رحلة",
   "perPassenger": "للراكب",
+  "fareEstimatedTitle": "الأجرة التقديرية",
+  "fareBookedTitle": "الأجرة التقديرية عند الطلب",
+  "fareDisclaimer": "تقديرية، وتُدفع مباشرة إلى السائق. لا تتم معالجة أي مدفوعات داخل التطبيق.",
+  "fareNotSet": "لم تُحدَّد أجرة تقديرية لهذا المسار بعد.",
+  "farePerSeat": "للمقعد الواحد",
+  "fareSeatsLine": "المقاعد × {count}",
+  "@fareSeatsLine": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "fareParcelLine": "طرد {size}",
+  "@fareParcelLine": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "fareTotal": "الإجمالي",
   "departure": "المغادرة",
   "bookSeat": "احجز",
   "noAvailableTrips": "لا توجد رحلات متاحة حالياً",

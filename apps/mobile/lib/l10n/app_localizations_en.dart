@@ -1304,6 +1304,35 @@ class AppLocalizationsEn extends AppLocalizations {
   String get perPassenger => 'per passenger';
 
   @override
+  String get fareEstimatedTitle => 'Estimated fare';
+
+  @override
+  String get fareBookedTitle => 'Estimated fare when requested';
+
+  @override
+  String get fareDisclaimer =>
+      'Estimated and paid directly to the driver. No payments are processed in the app.';
+
+  @override
+  String get fareNotSet => 'No estimated fare has been set for this route yet.';
+
+  @override
+  String get farePerSeat => 'Per seat';
+
+  @override
+  String fareSeatsLine(int count) {
+    return 'Seats × $count';
+  }
+
+  @override
+  String fareParcelLine(String size) {
+    return 'Parcel $size';
+  }
+
+  @override
+  String get fareTotal => 'Total';
+
+  @override
   String get departure => 'Departure';
 
   @override

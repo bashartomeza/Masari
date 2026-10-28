@@ -270,6 +270,10 @@ return {
     body: RouteVersionActionPayload[Action],
     key: string
   ) => apiRequest<{ version: ServiceRouteVersion }>(`/admin/route-versions/${id}/${action}`, { method: "POST", token, body, idempotencyKey: key }),
+  routeFares: (token: string, routeId: string) =>
+    apiRequest<RouteFaresResponse>(`/admin/service-routes/${encodeURIComponent(routeId)}/fares`, { token }),
+  setRouteFares: (token: string, routeId: string, body: RouteFaresUpdate) =>
+    apiRequest<RouteFaresResponse>(`/admin/service-routes/${encodeURIComponent(routeId)}/fares`, { method: "PUT", token, body }),
   retireServiceRoute: (token: string, id: string, body: RouteRetirementPayload, key: string) => apiRequest<{ route: ServiceRoute }>(`/admin/service-routes/${id}/retire`, { method: "POST", token, body, idempotencyKey: key }),
   canonicalStops: (token: string, query = "") => apiRequest<StopPage>(`/admin/stops${query}`, { token }),
   createCanonicalStop: (token: string, body: CanonicalStopDraft, key: string) => apiRequest<{ stop: CanonicalStop }>("/admin/stops", { method: "POST", token, body, idempotencyKey: key }),
@@ -767,6 +771,31 @@ export type ReportSummary = {
   trips: { total: number; by_status: StatusCounts };
   matches: { total: number; by_status: StatusCounts };
   drivers: { total: number; verified: number; pending_verification: number };
+};
+export type RouteFareItem = "passenger_seat" | "parcel_s" | "parcel_m" | "parcel_l";
+export type RouteFareCurrent = { fare_id: string; amount_minor: number; currency: string; effective_from: string } | null;
+export type RouteFareHistoryRow = {
+  id: string;
+  item: RouteFareItem;
+  amount_minor: number | null;
+  currency: string;
+  effective_from: string;
+  reason: string | null;
+  created_at: string;
+  created_by: { id: string; name: string } | null;
+};
+export type RouteFaresResponse = {
+  route_id: string;
+  currency: string;
+  display_only: true;
+  current: Record<RouteFareItem, RouteFareCurrent>;
+  history: RouteFareHistoryRow[];
+  server_now: string;
+};
+export type RouteFaresUpdate = {
+  changes: Array<{ item: RouteFareItem; amount_minor: number | null }>;
+  effective_from?: string;
+  reason: string;
 };
 export type RoutePage = { routes: ServiceRoute[]; page: number; limit: number; total: number };
 export type StopPage = { stops: CanonicalStop[]; page: number; limit: number; total: number };

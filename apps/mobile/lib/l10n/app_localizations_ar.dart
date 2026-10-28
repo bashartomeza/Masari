@@ -1299,6 +1299,35 @@ class AppLocalizationsAr extends AppLocalizations {
   String get perPassenger => 'للراكب';
 
   @override
+  String get fareEstimatedTitle => 'الأجرة التقديرية';
+
+  @override
+  String get fareBookedTitle => 'الأجرة التقديرية عند الطلب';
+
+  @override
+  String get fareDisclaimer =>
+      'تقديرية، وتُدفع مباشرة إلى السائق. لا تتم معالجة أي مدفوعات داخل التطبيق.';
+
+  @override
+  String get fareNotSet => 'لم تُحدَّد أجرة تقديرية لهذا المسار بعد.';
+
+  @override
+  String get farePerSeat => 'للمقعد الواحد';
+
+  @override
+  String fareSeatsLine(int count) {
+    return 'المقاعد × $count';
+  }
+
+  @override
+  String fareParcelLine(String size) {
+    return 'طرد $size';
+  }
+
+  @override
+  String get fareTotal => 'الإجمالي';
+
+  @override
   String get departure => 'المغادرة';
 
   @override

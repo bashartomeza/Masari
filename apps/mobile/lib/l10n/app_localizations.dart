@@ -2534,6 +2534,54 @@ abstract class AppLocalizations {
   /// **'للراكب'**
   String get perPassenger;
 
+  /// No description provided for @fareEstimatedTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'الأجرة التقديرية'**
+  String get fareEstimatedTitle;
+
+  /// No description provided for @fareBookedTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'الأجرة التقديرية عند الطلب'**
+  String get fareBookedTitle;
+
+  /// No description provided for @fareDisclaimer.
+  ///
+  /// In ar, this message translates to:
+  /// **'تقديرية، وتُدفع مباشرة إلى السائق. لا تتم معالجة أي مدفوعات داخل التطبيق.'**
+  String get fareDisclaimer;
+
+  /// No description provided for @fareNotSet.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم تُحدَّد أجرة تقديرية لهذا المسار بعد.'**
+  String get fareNotSet;
+
+  /// No description provided for @farePerSeat.
+  ///
+  /// In ar, this message translates to:
+  /// **'للمقعد الواحد'**
+  String get farePerSeat;
+
+  /// No description provided for @fareSeatsLine.
+  ///
+  /// In ar, this message translates to:
+  /// **'المقاعد × {count}'**
+  String fareSeatsLine(int count);
+
+  /// No description provided for @fareParcelLine.
+  ///
+  /// In ar, this message translates to:
+  /// **'طرد {size}'**
+  String fareParcelLine(String size);
+
+  /// No description provided for @fareTotal.
+  ///
+  /// In ar, this message translates to:
+  /// **'الإجمالي'**
+  String get fareTotal;
+
   /// No description provided for @departure.
   ///
   /// In ar, this message translates to:
