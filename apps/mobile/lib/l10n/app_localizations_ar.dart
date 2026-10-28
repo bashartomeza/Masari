@@ -2171,4 +2171,64 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get invitationCodeOptional => 'رمز الدعوة (اختياري)';
+
+  @override
+  String get fareEstimatedTitle => 'الأجرة التقديرية';
+
+  @override
+  String get fareBookedTitle => 'الأجرة التقديرية عند الطلب';
+
+  @override
+  String get fareDisclaimer =>
+      'تقديرية، وتُدفع مباشرة إلى السائق. لا تتم معالجة أي مدفوعات داخل التطبيق.';
+
+  @override
+  String get fareNotSet => 'لم تُحدَّد أجرة تقديرية لهذا المسار بعد.';
+
+  @override
+  String get farePerSeat => 'للمقعد الواحد';
+
+  @override
+  String fareSeatsLine(int count) {
+    return 'المقاعد × $count';
+  }
+
+  @override
+  String fareParcelLine(String size) {
+    return 'طرد $size';
+  }
+
+  @override
+  String get fareTotal => 'الإجمالي';
+
+  @override
+  String get notifDriverApproachingTitle => 'سائقك يقترب';
+
+  @override
+  String get notifDriverApproachingBody =>
+      'سائقك قريب من نقطة الانطلاق. يرجى الاستعداد.';
+
+  @override
+  String get ratingPromptTitle => 'كيف كانت رحلتك؟';
+
+  @override
+  String get ratingPromptBody =>
+      'قيّم السائق من 1 إلى 5 نجوم. تقييمك سري: لا يرى السائق التقييم ولا من قدّمه.';
+
+  @override
+  String ratingStarLabel(int count) {
+    return '$count نجوم';
+  }
+
+  @override
+  String get ratingSubmit => 'إرسال التقييم';
+
+  @override
+  String get ratingThanks => 'شكرًا لتقييمك الرحلة.';
+
+  @override
+  String get ratingFailed => 'تعذّر إرسال التقييم. حاول مرة أخرى.';
+
+  @override
+  String get ratingAlreadyRated => 'لقد قيّمت هذه الرحلة من قبل.';
 }

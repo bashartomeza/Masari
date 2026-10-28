@@ -81,6 +81,30 @@ describe("driver verification module", () => {
     expect(markup).not.toContain("This module is not available yet");
   });
 
+  it("shows the trust score with its components, in both languages", () => {
+    const scored: DriverProfile = {
+      ...driver,
+      trust_components: {
+        experience: { value: 0.76, sample: 8, weight: 10 },
+        cancellation: { value: 0.9, sample: 10, weight: 25 },
+        departure: { value: 0.8, sample: 6, weight: 20 },
+        arrival: { value: 0.7, sample: 0, weight: 15 },
+        rating: { value: 0.85, sample: 4, weight: 30 }
+      }
+    };
+    const english = textOf(withLocale("en", <DriverDirectory drivers={[scored]} search="" busy={false} onUpdateStatus={() => {}} />));
+    expect(english).toContain("Passenger ratings");
+    expect(english).toContain("Departure punctuality");
+    expect(english).toContain("90% from 10 observed");
+    const arabic = textOf(withLocale("ar", <DriverDirectory drivers={[scored]} search="" busy={false} onUpdateStatus={() => {}} />));
+    expect(arabic).toContain("تقييمات الركاب");
+  });
+
+  it("says the score is not computed yet when there is no breakdown", () => {
+    const markup = textOf(withLocale("en", <DriverDirectory drivers={[driver]} search="" busy={false} onUpdateStatus={() => {}} />));
+    expect(markup).toContain("Not computed yet");
+  });
+
   it("renders the real pending queue and its server-backed review action", () => {
     const markup = textOf(
       withLocale("en", <DriverDirectory drivers={[driver]} initialVerifications={[verification]} search="" busy={false} onUpdateStatus={() => {}} />)

@@ -8,6 +8,7 @@ import { createDemoRouter } from "./modules/demoReset.js";
 import { passengerRouter } from "./modules/passenger.js";
 import { createDriverRouter } from "./modules/driver.js";
 import { merchantRouter } from "./modules/merchant.js";
+import { parcelHandoverRouter } from "./modules/parcelHandover.js";
 import { adminRouter } from "./modules/admin.js";
 import { matchingRouter } from "./modules/matching.js";
 import { batchingRouter } from "./modules/batching.js";
@@ -38,6 +39,7 @@ import type { RouteManagementService } from "./services/routeManagement.js";
 import { createDriverAvailabilityRouter } from "./modules/driverAvailability.js";
 import type { DriverAvailabilityService } from "./services/driverAvailability.js";
 import { createCanonicalDemandRouter } from "./modules/canonicalDemand.js";
+import { createAdminRouteFaresRouter } from "./modules/adminRouteFares.js";
 import type { CanonicalDemandService } from "./services/canonicalDemand.js";
 import { createCapabilitiesRouter } from "./modules/capabilities.js";
 import { createCheckpointRouter } from "./modules/checkpoints.js";
@@ -63,6 +65,7 @@ import type { ConsentReleaseService } from "./services/consentReleases.js";
 import { adminTripsRouter } from "./modules/adminTrips.js";
 import { notificationsRouter } from "./modules/notifications.js";
 import { reportsRouter } from "./modules/reports.js";
+import { adminSuccessMetricsRouter } from "./modules/adminSuccessMetrics.js";
 import { incidentsRouter } from "./modules/incidents.js";
 import { createAdminMatchingMonitoringRouter } from "./modules/adminMatchingMonitoring.js";
 import type { MonitoringService } from "./services/adminMatchingMonitoring/contracts.js";
@@ -167,6 +170,7 @@ export function createApp(
   );
   app.use("/api/v1", notificationsRouter);
   app.use("/api/v1", reportsRouter);
+  app.use("/api/v1", adminSuccessMetricsRouter);
   app.use("/api/v1", incidentsRouter);
   app.use("/api/v1", passengerRouter);
   app.use(
@@ -186,6 +190,7 @@ export function createApp(
   );
   app.use("/api/v1", batchingRouter);
   app.use("/api/v1", merchantRouter);
+  app.use("/api/v1", parcelHandoverRouter);
   app.use("/api/v1", matchingRouter);
   app.use("/api/v1", tripsRouter);
   app.use(
@@ -206,6 +211,7 @@ export function createApp(
       dependencies.routeManagementService,
     ),
   );
+  app.use("/api/v1", createAdminRouteFaresRouter(appConfig));
   const routePreviewService = dependencies.routePreviewService ?? createRoutePreviewService({
     provider: createRouteProvider(appConfig),
     cacheTtlMs: appConfig.routeMaps.cacheTtlSeconds * 1_000
