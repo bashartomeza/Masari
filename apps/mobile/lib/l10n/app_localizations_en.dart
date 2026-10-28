@@ -697,6 +697,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get securityAndSessions => 'Security and sessions';
 
   @override
+  String get mapOfflineSaved => 'Offline - showing saved map';
+
+  @override
+  String get clearMapCache => 'Clear saved map';
+
+  @override
+  String get clearMapCacheHint =>
+      'Deletes map tiles saved on this device. They are saved again as you browse.';
+
+  @override
+  String get mapCacheCleared => 'Saved map cleared';
+
+  @override
+  String get mapCacheClearFailed => 'Could not clear the saved map';
+
+  @override
   String get activeSessions => 'Active sessions';
 
   @override
