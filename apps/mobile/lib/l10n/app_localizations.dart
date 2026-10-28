@@ -3961,6 +3961,18 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'أدخل بريدًا إلكترونيًا صحيحًا، أو رقم هاتف يبدأ بـ + ورمز الدولة.'**
   String get emailOrPhoneInvalid;
+
+  /// No description provided for @mapLegendStart.
+  ///
+  /// In ar, this message translates to:
+  /// **'البداية'**
+  String get mapLegendStart;
+
+  /// No description provided for @mapLegendDestination.
+  ///
+  /// In ar, this message translates to:
+  /// **'الوصول'**
+  String get mapLegendDestination;
 }
 
 class _AppLocalizationsDelegate

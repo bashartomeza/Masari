@@ -2120,4 +2120,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get emailOrPhoneInvalid =>
       'Enter a valid email, or a phone number starting with + and the country code.';
+
+  @override
+  String get mapLegendStart => 'Start';
+
+  @override
+  String get mapLegendDestination => 'Destination';
 }

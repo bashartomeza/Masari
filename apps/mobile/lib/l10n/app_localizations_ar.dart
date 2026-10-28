@@ -2105,4 +2105,10 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get emailOrPhoneInvalid =>
       'أدخل بريدًا إلكترونيًا صحيحًا، أو رقم هاتف يبدأ بـ + ورمز الدولة.';
+
+  @override
+  String get mapLegendStart => 'البداية';
+
+  @override
+  String get mapLegendDestination => 'الوصول';
 }

@@ -133,7 +133,9 @@ void main() {
                 final city = find.text('Synthetic city');
                 {
                   final browser = find.text(
-                    driver ? 'الحواجز' : 'الحواجز على الطريق',
+                    driver
+                        ? (locale == 'ar' ? 'الحواجز' : 'Barriers')
+                        : 'الحواجز على الطريق',
                   );
                   await tester.ensureVisible(browser);
                   await tester.tap(browser);
