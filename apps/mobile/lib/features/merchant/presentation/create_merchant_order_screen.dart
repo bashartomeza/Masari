@@ -175,6 +175,18 @@ class _CreateMerchantOrderScreenState
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
             const SizedBox(height: AppTokens.spaceLarge),
+            TextButton.icon(
+              key: const ValueKey('openBulkOrders'),
+              onPressed: _busy
+                  ? null
+                  : () => context.push('/merchant/order/bulk'),
+              icon: const Icon(Icons.upload_file_outlined),
+              label: Text(
+                Localizations.localeOf(context).languageCode == 'ar'
+                    ? 'رفع طلبات بالجملة (CSV)'
+                    : 'Bulk upload (CSV)',
+              ),
+            ),
             FilledButton(
               key: const ValueKey('submitMerchantOrder'),
               onPressed: _busy ? null : _submit,

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../auth/data/authenticated_api_client.dart';
 import '../../trips/data/trip_models.dart';
+import 'merchant_bulk_models.dart';
 import 'merchant_models.dart';
 import 'merchant_report_models.dart';
 
@@ -76,6 +77,31 @@ class MerchantRepository {
       beforeSend: beforeSend,
     );
     return MerchantOrder.fromJson(json['order'] as Map<String, dynamic>);
+  }
+
+  /// Validates a pasted CSV and previews how the orders would be grouped.
+  /// Writes nothing on the server.
+  Future<BulkPreview> previewBulkOrders(String csv) async {
+    final json = await apiClient.postJson(
+      '/merchant/orders/bulk/preview',
+      body: {'csv': csv},
+    );
+    return BulkPreview.fromJson(json);
+  }
+
+  /// Creates the previewed orders. The same [idempotencyKey] must be reused on
+  /// every retry of one upload so no order is created twice.
+  Future<BulkSubmitResult> submitBulkOrders(
+    String csv, {
+    required String idempotencyKey,
+    bool skipInvalid = false,
+  }) async {
+    final json = await apiClient.postJson(
+      '/merchant/orders/bulk',
+      body: {'csv': csv, 'skip_invalid': skipInvalid},
+      headers: {'idempotency-key': idempotencyKey},
+    );
+    return BulkSubmitResult.fromJson(json);
   }
 
   Future<MerchantBatch> createBatch(String orderId) async {

@@ -10,8 +10,9 @@ import { HttpError } from "../middleware/error.js";
 import { AuditAction } from "../generated/prisma/enums.js";
 import { releaseLegacyCapacity } from "../services/legacyCapacity.js";
 import { latitudeSchema, longitudeSchema } from "../lib/validation.js";
+import { BATCHING_LIMITS } from "../lib/batchingConfig.js";
 
-const parcelSchema = z.object({
+export const parcelSchema = z.object({
   destination_label: z.string().min(1),
   destination_lat: latitudeSchema,
   destination_lng: longitudeSchema,
@@ -19,17 +20,17 @@ const parcelSchema = z.object({
   priority: z.enum(["low", "normal", "high"]).default("normal")
 });
 
-const createOrderSchema = z.object({
+export const createOrderSchema = z.object({
   pickup_label: z.string().min(1),
   pickup_lat: latitudeSchema,
   pickup_lng: longitudeSchema,
-  parcels: z.array(parcelSchema).min(1).max(10)
+  parcels: z.array(parcelSchema).min(1).max(BATCHING_LIMITS.maxParcelsPerOrder)
 });
 
-const MERCHANT_CREATE_OPERATION = "legacy_merchant_order_create_v1";
+export const MERCHANT_CREATE_OPERATION = "legacy_merchant_order_create_v1";
 const MERCHANT_CREATE_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
-const merchantCreateIdempotencyKey = z.string().regex(/^[A-Za-z0-9._:-]{8,128}$/);
-const merchantCreateDigest = (value: string) => createHash("sha256").update(value).digest("hex");
+export const merchantCreateIdempotencyKey = z.string().regex(/^[A-Za-z0-9._:-]{8,128}$/);
+export const merchantCreateDigest = (value: string) => createHash("sha256").update(value).digest("hex");
 
 export const merchantRouter = Router();
 
@@ -230,6 +231,92 @@ merchantRouter.get("/merchant/order-operation", async (req: AuthenticatedRequest
   } catch (error) { next(error); }
 });
 
+/**
+ * The one merchant order creation path. The single-order endpoint and the bulk
+ * upload both call it, so validation shape, idempotency, audit and the
+ * transaction isolation level cannot diverge.
+ */
+export async function createLegacyMerchantOrder(
+  userId: string,
+  input: z.infer<typeof createOrderSchema>,
+  key: string | undefined
+) {
+  const normalized = {
+    pickup_label: input.pickup_label,
+    pickup_lat: input.pickup_lat.toFixed(6),
+    pickup_lng: input.pickup_lng.toFixed(6),
+    parcels: input.parcels.map((parcel) => ({
+      destination_label: parcel.destination_label,
+      destination_lat: parcel.destination_lat.toFixed(6),
+      destination_lng: parcel.destination_lng.toFixed(6),
+      size: parcel.size,
+      priority: parcel.priority
+    }))
+  };
+  const result = await prisma.$transaction(async (tx) => {
+    const claim = key === undefined ? undefined : await claimIdempotency(tx, {
+      operation: MERCHANT_CREATE_OPERATION,
+      scopeDigest: merchantCreateDigest(`${MERCHANT_CREATE_OPERATION}:${userId}`),
+      keyDigest: merchantCreateDigest(key),
+      keyVersion: 1,
+      requestDigest: merchantCreateDigest(JSON.stringify(normalized)),
+      preserveCompleted: true,
+      // Completed keys are never reclaimed into a different order. Mobile
+      // creation retries stop at seven days; older recovery uses read-only lookup.
+      expiresAt: new Date(Date.now() + MERCHANT_CREATE_RETENTION_MS)
+    });
+    if (claim?.kind === "conflict") throw new HttpError(409, "idempotency_conflict");
+    if (claim?.kind === "failed") throw new HttpError(409, "idempotency_failed");
+    if (claim?.kind === "in_progress") throw new HttpError(409, "idempotency_in_progress");
+    if (claim?.kind === "replay") {
+      if (claim.record.resource_type !== "MerchantOrder" || !claim.record.resource_id) {
+        throw new HttpError(409, "idempotency_replay_unavailable");
+      }
+      const original = await tx.merchantOrder.findFirst({
+        where: { id: claim.record.resource_id, merchant_id: userId, canonical_entry_version: null },
+        include: { parcels: true }
+      });
+      if (!original) throw new HttpError(409, "idempotency_replay_unavailable");
+      return { order: original, replayed: true };
+    }
+
+    const order = await tx.merchantOrder.create({
+      data: {
+        merchant_id: userId,
+        pickup_label: normalized.pickup_label,
+        pickup_lat: normalized.pickup_lat,
+        pickup_lng: normalized.pickup_lng,
+        status: "submitted",
+        parcels: {
+          create: normalized.parcels.map((parcel) => ({
+            ...parcel,
+            status: "pending" as const
+          }))
+        }
+      },
+      include: { parcels: true }
+    });
+    await auditEvent(tx, {
+      userId,
+      action: AuditAction.merchant_order_created,
+      entityType: "MerchantOrder",
+      entityId: order.id,
+      metadata: { parcel_count: order.parcels.length }
+    });
+    if (claim?.kind === "claimed") {
+      await completeIdempotency(tx, {
+        recordId: claim.record.id,
+        claimVersion: claim.record.claim_version,
+        resourceType: "MerchantOrder",
+        resourceId: order.id,
+        responseStatus: 201
+      });
+    }
+    return { order, replayed: false };
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  return result;
+}
+
 merchantRouter.post("/merchant/orders", async (req: AuthenticatedRequest, res, next) => {
   try {
     const input = createOrderSchema.parse(req.body);
@@ -237,80 +324,7 @@ merchantRouter.post("/merchant/orders", async (req: AuthenticatedRequest, res, n
     // one durable key per user-confirmed order to obtain replay-safe creation.
     const rawKey = req.header("idempotency-key");
     const key = rawKey === undefined ? undefined : merchantCreateIdempotencyKey.parse(rawKey);
-    const normalized = {
-      pickup_label: input.pickup_label,
-      pickup_lat: input.pickup_lat.toFixed(6),
-      pickup_lng: input.pickup_lng.toFixed(6),
-      parcels: input.parcels.map((parcel) => ({
-        destination_label: parcel.destination_label,
-        destination_lat: parcel.destination_lat.toFixed(6),
-        destination_lng: parcel.destination_lng.toFixed(6),
-        size: parcel.size,
-        priority: parcel.priority
-      }))
-    };
-    const result = await prisma.$transaction(async (tx) => {
-      const claim = key === undefined ? undefined : await claimIdempotency(tx, {
-        operation: MERCHANT_CREATE_OPERATION,
-        scopeDigest: merchantCreateDigest(`${MERCHANT_CREATE_OPERATION}:${req.user!.id}`),
-        keyDigest: merchantCreateDigest(key),
-        keyVersion: 1,
-        requestDigest: merchantCreateDigest(JSON.stringify(normalized)),
-        preserveCompleted: true,
-        // Completed keys are never reclaimed into a different order. Mobile
-        // creation retries stop at seven days; older recovery uses read-only lookup.
-        expiresAt: new Date(Date.now() + MERCHANT_CREATE_RETENTION_MS)
-      });
-      if (claim?.kind === "conflict") throw new HttpError(409, "idempotency_conflict");
-      if (claim?.kind === "failed") throw new HttpError(409, "idempotency_failed");
-      if (claim?.kind === "in_progress") throw new HttpError(409, "idempotency_in_progress");
-      if (claim?.kind === "replay") {
-        if (claim.record.resource_type !== "MerchantOrder" || !claim.record.resource_id) {
-          throw new HttpError(409, "idempotency_replay_unavailable");
-        }
-        const original = await tx.merchantOrder.findFirst({
-          where: { id: claim.record.resource_id, merchant_id: req.user!.id, canonical_entry_version: null },
-          include: { parcels: true }
-        });
-        if (!original) throw new HttpError(409, "idempotency_replay_unavailable");
-        return { order: original, replayed: true };
-      }
-
-      const order = await tx.merchantOrder.create({
-        data: {
-          merchant_id: req.user!.id,
-          pickup_label: normalized.pickup_label,
-          pickup_lat: normalized.pickup_lat,
-          pickup_lng: normalized.pickup_lng,
-          status: "submitted",
-          parcels: {
-            create: normalized.parcels.map((parcel) => ({
-              ...parcel,
-              status: "pending" as const
-            }))
-          }
-        },
-        include: { parcels: true }
-      });
-      await auditEvent(tx, {
-        userId: req.user!.id,
-        action: AuditAction.merchant_order_created,
-        entityType: "MerchantOrder",
-        entityId: order.id,
-        metadata: { parcel_count: order.parcels.length }
-      });
-      if (claim?.kind === "claimed") {
-        await completeIdempotency(tx, {
-          recordId: claim.record.id,
-          claimVersion: claim.record.claim_version,
-          resourceType: "MerchantOrder",
-          resourceId: order.id,
-          responseStatus: 201
-        });
-      }
-      return { order, replayed: false };
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
-
+    const result = await createLegacyMerchantOrder(req.user!.id, input, key);
     res.status(result.replayed ? 200 : 201).json({
       order: serializeLegacyMerchantOrder(result.order as unknown as Record<string, unknown>),
       ...(key === undefined ? {} : { replayed: result.replayed })

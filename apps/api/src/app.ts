@@ -8,6 +8,7 @@ import { createDemoRouter } from "./modules/demoReset.js";
 import { passengerRouter } from "./modules/passenger.js";
 import { createDriverRouter } from "./modules/driver.js";
 import { merchantRouter } from "./modules/merchant.js";
+import { merchantBulkRouter } from "./modules/merchantBulk.js";
 import { adminRouter } from "./modules/admin.js";
 import { matchingRouter } from "./modules/matching.js";
 import { batchingRouter } from "./modules/batching.js";
@@ -185,6 +186,7 @@ export function createApp(
     createDriverRouter(dependencies.legacyDriverOnlineStateService),
   );
   app.use("/api/v1", batchingRouter);
+  app.use("/api/v1", merchantBulkRouter);
   app.use("/api/v1", merchantRouter);
   app.use("/api/v1", matchingRouter);
   app.use("/api/v1", tripsRouter);

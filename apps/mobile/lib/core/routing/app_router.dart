@@ -25,6 +25,7 @@ import '../../features/driver/presentation/driver_route_screen.dart';
 import '../../features/driver/presentation/driver_trip_screen.dart';
 import '../../features/matching/presentation/match_detail_screen.dart';
 import '../../features/merchant/presentation/create_merchant_order_screen.dart';
+import '../../features/merchant/presentation/merchant_bulk_orders_screen.dart';
 import '../../features/merchant/presentation/merchant_home_screen.dart';
 import '../../features/merchant/presentation/merchant_match_detail_screen.dart';
 import '../../features/merchant/presentation/merchant_match_inbox_screen.dart';
@@ -180,6 +181,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/merchant/order/new',
         builder: (context, state) => const CreateMerchantOrderScreen(),
+      ),
+      GoRoute(
+        path: '/merchant/order/bulk',
+        builder: (context, state) => const MerchantBulkOrdersScreen(),
       ),
       GoRoute(
         path: '/merchant/routes/order/new',
