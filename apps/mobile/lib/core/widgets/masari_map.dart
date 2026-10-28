@@ -90,6 +90,7 @@ class MasariMap extends StatefulWidget {
     this.banner,
     this.interactive = true,
     this.onTap,
+    this.controlsTop,
     super.key,
   });
 
@@ -122,9 +123,20 @@ class MasariMap extends StatefulWidget {
   /// The callback receives the exact [LatLng] selected by the user.
   final ValueChanged<LatLng>? onTap;
 
+  /// Distance of the zoom buttons from the top edge, when a screen overlays
+  /// its own controls there. Defaults to a small inset.
+  final double? controlsTop;
+
   @override
   State<MasariMap> createState() => _MasariMapState();
 }
+
+/// Map tile address. Builds can point it at another tile server (for example
+/// a local one while debugging) with --dart-define=MAP_TILE_URL=...
+const String _tileUrl = String.fromEnvironment(
+  'MAP_TILE_URL',
+  defaultValue: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+);
 
 class _MasariMapState extends State<MasariMap> {
   final MapController _controller = MapController();
@@ -269,6 +281,21 @@ class _MasariMapState extends State<MasariMap> {
     }
 
     _controller.fitCamera(_cameraFit(points));
+    _reloadTiles();
+  }
+
+  /// Incremented to rebuild the tile layer after the camera was moved by code.
+  int _tileEpoch = 0;
+
+  /// A programmatic camera move (fitting the route) is not picked up by an
+  /// already-running tile layer: it keeps the tiles of the starting view and
+  /// the map stays blank until the user touches it. Recreating the layer makes
+  /// it load the tiles for the camera as it is now.
+  void _reloadTiles() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() => _tileEpoch++);
+    });
   }
 
   CameraFit _cameraFit(List<LatLng> points) {
@@ -313,6 +340,9 @@ class _MasariMapState extends State<MasariMap> {
             options: MapOptions(
               initialCenter: single ? points.first : _defaultCenter,
               initialZoom: single ? 14 : _defaultZoom,
+              // Start already fitted to the route: fitting only after the first
+              // frame left the tile layer blank until the user touched the map.
+              initialCameraFit: points.length >= 2 ? _cameraFit(points) : null,
 
               interactionOptions: InteractionOptions(
                 flags: widget.interactive
@@ -347,9 +377,13 @@ class _MasariMapState extends State<MasariMap> {
               // MAP TILES
               // ==============================================================
               TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                key: ValueKey('tiles-$_tileEpoch'),
+                urlTemplate: _tileUrl,
                 userAgentPackageName: 'ps.masari.mobile',
                 maxNativeZoom: 19,
+                // A tile that failed once is retried when it scrolls back into view.
+                evictErrorTileStrategy:
+                    EvictErrorTileStrategy.notVisibleRespectMargin,
               ),
 
               // ==============================================================
@@ -414,7 +448,9 @@ class _MasariMapState extends State<MasariMap> {
         // MAP CONTROLS
         // ====================================================================
         Positioned(
-          top: widget.banner != null || !hasPoints ? 72 : 14,
+          top:
+              widget.controlsTop ??
+              (widget.banner != null || !hasPoints ? 72 : 14),
           right: 12,
           child: _MapControls(
             enabled: widget.interactive,
@@ -582,6 +618,9 @@ class _ModernPin extends StatelessWidget {
 // MAP CONTROLS
 // ============================================================================
 
+bool _ar(BuildContext context) =>
+    Localizations.localeOf(context).languageCode == 'ar';
+
 class _MapControls extends StatelessWidget {
   const _MapControls({
     required this.enabled,
@@ -606,19 +645,19 @@ class _MapControls extends StatelessWidget {
         children: [
           _MapControlButton(
             icon: Icons.add_rounded,
-            tooltip: 'تكبير الخريطة',
+            tooltip: _ar(context) ? 'تكبير الخريطة' : 'Zoom in',
             onPressed: enabled ? onZoomIn : null,
           ),
           const Divider(height: 1, thickness: 1),
           _MapControlButton(
             icon: Icons.remove_rounded,
-            tooltip: 'تصغير الخريطة',
+            tooltip: _ar(context) ? 'تصغير الخريطة' : 'Zoom out',
             onPressed: enabled ? onZoomOut : null,
           ),
           const Divider(height: 1, thickness: 1),
           _MapControlButton(
             icon: Icons.center_focus_strong_rounded,
-            tooltip: 'إظهار المسار',
+            tooltip: _ar(context) ? 'إظهار المسار' : 'Show route',
             onPressed: enabled ? onReset : null,
           ),
         ],

@@ -3943,6 +3943,36 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'تظهر نسبتك بعد {needed} عروض تم الرد عليها ({responded} حتى الآن).'**
   String acceptanceRateNeedMore(int needed, int responded);
+
+  /// No description provided for @emailOrPhone.
+  ///
+  /// In ar, this message translates to:
+  /// **'البريد الإلكتروني أو رقم الهاتف'**
+  String get emailOrPhone;
+
+  /// No description provided for @emailOrPhoneRequired.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل بريدك الإلكتروني أو رقم هاتفك.'**
+  String get emailOrPhoneRequired;
+
+  /// No description provided for @emailOrPhoneInvalid.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل بريدًا إلكترونيًا صحيحًا، أو رقم هاتف يبدأ بـ + ورمز الدولة.'**
+  String get emailOrPhoneInvalid;
+
+  /// No description provided for @mapLegendStart.
+  ///
+  /// In ar, this message translates to:
+  /// **'البداية'**
+  String get mapLegendStart;
+
+  /// No description provided for @mapLegendDestination.
+  ///
+  /// In ar, this message translates to:
+  /// **'الوصول'**
+  String get mapLegendDestination;
 }
 
 class _AppLocalizationsDelegate

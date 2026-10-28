@@ -12,6 +12,11 @@ foreach ($line in Get-Content (Join-Path $root "apps\api\.env")) {
 }
 $env:DATABASE_URL = $values["DATABASE_URL"] -replace "/[A-Za-z0-9_]+(\?|$)", "/masari_demo`$1"
 $env:DEMO_RESET_ALLOWED_DATABASES = "masari_demo"
+foreach ($key in $values.Keys) { if ($key -ne "DATABASE_URL") { Set-Item -Path "Env:$key" -Value $values[$key] } }
+$env:APP_ENV = "demo"
+
+# Test sign-ups are real accounts until marked; the protected reset only removes demo data.
+node scripts/test-env/mark-test-users.mjs
 
 $apiBase = "http://localhost:3000/api/v1"
 Invoke-RestMethod -Method Post -Uri "$apiBase/demo/reset" -Headers @{ "x-demo-reset-key" = $values["DEMO_RESET_KEY"] } -ContentType "application/json" -Body "{}" | Out-Null

@@ -500,7 +500,7 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen> {
                       child: _quickInfoItem(
                         icon: Icons.traffic_rounded,
                         value: '${checkpointSnapshot.checkpoints.length}',
-                        label: 'الحواجز',
+                        label: l10n.checkpoints,
                         onTap: () {
                           _showCheckpointCities(
                             context,
@@ -1631,6 +1631,8 @@ class _DriverMapSectionState extends ConsumerState<_DriverMapSection> {
                       height: constraints.maxHeight,
                       emptyLabel: widget.l10n.mapRouteMissingCoordinates,
                       attributionLabel: widget.l10n.mapAttribution,
+                      // Keep the zoom buttons clear of this screen's top buttons.
+                      controlsTop: 100,
                       paths: [
                         if (pathPoints.length >= 2)
                           MasariMapPath(
@@ -2014,13 +2016,13 @@ class _MapLegend extends StatelessWidget {
             _LegendItem(
               icon: Icons.trip_origin_rounded,
               color: SemanticColors.upcomingRoute,
-              label: 'البداية',
+              label: l10n.mapLegendStart,
             ),
 
             _LegendItem(
               icon: Icons.flag_rounded,
               color: SemanticColors.completedRoute,
-              label: 'الوصول',
+              label: l10n.mapLegendDestination,
             ),
           ],
         ),

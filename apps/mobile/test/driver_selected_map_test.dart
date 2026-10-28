@@ -113,8 +113,8 @@ void main() {
     });
     final container = h.container;
     await _pump(tester, container, 'one');
-    await tester.ensureVisible(find.text('الحواجز'));
-    await tester.tap(find.text('الحواجز'));
+    await tester.ensureVisible(find.text('Barriers'));
+    await tester.tap(find.text('Barriers'));
     await tester.pumpAndSettle();
     expect(find.text('مغلق'), findsOneWidget);
     await tester.tap(find.text('Test City'));

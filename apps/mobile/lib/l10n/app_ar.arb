@@ -827,5 +827,10 @@
       "needed": { "type": "int" },
       "responded": { "type": "int" }
     }
-  }
+  },
+  "emailOrPhone": "البريد الإلكتروني أو رقم الهاتف",
+  "emailOrPhoneRequired": "أدخل بريدك الإلكتروني أو رقم هاتفك.",
+  "emailOrPhoneInvalid": "أدخل بريدًا إلكترونيًا صحيحًا، أو رقم هاتف يبدأ بـ + ورمز الدولة.",
+  "mapLegendStart": "البداية",
+  "mapLegendDestination": "الوصول"
 }

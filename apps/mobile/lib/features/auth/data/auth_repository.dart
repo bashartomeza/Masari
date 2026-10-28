@@ -28,9 +28,16 @@ class AuthRepository {
     required String password,
     String deviceName = _deviceName,
   }) async {
+    // The first argument is an email address, or an international phone number
+    // for accounts created through an invitation.
+    final byEmail = email.contains('@');
     return _authRequest(
       '/auth/mobile/login',
-      body: {'email': email, 'password': password, 'device_name': deviceName},
+      body: {
+        if (byEmail) 'email': email else 'phone': email,
+        'password': password,
+        'device_name': deviceName,
+      },
     );
   }
 

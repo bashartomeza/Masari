@@ -740,5 +740,10 @@
       "needed": { "type": "int" },
       "responded": { "type": "int" }
     }
-  }
+  },
+  "emailOrPhone": "Email or phone number",
+  "emailOrPhoneRequired": "Enter your email or phone number.",
+  "emailOrPhoneInvalid": "Enter a valid email, or a phone number starting with + and the country code.",
+  "mapLegendStart": "Start",
+  "mapLegendDestination": "Destination"
 }

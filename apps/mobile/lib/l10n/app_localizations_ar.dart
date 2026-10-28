@@ -2095,4 +2095,20 @@ class AppLocalizationsAr extends AppLocalizations {
   String acceptanceRateNeedMore(int needed, int responded) {
     return 'تظهر نسبتك بعد $needed عروض تم الرد عليها ($responded حتى الآن).';
   }
+
+  @override
+  String get emailOrPhone => 'البريد الإلكتروني أو رقم الهاتف';
+
+  @override
+  String get emailOrPhoneRequired => 'أدخل بريدك الإلكتروني أو رقم هاتفك.';
+
+  @override
+  String get emailOrPhoneInvalid =>
+      'أدخل بريدًا إلكترونيًا صحيحًا، أو رقم هاتف يبدأ بـ + ورمز الدولة.';
+
+  @override
+  String get mapLegendStart => 'البداية';
+
+  @override
+  String get mapLegendDestination => 'الوصول';
 }
