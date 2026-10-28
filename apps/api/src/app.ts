@@ -8,6 +8,7 @@ import { createDemoRouter } from "./modules/demoReset.js";
 import { passengerRouter } from "./modules/passenger.js";
 import { createDriverRouter } from "./modules/driver.js";
 import { merchantRouter } from "./modules/merchant.js";
+import { parcelHandoverRouter } from "./modules/parcelHandover.js";
 import { adminRouter } from "./modules/admin.js";
 import { matchingRouter } from "./modules/matching.js";
 import { batchingRouter } from "./modules/batching.js";
@@ -186,6 +187,7 @@ export function createApp(
   );
   app.use("/api/v1", batchingRouter);
   app.use("/api/v1", merchantRouter);
+  app.use("/api/v1", parcelHandoverRouter);
   app.use("/api/v1", matchingRouter);
   app.use("/api/v1", tripsRouter);
   app.use(

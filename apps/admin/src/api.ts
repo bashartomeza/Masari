@@ -610,6 +610,15 @@ export type AdminTripListItem = {
   has_stored_location: boolean;
   demo_context: boolean;
   supported_admin_transition: AdminForwardTripStatus | null;
+  delivery_confirmation?: AdminTripDeliveryConfirmation | null;
+};
+export type AdminTripDeliveryConfirmation = {
+  required: boolean;
+  total_orders: number;
+  confirmed_orders: number;
+  methods: Array<"receiver_code" | "receiver_unavailable" | "admin_override">;
+  flagged: boolean;
+  reasons: string[];
 };
 export type AdminTripDetail = AdminTripListItem & {
   latest_stored_location: {

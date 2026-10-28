@@ -8,6 +8,15 @@ import { HttpError } from "../middleware/error.js";
 import { AuditAction, MatchStatus, TripStatus } from "../generated/prisma/enums.js";
 import { advanceLegacyTrip, isLegacyTripTransitionAllowed } from "../services/tripLifecycle.js";
 import { notifyMatchDecision } from "../services/notifications.js";
+import {
+  UNAVAILABLE_REASON_MAX,
+  UNAVAILABLE_REASON_MIN,
+  checkHandoverCode,
+  confirmHandover,
+  tripDeliverySummary,
+  tripOrderIds,
+  unconfirmedOrderIds
+} from "../services/deliveryHandover.js";
 import { isLegacyRouteTimely, legacyRouteTimingWhere, legacyParcelUnits, reserveLegacyCapacity, releaseLegacyCapacity, requireEligibleLegacyRoute } from "../services/legacyCapacity.js";
 
 export const tripsRouter = Router();
@@ -377,7 +386,7 @@ tripsRouter.get("/trips", requireAuth, async (req: AuthenticatedRequest, res, ne
 tripsRouter.get("/trips/:id", requireAuth, async (req: AuthenticatedRequest, res, next) => {
   try {
     const trip = await getVisibleTrip(routeParam(req.params.id), req);
-    res.json({ trip });
+    res.json({ trip, delivery_confirmation: await tripDeliverySummary(prisma, trip) });
   } catch (error) {
     next(error);
   }
@@ -397,10 +406,104 @@ tripsRouter.post("/trips/:id/status", requireAuth, async (req: AuthenticatedRequ
       return advanceLegacyTrip(tx, existing, input.status, {
         actorId: req.user!.id,
         expectedStatus: existing.status,
+        adminOverride: req.user!.role === "admin",
       });
     });
 
     res.json({ trip });
+  } catch (error) {
+    next(error);
+  }
+});
+
+const deliveryConfirmationSchema = z.discriminatedUnion("method", [
+  z.object({
+    method: z.literal("receiver_code"),
+    codes: z.array(z.object({ order_id: z.string().min(1), code: z.string() })).min(1).max(20).optional(),
+    code: z.string().optional()
+  }),
+  z.object({
+    method: z.literal("receiver_unavailable"),
+    reason: z.string().trim().min(UNAVAILABLE_REASON_MIN).max(UNAVAILABLE_REASON_MAX),
+    order_ids: z.array(z.string().min(1)).min(1).max(20).optional()
+  })
+]);
+
+// The driver closes the delivery here: either with the code the receiver read out, or by
+// recording why the receiver could not be reached. The trip becomes "delivered" only once
+// every parcel order on it is confirmed.
+tripsRouter.post("/trips/:id/delivery-confirmation", requireAuth, async (req: AuthenticatedRequest, res, next) => {
+  try {
+    const tripId = routeParam(req.params.id);
+    const input = deliveryConfirmationSchema.parse(req.body);
+    const existing = await getVisibleTrip(tripId, req);
+    if (req.user!.role !== "driver" || existing.driver_route.driver.user_id !== req.user!.id) {
+      throw new HttpError(403, "forbidden");
+    }
+    if (existing.status !== TripStatus.in_transit) throw new HttpError(409, "invalid_trip_status_transition");
+    const orderIds = await tripOrderIds(prisma, existing);
+    if (!orderIds.length) throw new HttpError(409, "delivery_confirmation_not_applicable");
+    const pending = await unconfirmedOrderIds(prisma, orderIds);
+
+    let targets: { orderId: string; method: "receiver_code" | "receiver_unavailable"; reason?: string }[];
+    if (input.method === "receiver_code") {
+      const entries = input.codes ?? (input.code !== undefined && orderIds.length === 1 ? [{ order_id: orderIds[0], code: input.code }] : []);
+      if (!entries.length) throw new HttpError(400, "handover_code_required");
+      if (new Set(entries.map((entry) => entry.order_id)).size !== entries.length) throw new HttpError(400, "duplicate_order_id");
+      for (const entry of entries) {
+        if (!orderIds.includes(entry.order_id)) throw new HttpError(404, "order_not_on_trip");
+      }
+      // Each check spends one of the five attempts for that order, outside the transaction below.
+      for (const entry of entries) await checkHandoverCode(prisma, entry.order_id, entry.code);
+      targets = entries.map((entry) => ({ orderId: entry.order_id, method: "receiver_code" as const }));
+    } else {
+      const wanted = input.order_ids ?? pending;
+      for (const id of wanted) {
+        if (!orderIds.includes(id)) throw new HttpError(404, "order_not_on_trip");
+      }
+      targets = wanted.map((orderId) => ({ orderId, method: "receiver_unavailable" as const, reason: input.reason }));
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      for (const target of targets) {
+        const changed = await confirmHandover(tx, {
+          orderId: target.orderId,
+          method: target.method,
+          actorId: req.user!.id,
+          tripId,
+          reason: target.reason
+        });
+        if (changed) {
+          await tx.auditEvent.create({
+            data: {
+              user_id: req.user!.id,
+              action: AuditAction.trip_status_updated,
+              entity_type: "Trip",
+              entity_id: tripId,
+              metadata: {
+                event: "delivery_confirmed",
+                method: target.method,
+                order_id: target.orderId,
+                ...(target.reason ? { reason: target.reason, flagged: true } : {})
+              }
+            }
+          });
+        }
+      }
+      const stillPending = await unconfirmedOrderIds(tx, orderIds);
+      if (stillPending.length) return { trip: existing, delivered: false };
+      const trip = await advanceLegacyTrip(tx, existing, TripStatus.delivered, {
+        actorId: req.user!.id,
+        expectedStatus: existing.status
+      });
+      return { trip, delivered: true };
+    });
+
+    res.json({
+      trip: result.trip,
+      delivered: result.delivered,
+      delivery_confirmation: await tripDeliverySummary(prisma, existing)
+    });
   } catch (error) {
     next(error);
   }
