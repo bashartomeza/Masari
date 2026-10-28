@@ -89,10 +89,10 @@ try{
   check(responses.filter(r=>r.status===201).length===1,'one batch creation under concurrent starting orders');check(responses.every(r=>r.status===201||r.status===409),'concurrent batching returns only success/conflict');
   const s=await inspect('concurrent-eight',ids);check(s.batches.length===1&&s.members.length===2&&s.parcels.every(p=>p.batch_id===s.batches[0].id&&p.status==='batched'),'exact one two-order batch without partial membership');
  });
- await scenario('twenty order and fifty parcel bounds preserve remaining orders',async()=>{
-  const a=await actor(),ids=[];for(let i=0;i<21;i++)ids.push(await order(a));
-  const made=await batch(a,ids[20]);assert.equal(made.status,201);const s=await inspect('twenty-orders',ids);
-  check(s.members.length===20&&s.parcels.filter(p=>p.batch_id).length===20,'batch capped at twenty orders');check(s.orders.filter(o=>o.status==='submitted').length===1,'unselected order remains submitted');
+ await scenario('fifty order and fifty parcel bounds preserve remaining orders',async()=>{
+  const a=await actor(),ids=[];for(let i=0;i<51;i++)ids.push(await order(a));
+  const made=await batch(a,ids[50]);assert.equal(made.status,201);const s=await inspect('fifty-orders',ids);
+  check(s.members.length===50&&s.parcels.filter(p=>p.batch_id).length===50,'batch capped at fifty orders');check(s.orders.filter(o=>o.status==='submitted').length===1,'unselected order remains submitted');
   const b=await actor(),many=[];for(let i=0;i<6;i++)many.push(await order(b,10));
   const fifty=await batch(b,many[0]);assert.equal(fifty.status,201);const f=await inspect('fifty-parcels',many);
   check(f.members.length===5&&f.parcels.filter(p=>p.batch_id).length===50,'batch capped at fifty parcels');check(f.parcels.filter(p=>!p.batch_id&&p.status==='pending').length===10,'overflow parcels preserved pending');
