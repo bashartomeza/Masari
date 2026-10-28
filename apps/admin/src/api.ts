@@ -96,6 +96,8 @@ return {
   me: (token: string) => apiRequest<MeResponse>("/me", { token }),
   capabilities: (token: string) => apiRequest<CapabilitiesResponse>("/capabilities", { token }),
   dashboard: (token: string) => apiRequest<DashboardResponse>("/admin/dashboard", { token }),
+  comparisonSimulation: (token: string, query?: { seed?: number; manual_response_delay_min?: number }) =>
+    apiRequest<{ simulation: ComparisonSimulation }>(withQuery("/compare/simulation", query ?? {}), { token }),
   monitoringOverview: (token: string, query?: Range) =>
     apiRequest<Observed<Overview>>(withQuery("/admin/matching-batching/overview", query ?? {}), { token }),
   monitoringMatches: (token: string, query: MatchQueryInput) =>
@@ -531,6 +533,39 @@ export type Match = {
 
 export type MatchRunResponse = { match: Match; scoringBreakdown: Record<string, number>; candidatesConsidered: number };
 export type BatchResponse = { batch: { id: string; status: string; estimated_distance_saved: string; explanation: string; merchant_order?: MerchantOrder } };
+export type SimulationMethodKey = "manual" | "nearest" | "masari";
+export type SimulationDistribution = { avg: number; median: number; p90: number };
+export type SimulationMetrics = {
+  requests: number;
+  matched: number;
+  unmatched: number;
+  unmatchedPct: number;
+  waitingMin: SimulationDistribution;
+  matchingMin: SimulationDistribution;
+  routeDeviationKm: number;
+  routeDeviationKmPerMatched: number;
+  vehiclesUsed: number;
+  vehiclesTotal: number;
+  vehicleUtilisationPct: number;
+  seatUtilisationPct: number;
+  parcelUtilisationPct: number;
+};
+export type ComparisonSimulation = {
+  simulated: true;
+  version: string;
+  params: { seed: number; manualResponseDelayMin: number; nearestMatchDelayMin: number; masariOfferDelayMin: number; masariBatchWindowMin: number };
+  aggregate: Record<SimulationMethodKey, SimulationMetrics>;
+  scenarios: Array<{
+    key: string;
+    label: string;
+    origin: "hand_written" | "generated";
+    requests: number;
+    passengerRequests: number;
+    parcelOrders: number;
+    drivers: number;
+    methods: Record<SimulationMethodKey, SimulationMetrics>;
+  }>;
+};
 export type Comparison = {
   id: string;
   winner: string;
