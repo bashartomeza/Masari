@@ -222,7 +222,7 @@ async function primaryStory() {
   const handover = (
     await request(`/parcel-orders/${merchantOrder.id}/handover/regenerate`, { token: tokens.merchant, method: "POST", body: {} })
   ).handover;
-  assert(/^d{6}$/.test(handover.code), "sender did not receive a six-digit handover code");
+  assert(/^[0-9]{6}$/.test(handover.code), "sender did not receive a six-digit handover code");
   await request(`/trips/${trip.id}/delivery-confirmation`, {
     token: tokens.driver1,
     method: "POST",
