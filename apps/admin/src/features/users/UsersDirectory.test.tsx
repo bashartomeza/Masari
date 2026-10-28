@@ -70,6 +70,15 @@ describe("User Management view", () => {
     expect(markup).not.toContain("Merchant approval workflow is not connected");
   });
 
+  it("does not offer a decision for an open-signup applicant who has not submitted documents", () => {
+    const unsubmitted: UserListItem = { ...pendingMerchant, id: "merchant_draft", name: "QA Draft Shop", role_context: { kind: "merchant", merchant_approval_connected: true, application_submitted: false } };
+    const draftDetail = { ...detail, ...unsubmitted, driver_profile: null, driver_verification: null, active_session_count: 0, last_session_at: null, passenger_request_count: 0, merchant_order_count: 0 } as UserDetail;
+    const markup = render("en", <UsersDirectoryView {...props({ data: { ...page, users: [unsubmitted] }, detail: draftDetail, selectedId: draftDetail.id, onMerchantDecision: vi.fn() })} />);
+    expect(markup).toContain("Not submitted yet");
+    expect(markup).not.toContain("Approve merchant");
+    expect(markup).not.toContain("Reject merchant");
+  });
+
   it("hides merchant decisions while the console cannot act", () => {
     const markup = render("en", <UsersDirectoryView {...props({ onMerchantDecision: vi.fn(), canAct: false })} />);
     expect(markup).not.toContain("Approve merchant");

@@ -89,6 +89,9 @@ const rawSchema = z.object({
   PORT: z.coerce.number().int().positive().default(3000),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).optional(),
   TRUST_PROXY: z.string().optional(),
+  APPROACH_ALERT_RADIUS_KM: z.coerce.number().min(0.05).max(25).default(1),
+  APPROACH_ALERT_ETA_MINUTES: z.coerce.number().min(0).max(120).default(0),
+  APPROACH_ALERT_ASSUMED_SPEED_KMH: z.coerce.number().min(5).max(120).default(30),
   READINESS_TIMEOUT_MS: z.coerce.number().int().min(10).max(10_000).default(2_000),
   RATE_LIMIT_GLOBAL_WINDOW_MS: z.coerce.number().int().min(1_000).max(3_600_000).default(900_000),
   RATE_LIMIT_GLOBAL_MAX: z.coerce.number().int().min(1).max(10_000).optional(),
@@ -96,6 +99,8 @@ const rawSchema = z.object({
   RATE_LIMIT_LOGIN_MAX: z.coerce.number().int().min(1).max(500).optional(),
   INVITATIONS_ENABLED: z.string().optional(),
   PUBLIC_ONBOARDING_ENABLED: z.string().optional(),
+  OPEN_DRIVER_MERCHANT_SIGNUP_ENABLED: z.string().optional(),
+  OPEN_SIGNUP_MAX_STARTS_PER_HOUR: z.coerce.number().int().min(1).max(10_000).default(200),
   DRIVER_DOCUMENTS_ENABLED: z.string().optional(),
   DRIVER_DOCUMENTS_DIR: z.string().min(1).optional(),
   DRIVER_DOCUMENT_RETENTION_DAYS: z.coerce.number().int().min(1).max(3650).default(90),
@@ -211,6 +216,7 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
   const invitationsEnabled = parseBoolean("INVITATIONS_ENABLED", raw.INVITATIONS_ENABLED);
   const driverDocumentsEnabled = parseBoolean("DRIVER_DOCUMENTS_ENABLED", raw.DRIVER_DOCUMENTS_ENABLED);
   const publicOnboardingEnabled = parseBoolean("PUBLIC_ONBOARDING_ENABLED", raw.PUBLIC_ONBOARDING_ENABLED);
+  const openSignupEnabled = parseBoolean("OPEN_DRIVER_MERCHANT_SIGNUP_ENABLED", raw.OPEN_DRIVER_MERCHANT_SIGNUP_ENABLED);
   const testLegalFixturesEnabled = parseBoolean(
     "ONBOARDING_TEST_LEGAL_FIXTURES_ENABLED",
     raw.ONBOARDING_TEST_LEGAL_FIXTURES_ENABLED
@@ -307,6 +313,12 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
   }
   if (publicOnboardingEnabled && productionLike) {
     problems.push("PUBLIC_ONBOARDING_ENABLED cannot be enabled in staging or production without an approved provider");
+  }
+  if (openSignupEnabled && !publicOnboardingEnabled) {
+    problems.push("OPEN_DRIVER_MERCHANT_SIGNUP_ENABLED requires PUBLIC_ONBOARDING_ENABLED");
+  }
+  if (openSignupEnabled && !driverDocumentsEnabled) {
+    problems.push("OPEN_DRIVER_MERCHANT_SIGNUP_ENABLED requires DRIVER_DOCUMENTS_ENABLED so applicants can upload their documents");
   }
   if (publicOnboardingEnabled && !invitationsEnabled) {
     problems.push("PUBLIC_ONBOARDING_ENABLED requires INVITATIONS_ENABLED");
@@ -597,6 +609,8 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
     },
     invitationsEnabled,
     publicOnboardingEnabled,
+    openSignupEnabled,
+    openSignupMaxStartsPerHour: raw.OPEN_SIGNUP_MAX_STARTS_PER_HOUR,
     driverDocuments: driverDocumentsEnabled
       ? { dir: raw.DRIVER_DOCUMENTS_DIR!, retentionDays: raw.DRIVER_DOCUMENT_RETENTION_DAYS }
       : undefined,
@@ -641,6 +655,11 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
     googleOAuthClientIds,
     googleAuth: { mobileClientIds: googleMobileClientIds, adminClientIds: googleAdminClientIds, passengerSignupMode: raw.GOOGLE_PASSENGER_SIGNUP_MODE, passengerAllowlist: googlePassengerAllowlist },
     trustProxy,
+    approachingAlert: {
+      radiusKm: raw.APPROACH_ALERT_RADIUS_KM,
+      etaMinutes: raw.APPROACH_ALERT_ETA_MINUTES,
+      assumedSpeedKmh: raw.APPROACH_ALERT_ASSUMED_SPEED_KMH
+    },
     readinessTimeoutMs: raw.READINESS_TIMEOUT_MS,
     rateLimits: {
       global: { windowMs: raw.RATE_LIMIT_GLOBAL_WINDOW_MS, max: globalRateLimitMax },

@@ -5,6 +5,7 @@ import { auditEvent } from "../lib/audit.js";
 import { claimIdempotency, completeIdempotency } from "../lib/idempotency.js";
 import { prisma } from "../lib/prisma.js";
 import { HttpError } from "../middleware/error.js";
+import { routeFareService } from "./routeFares.js";
 import {
   requireEligibleOperationalRoute,
   requireMerchantStops,
@@ -176,6 +177,8 @@ export function createCanonicalDemandService(db: PrismaClient = prisma) {
         });
         const { pickup, dropoff } = requirePassengerStopPair(route, input.pickupStopId, input.dropoffStopId);
         const now = new Date();
+        // Frozen now: later tariff edits must not change this request.
+        const fare = await routeFareService.passengerSnapshot(tx, route.route.id, input.passengerCount, now);
         const resource = await tx.passengerRequest.create({
           data: {
             passenger_id: actor.id,
@@ -196,7 +199,8 @@ export function createCanonicalDemandService(db: PrismaClient = prisma) {
             requested_departure_from: input.requestedDepartureFrom,
             requested_departure_until: input.requestedDepartureUntil,
             canonical_created_at: now,
-            operational_mode: CANONICAL_ENTRY_VERSION
+            operational_mode: CANONICAL_ENTRY_VERSION,
+            ...fare
           }
         });
         await tx.canonicalDemandDispatch.create({
@@ -272,6 +276,12 @@ export function createCanonicalDemandService(db: PrismaClient = prisma) {
         const { pickup, destinations } = requireMerchantStops(route, input.pickupStopId, destinationIds);
         await options.beforeCreate?.(tx);
         const now = new Date();
+        const fares = await routeFareService.parcelSnapshots(
+          tx,
+          route.route.id,
+          input.parcels.map((parcel) => parcel.size),
+          now
+        );
         const createdOrder = await tx.merchantOrder.create({
           data: {
             merchant_id: actor.id,
@@ -300,7 +310,8 @@ export function createCanonicalDemandService(db: PrismaClient = prisma) {
             route_version_id: route.id,
             destination_stop_id: destinations[index].stopId,
             canonical_entry_version: CANONICAL_ENTRY_VERSION,
-            operational_mode: CANONICAL_ENTRY_VERSION
+            operational_mode: CANONICAL_ENTRY_VERSION,
+            ...fares[index]
           }))
         });
         const resource = await tx.merchantOrder.findUniqueOrThrow({

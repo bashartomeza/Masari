@@ -142,7 +142,10 @@ try{
   const a=await actor(),route=await supply(),ids=[await order(a,2),await order(a)];assert.equal((await batch(a,ids[0])).status,201);const offer=await match(a,ids[0]);assert.equal(offer.status,201);let accepted;
   const r=await pauseRead('merchantOrder','findFirst',args=>args.where.id===ids[1],()=>cancel(a,ids[1]),async()=>{accepted=await call(driver,'POST','/matches/'+offer.body.match.id+'/accept',{});assert.equal(accepted.status,201);});
   check(r.status===409,'stale secondary cancellation rejects after acceptance');let s=await inspect('acceptance-winner',ids,route);check(s.orders.every(o=>o.status==='assigned')&&s.parcels.every(p=>p.status==='assigned')&&s.batches[0].status==='assigned'&&s.route.parcel_capacity_available===17,'accepted batch is not returned to pending or released');
-  for(const status of ['pickup_started','picked_up','in_transit','delivered','completed'])assert.equal((await call(driver,'POST','/trips/'+accepted.body.trip.id+'/status',{status})).status,200,'existing trip progression');
+  const tripPath='/trips/'+accepted.body.trip.id;for(const status of ['pickup_started','picked_up','in_transit'])assert.equal((await call(driver,'POST',tripPath+'/status',{status})).status,200,'existing trip progression');
+  check((await call(driver,'POST',tripPath+'/status',{status:'delivered'})).status===409,'parcel delivery needs receiver confirmation');
+  const confirmed=await call(driver,'POST',tripPath+'/delivery-confirmation',{method:'receiver_unavailable',reason:'Receiver did not answer door or phone'});check(confirmed.status===200&&confirmed.body.delivered===true,'receiver-unavailable fallback delivers every order on the batch trip');
+  assert.equal((await call(driver,'POST',tripPath+'/status',{status:'completed'})).status,200,'existing trip progression');
   s=await inspect('completed-never-rebatched',ids,route);check(s.orders.every(o=>o.status==='completed')&&s.parcels.every(p=>p.status==='delivered'),'completed order and delivered parcels retained');check((await batch(a,ids[0])).status===409&&(await cancel(a,ids[1])).status===409&&(await match(a,ids[0])).status===409,'completed delivery cannot reenter batching/matching/cancellation');
  });
  await scenario('cancellation wins before driver acceptance locks',async()=>{

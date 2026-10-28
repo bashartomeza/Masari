@@ -242,7 +242,7 @@ describe("driver document retention", () => {
     });
     expect(db.merchantApplicationDocument.delete).toHaveBeenCalledWith({ where: { id: "m1" } });
     expect(db.driverVerificationDocument.findMany.mock.calls[0][0].where).toEqual({
-      verification: { status: { not: "pending" }, reviewed_at: { lt: new Date("2026-09-02T00:00:00Z") } }
+      verification: { status: { in: ["approved", "rejected"] }, reviewed_at: { lt: new Date("2026-09-02T00:00:00Z") } }
     });
     expect(db.driverVerificationDocument.delete).toHaveBeenCalledWith({ where: { id: "d1" } });
   });

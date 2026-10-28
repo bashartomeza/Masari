@@ -263,9 +263,9 @@
   "registerPassengerTitle": "Normal user",
   "registerPassengerHelp": "Request trips and deliveries. Your account is ready right after sign-up.",
   "registerDriverTitle": "Driver",
-  "registerDriverHelp": "Carry trips and deliveries. Needs an invitation code, your documents and approval.",
+  "registerDriverHelp": "Carry trips and deliveries. You upload your documents and an admin approves your account.",
   "registerMerchantTitle": "Shop owner",
-  "registerMerchantHelp": "Send orders from your shop. Needs an invitation code and approval.",
+  "registerMerchantHelp": "Send orders from your shop. You upload your documents and an admin approves your account.",
   "invitationCode": "Invitation code",
   "phoneNumber": "Phone number",
   "sendVerificationCode": "Send verification code",
@@ -735,21 +735,31 @@
   "acceptanceRateValue": "{percent}%",
   "@acceptanceRateValue": {
     "placeholders": {
-      "percent": { "type": "int" }
+      "percent": {
+        "type": "int"
+      }
     }
   },
   "acceptanceRateDetail": "{accepted} of {responded} offers you answered were accepted. Offers that expired unanswered are not counted.",
   "@acceptanceRateDetail": {
     "placeholders": {
-      "accepted": { "type": "int" },
-      "responded": { "type": "int" }
+      "accepted": {
+        "type": "int"
+      },
+      "responded": {
+        "type": "int"
+      }
     }
   },
   "acceptanceRateNeedMore": "Your rate appears after {needed} answered offers ({responded} so far).",
   "@acceptanceRateNeedMore": {
     "placeholders": {
-      "needed": { "type": "int" },
-      "responded": { "type": "int" }
+      "needed": {
+        "type": "int"
+      },
+      "responded": {
+        "type": "int"
+      }
     }
   },
   "emailOrPhone": "Email or phone number",
@@ -787,12 +797,81 @@
   "parcelCancelledNotice": "Parcel cancelled.",
   "parcelCannotCancel": "A driver has already been offered this parcel, so it can no longer be cancelled.",
   "parcelReceiverLine": "Receiver: {name} ({phone})",
-  "@parcelReceiverLine": {"placeholders": {"name": {"type": "String"}, "phone": {"type": "String"}}},
+  "@parcelReceiverLine": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
   "parcelReceiverRemoved": "Receiver details have been erased.",
   "parcelLimitReached": "You already have the maximum number of parcels on the way. Wait for one to finish or cancel one.",
   "parcelDailyLimit": "Daily parcel limit reached. Try again tomorrow.",
   "invalidReceiverPhone": "Enter a valid phone number for the receiver.",
   "receiverNameInvalid": "Enter the receiver's name.",
   "parcelAckRequired": "Confirm the statement about forbidden items to continue.",
-  "keepParcel": "Keep parcel"
+  "keepParcel": "Keep parcel",
+  "mapOfflineSaved": "Offline - showing saved map",
+  "clearMapCache": "Clear saved map",
+  "clearMapCacheHint": "Deletes map tiles saved on this device. They are saved again as you browse.",
+  "mapCacheCleared": "Saved map cleared",
+  "mapCacheClearFailed": "Could not clear the saved map",
+  "notifDocsExpiringTitle": "Document expiring soon",
+  "notifDocsExpiringBody": "Your {document} expires on {date}. Send renewed documents before then to keep working without interruption.",
+  "@notifDocsExpiringBody": {
+    "placeholders": {
+      "document": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "notifDocsExpiredTitle": "Your documents have expired",
+  "notifDocsExpiredBody": "Your account is restricted: you cannot go online or accept new trips until you send renewed documents and they are approved. Trips you already accepted are not affected.",
+  "notifDocsRenewalSubmittedTitle": "Renewal documents sent",
+  "notifDocsRenewalSubmittedBody": "Our team will review them and you will be notified of the decision.",
+  "documentKindContract": "Contract",
+  "availabilityDocumentsExpired": "Your documents have expired. Send renewed documents to restore access.",
+  "applicationDocumentsRequiredTitle": "Upload your documents",
+  "applicationDocumentsRequiredBody": "Your account is created but is not under review yet. Upload every required document, then send your application. Review usually takes up to 24 hours.",
+  "documentsStillNeeded": "Still needed: {documents}",
+  "@documentsStillNeeded": {
+    "placeholders": {
+      "documents": {
+        "type": "String"
+      }
+    }
+  },
+  "submitApplication": "Send for review",
+  "documentsRequiredError": "Upload all the required documents before sending your application.",
+  "invitationCodeOptional": "Invitation code (optional)",
+  "fareEstimatedTitle": "Estimated fare",
+  "fareBookedTitle": "Estimated fare when requested",
+  "fareDisclaimer": "Estimated and paid directly to the driver. No payments are processed in the app.",
+  "fareNotSet": "No estimated fare has been set for this route yet.",
+  "farePerSeat": "Per seat",
+  "fareSeatsLine": "Seats × {count}",
+  "fareParcelLine": "Parcel {size}",
+  "fareTotal": "Total",
+  "notifDriverApproachingTitle": "Your driver is approaching",
+  "notifDriverApproachingBody": "Your driver is near your pickup point. Please get ready.",
+  "ratingPromptTitle": "How was your trip?",
+  "ratingPromptBody": "Rate your driver from 1 to 5 stars. Your rating is private: the driver never sees it or who gave it.",
+  "ratingStarLabel": "{count} stars",
+  "@ratingStarLabel": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "ratingSubmit": "Send rating",
+  "ratingThanks": "Thanks for rating your trip.",
+  "ratingFailed": "The rating could not be sent. Try again.",
+  "ratingAlreadyRated": "You already rated this trip."
 }

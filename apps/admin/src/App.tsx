@@ -24,6 +24,7 @@ import { UsersDirectory } from "./features/users/UsersDirectory";
 import { DemoControl } from "./features/demo/DemoControl";
 import { ModuleUnavailable } from "./features/placeholder/ModuleUnavailable";
 import { ReportsPanel } from "./features/reports/ReportsPanel";
+import { SuccessMetricsPanel } from "./features/reports/SuccessMetricsPanel";
 import { IncidentsPanel } from "./features/incidents/IncidentsPanel";
 import { ProfilePanel } from "./features/profile/ProfilePanel";
 import {
@@ -608,7 +609,12 @@ export function App({
         return <IncidentsPanel api={api} token={token} />;
 
       case "reports":
-        return <ReportsPanel api={api} token={token} />;
+        return (
+          <>
+            <ReportsPanel api={api} token={token} />
+            <SuccessMetricsPanel api={api} token={token} />
+          </>
+        );
 
       default:
         return null;

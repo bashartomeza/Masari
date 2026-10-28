@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("../lib/prisma.js", () => ({ prisma: {} }));
 const {
   createPassengerParcelService,
+  issueHandoverOnCreated,
   passengerParcelTrackingState,
   PASSENGER_PARCEL_LIMITS,
   purgeExpiredPassengerParcelReceivers,
@@ -100,6 +101,21 @@ describe("passenger parcel creation", () => {
     expect(onCreated).toHaveBeenCalledWith(expect.objectContaining({
       tx: db, senderId: "passenger_1", orderId: "order_1", parcelId: "parcel_1", detailId: "detail_1", receiverPhone: "+970591234567"
     }));
+  });
+
+  it("issues a receiver handover for the new parcel order inside the transaction", async () => {
+    const tx = {
+      deliveryHandover: {
+        findUnique: vi.fn().mockResolvedValue(null),
+        create: vi.fn().mockResolvedValue({}),
+        updateMany: vi.fn()
+      }
+    };
+    await issueHandoverOnCreated({ tx: tx as never, orderId: "order_1" });
+    expect(tx.deliveryHandover.create).toHaveBeenCalledTimes(1);
+    const data = tx.deliveryHandover.create.mock.calls[0][0].data;
+    expect(data.merchant_order_id).toBe("order_1");
+    expect(data.code_digest).toMatch(/^[0-9a-f]{64}$/);
   });
 
   it("does not run the hook or write a detail row on an idempotent replay", async () => {

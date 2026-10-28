@@ -19,6 +19,7 @@ const prismaMock = vi.hoisted(() => ({
   driverRoute: { create: vi.fn(), findMany: vi.fn(), findFirst: vi.fn(), update: vi.fn(), updateMany: vi.fn(), count: vi.fn(), groupBy: vi.fn() },
   driverVerification: { count: vi.fn() },
   incident: { count: vi.fn() },
+  deliveryHandover: { findUnique: vi.fn(), create: vi.fn(), updateMany: vi.fn() },
 }));
 
 vi.mock("../lib/prisma.js", () => ({ prisma: prismaMock }));
@@ -107,6 +108,8 @@ describe("manual role APIs", () => {
     prismaMock.merchantOrder.updateMany.mockResolvedValue({ count: 1 });
     prismaMock.merchantOrder.findUniqueOrThrow.mockImplementation(({ where }: { where: { id: string } }) => ({ id: where.id, merchant_id: "merchant_1", status: "cancelled", parcels: [], parcel_batches: [], batch_members: [] }));
     prismaMock.$transaction.mockImplementation((callback: (tx: typeof prismaMock) => unknown) => callback(prismaMock));
+    prismaMock.deliveryHandover.findUnique.mockResolvedValue(null);
+    prismaMock.deliveryHandover.create.mockResolvedValue({});
     prismaMock.$queryRaw.mockResolvedValue([{ id: "profile_1" }]);
     prismaMock.driverRoute.findFirst.mockResolvedValue(null);
   });
@@ -440,6 +443,21 @@ describe("manual role APIs", () => {
 
     const response = await request(createApp()).post("/api/v1/merchant/orders").set(auth("merchant_1")).send(merchantBody).expect(201);
     expect(response.body.order.parcels).toHaveLength(1);
+  });
+
+  it("a new merchant order hands the sender a six-digit receiver code and stores only its digest", async () => {
+    prismaMock.merchantOrder.create.mockResolvedValue({ id: "order_1", status: "submitted", parcels: [{ id: "parcel_1", status: "pending" }] });
+    prismaMock.deliveryHandover.findUnique.mockResolvedValueOnce(null).mockResolvedValue({
+      code_digest: "a".repeat(64), failed_attempts: 0, expires_at: new Date(Date.now() + 1000), confirmed_at: null, confirmation_method: null, unavailable_reason: null
+    });
+
+    const response = await request(createApp()).post("/api/v1/merchant/orders").set(auth("merchant_1")).send(merchantBody).expect(201);
+
+    expect(response.body.order.handover.code).toMatch(/^\d{6}$/);
+    expect(response.body.order.handover).toMatchObject({ issued: true, confirmed: false, attempts_remaining: 5 });
+    const stored = prismaMock.deliveryHandover.create.mock.calls[0][0].data;
+    expect(stored.code_digest).toMatch(/^[a-f0-9]{64}$/);
+    expect(JSON.stringify(stored)).not.toContain(response.body.order.handover.code);
   });
 
   it("rejects out-of-range and non-finite merchant pickup and parcel coordinates", async () => {

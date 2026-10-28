@@ -167,6 +167,143 @@ async function onboard(
   return { started, verified, completed, documents, completionKey, name, password };
 }
 
+const JPEG = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.from("integration jpeg body")]);
+
+async function openStart(role: string, phone: string) {
+  provider.outbox.clear();
+  return request(app)
+    .post("/api/v1/onboarding/attempts")
+    .set("idempotency-key", key("open-start"))
+    .send({ role, phone, region: "PS", locale: "ar" });
+}
+
+async function uploadDocument(path: string, token: string, kind: string) {
+  return request(app)
+    .post(`/api/v1/onboarding/${path}?kind=${kind}`)
+    .set("authorization", `Onboarding ${token}`)
+    .set("content-type", "application/octet-stream")
+    .send(JPEG);
+}
+
+const submitApplication = (token: string) =>
+  request(app).post("/api/v1/onboarding/application/submit").set("authorization", `Onboarding ${token}`);
+
+/** Open driver / shop-owner signup: no invitation, documents required before review. */
+async function openSignupChecks(admin: string, legal: Array<{ id: string; type: string; content_hash: string }>) {
+  await prisma.abuseCounter.deleteMany({
+    where: { bucket_type: { in: ["otp_ip_hour", "otp_phone_day", "open_start_ip", "open_start_phone", "open_start_global"] } }
+  });
+  const openConfig = await request(app).get("/api/v1/onboarding/config");
+  check(
+    JSON.stringify(openConfig.body.open_registration_roles) === JSON.stringify(["driver", "merchant"]),
+    "open roles are advertised only when the switch is on"
+  );
+  check((await openStart("passenger", "+970599222201")).status === 404, "passengers cannot register without an invitation");
+
+  // A number that already has an account looks exactly like a new one until the code is proven.
+  const existing = await openStart("driver", "+970599111115");
+  check(existing.status === 201 && existing.body.next_action === "verify_otp", "open start does not reveal an existing account");
+  const existingVerified = await verify(existing.body.attempt.id, existing.body.onboarding_token, latestOtp());
+  const existingComplete = await complete(
+    existing.body.attempt.id, existing.body.onboarding_token, existingVerified.body.registration_grant,
+    legal, "Duplicate Person", "duplicate secure pass 2026"
+  );
+  check(existingComplete.status === 409 && existingComplete.body.error === "registration_conflict", "an existing number cannot be registered again");
+
+  const started = await openStart("driver", "+970599222202");
+  check(started.status === 201, "open driver start succeeds");
+  const attempt = await prisma.onboardingAttempt.findUniqueOrThrow({ where: { id: started.body.attempt.id } });
+  check(attempt.invitation_id === null, "open attempt has no invitation");
+  const wrongOtp = await verify(started.body.attempt.id, started.body.onboarding_token, "000000");
+  check(wrongOtp.status === 400, "a wrong code is refused as in the invited flow");
+  const verified = await verify(started.body.attempt.id, started.body.onboarding_token, latestOtp());
+  check(verified.status === 200, "open driver phone verification succeeds");
+  const completed = await complete(
+    started.body.attempt.id, started.body.onboarding_token, verified.body.registration_grant,
+    legal, "Open Driver", "open driver secure pass 2026"
+  );
+  check(
+    completed.status === 201 && completed.body.account_status === "pending" && completed.body.next_action === "upload_documents",
+    "open driver is created pending and told to upload documents"
+  );
+  const statusToken = completed.body.onboarding_status_token as string;
+  const driver = await prisma.user.findUniqueOrThrow({ where: { phone: "+970599222202" } });
+  check(driver.review_submitted_at === null, "open driver has not been submitted for review");
+  check(
+    (await request(app).post("/api/v1/auth/login").send({ phone: "+970599222202", password: "open driver secure pass 2026" })).status === 403,
+    "an open pending driver cannot sign in"
+  );
+  const notQueued = await request(app).get("/api/v1/admin/driver-verifications?status=pending&limit=100").set("authorization", `Bearer ${admin}`);
+  check(
+    notQueued.status === 200 && !notQueued.body.verifications.some((entry: { candidate: { id: string } }) => entry.candidate.id === driver.id),
+    "an unsubmitted driver is not in the admin review queue"
+  );
+  const approveEarly = await request(app)
+    .post(`/api/v1/admin/driver-verifications/${driver.id}/approve`)
+    .set("authorization", `Bearer ${admin}`)
+    .send({ expected_revision: 1, profile: { vehicle_type: "sedan", seats_total: 4, parcel_capacity: 3 } });
+  check(approveEarly.status === 409 && approveEarly.body.error === "application_not_submitted", "admin cannot approve an unsubmitted application");
+  const noDocuments = await submitApplication(statusToken);
+  check(
+    noDocuments.status === 409 && noDocuments.body.error === "documents_required" && noDocuments.body.missing_documents.length === 3,
+    "submission is refused with no documents"
+  );
+  const statusBefore = await request(app).get("/api/v1/onboarding/status").set("authorization", `Onboarding ${statusToken}`);
+  check(statusBefore.body.onboarding_status === "documents_required", "status asks for documents");
+  check((await uploadDocument("driver-documents", statusToken, "driver_licence")).status === 201, "licence uploaded");
+  check((await uploadDocument("driver-documents", statusToken, "insurance")).status === 201, "optional insurance uploaded");
+  const partial = await submitApplication(statusToken);
+  check(partial.status === 409 && partial.body.missing_documents.length === 2, "an optional kind does not satisfy the required set");
+  check((await uploadDocument("driver-documents", statusToken, "vehicle_registration")).status === 201, "vehicle registration uploaded");
+  check((await uploadDocument("driver-documents", statusToken, "national_id")).status === 201, "national ID uploaded");
+  const submitted = await submitApplication(statusToken);
+  check(submitted.status === 200 && submitted.body.onboarding_status === "pending_review", "complete application is submitted");
+  check((await submitApplication(statusToken)).status === 200, "submission is idempotent");
+  const queued = await request(app).get("/api/v1/admin/driver-verifications?status=pending&limit=100").set("authorization", `Bearer ${admin}`);
+  check(queued.body.verifications.some((entry: { candidate: { id: string } }) => entry.candidate.id === driver.id), "a submitted driver enters the review queue");
+  const approved = await request(app)
+    .post(`/api/v1/admin/driver-verifications/${driver.id}/approve`)
+    .set("authorization", `Bearer ${admin}`)
+    .send({ expected_revision: 1, profile: { vehicle_type: "sedan", seats_total: 4, parcel_capacity: 3 } });
+  check(approved.status === 200, "admin approves a submitted open driver");
+  check(
+    (await request(app).post("/api/v1/auth/login").send({ phone: "+970599222202", password: "open driver secure pass 2026" })).status === 200,
+    "an approved open driver can sign in"
+  );
+
+  const shopStart = await openStart("merchant", "+970599222203");
+  const shopVerified = await verify(shopStart.body.attempt.id, shopStart.body.onboarding_token, latestOtp());
+  const shopCompleted = await complete(
+    shopStart.body.attempt.id, shopStart.body.onboarding_token, shopVerified.body.registration_grant,
+    legal, "Open Shop", "open shop secure pass 2026"
+  );
+  check(shopCompleted.status === 201 && shopCompleted.body.next_action === "upload_documents", "open shop owner is created pending");
+  const shopToken = shopCompleted.body.onboarding_status_token as string;
+  const shop = await prisma.user.findUniqueOrThrow({ where: { phone: "+970599222203" } });
+  const shopEarly = await request(app).post(`/api/v1/admin/merchant-approvals/${shop.id}/approve`).set("authorization", `Bearer ${admin}`).send({});
+  check(shopEarly.status === 409 && shopEarly.body.error === "application_not_submitted", "admin cannot approve an unsubmitted shop owner");
+  check((await submitApplication(shopToken)).status === 409, "shop owner cannot submit without documents");
+  for (const kind of ["commercial_register", "national_id"]) {
+    check((await uploadDocument("merchant-documents", shopToken, kind)).status === 201, `shop ${kind} uploaded`);
+  }
+  check((await submitApplication(shopToken)).status === 409, "shop owner cannot submit without the shop photo");
+  check((await uploadDocument("merchant-documents", shopToken, "shop_photo")).status === 201, "shop photo uploaded");
+  check((await submitApplication(shopToken)).status === 200, "complete shop application is submitted");
+  const shopApproved = await request(app).post(`/api/v1/admin/merchant-approvals/${shop.id}/approve`).set("authorization", `Bearer ${admin}`).send({});
+  check(shopApproved.status === 200, "admin approves a submitted open shop owner");
+
+  // Starting again for the same phone supersedes the older open attempt.
+  const again = await openStart("driver", "+970599222204");
+  const supersede = await openStart("driver", "+970599222204");
+  check(again.status === 201 && supersede.status === 201, "repeat open start succeeds");
+  const olderAttempt = await prisma.onboardingAttempt.findUniqueOrThrow({ where: { id: again.body.attempt.id } });
+  check(olderAttempt.status === "cancelled", "an older open attempt is superseded");
+  check(
+    (await verify(again.body.attempt.id, again.body.onboarding_token, "123456")).status === 401,
+    "the superseded attempt's token no longer works"
+  );
+}
+
 async function main() {
   check(config.publicOnboardingEnabled, "public onboarding enabled only for disposable integration environment");
   check(config.onboarding?.otpProvider === "fake", "fake provider enforced");
@@ -505,6 +642,10 @@ async function main() {
 
   const auditText = JSON.stringify(await prisma.auditEvent.findMany({ select: { metadata: true } }));
   check(!["+970599111114", replayOtp, passengerPassword, secondVerify.body.registration_grant].some((secret) => auditText.includes(secret)), "audit metadata contains no raw onboarding secret or phone");
+
+  if (config.openSignupEnabled && config.driverDocuments) {
+    await openSignupChecks(admin, legal);
+  }
 
   const onboardedUsers = await prisma.user.findMany({
     where: { demo_account: false },

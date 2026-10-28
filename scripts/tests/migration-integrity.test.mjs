@@ -41,7 +41,12 @@ const expected = {
   "20261026140000_driver_verification_documents": "acba7207379fd242e0f4bdaa2ca94676b5ddcbb3a0fe8cd7a6e1c464af5594ed",
   "20261028120000_merchant_application_documents": "ae2aeea85b68474682f8b507ebff7b70e262ca299f7e5d8dfdbee5a75c85b1b7",
   "20261028150000_auth_action_short_codes": "87fc9171f040d9bcbe723114fbe1777340b844c1d65e6aac5c5c3a4cc4b9fadc",
-  "20261029130000_passenger_parcels": "ead7a6cd023bbe8d416f6abc860b3fb45054937b6235a68ef712a9b1f6bf0244"
+  "20261029110000_driver_trust_score": "59202108da171623bca70a351b2246ee596074b560416fc733370f0ddca8e1df",
+  "20261029120000_delivery_handover_confirmation": "04df0fffc973ed9b36d936374cb565b6673d3e91d1d2dfb76f9827849efaed73",
+  "20261029120000_open_driver_merchant_signup": "c076dceb4db5d971435af47f00b7985ee1154fb0bb61f1d47d063280dd3f89cc",
+  "20261029130000_passenger_parcels": "ead7a6cd023bbe8d416f6abc860b3fb45054937b6235a68ef712a9b1f6bf0244",
+  "20261029140000_route_fares": "cb1bcb00e2340c8d208208bd6679f28e328543945d03091506ecdd73f9fd7423",
+  "20261029190000_driver_document_expiry": "6124b6e52b705c0995543241aa716b307d2c8e79252132be60e496c7a4e81edc"
 };
 
 function normalizedChecksum(path) {

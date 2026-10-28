@@ -1,3 +1,5 @@
+import '../../delivery_handover/delivery_handover_strings.dart';
+import '../../delivery_handover/presentation/receiver_confirmation_dialog.dart';
 import '../../../core/widgets/foreground_refresh.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,6 +14,7 @@ import 'package:masari_mobile/features/driver/presentation/driver_ui.dart';
 import 'package:masari_mobile/features/trips/data/trip_models.dart';
 import 'package:masari_mobile/l10n/app_localizations.dart';
 
+import '../../../core/api/api_error.dart';
 import '../../../core/maps/osrm_route_service.dart';
 import '../../../core/presentation/localized_labels.dart';
 import '../../../core/theme/semantic_colors.dart';
@@ -1253,11 +1256,38 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen> {
   // ACTION
   // ============================================================
 
-  Future<void> _advance() => _action(
-    () => ref
-        .read(driverTripControllerProvider(widget.tripId).notifier)
-        .advanceStatus(),
-  );
+  Future<void> _advance() async {
+    final trip = ref
+        .read(driverTripControllerProvider(widget.tripId))
+        .value
+        ?.trip;
+    // Delivering a parcel needs the receiver: their code, or a recorded reason.
+    if (trip != null && trip.needsReceiverConfirmation) {
+      final result = await showReceiverConfirmationDialog(
+        context,
+        pending: trip.deliveryConfirmation!.pending,
+      );
+      if (result == null || !mounted) return;
+      await _action(
+        () => ref
+            .read(driverTripControllerProvider(widget.tripId).notifier)
+            .confirmDelivery(
+              codesByOrderId: result is ReceiverCodes
+                  ? result.codesByOrderId
+                  : null,
+              unavailableReason: result is ReceiverUnavailable
+                  ? result.reason
+                  : null,
+            ),
+      );
+      return;
+    }
+    await _action(
+      () => ref
+          .read(driverTripControllerProvider(widget.tripId).notifier)
+          .advanceStatus(),
+    );
+  }
 
   Future<void> _failDelivery() async {
     final confirmed = await showDialog<bool>(
@@ -1346,7 +1376,9 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen> {
     } catch (error) {
       if (mounted) {
         setState(
-          () => _error = driverErrorLabel(AppLocalizations.of(context), error),
+          () => _error =
+              _handoverError(error) ??
+              driverErrorLabel(AppLocalizations.of(context), error),
         );
 
         await ref
@@ -1354,6 +1386,20 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen> {
             .refresh();
       }
     }
+  }
+
+  String? _handoverError(Object error) {
+    if (error is! ApiException) return null;
+    const known = {
+      'invalid_handover_code',
+      'handover_locked',
+      'handover_expired',
+      'handover_not_issued',
+      'delivery_confirmation_required',
+    };
+    return known.contains(error.message)
+        ? HandoverStrings.of(context).errorFor(error)
+        : null;
   }
 
   // ============================================================

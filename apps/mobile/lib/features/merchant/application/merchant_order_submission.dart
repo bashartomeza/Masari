@@ -1,3 +1,4 @@
+import '../../delivery_handover/data/delivery_handover_models.dart';
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -169,6 +170,8 @@ class MerchantOrderSubmission {
       idempotencyKey: pending.idempotencyKey,
       beforeSend: guard,
     );
+    // The receiver's hand-over code is only in this response; keep it for the session.
+    HandoverCodeVault.remember(order.id, order.handover?.code);
     return _acknowledge(pending, actor, order);
   }
 

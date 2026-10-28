@@ -809,14 +809,14 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get registerDriverHelp =>
-      'انقل الرحلات والتوصيلات. يتطلب رمز دعوة ومستنداتك وموافقة.';
+      'انقل الرحلات والتوصيلات. ترفع مستنداتك ويوافق المشرف على حسابك.';
 
   @override
   String get registerMerchantTitle => 'صاحب متجر';
 
   @override
   String get registerMerchantHelp =>
-      'أرسل طلبات من متجرك. يتطلب رمز دعوة وموافقة.';
+      'أرسل طلبات من متجرك. ترفع مستنداتك ويوافق المشرف على حسابك.';
 
   @override
   String get invitationCode => 'رمز الدعوة';
@@ -2272,4 +2272,131 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get keepParcel => 'إبقاء الطرد';
+
+  @override
+  String get mapOfflineSaved => 'بدون اتصال - تُعرض الخريطة المحفوظة';
+
+  @override
+  String get clearMapCache => 'مسح الخريطة المحفوظة';
+
+  @override
+  String get clearMapCacheHint =>
+      'يحذف مربعات الخريطة المحفوظة على هذا الجهاز. تُحفظ من جديد أثناء التصفح.';
+
+  @override
+  String get mapCacheCleared => 'تم مسح الخريطة المحفوظة';
+
+  @override
+  String get mapCacheClearFailed => 'تعذّر مسح الخريطة المحفوظة';
+
+  @override
+  String get notifDocsExpiringTitle => 'مستند على وشك الانتهاء';
+
+  @override
+  String notifDocsExpiringBody(String document, String date) {
+    return 'ينتهي $document بتاريخ $date. أرسل مستندات مجددة قبل ذلك لتواصل العمل دون انقطاع.';
+  }
+
+  @override
+  String get notifDocsExpiredTitle => 'انتهت صلاحية مستنداتك';
+
+  @override
+  String get notifDocsExpiredBody =>
+      'تم تقييد حسابك ولا يمكنك الاتصال أو قبول رحلات جديدة حتى تُرسل مستندات مجددة وتتم الموافقة عليها. رحلاتك المقبولة سابقاً لا تتأثر.';
+
+  @override
+  String get notifDocsRenewalSubmittedTitle => 'تم إرسال مستندات التجديد';
+
+  @override
+  String get notifDocsRenewalSubmittedBody =>
+      'سيراجعها فريقنا وتصلك رسالة عند اتخاذ القرار.';
+
+  @override
+  String get documentKindContract => 'العقد';
+
+  @override
+  String get availabilityDocumentsExpired =>
+      'انتهت صلاحية مستنداتك. أرسل مستندات مجددة لاستعادة الوصول.';
+
+  @override
+  String get applicationDocumentsRequiredTitle => 'ارفع مستنداتك';
+
+  @override
+  String get applicationDocumentsRequiredBody =>
+      'تم إنشاء حسابك لكنه ليس قيد المراجعة بعد. ارفع كل المستندات المطلوبة ثم أرسل طلبك. تستغرق المراجعة عادةً حتى 24 ساعة.';
+
+  @override
+  String documentsStillNeeded(String documents) {
+    return 'ما زال مطلوباً: $documents';
+  }
+
+  @override
+  String get submitApplication => 'إرسال للمراجعة';
+
+  @override
+  String get documentsRequiredError =>
+      'ارفع كل المستندات المطلوبة قبل إرسال طلبك.';
+
+  @override
+  String get invitationCodeOptional => 'رمز الدعوة (اختياري)';
+
+  @override
+  String get fareEstimatedTitle => 'الأجرة التقديرية';
+
+  @override
+  String get fareBookedTitle => 'الأجرة التقديرية عند الطلب';
+
+  @override
+  String get fareDisclaimer =>
+      'تقديرية، وتُدفع مباشرة إلى السائق. لا تتم معالجة أي مدفوعات داخل التطبيق.';
+
+  @override
+  String get fareNotSet => 'لم تُحدَّد أجرة تقديرية لهذا المسار بعد.';
+
+  @override
+  String get farePerSeat => 'للمقعد الواحد';
+
+  @override
+  String fareSeatsLine(int count) {
+    return 'المقاعد × $count';
+  }
+
+  @override
+  String fareParcelLine(String size) {
+    return 'طرد $size';
+  }
+
+  @override
+  String get fareTotal => 'الإجمالي';
+
+  @override
+  String get notifDriverApproachingTitle => 'سائقك يقترب';
+
+  @override
+  String get notifDriverApproachingBody =>
+      'سائقك قريب من نقطة الانطلاق. يرجى الاستعداد.';
+
+  @override
+  String get ratingPromptTitle => 'كيف كانت رحلتك؟';
+
+  @override
+  String get ratingPromptBody =>
+      'قيّم السائق من 1 إلى 5 نجوم. تقييمك سري: لا يرى السائق التقييم ولا من قدّمه.';
+
+  @override
+  String ratingStarLabel(int count) {
+    return '$count نجوم';
+  }
+
+  @override
+  String get ratingSubmit => 'إرسال التقييم';
+
+  @override
+  String get ratingThanks => 'شكرًا لتقييمك الرحلة.';
+
+  @override
+  String get ratingFailed => 'تعذّر إرسال التقييم. حاول مرة أخرى.';
+
+  @override
+  String get ratingAlreadyRated => 'لقد قيّمت هذه الرحلة من قبل.';
 }

@@ -292,5 +292,13 @@ describe("admin approvals", () => {
       tx.user.updateMany.mockResolvedValue({ count: 0 });
       await decide("approve").expect(409);
     });
+
+    it("will not decide a shop owner who has not submitted the application", async () => {
+      tx.user.findUnique.mockResolvedValue(merchantUser({ review_submitted_at: null }));
+      const response = await decide("approve").expect(409);
+      expect(response.body.error).toBe("application_not_submitted");
+      await decide("reject", { reason: "Incomplete papers" }).expect(409);
+      expect(tx.user.updateMany).not.toHaveBeenCalled();
+    });
   });
 });

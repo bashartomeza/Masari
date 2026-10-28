@@ -58,7 +58,7 @@ Start everything: `pwsh -NoProfile -File scripts/test-env/start.ps1`. Stop: `scr
 | B06 | Close the app completely and reopen it | You are still signed in (or sent to sign-in, but never to a broken screen) |
 | B07 | Turn the emulator's internet off (airplane mode) and open a list | A friendly offline/error message with a retry; no crash |
 
-## C. Phone: creating an account with an invitation
+## C. Phone: creating an account (with an invitation, or openly as a driver or shop owner)
 
 Use the codes in `invitations.txt`. After each sign-up, read the code from `otp.txt`.
 
@@ -82,6 +82,18 @@ Use the codes in `invitations.txt`. After each sign-up, read the code from `otp.
 | C16 | Shop owner (pending, from C03): Add a document → choose `licence.jpg` (type "Commercial register") | The pending screen shows "Verification documents" asking for the commercial register, national ID and shop photo; the file appears in the list as "Commercial register · 1 KB" |
 | C17 | In the Admin site, Users → the pending shop owner → Approve (or Reject) | The shop owner's documents are listed with a Download button before you decide; the downloaded file opens and is the right file |
 | C18 | Create account → Normal user → name, an email ending in @example.com, a password of at least 12 characters → Sign up; type the six-digit code from `email-codes.txt`, tick the three documents, Continue; then enter a phone such as +970590003020, Send code, type the code from `otp.txt`, Continue | The passenger home opens; no invitation code and no admin approval were needed |
+| C19 | Open registration (the local test environment turns it on). Create account → Driver. Leave the invitation code empty (it says "Invitation code (optional)"), enter a new phone such as +970590004001, Send code, type the code from `otp.txt` | The code screen opens without any invitation code |
+| C20 | Enter a wrong code, then the right one; then name, a password of at least 15 characters, tick the three consents, Create account | Account created; the screen says "Upload your documents" (not "Application under review"); the button "Send for review" is disabled and lists what is still needed |
+| C21 | Add `licence.jpg` (Driving licence) and `vehicle-registration.pdf` (Vehicle registration) only | "Send for review" stays disabled; "Still needed" names the national ID |
+| C22 | In the Admin site, look in Users and the driver approvals queue for that driver | The driver is not in the review queue yet; approving or rejecting is refused (not submitted) |
+| C23 | Add a National ID document, then press "Send for review" | The screen changes to "Application under review" and says review usually takes up to 24 hours |
+| C24 | In the Admin site open the driver approvals queue | The driver is listed; the three documents have Download buttons and open correctly; Approve works; the phone then signs in |
+| C25 | Create account → Shop owner with no invitation code (+970590004002); upload commercial register and national ID only | "Send for review" stays disabled until the shop photo is added; then it submits and the shop owner appears in Users as a pending merchant that can be approved |
+| C26 | Open registration, start with a phone number that already has an account, type the code from `otp.txt`, then fill the form | The first screens look exactly like a new number; only at Create account does it say the registration could not be completed |
+| C27 | Start sign-up again with the same phone number twice, then use the first code | The older attempt no longer works; only the newest code and screen continue |
+| C28 | Request a code for the same phone more than 5 times in a day, or start more than 10 sign-ups from the one phone in an hour | The app shows a "too many attempts" message; no further codes are produced in `otp.txt` |
+| C29 | Sign-in screen → "Check an existing application" for the C20 driver before documents are sent | It shows "Upload your documents", not "under review" |
+| C30 | Invitation codes still work: repeat C03 or C04 with a code from `invitations.txt` | Created as before; the application is under review at once (no extra "Send for review" step) |
 
 ## D. The main story (passenger + merchant + driver)
 
@@ -128,6 +140,10 @@ Run after a reset so the seeded data is fresh. Use the demo accounts.
 | F04 | As a passenger, try to open driver or merchant screens (via the menu only; no URL tricks) | Not reachable |
 | F05 | Admin downloads a driver document, then the applicant is approved: can the applicant still upload? | No: uploading is closed once a decision is made |
 | F06 | Look through every screen for the words "push notification", "emergency", "live GPS", "payment", "earnings" used as if they work | None claim a feature that is not built |
+| F07 | With the open-registration switch off (`OPEN_DRIVER_MERCHANT_SIGNUP_ENABLED=false`, the default everywhere except the local test environment), choose Driver and leave the invitation code empty | The code field is required; sending without one is refused and no code is produced |
+| F08 | Call `POST /api/v1/onboarding/application/submit` with a pending driver or shop owner session that is missing a required document (any HTTP client) | 409 `documents_required`, listing what is missing; the application is not submitted |
+| F09 | Passenger role without an invitation code, even with the switch on | Refused; passengers always register by email or Google |
+| F10 | A submitted driver deletes the only file of a required kind | Refused (documents_required); replacing it by adding a second file first works |
 
 ## G. Not in scope (do not report these as bugs)
 

@@ -806,14 +806,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get registerDriverHelp =>
-      'Carry trips and deliveries. Needs an invitation code, your documents and approval.';
+      'Carry trips and deliveries. You upload your documents and an admin approves your account.';
 
   @override
   String get registerMerchantTitle => 'Shop owner';
 
   @override
   String get registerMerchantHelp =>
-      'Send orders from your shop. Needs an invitation code and approval.';
+      'Send orders from your shop. You upload your documents and an admin approves your account.';
 
   @override
   String get invitationCode => 'Invitation code';
@@ -2290,4 +2290,131 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get keepParcel => 'Keep parcel';
+
+  @override
+  String get mapOfflineSaved => 'Offline - showing saved map';
+
+  @override
+  String get clearMapCache => 'Clear saved map';
+
+  @override
+  String get clearMapCacheHint =>
+      'Deletes map tiles saved on this device. They are saved again as you browse.';
+
+  @override
+  String get mapCacheCleared => 'Saved map cleared';
+
+  @override
+  String get mapCacheClearFailed => 'Could not clear the saved map';
+
+  @override
+  String get notifDocsExpiringTitle => 'Document expiring soon';
+
+  @override
+  String notifDocsExpiringBody(String document, String date) {
+    return 'Your $document expires on $date. Send renewed documents before then to keep working without interruption.';
+  }
+
+  @override
+  String get notifDocsExpiredTitle => 'Your documents have expired';
+
+  @override
+  String get notifDocsExpiredBody =>
+      'Your account is restricted: you cannot go online or accept new trips until you send renewed documents and they are approved. Trips you already accepted are not affected.';
+
+  @override
+  String get notifDocsRenewalSubmittedTitle => 'Renewal documents sent';
+
+  @override
+  String get notifDocsRenewalSubmittedBody =>
+      'Our team will review them and you will be notified of the decision.';
+
+  @override
+  String get documentKindContract => 'Contract';
+
+  @override
+  String get availabilityDocumentsExpired =>
+      'Your documents have expired. Send renewed documents to restore access.';
+
+  @override
+  String get applicationDocumentsRequiredTitle => 'Upload your documents';
+
+  @override
+  String get applicationDocumentsRequiredBody =>
+      'Your account is created but is not under review yet. Upload every required document, then send your application. Review usually takes up to 24 hours.';
+
+  @override
+  String documentsStillNeeded(String documents) {
+    return 'Still needed: $documents';
+  }
+
+  @override
+  String get submitApplication => 'Send for review';
+
+  @override
+  String get documentsRequiredError =>
+      'Upload all the required documents before sending your application.';
+
+  @override
+  String get invitationCodeOptional => 'Invitation code (optional)';
+
+  @override
+  String get fareEstimatedTitle => 'Estimated fare';
+
+  @override
+  String get fareBookedTitle => 'Estimated fare when requested';
+
+  @override
+  String get fareDisclaimer =>
+      'Estimated and paid directly to the driver. No payments are processed in the app.';
+
+  @override
+  String get fareNotSet => 'No estimated fare has been set for this route yet.';
+
+  @override
+  String get farePerSeat => 'Per seat';
+
+  @override
+  String fareSeatsLine(int count) {
+    return 'Seats × $count';
+  }
+
+  @override
+  String fareParcelLine(String size) {
+    return 'Parcel $size';
+  }
+
+  @override
+  String get fareTotal => 'Total';
+
+  @override
+  String get notifDriverApproachingTitle => 'Your driver is approaching';
+
+  @override
+  String get notifDriverApproachingBody =>
+      'Your driver is near your pickup point. Please get ready.';
+
+  @override
+  String get ratingPromptTitle => 'How was your trip?';
+
+  @override
+  String get ratingPromptBody =>
+      'Rate your driver from 1 to 5 stars. Your rating is private: the driver never sees it or who gave it.';
+
+  @override
+  String ratingStarLabel(int count) {
+    return '$count stars';
+  }
+
+  @override
+  String get ratingSubmit => 'Send rating';
+
+  @override
+  String get ratingThanks => 'Thanks for rating your trip.';
+
+  @override
+  String get ratingFailed => 'The rating could not be sent. Try again.';
+
+  @override
+  String get ratingAlreadyRated => 'You already rated this trip.';
 }

@@ -70,6 +70,7 @@ server { listen 80; server_name masari.aynur.ps; return 301 https://$host$reques
 2. Mount it into the API container at the same absolute path and set `DRIVER_DOCUMENTS_ENABLED=true` and `DRIVER_DOCUMENTS_DIR=/var/lib/masari/driver-documents`.
 3. Include the directory in the same backup job as the database; restore both together. A database restored without its files leaves rows that point at missing files (downloads return 404).
 4. Schedule the retention purge daily, for example from cron on the host: `docker compose run --rm api node dist/scripts/purgeDriverDocuments.js` (or the equivalent for the platform). It is safe to repeat.
+5. Schedule the document-expiry check daily (early UTC morning is fine), for example `docker compose run --rm api node dist/scripts/checkDriverDocumentExpiry.js`. It sends the 30 and 7 day reminders and restricts drivers whose recorded documents ran out. It is idempotent; if a day is missed the next run catches up. Without this job, expiry dates are recorded but nothing is enforced.
 
 ## Release order
 

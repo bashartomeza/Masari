@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
-import { Router, type Request } from "express";
+import { Router, type Request, type Response } from "express";
 import { z } from "zod";
 import type { AppConfig } from "../config.js";
 import { AuditAction, Prisma, type PrismaClient } from "../generated/prisma/client.js";
@@ -32,6 +32,7 @@ import {
 } from "../lib/onboardingSessions.js";
 import { PHONE_INPUT_MAX_LENGTH, maskPhone, normalizePhoneToE164, phoneLast4 } from "../lib/phone.js";
 import { consentDigestMatches } from "../lib/consentContent.js";
+import { missingDocumentKinds, requiredDocumentKinds } from "../lib/applicationReview.js";
 import { prisma } from "../lib/prisma.js";
 import {
   requireOnboardingToken,
@@ -42,6 +43,7 @@ import { HttpError } from "../middleware/error.js";
 const REQUIRED_CONSENTS = ["terms", "privacy", "adult_self_attestation"] as const;
 const SUPPORTED_ROLES = ["passenger", "driver", "merchant"] as const;
 const SUPPORTED_LOCALES = ["ar", "en"] as const;
+const OPEN_ROLES = ["driver", "merchant"] as const;
 const PASSWORD_MIN_CHARACTERS = 15;
 const PASSWORD_MAX_CHARACTERS = 64;
 const PASSWORD_MAX_BYTES = 72;
@@ -52,7 +54,8 @@ const dummyHash = bcrypt.hash(DUMMY_PASSWORD, 10);
 const roleSchema = z.enum(SUPPORTED_ROLES);
 const localeSchema = z.enum(SUPPORTED_LOCALES);
 const startSchema = z.strictObject({
-  invitation_code: z.string().trim().min(20).max(32),
+  // Absent for open driver / shop-owner signup (OPEN_DRIVER_MERCHANT_SIGNUP_ENABLED).
+  invitation_code: z.string().trim().min(20).max(32).optional(),
   role: roleSchema,
   phone: z.string().trim().min(7).max(PHONE_INPUT_MAX_LENGTH),
   region: z.string().trim().regex(/^[A-Za-z]{2}$/).optional(),
@@ -352,9 +355,9 @@ function startResponse(
   };
 }
 
-async function findBoundInvitation(appConfig: AppConfig, input: z.infer<typeof startSchema>) {
+async function findBoundInvitation(appConfig: AppConfig, input: z.infer<typeof startSchema>, invitationCode: string) {
   const onboarding = appConfig.onboarding!;
-  const normalizedCode = normalizeInvitationCode(input.invitation_code);
+  const normalizedCode = normalizeInvitationCode(invitationCode);
   const phone = normalizePhoneToE164(input.phone, { region: input.region });
   const now = new Date();
   const invitation = await prisma.invitation.findUnique({
@@ -388,7 +391,7 @@ async function findBoundInvitation(appConfig: AppConfig, input: z.infer<typeof s
 }
 
 function safeOutcome(
-  user: { role: string; account_status: string },
+  user: { role: string; account_status: string; review_submitted_at?: Date | null },
   requestId: string,
   pendingSession?: { token: string; expiresAt: Date }
 ) {
@@ -397,7 +400,7 @@ function safeOutcome(
     result: "account_created",
     role: user.role,
     account_status: user.account_status,
-    next_action: pending ? "await_approval" : "login",
+    next_action: pending ? (user.review_submitted_at === null ? "upload_documents" : "await_approval") : "login",
     ...(pendingSession
       ? {
           onboarding_status_token: pendingSession.token,
@@ -420,6 +423,7 @@ export function createPublicOnboardingRouter(
       res.json({
         enabled,
         registration_roles: enabled ? [...SUPPORTED_ROLES] : [],
+        open_registration_roles: enabled && appConfig.openSignupEnabled ? [...OPEN_ROLES] : [],
         ...(enabled
           ? {
               phone_policy: {
@@ -475,6 +479,103 @@ export function createPublicOnboardingRouter(
     }
   });
 
+  /**
+   * Open driver / shop-owner signup: an attempt with no invitation. The phone number is
+   * proven by the same OTP flow, and the response never says whether the number already
+   * has an account (an existing number just fails later, after the one-time code proves
+   * the caller holds the phone). One live open attempt per phone: starting again
+   * supersedes the older one.
+   */
+  async function startOpenAttempt(
+    req: Request,
+    res: Response,
+    input: z.infer<typeof startSchema>,
+    phone: string,
+    claim: Awaited<ReturnType<typeof claimPublicOperation>>
+  ) {
+    const digest = phoneDigest(phone, onboarding.keys.phoneDigest);
+    const live = ["created", "otp_dispatching", "otp_sent", "phone_verified"] as const;
+    const now = new Date();
+    if (claim.kind === "replay") {
+      const existing = await prisma.onboardingAttempt.findFirst({
+        where: {
+          invitation_id: null,
+          phone_digest: digest,
+          intended_role: input.role as OnboardingRole,
+          completed_user_id: null,
+          expires_at: { gt: now },
+          status: { in: [...live] }
+        },
+        orderBy: { created_at: "desc" }
+      });
+      if (existing) {
+        const rotated = await rotateContinuation(appConfig, existing.id);
+        res.json(startResponse(existing, rotated.token, rotated.session.expires_at, appConfig, req.requestId, existing.status === "created"));
+        return;
+      }
+    }
+    const attempt = await prisma.$transaction(async (tx) => {
+      const older = await tx.onboardingAttempt.findMany({
+        where: { invitation_id: null, phone_digest: digest, completed_user_id: null, status: { in: [...live] } },
+        select: { id: true }
+      });
+      if (older.length > 0) {
+        const ids = older.map((entry) => entry.id);
+        await tx.onboardingAttempt.updateMany({ where: { id: { in: ids } }, data: { status: "cancelled", expires_at: now } });
+        await tx.onboardingSession.updateMany({
+          where: { onboarding_attempt_id: { in: ids }, revoked_at: null },
+          data: { revoked_at: now, revoke_reason: "open_attempt_superseded" }
+        });
+      }
+      const created = await tx.onboardingAttempt.create({
+        data: {
+          intended_role: input.role as OnboardingRole,
+          phone_e164: phone,
+          phone_digest: digest,
+          phone_digest_version: onboarding.keys.phoneDigest.version,
+          phone_last4: phoneLast4(phone),
+          request_ip_digest: abuseSubjectDigest("onboarding_ip", requestIp(req), onboarding.keys.abuse),
+          request_ip_digest_version: onboarding.keys.abuse.version,
+          created_request_id: req.requestId,
+          expires_at: new Date(now.getTime() + appConfig.publicRegistration!.attemptTtlSeconds * 1_000)
+        }
+      });
+      await auditEvent(tx, {
+        action: AuditAction.onboarding_started,
+        entityType: "OnboardingAttempt",
+        entityId: created.id,
+        metadata: { role: created.intended_role, open_signup: true, request_id: req.requestId }
+      });
+      return created;
+    });
+    const rotated = await rotateContinuation(appConfig, attempt.id);
+    await consumeBuckets(req, appConfig, [
+      { type: "otp_phone_day", subject: phone, seconds: 86_400, limit: onboarding.otpMaxSendsPerPhoneDay },
+      { type: "otp_ip_hour", subject: requestIp(req), seconds: 3_600, limit: 20 }
+    ]);
+    const delivery = await dispatchOtpChallenge(prisma, provider, {
+      attemptId: attempt.id,
+      key: onboarding.keys.otpCode,
+      ttlSeconds: onboarding.otpTtlSeconds,
+      maxAttempts: onboarding.otpMaxAttempts,
+      maxResends: onboarding.otpMaxResends,
+      resendCooldownSeconds: onboarding.otpResendCooldownSeconds,
+      locale: input.locale,
+      requestId: req.requestId
+    });
+    if (claim.kind === "claimed") {
+      await completeIdempotency(prisma, {
+        recordId: claim.record.id,
+        claimVersion: claim.record.claim_version,
+        resourceType: "OnboardingAttempt",
+        resourceId: attempt.id,
+        responseStatus: 201
+      });
+    }
+    const current = await prisma.onboardingAttempt.findUniqueOrThrow({ where: { id: attempt.id } });
+    res.status(201).json(startResponse(current, rotated.token, rotated.session.expires_at, appConfig, req.requestId, !delivery.accepted));
+  }
+
   router.post("/onboarding/attempts", async (req, res, next) => {
     let claim: Awaited<ReturnType<typeof claimPublicOperation>> | undefined;
     let recovery: { invitationId: string; phone: string; role: OnboardingRole } | undefined;
@@ -482,6 +583,24 @@ export function createPublicOnboardingRouter(
       const input = startSchema.parse(req.body);
       if (!(await legalSetReady(prisma, appConfig))) throw new HttpError(503, "onboarding_unavailable");
       const phone = normalizePhoneToE164(input.phone, { region: input.region });
+      if (input.invitation_code === undefined) {
+        if (!appConfig.openSignupEnabled || !(OPEN_ROLES as readonly string[]).includes(input.role)) {
+          throw new HttpError(404, "onboarding_unavailable");
+        }
+        // Tight per-IP and per-phone caps first, so one source cannot spend the shared hourly budget.
+        await consumeBuckets(req, appConfig, [
+          { type: "open_start_ip", subject: requestIp(req), seconds: 3_600, limit: 10 },
+          { type: "open_start_phone", subject: phone, seconds: 86_400, limit: 5 },
+          { type: "open_start_global", subject: "all", seconds: 3_600, limit: appConfig.openSignupMaxStartsPerHour }
+        ]);
+        claim = await claimPublicOperation(req, appConfig, {
+          operation: "onboarding_open_start",
+          scope: phone,
+          payload: { role: input.role, phone, region: input.region, locale: input.locale }
+        });
+        await startOpenAttempt(req, res, input, phone, claim);
+        return;
+      }
       const normalizedCode = invitationAbuseSubject(input.invitation_code);
       await consumeBuckets(req, appConfig, [
         { type: "onboarding_start_ip", subject: requestIp(req), seconds: 3_600, limit: 30 },
@@ -490,7 +609,7 @@ export function createPublicOnboardingRouter(
       ]);
       let bound;
       try {
-        bound = await findBoundInvitation(appConfig, input);
+        bound = await findBoundInvitation(appConfig, input, input.invitation_code);
       } catch {
         throw new HttpError(404, "onboarding_unavailable");
       }
@@ -676,7 +795,7 @@ export function createPublicOnboardingRouter(
         { type: "otp_phone_day", subject: attempt.phone_e164, seconds: 86_400, limit: onboarding.otpMaxSendsPerPhoneDay },
         { type: "otp_ip_hour", subject: requestIp(req), seconds: 3_600, limit: 20 },
         { type: "otp_attempt", subject: attempt.id, seconds: 86_400, limit: onboarding.otpMaxResends + 1 },
-        { type: "otp_invitation", subject: attempt.invitation_id, seconds: 86_400, limit: onboarding.otpMaxResends + 1 }
+        { type: "otp_invitation", subject: attempt.invitation_id ?? attempt.id, seconds: 86_400, limit: onboarding.otpMaxResends + 1 }
       ]);
       const delivery = await dispatchOtpChallenge(prisma, provider, {
         attemptId,
@@ -845,11 +964,14 @@ export function createPublicOnboardingRouter(
           attempt.status !== "phone_verified" ||
           attempt.expires_at <= now ||
           attempt.completed_user_id ||
-          !attempt.redemption ||
-          attempt.redemption.invitation_id !== attempt.invitation_id ||
-          attempt.invitation.revoked_at ||
-          attempt.invitation.used_count !== 1 ||
-          attempt.invitation.expires_at <= now ||
+          (attempt.invitation_id !== null
+            ? !attempt.redemption ||
+              attempt.redemption.invitation_id !== attempt.invitation_id ||
+              !attempt.invitation ||
+              attempt.invitation.revoked_at ||
+              attempt.invitation.used_count !== 1 ||
+              attempt.invitation.expires_at <= now
+            : !appConfig.openSignupEnabled || attempt.intended_role === "passenger") ||
           !attempt.registration_grant_digest ||
           attempt.registration_grant_key_version !== appConfig.onboarding!.keys.onboardingSession.version ||
           !attempt.registration_grant_expires_at ||
@@ -884,7 +1006,10 @@ export function createPublicOnboardingRouter(
             security_version: 1,
             status_updated_at: now,
             last_login_at: null,
-            demo_account: false
+            demo_account: false,
+            // Invited applicants are in the review queue at once; open-signup applicants must
+            // upload their documents and submit first (POST /onboarding/application/submit).
+            review_submitted_at: pending && attempt.invitation_id === null ? null : now
           }
         });
         if (attempt.intended_role === "driver") {
@@ -908,7 +1033,9 @@ export function createPublicOnboardingRouter(
             app_release: appConfig.appRelease
           }))
         });
-        await tx.invitationRedemption.update({ where: { id: attempt.redemption.id }, data: { user_id: user.id } });
+        if (attempt.redemption) {
+          await tx.invitationRedemption.update({ where: { id: attempt.redemption.id }, data: { user_id: user.id } });
+        }
         await tx.onboardingAttempt.update({
           where: { id: attempt.id },
           data: {
@@ -994,6 +1121,20 @@ export function createPublicOnboardingRouter(
             entityId: context.attemptId,
             metadata: { outcome: "pending_review", role: context.userRole, request_id: req.requestId }
           });
+          const applicant = context.userId
+            ? await prisma.user.findUnique({ where: { id: context.userId }, select: { review_submitted_at: true } })
+            : null;
+          if (applicant && applicant.review_submitted_at === null) {
+            res.json({
+              role: context.userRole,
+              onboarding_status: "documents_required",
+              next_action: "upload_documents",
+              required_documents: [...requiredDocumentKinds(context.userRole ?? "")],
+              missing_documents: await missingDocumentKinds(prisma, context.userId!, context.userRole ?? ""),
+              request_id: req.requestId
+            });
+            return;
+          }
           res.json({ role: context.userRole, onboarding_status: "pending_review", next_action: "await_approval", request_id: req.requestId });
           return;
         }
@@ -1046,8 +1187,8 @@ export function createPublicOnboardingRouter(
       const rotated = await rotatePendingStatusSession(appConfig, attempt.id, user.id);
       res.json({
         role: user.role,
-        onboarding_status: "pending_review",
-        next_action: "await_approval",
+        onboarding_status: user.review_submitted_at === null ? "documents_required" : "pending_review",
+        next_action: user.review_submitted_at === null ? "upload_documents" : "await_approval",
         onboarding_status_token: rotated.token,
         onboarding_status_expires_at: rotated.session.expires_at,
         request_id: req.requestId

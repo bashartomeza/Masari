@@ -8,6 +8,7 @@ import {
   canonicalDemandService,
   type CanonicalDemandService
 } from "./canonicalDemand.js";
+import { issueHandover } from "./deliveryHandover.js";
 
 /**
  * Parcels sent by ordinary passengers ("individual delivery").
@@ -309,8 +310,19 @@ export function createPassengerParcelService(
   };
 }
 
+/**
+ * Gives every new parcel a receiver handover code, in the creation transaction. The
+ * plain code is not kept anywhere: the sender reads or renews it from the parcel
+ * (the "Get a new code" action), so a created parcel is never without a handover.
+ */
+export async function issueHandoverOnCreated(context: Pick<PassengerParcelCreatedContext, "tx" | "orderId">) {
+  await issueHandover(context.tx, context.orderId);
+}
+
 export type PassengerParcelService = ReturnType<typeof createPassengerParcelService>;
-export const passengerParcelService = createPassengerParcelService();
+export const passengerParcelService = createPassengerParcelService(prisma, canonicalDemandService, {
+  onCreated: issueHandoverOnCreated
+});
 
 /**
  * Erases receiver name, phone and note once the retention date has passed.
