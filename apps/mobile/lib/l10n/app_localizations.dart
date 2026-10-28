@@ -1604,6 +1604,54 @@ abstract class AppLocalizations {
   /// **'يبقى الحساب قيد المراجعة حتى الموافقة'**
   String get pendingAfterRegistration;
 
+  /// No description provided for @registerChooseTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'كيف ستستخدم مساري؟'**
+  String get registerChooseTitle;
+
+  /// No description provided for @registerChooseSubtitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر ما يناسبك وسنأخذك عبر الخطوات الصحيحة.'**
+  String get registerChooseSubtitle;
+
+  /// No description provided for @registerPassengerTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'مستخدم عادي'**
+  String get registerPassengerTitle;
+
+  /// No description provided for @registerPassengerHelp.
+  ///
+  /// In ar, this message translates to:
+  /// **'اطلب رحلات وتوصيلات. يصبح حسابك جاهزاً مباشرة بعد التسجيل.'**
+  String get registerPassengerHelp;
+
+  /// No description provided for @registerDriverTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'سائق'**
+  String get registerDriverTitle;
+
+  /// No description provided for @registerDriverHelp.
+  ///
+  /// In ar, this message translates to:
+  /// **'انقل الرحلات والتوصيلات. يتطلب رمز دعوة ومستنداتك وموافقة.'**
+  String get registerDriverHelp;
+
+  /// No description provided for @registerMerchantTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'صاحب متجر'**
+  String get registerMerchantTitle;
+
+  /// No description provided for @registerMerchantHelp.
+  ///
+  /// In ar, this message translates to:
+  /// **'أرسل طلبات من متجرك. يتطلب رمز دعوة وموافقة.'**
+  String get registerMerchantHelp;
+
   /// No description provided for @invitationCode.
   ///
   /// In ar, this message translates to:

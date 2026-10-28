@@ -791,6 +791,34 @@ class AppLocalizationsAr extends AppLocalizations {
       'يبقى الحساب قيد المراجعة حتى الموافقة';
 
   @override
+  String get registerChooseTitle => 'كيف ستستخدم مساري؟';
+
+  @override
+  String get registerChooseSubtitle =>
+      'اختر ما يناسبك وسنأخذك عبر الخطوات الصحيحة.';
+
+  @override
+  String get registerPassengerTitle => 'مستخدم عادي';
+
+  @override
+  String get registerPassengerHelp =>
+      'اطلب رحلات وتوصيلات. يصبح حسابك جاهزاً مباشرة بعد التسجيل.';
+
+  @override
+  String get registerDriverTitle => 'سائق';
+
+  @override
+  String get registerDriverHelp =>
+      'انقل الرحلات والتوصيلات. يتطلب رمز دعوة ومستنداتك وموافقة.';
+
+  @override
+  String get registerMerchantTitle => 'صاحب متجر';
+
+  @override
+  String get registerMerchantHelp =>
+      'أرسل طلبات من متجرك. يتطلب رمز دعوة وموافقة.';
+
+  @override
   String get invitationCode => 'رمز الدعوة';
 
   @override

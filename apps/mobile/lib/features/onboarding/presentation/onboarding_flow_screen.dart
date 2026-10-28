@@ -42,9 +42,15 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        ref.read(onboardingControllerProvider.notifier).refreshAvailability();
+      if (!mounted) return;
+      // Arriving from the register screen with a role already chosen: keep it.
+      final current = ref.read(onboardingControllerProvider).value;
+      if (current?.enabled == true &&
+          current?.stage == OnboardingStage.enteringInvitation &&
+          current?.selectedRole != null) {
+        return;
       }
+      ref.read(onboardingControllerProvider.notifier).refreshAvailability();
     });
   }
 

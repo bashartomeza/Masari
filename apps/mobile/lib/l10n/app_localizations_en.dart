@@ -788,6 +788,34 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pendingAfterRegistration => 'Pending until review';
 
   @override
+  String get registerChooseTitle => 'How will you use Masari?';
+
+  @override
+  String get registerChooseSubtitle =>
+      'Pick the option that fits you. We will take you through the right steps.';
+
+  @override
+  String get registerPassengerTitle => 'Normal user';
+
+  @override
+  String get registerPassengerHelp =>
+      'Request trips and deliveries. Your account is ready right after sign-up.';
+
+  @override
+  String get registerDriverTitle => 'Driver';
+
+  @override
+  String get registerDriverHelp =>
+      'Carry trips and deliveries. Needs an invitation code, your documents and approval.';
+
+  @override
+  String get registerMerchantTitle => 'Shop owner';
+
+  @override
+  String get registerMerchantHelp =>
+      'Send orders from your shop. Needs an invitation code and approval.';
+
+  @override
   String get invitationCode => 'Invitation code';
 
   @override

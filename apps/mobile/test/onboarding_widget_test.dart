@@ -16,43 +16,73 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'test_app_config.dart';
 
 void main() {
-  testWidgets('enabled config shows invited account CTA', (tester) async {
+  testWidgets('registration asks who is signing up first', (tester) async {
     await _pumpApp(tester, onboardingEnabled: true);
 
+    await tester.tap(find.byKey(const ValueKey('goToSignUpButton')));
+    await tester.pumpAndSettle();
+
     expect(
-      find.byKey(const ValueKey('createInvitedAccountButton')),
+      find.byKey(const ValueKey('register-role-passenger')),
       findsOneWidget,
     );
-    expect(find.text('إنشاء حساب بدعوة'), findsOneWidget);
+    expect(find.byKey(const ValueKey('register-role-driver')), findsOneWidget);
     expect(
-      Directionality.of(tester.element(find.text('مساري'))),
-      TextDirection.rtl,
+      find.byKey(const ValueKey('register-role-merchant')),
+      findsOneWidget,
     );
+    expect(find.text('سائق'), findsWidgets);
+    expect(find.text('صاحب متجر'), findsOneWidget);
   });
 
-  testWidgets('disabled config hides registration CTA', (tester) async {
+  testWidgets('normal user continues to the email sign-up', (tester) async {
+    await _pumpApp(tester, onboardingEnabled: true);
+
+    await tester.tap(find.byKey(const ValueKey('goToSignUpButton')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('register-role-passenger')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('emailField')), findsOneWidget);
+    expect(find.byKey(const ValueKey('invitationCodeField')), findsNothing);
+  });
+
+  testWidgets('driver continues to the invitation flow', (tester) async {
+    await _pumpApp(tester, onboardingEnabled: true);
+
+    await tester.tap(find.byKey(const ValueKey('goToSignUpButton')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('register-role-driver')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('invitationCodeField')), findsOneWidget);
+    expect(find.byKey(const ValueKey('onboardingPhoneField')), findsOneWidget);
+  });
+
+  testWidgets('shop owner continues to the invitation flow', (tester) async {
+    await _pumpApp(tester, onboardingEnabled: true);
+
+    await tester.tap(find.byKey(const ValueKey('goToSignUpButton')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('register-role-merchant')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('invitationCodeField')), findsOneWidget);
+    expect(find.byKey(const ValueKey('onboardingPhoneField')), findsOneWidget);
+  });
+
+  testWidgets('disabled config hides the application status link', (
+    tester,
+  ) async {
     await _pumpApp(tester);
 
-    expect(
-      find.byKey(const ValueKey('createInvitedAccountButton')),
-      findsNothing,
-    );
     expect(
       find.byKey(const ValueKey('checkApplicationStatusButton')),
       findsNothing,
     );
   });
 
-  testWidgets('config failure does not enable registration', (tester) async {
-    await _pumpApp(tester, failConfig: true);
-
-    expect(
-      find.byKey(const ValueKey('createInvitedAccountButton')),
-      findsNothing,
-    );
-  });
-
-  testWidgets('stale enabled CTA revalidates before route entry', (
+  testWidgets('driver sign-up while invitations are off stays on the chooser', (
     tester,
   ) async {
     await _pumpApp(
@@ -61,15 +91,14 @@ void main() {
       disableAfterFirstConfig: true,
     );
 
-    await tester.tap(find.byKey(const ValueKey('createInvitedAccountButton')));
+    await tester.tap(find.byKey(const ValueKey('goToSignUpButton')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('register-role-driver')));
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('invitationCodeField')), findsNothing);
-    expect(
-      find.byKey(const ValueKey('createInvitedAccountButton')),
-      findsNothing,
-    );
-    expect(find.byKey(const ValueKey('loginButton')), findsOneWidget);
+    expect(find.byKey(const ValueKey('register-role-driver')), findsOneWidget);
+    expect(find.text('التسجيل غير متاح مؤقتاً.'), findsOneWidget);
   });
 
   testWidgets('direct onboarding route while disabled returns safely', (
@@ -84,27 +113,12 @@ void main() {
     expect(find.text('تسجيل الدخول'), findsWidgets);
   });
 
-  testWidgets('rapid role taps publish one selected role state', (
-    tester,
-  ) async {
-    await _pumpApp(tester, onboardingEnabled: true);
-
-    await tester.tap(find.byKey(const ValueKey('createInvitedAccountButton')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('onboarding-role-passenger')));
-    await tester.tap(find.byKey(const ValueKey('onboarding-role-passenger')));
-    await tester.pumpAndSettle();
-
-    expect(find.byKey(const ValueKey('invitationCodeField')), findsOneWidget);
-    expect(find.byKey(const ValueKey('onboardingPhoneField')), findsOneWidget);
-  });
-
   testWidgets('registration entry preserves normal back navigation', (
     tester,
   ) async {
     await _pumpApp(tester, onboardingEnabled: true);
 
-    await tester.tap(find.byKey(const ValueKey('createInvitedAccountButton')));
+    await tester.tap(find.byKey(const ValueKey('goToSignUpButton')));
     await tester.pumpAndSettle();
 
     expect(find.byTooltip('رجوع'), findsOneWidget);
@@ -173,10 +187,6 @@ void main() {
       },
     );
 
-    expect(
-      find.byKey(const ValueKey('createInvitedAccountButton')),
-      findsNothing,
-    );
     await tester.tap(find.text('متابعة التسجيل'));
     await tester.pumpAndSettle();
 

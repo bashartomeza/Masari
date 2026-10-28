@@ -63,7 +63,7 @@ Use the codes in `invitations.txt`. After each sign-up, read the code from `otp.
 
 | ID | Do | Expect |
 | --- | --- | --- |
-| C01 | Sign-in screen → "Create an invited account" → Passenger → enter the passenger invitation code and phone +970590002001 → Send verification code | A code-entry screen appears with a resend countdown |
+| C01 | Sign-in screen → "New to Masari? Create an account" → pick the role (Driver or Shop owner) → enter that role's invitation code and its phone → Send verification code | A code-entry screen appears with a resend countdown |
 | C02 | Enter a wrong code | A clear error; you can try again |
 | C03 | Enter the right code (from `otp.txt`), then name, a password of at least 15 characters, tick the three consents, Create account | Account created; the passenger can sign in and is active straight away |
 | C04 | Repeat C01–C03 for the driver (+970590002002) | The screen says "Application under review" and shows a "Verification documents" card |
