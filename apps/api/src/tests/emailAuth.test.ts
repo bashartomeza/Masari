@@ -177,12 +177,71 @@ describe("email authentication lifecycle", () => {
     const unknown = await request(app()).post("/api/v1/auth/password/reset/start").send({ email: "unknown@example.com", locale: "en" }).expect(202);
     const known = await request(app()).post("/api/v1/auth/password/reset/start").send({ email: registration.email, locale: "en" }).expect(202);
     expect(known.body).toEqual(unknown.body);
-    const payload = { action_token: messages[0].actionToken, password: "a different strong password" };
+    expect(messages[0].actionToken).toMatch(/^\d{6}$/);
+    const payload = { email: registration.email, code: messages[0].actionToken, password: "a different strong password" };
     await request(app()).post("/api/v1/auth/password/reset/confirm").send(payload).expect(200);
     expect(users[0].security_version).toBe(2); expect(await bcrypt.compare(payload.password, users[0].password_hash)).toBe(true);
     expect(db.authSession.updateMany).toHaveBeenCalled(); expect(db.refreshToken.updateMany).toHaveBeenCalled();
     await request(app()).post("/api/v1/auth/password/reset/confirm").send(payload).expect(400);
     expect(users[0].security_version).toBe(2);
+  });
+  describe("six-digit password reset code", () => {
+    const strong = "a different strong password";
+    const wrongOf = (right: string) => (right === "000000" ? "000001" : "000000");
+    async function resetStart(server: ReturnType<typeof app>, email = registration.email) {
+      await request(server).post("/api/v1/auth/password/reset/start").send({ email, locale: "en" }).expect(202);
+    }
+    it("resets with the emailed code exactly once", async () => {
+      users.push(actor({ password_hash: await bcrypt.hash(registration.password, 4) }));
+      const server = app(); await resetStart(server);
+      const body = { email: registration.email, code: messages[0].actionToken, password: strong };
+      await request(server).post("/api/v1/auth/password/reset/confirm").send(body).expect(200);
+      expect(users[0].security_version).toBe(2);
+      await request(server).post("/api/v1/auth/password/reset/confirm").send(body).expect(400);
+      expect(users[0].security_version).toBe(2);
+    });
+    it("burns the code after five wrong guesses, even the right one afterwards", async () => {
+      users.push(actor({ password_hash: await bcrypt.hash(registration.password, 4) }));
+      const server = app(); await resetStart(server); const right = messages[0].actionToken;
+      for (let i = 0; i < 5; i += 1) {
+        await request(server).post("/api/v1/auth/password/reset/confirm").send({ email: registration.email, code: wrongOf(right), password: strong }).expect(400);
+      }
+      await request(server).post("/api/v1/auth/password/reset/confirm").send({ email: registration.email, code: right, password: strong }).expect(400);
+      expect(users[0].security_version).toBe(1);
+      expect(await bcrypt.compare(registration.password, users[0].password_hash)).toBe(true);
+    });
+    it("fails an unknown email exactly like a wrong code", async () => {
+      users.push(actor({ password_hash: await bcrypt.hash(registration.password, 4) }));
+      const server = app(); await resetStart(server);
+      const unknown = await request(server).post("/api/v1/auth/password/reset/confirm").send({ email: "nobody@example.com", code: messages[0].actionToken, password: strong }).expect(400);
+      const wrong = await request(server).post("/api/v1/auth/password/reset/confirm").send({ email: registration.email, code: wrongOf(messages[0].actionToken), password: strong }).expect(400);
+      expect(unknown.body.error).toBe("auth_action_invalid"); expect(wrong.body.error).toBe("auth_action_invalid");
+    });
+    it("does not let one email's code reset another account", async () => {
+      users.push(actor({ password_hash: await bcrypt.hash(registration.password, 4) }));
+      users.push(actor({ id: "user_2", email: "second@example.com", password_hash: await bcrypt.hash(registration.password, 4) }));
+      const server = app(); await resetStart(server); const first = messages[0].actionToken;
+      await resetStart(server, "second@example.com");
+      await request(server).post("/api/v1/auth/password/reset/confirm").send({ email: "second@example.com", code: first === messages[1].actionToken ? wrongOf(first) : first, password: strong }).expect(400);
+      expect(users[1].security_version).toBe(1);
+      await request(server).post("/api/v1/auth/password/reset/confirm").send({ email: registration.email, code: first, password: strong }).expect(200);
+      expect(users[0].security_version).toBe(2); expect(users[1].security_version).toBe(1);
+    });
+    it("rejects the old token body and malformed codes", async () => {
+      const server = app();
+      await request(server).post("/api/v1/auth/password/reset/confirm").send({ action_token: "a".repeat(43), password: strong }).expect(400);
+      await request(server).post("/api/v1/auth/password/reset/confirm").send({ email: registration.email, code: "12345", password: strong }).expect(400);
+    });
+    it("burns a password-set code after five wrong guesses", async () => {
+      users.push(actor()); const token = bearer(users[0]); const server = app();
+      await request(server).post("/api/v1/auth/password/set/start").set("Authorization", token).send({ locale: "en" }).expect(202);
+      const right = messages[0].actionToken;
+      for (let i = 0; i < 5; i += 1) {
+        await request(server).post("/api/v1/auth/password/set").set("Authorization", token).send({ password: strong, reauthentication_code: wrongOf(right) }).expect(400);
+      }
+      await request(server).post("/api/v1/auth/password/set").set("Authorization", token).send({ password: strong, reauthentication_code: right }).expect(400);
+      expect(users[0].password_hash).toBeNull();
+    });
   });
   it("password set requires fresh reauthentication and revokes existing sessions", async () => {
     const u = actor({ password_hash: await bcrypt.hash(registration.password, 4) }); users.push(u);
@@ -194,7 +253,8 @@ describe("email authentication lifecycle", () => {
   it("verifies existing email through one-time proof", async () => {
     users.push(actor({ email_verified_at: null }));
     await request(app()).post("/api/v1/auth/email/verify/start").send({ email: registration.email, locale: "en" }).expect(202);
-    const payload = { action_token: messages[0].actionToken };
+    expect(messages[0].actionToken).toMatch(/^\d{6}$/);
+    const payload = { email: registration.email, code: messages[0].actionToken };
     await request(app()).post("/api/v1/auth/email/verify/confirm").send(payload).expect(200);
     expect(users[0].email_verified_at).toBeInstanceOf(Date);
     await request(app()).post("/api/v1/auth/email/verify/confirm").send(payload).expect(400);
@@ -209,7 +269,7 @@ describe("email authentication lifecycle", () => {
   it("sets a passwordless account password only with its own fresh emailed proof", async () => {
     users.push(actor()); const token = bearer(users[0]);
     await request(app()).post("/api/v1/auth/password/set/start").set("Authorization", token).send({ locale: "en" }).expect(202);
-    await request(app()).post("/api/v1/auth/password/set").set("Authorization", token).send({ password: registration.password, reauthentication_token: messages[0].actionToken }).expect(200);
+    await request(app()).post("/api/v1/auth/password/set").set("Authorization", token).send({ password: registration.password, reauthentication_code: messages[0].actionToken }).expect(200);
     expect(users[0].security_version).toBe(2); expect(await bcrypt.compare(registration.password, users[0].password_hash)).toBe(true);
   });
   it("limits case/space aliases of the same email as one identity", async () => {
@@ -245,10 +305,10 @@ describe("email authentication lifecycle", () => {
     users.push(actor({ password_hash: await bcrypt.hash(registration.password, 4) }));
     await request(app()).post("/api/v1/auth/password/reset/start").send({ email: registration.email, locale: "en" }).expect(202);
     users[0].security_version = 2;
-    await request(app()).post("/api/v1/auth/password/reset/confirm").send({ action_token: messages[0].actionToken, password: registration.password }).expect(400);
+    await request(app()).post("/api/v1/auth/password/reset/confirm").send({ email: registration.email, code: messages[0].actionToken, password: registration.password }).expect(400);
     expect(users[0].security_version).toBe(2);
     const r = await start();
-    await request(app()).post("/api/v1/auth/password/reset/confirm").send({ action_token: messages.at(-1).actionToken, password: registration.password }).expect(400);
+    await request(app()).post("/api/v1/auth/password/reset/confirm").send({ email: registration.email, code: messages.at(-1).actionToken, password: registration.password }).expect(400);
     expect(r.body.next_action).toBe("verify_email");
   });
   it("redacts registration and reauthentication credentials from structured logs", () => {

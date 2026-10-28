@@ -274,6 +274,17 @@ void main() {
       expect(find.text('تم قبول طلبك'), findsOneWidget);
     });
 
+    testWidgets('driver approaching alert shows in English and Arabic', (
+      tester,
+    ) async {
+      final repo = _FakeRepository([_note('a', 'driver_approaching')]);
+      await _pumpScreen(tester, repo);
+      expect(find.text('Your driver is approaching'), findsOneWidget);
+
+      await _pumpScreen(tester, repo, locale: const Locale('ar'));
+      expect(find.text('سائقك يقترب'), findsOneWidget);
+    });
+
     testWidgets('tapping an entry marks it read', (tester) async {
       final repo = _FakeRepository([_note('a', 'match_offered')]);
       await _pumpScreen(tester, repo);

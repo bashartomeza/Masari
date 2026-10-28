@@ -2,6 +2,9 @@ import express, { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { auditEvent } from "../lib/audit.js";
+import { consumeAbuseCounter } from "../lib/abuseCounters.js";
+import { abuseSubjectDigest } from "../lib/keyedDigest.js";
+import { missingDocumentKinds, requiredDocumentKinds } from "../lib/applicationReview.js";
 import type { AppConfig } from "../config.js";
 import { requireAuth, requireRole, type AuthenticatedRequest } from "../middleware/auth.js";
 import { HttpError } from "../middleware/error.js";
@@ -48,6 +51,45 @@ export function createDriverDocumentsRouter(appConfig: AppConfig) {
     next(storage ? undefined : new HttpError(404, "driver_documents_unavailable"));
   const applicant = requireOnboardingToken(appConfig, ["pending_status"]);
 
+  /** Hourly cap per applicant, so open signup cannot be used to churn the disk. */
+  async function consumeUploadBucket(req: OnboardingAuthenticatedRequest, type: string, limit: number) {
+    const onboarding = appConfig.onboarding;
+    const userId = req.onboarding?.userId;
+    if (!onboarding || !userId) return;
+    const result = await consumeAbuseCounter(prisma, {
+      bucketType: type,
+      subjectDigest: abuseSubjectDigest(type, userId, onboarding.keys.abuse),
+      digestVersion: onboarding.keys.abuse.version,
+      windowSeconds: 3_600,
+      limit
+    });
+    if (!result.allowed) throw new HttpError(429, "rate_limited");
+  }
+
+  /** Once submitted, an applicant cannot delete the last file of a required kind. */
+  async function assertSubmittedKeepsRequired(
+    userId: string,
+    role: "driver" | "merchant",
+    document: { id: string; kind: string }
+  ) {
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { review_submitted_at: true } });
+    if (!user?.review_submitted_at || !requiredDocumentKinds(role).includes(document.kind)) return;
+    const others =
+      role === "driver"
+        ? await prisma.driverVerificationDocument.count({
+            where: {
+              kind: document.kind,
+              id: { not: document.id },
+              verification: { user_id: userId },
+              revision: (await prisma.driverVerification.findUnique({ where: { user_id: userId } }))?.revision
+            }
+          })
+        : await prisma.merchantApplicationDocument.count({
+            where: { user_id: userId, kind: document.kind, id: { not: document.id } }
+          });
+    if (others === 0) throw new HttpError(409, "documents_required");
+  }
+
   /** The applicant's own verification, only while it is pending review. */
   async function pendingVerificationFor(req: OnboardingAuthenticatedRequest) {
     const context = req.onboarding!;
@@ -88,6 +130,7 @@ export function createDriverDocumentsRouter(appConfig: AppConfig) {
       try {
         const { kind } = uploadQuerySchema.parse(req.query);
         const verification = await pendingVerificationFor(req);
+        await consumeUploadBucket(req, "document_upload", 30);
         const bytes = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
         if (bytes.length === 0) throw new HttpError(400, "document_empty");
         const mime = sniffDocumentMime(bytes);
@@ -145,6 +188,8 @@ export function createDriverDocumentsRouter(appConfig: AppConfig) {
         where: { id, verification_id: verification.id, revision: verification.revision }
       });
       if (!document) throw new HttpError(404, "driver_document_not_found");
+      await consumeUploadBucket(req, "document_delete", 30);
+      await assertSubmittedKeepsRequired(req.onboarding!.userId!, "driver", document);
       await prisma.$transaction(async (tx) => {
         await tx.driverVerificationDocument.delete({ where: { id: document.id } });
         await auditEvent(tx, {
@@ -406,6 +451,7 @@ export function createDriverDocumentsRouter(appConfig: AppConfig) {
         const { kind } = merchantUploadQuerySchema.parse(req.query);
         const userId = pendingMerchantId(req);
         await assertMerchantPending(userId);
+        await consumeUploadBucket(req, "document_upload", 30);
         const bytes = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
         if (bytes.length === 0) throw new HttpError(400, "document_empty");
         const mime = sniffDocumentMime(bytes);
@@ -459,6 +505,8 @@ export function createDriverDocumentsRouter(appConfig: AppConfig) {
         where: { id: routeParam(req.params.id), user_id: userId }
       });
       if (!document) throw new HttpError(404, "driver_document_not_found");
+      await consumeUploadBucket(req, "document_delete", 30);
+      await assertSubmittedKeepsRequired(userId, "merchant", document);
       await prisma.$transaction(async (tx) => {
         await tx.merchantApplicationDocument.delete({ where: { id: document.id } });
         await auditEvent(tx, {
@@ -473,6 +521,68 @@ export function createDriverDocumentsRouter(appConfig: AppConfig) {
       res.json({ deleted: true, request_id: req.requestId });
     } catch (error) {
       next(error);
+    }
+  });
+
+  /**
+   * Sends the applicant's complete application to the Admin review queue. The server
+   * refuses until every required document kind is on file, so a modified app cannot
+   * skip the documents step. Idempotent once submitted.
+   */
+  router.post("/onboarding/application/submit", available, applicant, async (req: OnboardingAuthenticatedRequest, res, next) => {
+    try {
+      const context = req.onboarding!;
+      if (!context.userId || context.userStatus !== "pending" || !["driver", "merchant"].includes(context.userRole ?? "")) {
+        throw new HttpError(403, "driver_documents_unavailable");
+      }
+      const userId = context.userId;
+      await consumeUploadBucket(req, "application_submit", 20);
+      const outcome = await prisma.$transaction(
+        async (tx) => {
+          const user = await tx.user.findUnique({
+            where: { id: userId },
+            select: { role: true, account_status: true, review_submitted_at: true }
+          });
+          if (!user || user.account_status !== AccountStatus.pending || !["driver", "merchant"].includes(user.role)) {
+            throw new HttpError(409, "driver_verification_state_conflict");
+          }
+          if (user.review_submitted_at) return { missing: [] as string[], submittedAt: user.review_submitted_at };
+          if (user.role === "driver") {
+            const verification = await tx.driverVerification.findUnique({ where: { user_id: userId } });
+            if (!verification || verification.status !== DriverVerificationStatus.pending) {
+              throw new HttpError(409, "driver_verification_state_conflict");
+            }
+          }
+          const missing = await missingDocumentKinds(tx, userId, user.role);
+          if (missing.length > 0) return { missing, submittedAt: null };
+          const now = new Date();
+          await tx.user.update({ where: { id: userId }, data: { review_submitted_at: now } });
+          if (user.role === "driver") {
+            await tx.driverVerification.update({ where: { user_id: userId }, data: { submitted_at: now } });
+          }
+          await auditEvent(tx, {
+            userId,
+            action: AuditAction.account_status_changed,
+            entityType: "User",
+            entityId: userId,
+            metadata: { action: "application_submitted", role: user.role, request_id: req.requestId }
+          });
+          return { missing: [] as string[], submittedAt: now };
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+      );
+      if (outcome.missing.length > 0) {
+        res.status(409).json({ error: "documents_required", missing_documents: outcome.missing, request_id: req.requestId });
+        return;
+      }
+      res.json({
+        onboarding_status: "pending_review",
+        next_action: "await_approval",
+        submitted_at: outcome.submittedAt,
+        request_id: req.requestId
+      });
+    } catch (error) {
+      next(isWriteConflict(error) ? new HttpError(409, "driver_verification_state_conflict") : error);
     }
   });
 

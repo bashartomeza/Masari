@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:masari_mobile/l10n/app_localizations.dart';
 
+import '../../../../core/fares/fare.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/app_tokens.dart';
 import '../../../../core/theme/semantic_colors.dart';
@@ -87,6 +88,33 @@ class TripOfferCard extends StatelessWidget {
                   label: l10n.matchScore,
                   compact: true,
                 ),
+              ] else if (offer.fareSeatMinor != null) ...[
+                const SizedBox(width: AppTokens.spaceSmall),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      formatFare(
+                        offer.fareSeatMinor!,
+                        offer.fareCurrency ?? 'ILS',
+                        Localizations.localeOf(context).languageCode,
+                      ),
+                      key: const ValueKey('tripOfferFare'),
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        color: AppTheme.primary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                      maxLines: 1,
+                    ),
+                    Text(
+                      l10n.perPassenger,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: AppTheme.onSurfaceVariant,
+                      ),
+                      maxLines: 1,
+                    ),
+                  ],
+                ),
               ] else if (offer.priceLabel != null) ...[
                 const SizedBox(width: AppTokens.spaceSmall),
                 Column(
@@ -166,6 +194,17 @@ class TripOfferCard extends StatelessWidget {
               ],
             ],
           ),
+          if (offer.matchScore == null && offer.fareSeatMinor != null)
+            Padding(
+              padding: const EdgeInsets.only(top: AppTokens.spaceSmall),
+              child: Text(
+                l10n.fareDisclaimer,
+                key: const ValueKey('tripOfferFareDisclaimer'),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: AppTheme.onSurfaceVariant,
+                ),
+              ),
+            ),
           if (departurePassed && onBook != null) Text(l10n.bookingTimePassed),
         ],
       ),

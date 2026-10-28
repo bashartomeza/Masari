@@ -149,7 +149,7 @@ describe("Admin driver verification lifecycle", () => {
 
     expect(response.body).toEqual(expect.objectContaining({ page: 1, limit: 25, total: 1 }));
     expect(response.body.verifications[0]).toEqual(expect.objectContaining({ status: "pending", revision: 1, evidence: { status: "not_collected", items: [], documents: [] } }));
-    expect(prismaMock.driverVerification.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { status: "pending" }, skip: 0, take: 25 }));
+    expect(prismaMock.driverVerification.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { status: "pending", user: { review_submitted_at: { not: null } } }, skip: 0, take: 25 }));
     expect(JSON.stringify(response.body)).not.toMatch(/password_hash|security_version|token_hash/);
   });
 
@@ -177,6 +177,26 @@ describe("Admin driver verification lifecycle", () => {
     expect(prismaMock.auditEvent.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ action: "admin_action", metadata: expect.objectContaining({ action: "driver_verification_approved", target_user_id: candidate.id }) }) }));
     expect(prismaMock.driverVerificationDecision.create).toHaveBeenCalledWith({ data: expect.objectContaining({ verification_id: "verification_1", revision: 1, decision: "approved", decided_by_id: "admin_1" }) });
     expect(prismaMock.$transaction).toHaveBeenCalledWith(expect.any(Function), { isolationLevel: "Serializable" });
+  });
+
+  it("refuses to decide an application the applicant has not submitted for review", async () => {
+    prismaMock.driverVerification.findUnique.mockResolvedValue({
+      ...pendingVerification,
+      user: { ...candidate, review_submitted_at: null }
+    });
+    const approve = await request(createApp())
+      .post(`/api/v1/admin/driver-verifications/${candidate.id}/approve`)
+      .set(authorization())
+      .send({ expected_revision: 1, profile: { vehicle_type: "sedan", seats_total: 4, parcel_capacity: 6 } })
+      .expect(409);
+    expect(approve.body.error).toBe("application_not_submitted");
+    await request(createApp())
+      .post(`/api/v1/admin/driver-verifications/${candidate.id}/reject`)
+      .set(authorization())
+      .send({ expected_revision: 1, reason: "Incomplete" })
+      .expect(409);
+    expect(prismaMock.driverVerification.updateMany).not.toHaveBeenCalled();
+    expect(prismaMock.user.update).not.toHaveBeenCalled();
   });
 
   it("rejects with a normalized persisted reason and disables an existing verified profile", async () => {

@@ -1,3 +1,4 @@
+import '../../delivery_handover/data/delivery_handover_models.dart';
 import '../../matching/data/matching_models.dart';
 import '../../canonical_routes/domain/canonical_route_models.dart';
 
@@ -305,6 +306,7 @@ class DriverTrip {
     required this.passengerRequest,
     required this.merchantOrder,
     required this.parcelBatch,
+    this.deliveryConfirmation,
   });
 
   final String id;
@@ -316,6 +318,14 @@ class DriverTrip {
   final DriverPassengerSummary? passengerRequest;
   final DriverMerchantSummary? merchantOrder;
   final DriverParcelBatchSummary? parcelBatch;
+
+  /// Receiver confirmation state for the parcel orders on this trip, when known.
+  final TripDeliveryConfirmation? deliveryConfirmation;
+
+  /// A parcel trip cannot be delivered until its receivers have confirmed.
+  bool get needsReceiverConfirmation =>
+      status == 'in_transit' &&
+      (deliveryConfirmation?.needsReceiverConfirmation ?? false);
 
   GeoPoint? get mapOrigin => passengerRequest != null
       ? passengerRequest!.pickup
@@ -367,6 +377,12 @@ class DriverTrip {
           : null,
       parcelBatch: batch is Map<String, dynamic>
           ? DriverParcelBatchSummary.fromJson(batch)
+          : null,
+      deliveryConfirmation:
+          json['delivery_confirmation'] is Map<String, dynamic>
+          ? TripDeliveryConfirmation.fromJson(
+              json['delivery_confirmation'] as Map<String, dynamic>,
+            )
           : null,
     );
   }

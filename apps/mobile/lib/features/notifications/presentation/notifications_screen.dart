@@ -208,6 +208,7 @@ class _NotificationTile extends StatelessWidget {
     'driver_documents_expired' => Icons.event_busy_outlined,
     'driver_documents_renewal_submitted' => Icons.upload_file_outlined,
     'incident_updated' => Icons.flag_outlined,
+    'driver_approaching' => Icons.directions_car_outlined,
     _ => Icons.notifications_none_outlined,
   };
 
@@ -285,6 +286,11 @@ class _NotificationTile extends StatelessWidget {
       return (
         title: l10n.notifDocsRenewalSubmittedTitle,
         body: l10n.notifDocsRenewalSubmittedBody,
+      );
+    case 'driver_approaching':
+      return (
+        title: l10n.notifDriverApproachingTitle,
+        body: l10n.notifDriverApproachingBody,
       );
     case 'incident_updated':
       return (

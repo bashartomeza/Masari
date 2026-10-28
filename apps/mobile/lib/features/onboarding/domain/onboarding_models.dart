@@ -34,11 +34,15 @@ class OnboardingConfig {
     required this.maximumPasswordUtf8Bytes,
     required this.otpDigits,
     required this.resendCooldownSeconds,
+    this.openRegistrationRoles = const [],
     this.requestId,
   });
 
   final bool enabled;
   final List<OnboardingRole> registrationRoles;
+
+  /// Roles that may register without an invitation code (the server switch is on).
+  final List<OnboardingRole> openRegistrationRoles;
   final List<String> supportedLocales;
   final int minimumPasswordCharacters;
   final int maximumPasswordCharacters;
@@ -94,9 +98,24 @@ class OnboardingConfig {
         cooldown < 1) {
       throw const FormatException('Invalid onboarding policy');
     }
+    final rawOpen = json['open_registration_roles'];
+    final openRoles = rawOpen is List
+        ? rawOpen
+              .whereType<String>()
+              .map(_roleFromApi)
+              .whereType<OnboardingRole>()
+              .where(
+                (role) =>
+                    role == OnboardingRole.driver ||
+                    role == OnboardingRole.merchant,
+              )
+              .toSet()
+              .toList(growable: false)
+        : const <OnboardingRole>[];
     return OnboardingConfig(
       enabled: true,
       registrationRoles: roles.cast<OnboardingRole>(),
+      openRegistrationRoles: openRoles,
       supportedLocales: rawLocales,
       minimumPasswordCharacters: minimum,
       maximumPasswordCharacters: maximum,
@@ -350,19 +369,36 @@ class DriverDocumentList {
   }
 }
 
+/// Documents an applicant must upload before the application can be sent for review.
+const driverRequiredDocumentKinds = <String>[
+  'driver_licence',
+  'vehicle_registration',
+  'national_id',
+];
+
+const merchantRequiredDocumentKinds = <String>[
+  'commercial_register',
+  'national_id',
+  'shop_photo',
+];
+
 class PendingStatusResult {
   const PendingStatusResult({
     required this.role,
     required this.status,
     required this.nextAction,
+    this.missingDocuments = const [],
     this.pendingStatusToken,
     this.pendingStatusExpiresAt,
     this.requestId,
   });
 
   final OnboardingRole? role;
+
+  /// `pending_review`, `documents_required` (not yet submitted) or `approved_sign_in`.
   final String status;
   final String nextAction;
+  final List<String> missingDocuments;
   final String? pendingStatusToken;
   final DateTime? pendingStatusExpiresAt;
   final String? requestId;
@@ -377,6 +413,11 @@ class PendingStatusResult {
       role: role,
       status: _requiredString(json, 'onboarding_status'),
       nextAction: _requiredString(json, 'next_action'),
+      missingDocuments: json['missing_documents'] is List
+          ? (json['missing_documents'] as List).whereType<String>().toList(
+              growable: false,
+            )
+          : const [],
       pendingStatusToken: json['onboarding_status_token'] is String
           ? json['onboarding_status_token'] as String
           : null,

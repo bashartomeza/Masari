@@ -1637,7 +1637,7 @@ abstract class AppLocalizations {
   /// No description provided for @registerDriverHelp.
   ///
   /// In ar, this message translates to:
-  /// **'انقل الرحلات والتوصيلات. يتطلب رمز دعوة ومستنداتك وموافقة.'**
+  /// **'انقل الرحلات والتوصيلات. ترفع مستنداتك ويوافق المشرف على حسابك.'**
   String get registerDriverHelp;
 
   /// No description provided for @registerMerchantTitle.
@@ -1649,7 +1649,7 @@ abstract class AppLocalizations {
   /// No description provided for @registerMerchantHelp.
   ///
   /// In ar, this message translates to:
-  /// **'أرسل طلبات من متجرك. يتطلب رمز دعوة وموافقة.'**
+  /// **'أرسل طلبات من متجرك. ترفع مستنداتك ويوافق المشرف على حسابك.'**
   String get registerMerchantHelp;
 
   /// No description provided for @invitationCode.
@@ -4087,6 +4087,144 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'الوصول'**
   String get mapLegendDestination;
+
+  /// No description provided for @applicationDocumentsRequiredTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'ارفع مستنداتك'**
+  String get applicationDocumentsRequiredTitle;
+
+  /// No description provided for @applicationDocumentsRequiredBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إنشاء حسابك لكنه ليس قيد المراجعة بعد. ارفع كل المستندات المطلوبة ثم أرسل طلبك. تستغرق المراجعة عادةً حتى 24 ساعة.'**
+  String get applicationDocumentsRequiredBody;
+
+  /// No description provided for @documentsStillNeeded.
+  ///
+  /// In ar, this message translates to:
+  /// **'ما زال مطلوباً: {documents}'**
+  String documentsStillNeeded(String documents);
+
+  /// No description provided for @submitApplication.
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال للمراجعة'**
+  String get submitApplication;
+
+  /// No description provided for @documentsRequiredError.
+  ///
+  /// In ar, this message translates to:
+  /// **'ارفع كل المستندات المطلوبة قبل إرسال طلبك.'**
+  String get documentsRequiredError;
+
+  /// No description provided for @invitationCodeOptional.
+  ///
+  /// In ar, this message translates to:
+  /// **'رمز الدعوة (اختياري)'**
+  String get invitationCodeOptional;
+
+  /// No description provided for @fareEstimatedTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'الأجرة التقديرية'**
+  String get fareEstimatedTitle;
+
+  /// No description provided for @fareBookedTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'الأجرة التقديرية عند الطلب'**
+  String get fareBookedTitle;
+
+  /// No description provided for @fareDisclaimer.
+  ///
+  /// In ar, this message translates to:
+  /// **'تقديرية، وتُدفع مباشرة إلى السائق. لا تتم معالجة أي مدفوعات داخل التطبيق.'**
+  String get fareDisclaimer;
+
+  /// No description provided for @fareNotSet.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم تُحدَّد أجرة تقديرية لهذا المسار بعد.'**
+  String get fareNotSet;
+
+  /// No description provided for @farePerSeat.
+  ///
+  /// In ar, this message translates to:
+  /// **'للمقعد الواحد'**
+  String get farePerSeat;
+
+  /// No description provided for @fareSeatsLine.
+  ///
+  /// In ar, this message translates to:
+  /// **'المقاعد × {count}'**
+  String fareSeatsLine(int count);
+
+  /// No description provided for @fareParcelLine.
+  ///
+  /// In ar, this message translates to:
+  /// **'طرد {size}'**
+  String fareParcelLine(String size);
+
+  /// No description provided for @fareTotal.
+  ///
+  /// In ar, this message translates to:
+  /// **'الإجمالي'**
+  String get fareTotal;
+
+  /// No description provided for @notifDriverApproachingTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'سائقك يقترب'**
+  String get notifDriverApproachingTitle;
+
+  /// No description provided for @notifDriverApproachingBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'سائقك قريب من نقطة الانطلاق. يرجى الاستعداد.'**
+  String get notifDriverApproachingBody;
+
+  /// No description provided for @ratingPromptTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'كيف كانت رحلتك؟'**
+  String get ratingPromptTitle;
+
+  /// No description provided for @ratingPromptBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'قيّم السائق من 1 إلى 5 نجوم. تقييمك سري: لا يرى السائق التقييم ولا من قدّمه.'**
+  String get ratingPromptBody;
+
+  /// No description provided for @ratingStarLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'{count} نجوم'**
+  String ratingStarLabel(int count);
+
+  /// No description provided for @ratingSubmit.
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال التقييم'**
+  String get ratingSubmit;
+
+  /// No description provided for @ratingThanks.
+  ///
+  /// In ar, this message translates to:
+  /// **'شكرًا لتقييمك الرحلة.'**
+  String get ratingThanks;
+
+  /// No description provided for @ratingFailed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر إرسال التقييم. حاول مرة أخرى.'**
+  String get ratingFailed;
+
+  /// No description provided for @ratingAlreadyRated.
+  ///
+  /// In ar, this message translates to:
+  /// **'لقد قيّمت هذه الرحلة من قبل.'**
+  String get ratingAlreadyRated;
 }
 
 class _AppLocalizationsDelegate

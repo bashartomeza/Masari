@@ -263,9 +263,9 @@
   "registerPassengerTitle": "مستخدم عادي",
   "registerPassengerHelp": "اطلب رحلات وتوصيلات. يصبح حسابك جاهزاً مباشرة بعد التسجيل.",
   "registerDriverTitle": "سائق",
-  "registerDriverHelp": "انقل الرحلات والتوصيلات. يتطلب رمز دعوة ومستنداتك وموافقة.",
+  "registerDriverHelp": "انقل الرحلات والتوصيلات. ترفع مستنداتك ويوافق المشرف على حسابك.",
   "registerMerchantTitle": "صاحب متجر",
-  "registerMerchantHelp": "أرسل طلبات من متجرك. يتطلب رمز دعوة وموافقة.",
+  "registerMerchantHelp": "أرسل طلبات من متجرك. ترفع مستنداتك ويوافق المشرف على حسابك.",
   "invitationCode": "رمز الدعوة",
   "phoneNumber": "رقم الهاتف",
   "sendVerificationCode": "إرسال رمز التحقق",
@@ -840,26 +840,87 @@
   "acceptanceRateValue": "{percent}%",
   "@acceptanceRateValue": {
     "placeholders": {
-      "percent": { "type": "int" }
+      "percent": {
+        "type": "int"
+      }
     }
   },
   "acceptanceRateDetail": "تم قبول {accepted} من {responded} عرضًا أجبت عنها. العروض التي انتهت دون رد لا تُحتسب.",
   "@acceptanceRateDetail": {
     "placeholders": {
-      "accepted": { "type": "int" },
-      "responded": { "type": "int" }
+      "accepted": {
+        "type": "int"
+      },
+      "responded": {
+        "type": "int"
+      }
     }
   },
   "acceptanceRateNeedMore": "تظهر نسبتك بعد {needed} عروض تم الرد عليها ({responded} حتى الآن).",
   "@acceptanceRateNeedMore": {
     "placeholders": {
-      "needed": { "type": "int" },
-      "responded": { "type": "int" }
+      "needed": {
+        "type": "int"
+      },
+      "responded": {
+        "type": "int"
+      }
     }
   },
   "emailOrPhone": "البريد الإلكتروني أو رقم الهاتف",
   "emailOrPhoneRequired": "أدخل بريدك الإلكتروني أو رقم هاتفك.",
   "emailOrPhoneInvalid": "أدخل بريدًا إلكترونيًا صحيحًا، أو رقم هاتف يبدأ بـ + ورمز الدولة.",
   "mapLegendStart": "البداية",
-  "mapLegendDestination": "الوصول"
+  "mapLegendDestination": "الوصول",
+  "applicationDocumentsRequiredTitle": "ارفع مستنداتك",
+  "applicationDocumentsRequiredBody": "تم إنشاء حسابك لكنه ليس قيد المراجعة بعد. ارفع كل المستندات المطلوبة ثم أرسل طلبك. تستغرق المراجعة عادةً حتى 24 ساعة.",
+  "documentsStillNeeded": "ما زال مطلوباً: {documents}",
+  "@documentsStillNeeded": {
+    "placeholders": {
+      "documents": {
+        "type": "String"
+      }
+    }
+  },
+  "submitApplication": "إرسال للمراجعة",
+  "documentsRequiredError": "ارفع كل المستندات المطلوبة قبل إرسال طلبك.",
+  "invitationCodeOptional": "رمز الدعوة (اختياري)",
+  "fareEstimatedTitle": "الأجرة التقديرية",
+  "fareBookedTitle": "الأجرة التقديرية عند الطلب",
+  "fareDisclaimer": "تقديرية، وتُدفع مباشرة إلى السائق. لا تتم معالجة أي مدفوعات داخل التطبيق.",
+  "fareNotSet": "لم تُحدَّد أجرة تقديرية لهذا المسار بعد.",
+  "farePerSeat": "للمقعد الواحد",
+  "fareSeatsLine": "المقاعد × {count}",
+  "@fareSeatsLine": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "fareParcelLine": "طرد {size}",
+  "@fareParcelLine": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "fareTotal": "الإجمالي",
+  "notifDriverApproachingTitle": "سائقك يقترب",
+  "notifDriverApproachingBody": "سائقك قريب من نقطة الانطلاق. يرجى الاستعداد.",
+  "ratingPromptTitle": "كيف كانت رحلتك؟",
+  "ratingPromptBody": "قيّم السائق من 1 إلى 5 نجوم. تقييمك سري: لا يرى السائق التقييم ولا من قدّمه.",
+  "ratingStarLabel": "{count} نجوم",
+  "@ratingStarLabel": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "ratingSubmit": "إرسال التقييم",
+  "ratingThanks": "شكرًا لتقييمك الرحلة.",
+  "ratingFailed": "تعذّر إرسال التقييم. حاول مرة أخرى.",
+  "ratingAlreadyRated": "لقد قيّمت هذه الرحلة من قبل."
 }

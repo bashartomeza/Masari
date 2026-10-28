@@ -92,3 +92,37 @@ Migration `20260819150000_driver_verification_approval` is additive: it creates 
 ## Shop-owner documents
 
 Shop owners upload their papers (commercial register or shop licence, national ID, a photo of the shop) from the pending-review screen in the app, up to six files of 5 MB. They use the same server storage and retention rules as driver documents. In Users, open Approve or Reject on a pending merchant: the documents are listed there with a Download button before you decide. Applicants are told that review usually takes up to 24 hours.
+
+## Open registration for drivers and shop owners (no invitation code)
+
+Invitation codes keep working exactly as before. In addition, drivers and shop owners can register **without** a code when the owner turns open registration on. Passengers are never part of this: they register by email or Google.
+
+### The switch
+
+`OPEN_DRIVER_MERCHANT_SIGNUP_ENABLED` (default `false`). When it is `false` the start endpoint answers 404 `onboarding_unavailable` for any request without an invitation code, the app keeps asking for one, and nothing else changes. Turning it on needs `PUBLIC_ONBOARDING_ENABLED=true` (which needs `INVITATIONS_ENABLED=true`) and `DRIVER_DOCUMENTS_ENABLED=true`; the API refuses to start otherwise. `GET /api/v1/onboarding/config` reports `open_registration_roles` (`["driver","merchant"]` when on, `[]` when off) and the app reads it. `OPEN_SIGNUP_MAX_STARTS_PER_HOUR` (default 200) is the shared hourly budget for new open sign-ups.
+
+Staging and production cannot enable it today: `PUBLIC_ONBOARDING_ENABLED` is refused there until a real SMS provider is approved (`OTP_PROVIDER=fake` is forbidden), and that guard is deliberately left in place. Lifting it is a separate, explicit decision.
+
+### The flow
+
+1. Choose Driver or Shop owner, enter a phone number (invitation field optional) -> `POST /onboarding/attempts` without `invitation_code`. A one-time code is sent.
+2. Verify the code, then name, password and the three consents -> the account is created in `pending` state and the app receives a `pending_status` session. `next_action` is `upload_documents`.
+3. The applicant uploads the **required** documents (see below) and calls `POST /api/v1/onboarding/application/submit`.
+4. The pending screen says review usually takes up to 24 hours. An Admin approves or rejects as usual.
+
+A pending account cannot sign in to any product: login requires `account_status = active`. The only session a pending applicant holds is the narrow `pending_status` one, which reaches onboarding status and document endpoints only.
+
+### What the server enforces
+
+- **Required documents.** Driver: `driver_licence`, `vehicle_registration`, `national_id`. Shop owner: `commercial_register`, `national_id`, `shop_photo`. `insurance` and `other` never count. `submit` answers 409 `documents_required` with `missing_documents` until all are on file, so a modified app cannot skip the step. Submission is idempotent. After submission an applicant cannot delete the last file of a required kind.
+- **Not submitted means not reviewable.** `users.review_submitted_at` stays empty until `submit` succeeds. Applicants without it are left out of `GET /admin/driver-verifications` and the pending-approval count, and approve or reject (driver and shop owner) answers 409 `application_not_submitted`. Invited applicants are marked submitted at registration, and migration `20261029120000_open_driver_merchant_signup` backfills every existing driver and shop owner as submitted, so the current queue is unchanged. The Users list exposes `role_context.application_submitted`.
+- **Abuse limits** (all keyed digests in `abuse_counters`, no raw phone or IP stored): start is limited per IP (10 per hour), per phone (5 per day) and globally per hour; code sends keep the existing per-phone-per-day and per-IP limits; code entry keeps the existing attempt caps, lockout and resend limits; upload and delete are limited per applicant (30 per hour each) and submit (20 per hour). Only one live open attempt exists per phone: starting again cancels the older attempt and revokes its tokens.
+- **No account enumeration.** Start behaves identically whether or not the phone already has an account, and a code is sent either way. A duplicate number only fails at the final registration step, after the caller has proved they hold the phone. Status recovery keeps its generic `invalid_credentials` answer.
+
+### Schema change
+
+Migration `20261029120000_open_driver_merchant_signup` makes `onboarding_attempts.invitation_id` nullable (the unique index stays, so an invitation still backs at most one attempt) and adds `users.review_submitted_at`. It is additive; rolling the application back leaves invited flows working, but a rollback to code that does not know the column must first stop open registration (switch off).
+
+### Not covered
+
+Abandoned open sign-ups (a `pending` account that never submits) are not purged automatically; the document purge only covers decided applications. Malware scanning of uploads is still out of scope.

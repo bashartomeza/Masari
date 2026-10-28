@@ -7,6 +7,7 @@ export type NotificationType =
   | "match_accepted"
   | "match_rejected"
   | "trip_status"
+  | "driver_approaching"
   | "driver_verification_approved"
   | "driver_verification_rejected"
   | "driver_documents_expiring"
