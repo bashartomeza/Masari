@@ -82,11 +82,12 @@ function intersect(a: Window, b: Window): Window | "disjoint" {
  * the windows do not overlap, or any vehicle capacity limit (parcels, orders,
  * size-weighted load, large parcels) would be exceeded. An order that alone
  * exceeds capacity is reported as unbatchable instead of overloading a driver.
+ * With `seedId`, that order is placed first so it always lands in the first batch.
  */
 export function planBatches(
   orders: PlannerOrder[],
   capacity: BatchCapacity = DEFAULT_BATCH_CAPACITY,
-  options: { pickupRadiusKm?: number; dropoffSpreadKm?: number } = {}
+  options: { pickupRadiusKm?: number; dropoffSpreadKm?: number; seedId?: string } = {}
 ): BatchPlan {
   const pickupRadiusKm = options.pickupRadiusKm ?? BATCHING_LIMITS.pickupRadiusKm;
   const dropoffSpreadKm = options.dropoffSpreadKm ?? BATCHING_LIMITS.dropoffSpreadKm;
@@ -106,8 +107,11 @@ export function planBatches(
     const middle = centroid(order.parcels);
     prepared.push({ order, centroid: middle, distanceFromPickup: haversineKm(order.pickup, middle), load, large });
   }
+  // The requested (seed) order is swept first so it anchors the first batch;
+  // everything else keeps the deterministic distance-then-id order.
   prepared.sort(
     (a, b) =>
+      Number(b.order.id === options.seedId) - Number(a.order.id === options.seedId) ||
       a.distanceFromPickup - b.distanceFromPickup || (a.order.id < b.order.id ? -1 : a.order.id > b.order.id ? 1 : 0)
   );
 

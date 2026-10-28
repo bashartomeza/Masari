@@ -117,6 +117,13 @@ describe("planBatches vehicle capacity", () => {
     expect(plan.batches.map((batch) => batch.parcel_count)).toEqual([50, 10]);
   });
 
+  it("places the seed order in the first batch even when it sorts last", () => {
+    const orders = Array.from({ length: 51 }, (_, index) => order(`s${String(index).padStart(2, "0")}`, BETHLEHEM_CENTER));
+    const plan = planBatches(orders, undefined, { seedId: "s50" });
+    expect(plan.batches[0]!.order_ids).toHaveLength(50);
+    expect(plan.batches[0]!.order_ids).toContain("s50");
+  });
+
   it("caps large parcels per batch", () => {
     const plan = planBatches(
       Array.from({ length: 5 }, (_, index) => order(`l${index}`, BETHLEHEM_CENTER, ["L", "L", "L", "L", "L"]))
