@@ -64,7 +64,9 @@ export async function createParcelBatch(req: AuthenticatedRequest, orderId: stri
           lng: toNumber(parcel.destination_lng),
           size: (parcel.size === "L" || parcel.size === "M" ? parcel.size : "S") as ParcelSize
         }))
-      }))
+      })),
+      undefined,
+      { seedId: order.id }
     );
     const planned = plan.batches.find((candidate) => candidate.order_ids.includes(order.id));
     if (!planned) throw new HttpError(400, "order_exceeds_batch_capacity");
