@@ -1,0 +1,64 @@
+# Starts the local test environment: API (port 3000) and Admin site (port 5173) on the
+# disposable masari_demo database. State, logs and one-time codes live in
+# .staging-data/test-env (git-ignored).
+#
+#   pwsh -NoProfile -File scripts/test-env/start.ps1
+#   pwsh -NoProfile -File scripts/test-env/stop.ps1
+param([int]$ApiPort = 3000, [int]$AdminPort = 5173)
+$ErrorActionPreference = "Stop"
+
+$root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\.."))
+$state = Join-Path $root ".staging-data\test-env"
+New-Item -ItemType Directory -Force -Path $state | Out-Null
+New-Item -ItemType Directory -Force -Path (Join-Path $state "driver-docs") | Out-Null
+
+foreach ($port in $ApiPort, $AdminPort) {
+  if (Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue) {
+    throw "Port $port is already in use. Stop whatever is using it (or run stop.ps1) and try again."
+  }
+}
+if (-not (Test-Path (Join-Path $root "apps\api\dist\server.js"))) { throw "Build first: npm run build -w @masari/api" }
+
+# Settings come from apps/api/.env, then the database is pointed at the disposable demo one.
+$values = @{}
+foreach ($line in Get-Content (Join-Path $root "apps\api\.env")) {
+  if ($line -match '^([A-Z0-9_]+)=(.*)$') { $values[$Matches[1]] = $Matches[2].Trim('"') }
+}
+$databaseUrl = $values["DATABASE_URL"] -replace "/[A-Za-z0-9_]+(\?|$)", "/masari_demo`$1"
+
+# Admin site first, with a clean environment (it reads its own apps/admin/.env.local).
+$adminProcess = Start-Process -FilePath (Get-Command npm.cmd).Source `
+  -ArgumentList @("run", "dev", "-w", "@masari/admin", "--", "--port", "$AdminPort", "--strictPort") `
+  -WorkingDirectory $root -WindowStyle Hidden -PassThru `
+  -RedirectStandardOutput (Join-Path $state "admin.log") -RedirectStandardError (Join-Path $state "admin.err.log")
+
+# API: settings from apps/api/.env, pointed at the disposable demo database.
+foreach ($key in $values.Keys) { Set-Item -Path "Env:$key" -Value $values[$key] }
+$env:DATABASE_URL = $databaseUrl
+$env:APP_ENV = "demo"
+$env:PORT = "$ApiPort"
+$env:DEMO_RESET_ALLOWED_DATABASES = "masari_demo"
+$env:TEST_OTP_FILE = Join-Path $state "otp.txt"
+$env:DRIVER_DOCUMENTS_ENABLED = "true"
+$env:DRIVER_DOCUMENTS_DIR = Join-Path $state "driver-docs"
+$env:CORS_ORIGINS = "http://localhost:$AdminPort,http://127.0.0.1:$AdminPort"
+$apiProcess = Start-Process -FilePath (Get-Command node).Source `
+  -ArgumentList @((Join-Path $root "scripts/test-env/test-api-server.mjs")) `
+  -WorkingDirectory (Join-Path $root "apps/api") -WindowStyle Hidden -PassThru `
+  -RedirectStandardOutput (Join-Path $state "api.log") -RedirectStandardError (Join-Path $state "api.err.log")
+
+@{ api = $apiProcess.Id; admin = $adminProcess.Id; apiPort = $ApiPort; adminPort = $AdminPort } | ConvertTo-Json | Set-Content (Join-Path $state "pids.json")
+
+function Wait-Http($url) {
+  for ($i = 0; $i -lt 90; $i++) {
+    try { if ((Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 2).StatusCode -eq 200) { return $true } } catch {}
+    Start-Sleep -Seconds 1
+  }
+  return $false
+}
+$apiUp = Wait-Http "http://127.0.0.1:$ApiPort/api/v1/health/ready"
+$adminUp = Wait-Http "http://localhost:$AdminPort/"
+Write-Output "API   http://localhost:$ApiPort   ready: $apiUp"
+Write-Output "Admin http://localhost:$AdminPort   ready: $adminUp"
+Write-Output "One-time sign-up codes appear in: $(Join-Path $state 'otp.txt')"
+if (-not ($apiUp -and $adminUp)) { Write-Output "Something did not start; run stop.ps1 and check the build and .env."; exit 1 }
