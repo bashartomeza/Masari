@@ -4,7 +4,7 @@ import { z } from "zod";
 import type { Logger } from "pino";
 import type { AppConfig } from "../config.js";
 import type { Prisma, PrismaClient } from "../generated/prisma/client.js";
-import { AuthActionError, consumeAuthAction, issueAuthAction, revokeAuthActions } from "../lib/authActionTokens.js";
+import { AuthActionError, checkAuthActionCode, consumeAuthAction, consumeCheckedAuthAction, issueAuthAction, revokeAuthActions } from "../lib/authActionTokens.js";
 import { hexDigestMatches, keyedDigest, type VersionedKey } from "../lib/keyedDigest.js";
 import { revokeAllUserSessions } from "../lib/refreshTokens.js";
 import { HttpError } from "../middleware/error.js";
@@ -21,10 +21,15 @@ const actionToken = z.string().regex(/^[A-Za-z0-9_-]{43}$/);
 const registrationToken = z.string().min(1).max(2048);
 const consentInput = z.strictObject({ id: z.string().min(1).max(191), type: z.enum(["terms", "privacy", "adult_self_attestation"]), content_hash: z.string().regex(/^[a-f0-9]{64}$/) });
 export const emailStartSchema = z.strictObject({ name: z.string().trim().min(1).max(120), email: canonicalEmail, password: newPassword, locale });
-export const emailCompleteSchema = z.strictObject({ registration_token: registrationToken, email_verification_token: actionToken, locale,
+const emailCode = z.string().regex(/^\d{6}$/);
+// A registration is proven either by the 6-digit code from the email or by the longer token that
+// verify/confirm hands back; exactly one of the two.
+export const emailCompleteBase = z.strictObject({ registration_token: registrationToken, email_verification_token: actionToken.optional(), email_verification_code: emailCode.optional(), locale,
   consents: z.array(consentInput).length(3), adult_self_attestation: z.literal(true), device_name: z.string().trim().min(1).max(120).optional() });
+export const emailCompleteSchema = emailCompleteBase.refine((v) => (v.email_verification_token === undefined) !== (v.email_verification_code === undefined));
 export const emailProofStartSchema = z.strictObject({ email: canonicalEmail, locale });
-export const emailProofConfirmSchema = z.strictObject({ action_token: actionToken, registration_token: registrationToken.optional() });
+export const emailProofConfirmSchema = z.strictObject({ action_token: actionToken.optional(), code: emailCode.optional(), registration_token: registrationToken.optional() })
+  .refine((v) => v.code === undefined ? v.action_token !== undefined : v.action_token === undefined && v.registration_token !== undefined);
 export const passwordResetSchema = z.strictObject({ action_token: actionToken, password: newPassword });
 export const passwordSetSchema = z.strictObject({ password: newPassword, current_password: z.string().min(1).max(200).optional(), reauthentication_token: actionToken.optional() });
 const envelopeSchema = z.strictObject({ name: z.string(), email: canonicalEmail, passwordHash: z.string().regex(/^\$2[aby]\$\d\d\$.{53}$/), expires: z.number(), nonce: z.string() });
@@ -78,6 +83,15 @@ export class EmailAuthService {
     catch (error) { if (error instanceof AuthActionError) throw new HttpError(400, "auth_action_invalid"); throw error; }
   }
 
+  private async checkCode(registrationToken: string, code: string) {
+    try { return await checkAuthActionCode(this.db, { code, subject: registrationToken, purpose: "email_verification", key: this.key() }); }
+    catch (error) { if (error instanceof AuthActionError) throw new HttpError(400, "auth_action_invalid"); throw error; }
+  }
+  private async consumeChecked(tx: Prisma.TransactionClient, action: Awaited<ReturnType<typeof checkAuthActionCode>>) {
+    try { await consumeCheckedAuthAction(tx, action.id); return action; }
+    catch (error) { if (error instanceof AuthActionError) throw new HttpError(400, "auth_action_invalid"); throw error; }
+  }
+
   async currentConsents(inputLocale: "ar" | "en") {
     const effective = await this.releases.current();
     if (!effective.ready) throw new HttpError(503, "consent_unavailable");
@@ -90,16 +104,21 @@ export class EmailAuthService {
     const key = this.key(); const sender = this.sender();
     const expires = Date.now() + 24 * 60 * 60 * 1000;
     const envelope = seal({ name: input.name, email: input.email, passwordHash: await bcrypt.hash(input.password, 12), expires, nonce: randomBytes(16).toString("hex") }, key);
-    const proof = await issueAuthAction(this.db, { purpose: "email_verification", key, subject: envelope });
-    try { await sender.send({ to: input.email, locale: input.locale, purpose: "email_verification", actionToken: proof.rawToken, expiresAt: proof.expiresAt }); }
+    // The email carries only the short code; the long token stays server-side.
+    const proof = await issueAuthAction(this.db, { purpose: "email_verification", key, subject: envelope, withCode: true });
+    try { await sender.send({ to: input.email, locale: input.locale, purpose: "email_verification", actionToken: proof.code!, expiresAt: proof.expiresAt }); }
     catch { await revokeAuthActions(this.db, { subject: envelope, key, reason: "delivery_failed" }); throw new HttpError(503, "email_auth_unavailable"); }
     return { registration_token: envelope, expires_at: new Date(expires).toISOString(), next_action: "verify_email" };
   }
 
   async complete<T>(input: z.infer<typeof emailCompleteSchema>, createSession: (tx: Prisma.TransactionClient, user: Awaited<ReturnType<PrismaClient["user"]["create"]>>) => Promise<T>, requestId?: string) {
     const payload = open(input.registration_token, this.key());
+    // A code attempt is counted before the transaction so a rollback cannot hand the guess back.
+    const checked = input.email_verification_code === undefined ? undefined : await this.checkCode(input.registration_token, input.email_verification_code);
     return this.db.$transaction(async (tx) => {
-      const proof = await this.consume(tx, input.email_verification_token, "email_verification");
+      const proof = checked
+        ? await this.consumeChecked(tx, checked)
+        : await this.consume(tx, input.email_verification_token!, "email_verification");
       if (proof.user_id || !subjectMatches(proof.subject_digest, input.registration_token, this.key())) throw new HttpError(400, "auth_action_invalid");
       if (await tx.user.findUnique({ where: { email: payload.email } })) throw new HttpError(409, "explicit_link_required");
       const effective = await this.releases.current(new Date(), tx);
@@ -141,10 +160,11 @@ export class EmailAuthService {
   }
 
   async verify(input: z.infer<typeof emailProofConfirmSchema>) {
+    if (input.registration_token) open(input.registration_token, this.key());
+    const checked = input.code === undefined ? undefined : await this.checkCode(input.registration_token!, input.code);
     return this.db.$transaction(async (tx) => {
-      const proof = await this.consume(tx, input.action_token, "email_verification");
+      const proof = checked ? await this.consumeChecked(tx, checked) : await this.consume(tx, input.action_token!, "email_verification");
       if (input.registration_token) {
-        open(input.registration_token, this.key());
         if (proof.user_id || !subjectMatches(proof.subject_digest, input.registration_token, this.key())) throw new HttpError(400, "auth_action_invalid");
         const next = await issueAuthAction(tx, { purpose: "email_verification", key: this.key(), subject: input.registration_token });
         return { ok: true, email_verification_token: next.rawToken, next_action: "consent_required" };

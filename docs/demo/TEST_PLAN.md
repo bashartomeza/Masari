@@ -13,7 +13,7 @@ Everything runs on a disposable demo database. Nothing here touches real data, a
 | Admin sign-in | email `demo.admin@masari.app`, password `DEMO_ADMIN_PASSWORD` from `apps/api/.env` |
 | Demo app sign-ins (email + password from `apps/api/.env`) | passenger `demo.passenger@masari.app`, driver `demo.driver@masari.app` (and `demo.driver2@masari.app`), merchant `demo.merchant@masari.app` — passwords are `DEMO_PASSENGER_PASSWORD`, `DEMO_DRIVER_PASSWORD`, `DEMO_MERCHANT_PASSWORD` |
 | Sign-up invitation codes | `.staging-data/test-env/invitations.txt` (passenger +970590002001, driver +970590002002, merchant +970590002003) |
-| Email verification token (normal user sign-up) | the newest line for that email in `.staging-data/test-env/email-codes.txt` (no real email is sent; paste the long token into the app) |
+| Email verification code (normal user sign-up) | the newest line for that email in `.staging-data/test-env/email-codes.txt` (no real email is sent; type the six-digit code into the app) |
 | One-time SMS codes | the newest line of `.staging-data/test-env/otp.txt` (there is no real SMS; the code is written to that file) |
 | Sample files on the emulator (Downloads) | `licence.jpg` (valid), `vehicle-registration.pdf` (valid), `not-really-an-image.jpg` (text pretending to be a photo) |
 | Pending / rejected demo accounts | Demo Pending Merchant, Demo Pending Driver, Demo Rejected Driver (already seeded) |
@@ -81,7 +81,7 @@ Use the codes in `invitations.txt`. After each sign-up, read the code from `otp.
 | C15 | Sign-in screen → "Check an existing application" with a pending applicant's phone and password | Shows the application status |
 | C16 | Shop owner (pending, from C03): Add a document → choose `licence.jpg` (type "Commercial register") | The pending screen shows "Verification documents" asking for the commercial register, national ID and shop photo; the file appears in the list as "Commercial register · 1 KB" |
 | C17 | In the Admin site, Users → the pending shop owner → Approve (or Reject) | The shop owner's documents are listed with a Download button before you decide; the downloaded file opens and is the right file |
-| C18 | Create account → Normal user → name, an email ending in @example.com, a password of at least 12 characters → Sign up; paste the token from `email-codes.txt`, tick the three documents, Continue; then enter a phone such as +970590003020, Send code, type the code from `otp.txt`, Continue | The passenger home opens; no invitation code and no admin approval were needed |
+| C18 | Create account → Normal user → name, an email ending in @example.com, a password of at least 12 characters → Sign up; type the six-digit code from `email-codes.txt`, tick the three documents, Continue; then enter a phone such as +970590003020, Send code, type the code from `otp.txt`, Continue | The passenger home opens; no invitation code and no admin approval were needed |
 
 ## D. The main story (passenger + merchant + driver)
 

@@ -100,7 +100,7 @@ void main() {
         if (method == 'email') {
           await tester.enterText(
             find.byKey(const ValueKey('authProof')),
-            'email-proof-token',
+            '123456',
           );
           await tester.testTextInput.receiveAction(TextInputAction.done);
           await tester.pumpAndSettle();
@@ -131,7 +131,7 @@ void main() {
               )
               .toList(),
           if (method == 'email')
-            'email_verification_token': 'email-proof-token'
+            'email_verification_code': '123456'
           else
             'name': 'Passenger',
         });

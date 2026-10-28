@@ -124,7 +124,7 @@ class AuthRepository {
       'adult_self_attestation': true,
       'device_name': _deviceName,
       if (grant['next_action'] == 'verify_email')
-        'email_verification_token': emailToken
+        'email_verification_code': emailToken
       else
         'name': name,
     },

@@ -105,7 +105,8 @@ test("release metadata is reproducible with SOURCE_DATE_EPOCH and excludes secre
       "20261025160000_driver_verification_history",
       "20261026120000_driver_verification_evidence",
       "20261026140000_driver_verification_documents",
-      "20261028120000_merchant_application_documents"
+      "20261028120000_merchant_application_documents",
+      "20261028150000_auth_action_short_codes"
     ]
   );
   rmSync(directory, { recursive: true, force: true });

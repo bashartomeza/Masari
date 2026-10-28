@@ -79,5 +79,5 @@ $adminUp = Wait-Http "http://localhost:$AdminPort/"
 Write-Output "API   http://localhost:$ApiPort   ready: $apiUp"
 Write-Output "Admin http://localhost:$AdminPort   ready: $adminUp"
 Write-Output "One-time sign-up codes appear in: $(Join-Path $state 'otp.txt')"
-Write-Output "Email sign-up tokens (normal users) appear in: $(Join-Path $state 'email-codes.txt') - $mailMode"
+Write-Output "Email sign-up codes (normal users) appear in: $(Join-Path $state 'email-codes.txt') - $mailMode"
 if (-not ($apiUp -and $adminUp)) { Write-Output "Something did not start; run stop.ps1 and check the build and .env."; exit 1 }

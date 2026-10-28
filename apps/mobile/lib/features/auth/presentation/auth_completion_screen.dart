@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_error.dart';
 import '../../../core/widgets/language_switch.dart';
@@ -358,12 +359,12 @@ class _AuthCompletionScreenState extends ConsumerState<AuthCompletionScreen> {
                 textDirection: TextDirection.ltr,
                 autocorrect: false,
                 enableSuggestions: false,
-                keyboardType: widget.phone
-                    ? TextInputType.number
-                    : TextInputType.text,
-                autofillHints: widget.phone
-                    ? const [AutofillHints.oneTimeCode]
-                    : null,
+                keyboardType: TextInputType.number,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(6),
+                ],
+                autofillHints: const [AutofillHints.oneTimeCode],
                 onChanged: (_) => setState(() {}),
                 onSubmitted: (_) => _busy ? null : _confirm(),
                 decoration: InputDecoration(
@@ -371,10 +372,10 @@ class _AuthCompletionScreenState extends ConsumerState<AuthCompletionScreen> {
                     context,
                     widget.phone
                         ? 'Six-digit verification code'
-                        : 'Verification token from your email',
+                        : 'Six-digit code from your email',
                     widget.phone
                         ? 'رمز التحقق المكون من ستة أرقام'
-                        : 'رمز التحقق من بريدك الإلكتروني',
+                        : 'الرمز المكون من ستة أرقام من بريدك الإلكتروني',
                   ),
                 ),
               ),
@@ -400,7 +401,9 @@ class _AuthCompletionScreenState extends ConsumerState<AuthCompletionScreen> {
                           : _documents == null ||
                                 _accepted.length != 3 ||
                                 (email
-                                    ? _code.text.trim().isEmpty
+                                    ? !RegExp(
+                                        r'^\d{6}$',
+                                      ).hasMatch(_code.text.trim())
                                     : _name.text.trim().isEmpty))
                   ? null
                   : _confirm,
