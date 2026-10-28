@@ -1430,6 +1430,36 @@ abstract class AppLocalizations {
   /// **'الأمان والجلسات'**
   String get securityAndSessions;
 
+  /// No description provided for @mapOfflineSaved.
+  ///
+  /// In ar, this message translates to:
+  /// **'بدون اتصال - تُعرض الخريطة المحفوظة'**
+  String get mapOfflineSaved;
+
+  /// No description provided for @clearMapCache.
+  ///
+  /// In ar, this message translates to:
+  /// **'مسح الخريطة المحفوظة'**
+  String get clearMapCache;
+
+  /// No description provided for @clearMapCacheHint.
+  ///
+  /// In ar, this message translates to:
+  /// **'يحذف مربعات الخريطة المحفوظة على هذا الجهاز. تُحفظ من جديد أثناء التصفح.'**
+  String get clearMapCacheHint;
+
+  /// No description provided for @mapCacheCleared.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم مسح الخريطة المحفوظة'**
+  String get mapCacheCleared;
+
+  /// No description provided for @mapCacheClearFailed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر مسح الخريطة المحفوظة'**
+  String get mapCacheClearFailed;
+
   /// No description provided for @activeSessions.
   ///
   /// In ar, this message translates to:

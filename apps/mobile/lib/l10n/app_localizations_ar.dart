@@ -698,6 +698,22 @@ class AppLocalizationsAr extends AppLocalizations {
   String get securityAndSessions => 'الأمان والجلسات';
 
   @override
+  String get mapOfflineSaved => 'بدون اتصال - تُعرض الخريطة المحفوظة';
+
+  @override
+  String get clearMapCache => 'مسح الخريطة المحفوظة';
+
+  @override
+  String get clearMapCacheHint =>
+      'يحذف مربعات الخريطة المحفوظة على هذا الجهاز. تُحفظ من جديد أثناء التصفح.';
+
+  @override
+  String get mapCacheCleared => 'تم مسح الخريطة المحفوظة';
+
+  @override
+  String get mapCacheClearFailed => 'تعذّر مسح الخريطة المحفوظة';
+
+  @override
   String get activeSessions => 'الجلسات النشطة';
 
   @override
