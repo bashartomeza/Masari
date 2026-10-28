@@ -92,10 +92,10 @@ class ApiPassengerAssistantRepository implements PassengerAssistantRepository {
   Future<List<PassengerAssistantTripOption>> searchTrips(
     PassengerAssistantTripDraft draft,
   ) async {
-    final pickup = _validatedPickup(draft);
+    _validateDraft(draft);
     final json = await apiClient.postJson(
       '/matches/search',
-      body: _requestBody(draft, pickup),
+      body: _requestBody(draft),
     );
     final rawResults = json['results'];
     if (rawResults is! List) {
@@ -118,8 +118,8 @@ class ApiPassengerAssistantRepository implements PassengerAssistantRepository {
     required PassengerAssistantTripDraft draft,
     required PassengerAssistantTripOption option,
   }) async {
-    final pickup = _validatedPickup(draft);
-    final body = _requestBody(draft, pickup);
+    _validateDraft(draft);
+    final body = _requestBody(draft);
     final recovery = mutation;
     if (recovery == null) {
       // Booking callers must supply the actor-bound durable service. Read-only
@@ -304,32 +304,48 @@ class ApiPassengerAssistantRepository implements PassengerAssistantRepository {
     );
   }
 
-  PickupPreset _validatedPickup(PassengerAssistantTripDraft draft) {
-    final pickup = lockedPickupPresets
-        .where((value) => value.key == draft.pickupKey)
-        .firstOrNull;
-    if (pickup == null || draft.destinationKey != 'bethlehem') {
+  /// A draft is bookable when each end is either a matched stop (carries its
+  /// own coordinates) or one of the legacy preset places.
+  void _validateDraft(PassengerAssistantTripDraft draft) {
+    final pickupKnown =
+        (draft.pickupLat != null && draft.pickupLng != null) ||
+        lockedPickupPresets.any((value) => value.key == draft.pickupKey);
+    final destinationKnown =
+        (draft.destinationLat != null && draft.destinationLng != null) ||
+        draft.destinationKey == 'bethlehem';
+    if (!pickupKnown || !destinationKnown) {
       throw const FormatException('Unsupported extracted trip data');
     }
     if (draft.passengerCount < 1 || draft.passengerCount > 4) {
       throw const FormatException('Invalid passenger count');
     }
-    return pickup;
   }
 
-  Map<String, dynamic> _requestBody(
-    PassengerAssistantTripDraft draft,
-    PickupPreset pickup,
-  ) => {
-    'pickup_label': pickup.label,
-    'pickup_lat': pickup.lat,
-    'pickup_lng': pickup.lng,
-    'destination_label': lockedDestinationLabel,
-    'destination_lat': lockedDestinationLat,
-    'destination_lng': lockedDestinationLng,
-    'preferred_time': draft.preferredTime.toUtc().toIso8601String(),
-    'passenger_count': draft.passengerCount,
-  };
+  Map<String, dynamic> _requestBody(PassengerAssistantTripDraft draft) {
+    final preset = lockedPickupPresets
+        .where((value) => value.key == draft.pickupKey)
+        .firstOrNull;
+    final hasPickupCoordinates =
+        draft.pickupLat != null && draft.pickupLng != null;
+    final hasDestinationCoordinates =
+        draft.destinationLat != null && draft.destinationLng != null;
+    return {
+      'pickup_label': hasPickupCoordinates ? draft.pickupLabel : preset!.label,
+      'pickup_lat': hasPickupCoordinates ? draft.pickupLat : preset!.lat,
+      'pickup_lng': hasPickupCoordinates ? draft.pickupLng : preset!.lng,
+      'destination_label': hasDestinationCoordinates
+          ? draft.destinationLabel
+          : lockedDestinationLabel,
+      'destination_lat': hasDestinationCoordinates
+          ? draft.destinationLat
+          : lockedDestinationLat,
+      'destination_lng': hasDestinationCoordinates
+          ? draft.destinationLng
+          : lockedDestinationLng,
+      'preferred_time': draft.preferredTime.toUtc().toIso8601String(),
+      'passenger_count': draft.passengerCount,
+    };
+  }
 }
 
 bool _definitiveMatchingRejection(Object error) =>

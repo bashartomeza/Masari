@@ -86,6 +86,16 @@ return {
   },
   updateIncident: (token: string, id: string, body: { status: Exclude<IncidentStatus, "open">; expected_revision: number; note?: string }) =>
     apiRequest<{ incident: IncidentRecord }>(`/admin/incidents/${encodeURIComponent(id)}`, { method: "PATCH", token, body }),
+  uncertainAiRequests: (token: string, query: { status?: UncertainAiStatus; page?: number; limit?: number } = {}) => {
+    const params = new URLSearchParams();
+    if (query.status) params.set("status", query.status);
+    if (query.page) params.set("page", String(query.page));
+    if (query.limit) params.set("limit", String(query.limit));
+    const text = params.toString();
+    return apiRequest<UncertainAiPage>(`/admin/ai-uncertain-requests${text ? `?${text}` : ""}`, { token });
+  },
+  resolveUncertainAiRequest: (token: string, id: string, body: { expected_revision: number; note?: string }) =>
+    apiRequest<{ request: UncertainAiRecord }>(`/admin/ai-uncertain-requests/${encodeURIComponent(id)}`, { method: "PATCH", token, body }),
   reportSummary: (token: string, range: ReportRange) => apiRequest<ReportSummary>(`/admin/reports/summary${reportQuery(range)}`, { token }),
   reportExport: (token: string, dataset: ReportDataset, range: ReportRange) => downloadCsv(`/admin/reports/export${reportQuery(range, { dataset })}`, token),
   successMetrics: (token: string, range: ReportRange) => apiRequest<SuccessMetricsResponse>(`/admin/success-metrics${reportQuery(range)}`, { token }),
@@ -804,6 +814,25 @@ export type IncidentRecord = {
   reporter?: { id: string; name: string; role: string };
 };
 export type IncidentPage = { incidents: IncidentRecord[]; page: number; limit: number; total: number; open_total: number };
+export type UncertainAiStatus = "open" | "resolved";
+export type UncertainAiRecord = {
+  id: string;
+  locale: string;
+  text: string;
+  intent_type: string;
+  confidence: number;
+  source: string;
+  reason: string;
+  pickup_key: string | null;
+  dropoff_key: string | null;
+  status: UncertainAiStatus;
+  resolution_note: string | null;
+  resolved_at: string | null;
+  revision: number;
+  created_at: string;
+  expires_at: string;
+};
+export type UncertainAiPage = { requests: UncertainAiRecord[]; page: number; limit: number; total: number; open_total: number };
 export type ReportRange = { from?: string; to?: string };
 export type SuccessMetricKey = "matching_time" | "ai_understanding" | "status_continuity" | "batch_efficiency" | "driver_utilization" | "user_satisfaction" | "driver_verification" | "pickup_clarity" | "route_deviation";
 export type SuccessMetric = {

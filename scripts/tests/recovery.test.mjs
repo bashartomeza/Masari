@@ -112,6 +112,7 @@ test("release metadata is reproducible with SOURCE_DATE_EPOCH and excludes secre
       "20261029120000_open_driver_merchant_signup",
       "20261029130000_passenger_parcels",
       "20261029140000_route_fares",
+      "20261029150000_ai_uncertain_requests",
       "20261029190000_driver_document_expiry"
     ]
   );
