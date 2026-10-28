@@ -35,6 +35,7 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
   bool _adult = false;
   bool _showPassword = false;
   bool _showConfirmPassword = false;
+  Set<String> _uploadedKinds = const {};
   Timer? _timer;
   DateTime _now = DateTime.now().toUtc();
 
@@ -229,7 +230,15 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
               key: const ValueKey('invitationCodeField'),
               controller: _invitation,
               textInputAction: TextInputAction.next,
-              decoration: InputDecoration(labelText: l10n.invitationCode),
+              decoration: InputDecoration(
+                labelText:
+                    state.config?.openRegistrationRoles.contains(
+                          state.selectedRole,
+                        ) ==
+                        true
+                    ? l10n.invitationCodeOptional
+                    : l10n.invitationCode,
+              ),
             ),
           ),
           const SizedBox(height: AppTokens.spaceMedium),
@@ -530,18 +539,60 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
   Widget _pendingCard(BuildContext context, OnboardingState state) {
     final l10n = AppLocalizations.of(context);
     _clearSecrets();
+    final role = state.selectedRole;
+    final isApplicant =
+        role == OnboardingRole.driver || role == OnboardingRole.merchant;
+    final needsDocuments = isApplicant && !state.applicationSubmitted;
+    final required = role == OnboardingRole.merchant
+        ? merchantRequiredDocumentKinds
+        : driverRequiredDocumentKinds;
+    final missing = required
+        .where((kind) => !_uploadedKinds.contains(kind))
+        .toList(growable: false);
     final card = MasariCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            l10n.applicationUnderReview,
+            needsDocuments
+                ? l10n.applicationDocumentsRequiredTitle
+                : l10n.applicationUnderReview,
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: AppTokens.spaceMedium),
-          Text(l10n.pendingReviewBody),
-          if (state.selectedRole != null)
-            Text(_roleLabel(l10n, state.selectedRole!)),
+          Text(
+            needsDocuments
+                ? l10n.applicationDocumentsRequiredBody
+                : l10n.pendingReviewBody,
+          ),
+          if (role != null) Text(_roleLabel(l10n, role)),
+          if (needsDocuments) ...[
+            const SizedBox(height: AppTokens.spaceMedium),
+            if (missing.isNotEmpty)
+              Text(
+                l10n.documentsStillNeeded(
+                  missing
+                      .map((kind) => documentKindLabel(l10n, kind))
+                      .join(', '),
+                ),
+                key: const ValueKey('documentsStillNeeded'),
+              ),
+            const SizedBox(height: AppTokens.spaceSmall),
+            FilledButton(
+              key: const ValueKey('submitApplicationButton'),
+              onPressed: state.busy || missing.isNotEmpty
+                  ? null
+                  : () => ref
+                        .read(onboardingControllerProvider.notifier)
+                        .submitApplication(),
+              child: state.busy
+                  ? const SizedBox.square(
+                      dimension: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text(l10n.submitApplication),
+            ),
+          ],
           const SizedBox(height: AppTokens.spaceMedium),
           OutlinedButton(
             onPressed: () => ref
@@ -559,16 +610,18 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
         ],
       ),
     );
-    final role = state.selectedRole;
-    if (role != OnboardingRole.driver && role != OnboardingRole.merchant) {
-      return card;
-    }
+    if (!isApplicant) return card;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         card,
         const SizedBox(height: AppTokens.spaceMedium),
-        DriverDocumentsCard(merchant: role == OnboardingRole.merchant),
+        DriverDocumentsCard(
+          merchant: role == OnboardingRole.merchant,
+          onKindsChanged: (kinds) {
+            if (mounted) setState(() => _uploadedKinds = kinds);
+          },
+        ),
       ],
     );
   }
@@ -808,6 +861,7 @@ String _safeError(AppLocalizations l10n, String? code) => switch (code) {
   'verification_temporarily_unavailable' => l10n.requestFailed,
   'registration_grant_invalid' => l10n.requestFailed,
   'registration_conflict' => l10n.requestFailed,
+  'documents_required' => l10n.documentsRequiredError,
   _ => l10n.requestFailed,
 };
 

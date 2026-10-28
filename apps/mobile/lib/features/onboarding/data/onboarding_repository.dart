@@ -71,7 +71,8 @@ class OnboardingRepository {
     final json = await _post(
       '/onboarding/attempts',
       body: {
-        'invitation_code': invitationCode.trim(),
+        if (invitationCode.trim().isNotEmpty)
+          'invitation_code': invitationCode.trim(),
         'role': role.apiValue,
         'phone': phone.trim(),
         'locale': locale,
@@ -194,6 +195,19 @@ class OnboardingRepository {
     try {
       return PendingStatusResult.fromJson(json);
     } on FormatException {
+      throw const ApiException(ApiErrorType.validation, 'invalid_response');
+    }
+  }
+
+  /// Sends the complete application for admin review. The server refuses with
+  /// `documents_required` until every required document is uploaded.
+  Future<void> submitApplication(String onboardingToken) async {
+    final json = await _post(
+      '/onboarding/application/submit',
+      body: const {},
+      onboardingToken: onboardingToken,
+    );
+    if (json['onboarding_status'] != 'pending_review') {
       throw const ApiException(ApiErrorType.validation, 'invalid_response');
     }
   }

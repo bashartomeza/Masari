@@ -806,14 +806,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get registerDriverHelp =>
-      'Carry trips and deliveries. Needs an invitation code, your documents and approval.';
+      'Carry trips and deliveries. You upload your documents and an admin approves your account.';
 
   @override
   String get registerMerchantTitle => 'Shop owner';
 
   @override
   String get registerMerchantHelp =>
-      'Send orders from your shop. Needs an invitation code and approval.';
+      'Send orders from your shop. You upload your documents and an admin approves your account.';
 
   @override
   String get invitationCode => 'Invitation code';
@@ -2164,4 +2164,26 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mapLegendDestination => 'Destination';
+
+  @override
+  String get applicationDocumentsRequiredTitle => 'Upload your documents';
+
+  @override
+  String get applicationDocumentsRequiredBody =>
+      'Your account is created but is not under review yet. Upload every required document, then send your application. Review usually takes up to 24 hours.';
+
+  @override
+  String documentsStillNeeded(String documents) {
+    return 'Still needed: $documents';
+  }
+
+  @override
+  String get submitApplication => 'Send for review';
+
+  @override
+  String get documentsRequiredError =>
+      'Upload all the required documents before sending your application.';
+
+  @override
+  String get invitationCodeOptional => 'Invitation code (optional)';
 }

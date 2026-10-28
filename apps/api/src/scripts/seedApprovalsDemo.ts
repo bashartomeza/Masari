@@ -36,6 +36,7 @@ async function account(phone: string, name: string, role: "merchant" | "driver",
       password_hash: await bcrypt.hash(password, 10),
       role,
       account_status: "pending",
+      review_submitted_at: new Date(),
       demo_account: true
     }
   });

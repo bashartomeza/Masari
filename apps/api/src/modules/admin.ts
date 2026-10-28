@@ -22,6 +22,7 @@ const safeUserSelect = {
   status_updated_at: true,
   last_login_at: true,
   demo_account: true,
+  review_submitted_at: true,
   created_at: true
 } as const;
 
@@ -104,18 +105,19 @@ function serializeUserDirectoryListRecord(user: UserDirectoryListRecord) {
 }
 
 function createUserRoleContext(
-  user: { role: string; driver_profile: { verified: boolean } | null; driver_verification: { status: string } | null }
+  user: { role: string; review_submitted_at?: Date | null; driver_profile: { verified: boolean } | null; driver_verification: { status: string } | null }
 ) {
   if (user.role === "driver") {
     return {
       kind: "driver",
       driver_profile_exists: Boolean(user.driver_profile),
       driver_profile_verified: user.driver_profile?.verified ?? false,
-      driver_verification_status: user.driver_verification?.status ?? "none"
+      driver_verification_status: user.driver_verification?.status ?? "none",
+      application_submitted: user.review_submitted_at !== null
     };
   }
   if (user.role === "merchant") {
-    return { kind: "merchant", merchant_approval_connected: true };
+    return { kind: "merchant", merchant_approval_connected: true, application_submitted: user.review_submitted_at !== null };
   }
   if (user.role === "admin") return { kind: "admin" };
   return { kind: "passenger" };
@@ -192,6 +194,7 @@ function serializeDriverVerification(verification: DriverVerificationRecord) {
   return {
     id: verification.id,
     revision: verification.revision,
+    application_submitted: verification.user.review_submitted_at !== null,
     status: verification.status,
     rejection_reason: verification.rejection_reason,
     submitted_at: verification.submitted_at,
@@ -373,7 +376,8 @@ adminRouter.get("/admin/users/:id", async (req: AuthenticatedRequest, res, next)
 adminRouter.get("/admin/driver-verifications", async (req: AuthenticatedRequest, res, next) => {
   try {
     const input = verificationListSchema.parse(req.query);
-    const where = { status: input.status };
+    // Applicants who have not sent their documents for review are not in the queue yet.
+    const where = { status: input.status, user: { review_submitted_at: { not: null } } };
     const [verifications, total] = await Promise.all([
       prisma.driverVerification.findMany({
         where,
@@ -421,6 +425,7 @@ adminRouter.post("/admin/driver-verifications/:userId/approve", async (req: Auth
         });
         if (!current) throw new HttpError(404, "driver_verification_not_found");
         if (current.user.role !== "driver") throw new HttpError(409, "driver_verification_role_conflict");
+        if (current.user.review_submitted_at === null) throw new HttpError(409, "application_not_submitted");
         if (current.user.account_status !== AccountStatus.pending && current.user.account_status !== AccountStatus.active) {
           throw new HttpError(409, "driver_account_status_conflict");
         }
@@ -509,6 +514,7 @@ adminRouter.post("/admin/driver-verifications/:userId/reject", async (req: Authe
         });
         if (!current) throw new HttpError(404, "driver_verification_not_found");
         if (current.user.role !== "driver") throw new HttpError(409, "driver_verification_role_conflict");
+        if (current.user.review_submitted_at === null) throw new HttpError(409, "application_not_submitted");
         if (current.status !== DriverVerificationStatus.pending || current.revision !== input.expected_revision) {
           throw new HttpError(409, "driver_verification_state_conflict");
         }
@@ -732,6 +738,7 @@ async function decideMerchant(req: AuthenticatedRequest, decision: "approve" | "
     const target = await tx.user.findUnique({ where: { id: userId }, select: safeUserSelect });
     if (!target) throw new HttpError(404, "user_not_found");
     if (target.role !== "merchant") throw new HttpError(409, "merchant_role_required");
+    if (target.review_submitted_at === null) throw new HttpError(409, "application_not_submitted");
     if (target.account_status !== AccountStatus.pending) throw new HttpError(409, "account_status_conflict");
 
     const now = new Date();
@@ -901,7 +908,7 @@ adminRouter.get("/admin/dashboard", async (req: AuthenticatedRequest, res, next)
           by: ["driver_id"],
           where: { status: { in: ["active", "assigned", "on_trip"] }, driver: { verified: true } }
         }),
-        prisma.driverVerification.count({ where: { status: "pending" } }),
+        prisma.driverVerification.count({ where: { status: "pending", user: { review_submitted_at: { not: null } } } }),
         prisma.incident.count({ where: { status: { not: "resolved" } } }),
         prisma.passengerRequest.findMany({ orderBy: { created_at: "desc" }, take: 5 }),
         prisma.merchantOrder.findMany({ orderBy: { created_at: "desc" }, take: 5, include: { parcels: true } }),

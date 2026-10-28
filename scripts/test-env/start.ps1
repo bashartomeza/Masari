@@ -59,6 +59,8 @@ if (Test-MailPassword) {
 }
 $env:DRIVER_DOCUMENTS_ENABLED = "true"
 $env:DRIVER_DOCUMENTS_DIR = Join-Path $state "driver-docs"
+# Local test environment only: drivers and shop owners may sign up without an invitation code.
+$env:OPEN_DRIVER_MERCHANT_SIGNUP_ENABLED = "true"
 $env:CORS_ORIGINS = "http://localhost:$AdminPort,http://127.0.0.1:$AdminPort"
 $apiProcess = Start-Process -FilePath (Get-Command node).Source `
   -ArgumentList @((Join-Path $root "scripts/test-env/test-api-server.mjs")) `

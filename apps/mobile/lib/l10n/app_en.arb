@@ -263,9 +263,9 @@
   "registerPassengerTitle": "Normal user",
   "registerPassengerHelp": "Request trips and deliveries. Your account is ready right after sign-up.",
   "registerDriverTitle": "Driver",
-  "registerDriverHelp": "Carry trips and deliveries. Needs an invitation code, your documents and approval.",
+  "registerDriverHelp": "Carry trips and deliveries. You upload your documents and an admin approves your account.",
   "registerMerchantTitle": "Shop owner",
-  "registerMerchantHelp": "Send orders from your shop. Needs an invitation code and approval.",
+  "registerMerchantHelp": "Send orders from your shop. You upload your documents and an admin approves your account.",
   "invitationCode": "Invitation code",
   "phoneNumber": "Phone number",
   "sendVerificationCode": "Send verification code",
@@ -756,5 +756,18 @@
   "emailOrPhoneRequired": "Enter your email or phone number.",
   "emailOrPhoneInvalid": "Enter a valid email, or a phone number starting with + and the country code.",
   "mapLegendStart": "Start",
-  "mapLegendDestination": "Destination"
+  "mapLegendDestination": "Destination",
+  "applicationDocumentsRequiredTitle": "Upload your documents",
+  "applicationDocumentsRequiredBody": "Your account is created but is not under review yet. Upload every required document, then send your application. Review usually takes up to 24 hours.",
+  "documentsStillNeeded": "Still needed: {documents}",
+  "@documentsStillNeeded": {
+    "placeholders": {
+      "documents": {
+        "type": "String"
+      }
+    }
+  },
+  "submitApplication": "Send for review",
+  "documentsRequiredError": "Upload all the required documents before sending your application.",
+  "invitationCodeOptional": "Invitation code (optional)"
 }

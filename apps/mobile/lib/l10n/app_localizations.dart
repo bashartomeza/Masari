@@ -1637,7 +1637,7 @@ abstract class AppLocalizations {
   /// No description provided for @registerDriverHelp.
   ///
   /// In ar, this message translates to:
-  /// **'انقل الرحلات والتوصيلات. يتطلب رمز دعوة ومستنداتك وموافقة.'**
+  /// **'انقل الرحلات والتوصيلات. ترفع مستنداتك ويوافق المشرف على حسابك.'**
   String get registerDriverHelp;
 
   /// No description provided for @registerMerchantTitle.
@@ -1649,7 +1649,7 @@ abstract class AppLocalizations {
   /// No description provided for @registerMerchantHelp.
   ///
   /// In ar, this message translates to:
-  /// **'أرسل طلبات من متجرك. يتطلب رمز دعوة وموافقة.'**
+  /// **'أرسل طلبات من متجرك. ترفع مستنداتك ويوافق المشرف على حسابك.'**
   String get registerMerchantHelp;
 
   /// No description provided for @invitationCode.
@@ -4039,6 +4039,42 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'الوصول'**
   String get mapLegendDestination;
+
+  /// No description provided for @applicationDocumentsRequiredTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'ارفع مستنداتك'**
+  String get applicationDocumentsRequiredTitle;
+
+  /// No description provided for @applicationDocumentsRequiredBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إنشاء حسابك لكنه ليس قيد المراجعة بعد. ارفع كل المستندات المطلوبة ثم أرسل طلبك. تستغرق المراجعة عادةً حتى 24 ساعة.'**
+  String get applicationDocumentsRequiredBody;
+
+  /// No description provided for @documentsStillNeeded.
+  ///
+  /// In ar, this message translates to:
+  /// **'ما زال مطلوباً: {documents}'**
+  String documentsStillNeeded(String documents);
+
+  /// No description provided for @submitApplication.
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال للمراجعة'**
+  String get submitApplication;
+
+  /// No description provided for @documentsRequiredError.
+  ///
+  /// In ar, this message translates to:
+  /// **'ارفع كل المستندات المطلوبة قبل إرسال طلبك.'**
+  String get documentsRequiredError;
+
+  /// No description provided for @invitationCodeOptional.
+  ///
+  /// In ar, this message translates to:
+  /// **'رمز الدعوة (اختياري)'**
+  String get invitationCodeOptional;
 }
 
 class _AppLocalizationsDelegate
