@@ -519,6 +519,14 @@ class _TripReviewCardState extends State<_TripReviewCard> {
                   value: pickup.key,
                   child: Text(localizedCorridorPlace(context, pickup.label)),
                 ),
+              // The stop the assistant matched, when it is not a preset place.
+              if (!lockedPickupPresets.any(
+                (value) => value.key == widget.draft.pickupKey,
+              ))
+                DropdownMenuItem(
+                  value: widget.draft.pickupKey,
+                  child: Text(widget.draft.pickupLabel),
+                ),
             ],
             onChanged: widget.searching
                 ? null
@@ -526,12 +534,22 @@ class _TripReviewCardState extends State<_TripReviewCard> {
                     final pickup = lockedPickupPresets
                         .where((value) => value.key == key)
                         .firstOrNull;
-                    if (pickup == null) return;
                     setState(() {
-                      _draft = _draft.copyWith(
-                        pickupKey: pickup.key,
-                        pickupLabel: pickup.label,
-                      );
+                      if (pickup != null) {
+                        _draft = _draft.copyWith(
+                          pickupKey: pickup.key,
+                          pickupLabel: pickup.label,
+                          pickupLat: pickup.lat,
+                          pickupLng: pickup.lng,
+                        );
+                      } else if (key == widget.draft.pickupKey) {
+                        _draft = _draft.copyWith(
+                          pickupKey: widget.draft.pickupKey,
+                          pickupLabel: widget.draft.pickupLabel,
+                          pickupLat: widget.draft.pickupLat,
+                          pickupLng: widget.draft.pickupLng,
+                        );
+                      }
                     });
                   },
           ),
@@ -547,16 +565,31 @@ class _TripReviewCardState extends State<_TripReviewCard> {
                   localizedCorridorPlace(context, lockedDestinationLabel),
                 ),
               ),
+              // The stop the assistant matched, when it is not the preset one.
+              if (widget.draft.destinationKey != 'bethlehem')
+                DropdownMenuItem(
+                  value: widget.draft.destinationKey,
+                  child: Text(widget.draft.destinationLabel),
+                ),
             ],
             onChanged: widget.searching
                 ? null
                 : (key) {
                     if (key == null) return;
                     setState(() {
-                      _draft = _draft.copyWith(
-                        destinationKey: key,
-                        destinationLabel: lockedDestinationLabel,
-                      );
+                      _draft = key == 'bethlehem'
+                          ? _draft.copyWith(
+                              destinationKey: key,
+                              destinationLabel: lockedDestinationLabel,
+                              destinationLat: lockedDestinationLat,
+                              destinationLng: lockedDestinationLng,
+                            )
+                          : _draft.copyWith(
+                              destinationKey: widget.draft.destinationKey,
+                              destinationLabel: widget.draft.destinationLabel,
+                              destinationLat: widget.draft.destinationLat,
+                              destinationLng: widget.draft.destinationLng,
+                            );
                     });
                   },
           ),

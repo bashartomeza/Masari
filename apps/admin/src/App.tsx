@@ -24,6 +24,7 @@ import { DemoControl } from "./features/demo/DemoControl";
 import { ModuleUnavailable } from "./features/placeholder/ModuleUnavailable";
 import { ReportsPanel } from "./features/reports/ReportsPanel";
 import { IncidentsPanel } from "./features/incidents/IncidentsPanel";
+import { UncertainAiRequests } from "./features/incidents/UncertainAiRequests";
 import { ProfilePanel } from "./features/profile/ProfilePanel";
 import {
   hashForModule,
@@ -599,7 +600,12 @@ export function App({
         );
 
       case "incidentsSafety":
-        return <IncidentsPanel api={api} token={token} />;
+        return (
+          <>
+            <IncidentsPanel api={api} token={token} />
+            <UncertainAiRequests api={api} token={token} />
+          </>
+        );
 
       case "reports":
         return <ReportsPanel api={api} token={token} />;

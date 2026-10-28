@@ -40,7 +40,8 @@ const expected = {
   "20261026120000_driver_verification_evidence": "1964710ac841601a357bb648240b4c3e05adc35aa500859c9714095976cd0911",
   "20261026140000_driver_verification_documents": "acba7207379fd242e0f4bdaa2ca94676b5ddcbb3a0fe8cd7a6e1c464af5594ed",
   "20261028120000_merchant_application_documents": "ae2aeea85b68474682f8b507ebff7b70e262ca299f7e5d8dfdbee5a75c85b1b7",
-  "20261028150000_auth_action_short_codes": "87fc9171f040d9bcbe723114fbe1777340b844c1d65e6aac5c5c3a4cc4b9fadc"
+  "20261028150000_auth_action_short_codes": "87fc9171f040d9bcbe723114fbe1777340b844c1d65e6aac5c5c3a4cc4b9fadc",
+  "20261029150000_ai_uncertain_requests": "682f3b9137276b665025361346cf61608b3b0b2aac6ff37e9f2457420ff300b0"
 };
 
 function normalizedChecksum(path) {

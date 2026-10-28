@@ -1548,6 +1548,36 @@ model Incident {
   @@map("incidents")
 }
 
+/// Assistant requests the parser was not confident about, kept for admin review.
+/// PII-minimised: redacted text only, no user id, retention-limited by expires_at.
+model UncertainAiRequest {
+  id              String                   @id @default(cuid())
+  locale          String                   @db.VarChar(5)
+  text            String                   @db.VarChar(400)
+  intent_type     String                   @db.VarChar(16)
+  confidence      Decimal                  @db.Decimal(3, 2)
+  source          String                   @db.VarChar(16)
+  reason          String                   @db.VarChar(40)
+  pickup_key      String?                  @db.VarChar(80)
+  dropoff_key     String?                  @db.VarChar(80)
+  status          UncertainAiRequestStatus @default(open)
+  resolution_note String?                  @db.VarChar(500)
+  resolved_by_id  String?                  @db.VarChar(191)
+  resolved_at     DateTime?
+  revision        Int                      @default(1)
+  created_at      DateTime                 @default(now())
+  expires_at      DateTime
+
+  @@index([status, created_at])
+  @@index([expires_at])
+  @@map("uncertain_ai_requests")
+}
+
+enum UncertainAiRequestStatus {
+  open
+  resolved
+}
+
 /// Append-only history of verification outcomes, so a re-review never erases
 /// what was decided before it.
 model DriverVerificationDecision {
