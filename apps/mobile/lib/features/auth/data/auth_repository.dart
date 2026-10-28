@@ -153,14 +153,16 @@ class AuthRepository {
     );
   }
 
+  /// Confirms the six-digit code from the email for the account with [email].
   Future<void> emailActionConfirm(
-    String token,
+    String email,
+    String code,
     String password, {
     required bool reset,
   }) async {
     await apiClient.postJson(
       reset ? '/auth/password/reset/confirm' : '/auth/email/verify/confirm',
-      body: {'action_token': token, if (reset) 'password': password},
+      body: {'email': email, 'code': code, if (reset) 'password': password},
     );
   }
 
@@ -174,14 +176,14 @@ class AuthRepository {
   Future<void> setPassword(
     String password,
     String currentPassword,
-    String proof,
+    String code,
   ) async {
     await authenticatedApiClient.postJson(
       '/auth/password/set',
       body: {
         'password': password,
         if (currentPassword.isNotEmpty) 'current_password': currentPassword,
-        if (proof.isNotEmpty) 'reauthentication_token': proof,
+        if (code.isNotEmpty) 'reauthentication_code': code,
       },
     );
   }
