@@ -7,8 +7,12 @@ export type NotificationType =
   | "match_accepted"
   | "match_rejected"
   | "trip_status"
+  | "driver_approaching"
   | "driver_verification_approved"
   | "driver_verification_rejected"
+  | "driver_documents_expiring"
+  | "driver_documents_expired"
+  | "driver_documents_renewal_submitted"
   | "incident_updated";
 
 type NotifyInput = {
@@ -27,7 +31,12 @@ type NotifyInput = {
  * duplicates (same recipient + dedupe key) are silently ignored.
  */
 export async function notify(db: Db, input: NotifyInput): Promise<void> {
-  if (!input.userId) return;
+  await notifyOnce(db, input);
+}
+
+/** Like notify(), but reports whether a new inbox row was written (false for a duplicate or failure). */
+export async function notifyOnce(db: Db, input: NotifyInput): Promise<boolean> {
+  if (!input.userId) return false;
   try {
     await db.notification.create({
       data: {
@@ -39,8 +48,10 @@ export async function notify(db: Db, input: NotifyInput): Promise<void> {
         params: input.params
       }
     });
+    return true;
   } catch {
     // Duplicate key, or the inbox is unavailable: the event itself stands.
+    return false;
   }
 }
 

@@ -258,6 +258,156 @@ void main() {
     expect(find.text('سائق'), findsOneWidget);
     expect(find.byKey(const ValueKey('loginButton')), findsNothing);
   });
+
+  testWidgets('invitation code is optional when open signup is on', (
+    tester,
+  ) async {
+    await _pumpApp(
+      tester,
+      handler: (request) async {
+        if (request.url.path.endsWith('/onboarding/config')) {
+          return http.Response(_openConfigBody, 200);
+        }
+        return http.Response('{"error":"not_found"}', 404);
+      },
+    );
+
+    await tester.tap(find.byKey(const ValueKey('goToSignUpButton')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('register-role-driver')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('رمز الدعوة (اختياري)'), findsOneWidget);
+    expect(find.byKey(const ValueKey('onboardingPhoneField')), findsOneWidget);
+  });
+
+  testWidgets('submit stays locked until every required document is on file', (
+    tester,
+  ) async {
+    final harness = await _pumpUnsubmittedDriver(tester, [
+      'driver_licence',
+      'national_id',
+    ]);
+
+    expect(find.text('ارفع مستنداتك'), findsOneWidget);
+    expect(find.text('الطلب قيد المراجعة'), findsNothing);
+    expect(find.byKey(const ValueKey('documentsStillNeeded')), findsOneWidget);
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.byKey(const ValueKey('submitApplicationButton')),
+          )
+          .onPressed,
+      isNull,
+    );
+    expect(harness.submitCalls, 0);
+  });
+
+  testWidgets('a complete application is sent for review', (tester) async {
+    final harness = await _pumpUnsubmittedDriver(tester, [
+      'driver_licence',
+      'vehicle_registration',
+      'national_id',
+    ]);
+
+    expect(find.byKey(const ValueKey('documentsStillNeeded')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('submitApplicationButton')));
+    await tester.pumpAndSettle();
+
+    expect(harness.submitCalls, 1);
+    expect(find.text('الطلب قيد المراجعة'), findsOneWidget);
+    expect(find.byKey(const ValueKey('submitApplicationButton')), findsNothing);
+  });
+
+  testWidgets('a server refusal keeps the applicant on the upload step', (
+    tester,
+  ) async {
+    final harness = await _pumpUnsubmittedDriver(tester, [
+      'driver_licence',
+      'vehicle_registration',
+      'national_id',
+    ], refuseSubmit: true);
+
+    await tester.tap(find.byKey(const ValueKey('submitApplicationButton')));
+    await tester.pumpAndSettle();
+
+    expect(harness.submitCalls, 1);
+    expect(find.text('ارفع مستنداتك'), findsOneWidget);
+    expect(find.text('الطلب قيد المراجعة'), findsNothing);
+  });
+}
+
+class _SubmitHarness {
+  int submitCalls = 0;
+}
+
+Future<_SubmitHarness> _pumpUnsubmittedDriver(
+  WidgetTester tester,
+  List<String> kinds, {
+  bool refuseSubmit = false,
+}) async {
+  final harness = _SubmitHarness();
+  var submitted = false;
+  final future = DateTime.now().toUtc().add(const Duration(hours: 1));
+  final bundle = {
+    'version': 1,
+    'type': 'pendingStatus',
+    'safe_stage': 'pendingReview',
+    'locale': 'ar',
+    'selected_role': 'driver',
+    'pending_status_token': 'pending-token',
+    'pending_status_expires_at': future.toIso8601String(),
+  };
+  await _pumpApp(
+    tester,
+    onboardingEnabled: true,
+    secureInitialValues: {OnboardingStorage.bundleKey: jsonEncode(bundle)},
+    handler: (request) async {
+      final path = request.url.path;
+      if (path.endsWith('/onboarding/config')) {
+        return http.Response(_enabledConfigBody, 200);
+      }
+      if (path.endsWith('/onboarding/status')) {
+        return http.Response(
+          submitted
+              ? '{"role":"driver","onboarding_status":"pending_review","next_action":"await_approval","request_id":"req"}'
+              : '{"role":"driver","onboarding_status":"documents_required","next_action":"upload_documents","request_id":"req"}',
+          200,
+        );
+      }
+      if (path.endsWith('/onboarding/driver-documents')) {
+        return http.Response(
+          jsonEncode({
+            'documents': [
+              for (final kind in kinds)
+                {
+                  'id': 'doc_$kind',
+                  'kind': kind,
+                  'mime_type': 'image/jpeg',
+                  'size_bytes': 2048,
+                },
+            ],
+            'limits': {'max_documents': 6, 'max_bytes': 5242880},
+            'request_id': 'req',
+          }),
+          200,
+        );
+      }
+      if (path.endsWith('/onboarding/application/submit')) {
+        harness.submitCalls += 1;
+        if (refuseSubmit) {
+          return http.Response('{"error":"documents_required"}', 409);
+        }
+        submitted = true;
+        return http.Response(
+          '{"onboarding_status":"pending_review","next_action":"await_approval","request_id":"req"}',
+          200,
+        );
+      }
+      return http.Response('{"error":"not_found"}', 404);
+    },
+  );
+  return harness;
 }
 
 Future<void> _pumpApp(
@@ -306,6 +456,9 @@ Future<void> _pumpApp(
   );
   await tester.pumpAndSettle();
 }
+
+const _openConfigBody =
+    '{"enabled":true,"registration_roles":["passenger","driver","merchant"],"open_registration_roles":["driver","merchant"],"phone_policy":{"canonical_format":"E.164","international_prefix_required_without_region":true,"local_numbers_require_region":true},"supported_locales":["ar","en"],"password_policy":{"minimum_characters":15,"maximum_characters":64,"maximum_utf8_bytes":72},"otp_digits":6,"resend_cooldown_seconds":60,"request_id":"req"}';
 
 const _enabledConfigBody =
     '{"enabled":true,"registration_roles":["passenger","driver","merchant"],"phone_policy":{"canonical_format":"E.164","international_prefix_required_without_region":true,"local_numbers_require_region":true},"supported_locales":["ar","en"],"password_policy":{"minimum_characters":15,"maximum_characters":64,"maximum_utf8_bytes":72},"otp_digits":6,"resend_cooldown_seconds":60,"request_id":"req"}';

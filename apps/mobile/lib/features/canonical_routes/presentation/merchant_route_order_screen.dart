@@ -100,6 +100,7 @@ class _MerchantRouteOrderScreenState
                 title: l10n.orderRecorded,
                 body: l10n.batchingMatchingDisabledNotice,
               ),
+              fareSnapshotBox(context, _result!.fare),
               if (_error != null) Text(_merchantError(l10n, _error!)),
               FilledButton(
                 onPressed: _acknowledgeResult,
@@ -276,6 +277,9 @@ class _MerchantRouteOrderScreenState
                               ),
                             ),
                           ),
+                        parcelFareEstimate(context, route.fares, [
+                          for (final parcel in _parcels) parcel.size,
+                        ]),
                         OutlinedButton.icon(
                           key: const ValueKey('addCanonicalParcel'),
                           onPressed: !_busy && _parcels.length < 50

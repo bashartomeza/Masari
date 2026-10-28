@@ -15,6 +15,8 @@ import '../../features/assistant/presentation/passenger_assistant_screen.dart';
 import '../../features/canonical_routes/presentation/driver_availability_screens.dart';
 import '../../features/canonical_routes/presentation/merchant_route_order_screen.dart';
 import '../../features/canonical_routes/presentation/passenger_route_request_screen.dart';
+import '../../features/passenger_parcels/presentation/passenger_parcels_screen.dart';
+import '../../features/passenger_parcels/presentation/send_parcel_screen.dart';
 import '../../features/canonical_assignments/presentation/canonical_assignment_screens.dart';
 import '../../features/driver/presentation/driver_home_screen.dart';
 import '../../features/driver/presentation/driver_match_detail_screen.dart';
@@ -162,6 +164,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/passenger/routes/request/new',
         builder: (context, state) => const PassengerRouteRequestScreen(),
+      ),
+      GoRoute(
+        path: '/passenger/parcels',
+        builder: (context, state) => const PassengerParcelsScreen(),
+      ),
+      GoRoute(
+        path: '/passenger/parcels/new',
+        builder: (context, state) => const SendParcelScreen(),
       ),
       GoRoute(
         path: '/passenger/trip/:id',

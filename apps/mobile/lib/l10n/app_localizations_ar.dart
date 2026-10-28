@@ -809,14 +809,14 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get registerDriverHelp =>
-      'انقل الرحلات والتوصيلات. يتطلب رمز دعوة ومستنداتك وموافقة.';
+      'انقل الرحلات والتوصيلات. ترفع مستنداتك ويوافق المشرف على حسابك.';
 
   @override
   String get registerMerchantTitle => 'صاحب متجر';
 
   @override
   String get registerMerchantHelp =>
-      'أرسل طلبات من متجرك. يتطلب رمز دعوة وموافقة.';
+      'أرسل طلبات من متجرك. ترفع مستنداتك ويوافق المشرف على حسابك.';
 
   @override
   String get invitationCode => 'رمز الدعوة';
@@ -2149,4 +2149,254 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get mapLegendDestination => 'الوصول';
+
+  @override
+  String get sendParcelTitle => 'إرسال طرد';
+
+  @override
+  String get sendParcelEntryBody =>
+      'أرسل طردًا صغيرًا مع سائق يسير أصلًا على مسار معتمد.';
+
+  @override
+  String get sendParcelIntro =>
+      'اختر المسار والمحطتين ثم أخبرنا من سيستلم الطرد. سيحمله سائق متجه في هذا الاتجاه.';
+
+  @override
+  String get sendParcelPickupHint => 'سلّم الطرد للسائق عند هذه المحطة.';
+
+  @override
+  String get parcelSizeSmallHint => 'S - صغير، يكفي لحقيبة';
+
+  @override
+  String get parcelSizeMediumHint => 'M - متوسط، بحجم علبة حذاء تقريبًا';
+
+  @override
+  String get parcelSizeLargeNotAllowed =>
+      'الطرود الكبيرة مخصصة للمتاجر ولا يمكن إرسالها من حساب شخصي.';
+
+  @override
+  String get receiverNameLabel => 'اسم المستلم';
+
+  @override
+  String get receiverPhoneLabel => 'هاتف المستلم';
+
+  @override
+  String get receiverPrivacyNote =>
+      'المستلم لا يحتاج إلى التطبيق. يُستخدم اسمه ورقمه لهذا التوصيل فقط، ولا يظهران لأي مستخدم آخر، ويُمسحان بعد انتهاء المدة.';
+
+  @override
+  String get parcelNoteLabel => 'ملاحظة للسائق (اختياري)';
+
+  @override
+  String get forbiddenItemsAck =>
+      'أقرّ بأن الطرد لا يحتوي على نقود أو أشياء ثمينة أو أدوية أو أسلحة أو مواد قابلة للاشتعال أو ممنوعة أو سريعة التلف.';
+
+  @override
+  String get sendParcelSubmit => 'إرسال الطرد';
+
+  @override
+  String get sendParcelRecorded => 'تم تسجيل طلب الطرد.';
+
+  @override
+  String get sendParcelRecordedBody =>
+      'نبحث عن سائق على هذا المسار. يمكنك الإلغاء ما لم يُعرض الطرد على سائق.';
+
+  @override
+  String get myParcelsTitle => 'طرودي';
+
+  @override
+  String get myParcelsEmpty => 'لم ترسل أي طرد بعد.';
+
+  @override
+  String get parcelTrackSearching => 'جارٍ البحث عن سائق';
+
+  @override
+  String get parcelTrackAssigned => 'تم تعيين سائق';
+
+  @override
+  String get parcelTrackPickedUp => 'تم استلامه منك';
+
+  @override
+  String get parcelTrackInTransit => 'في الطريق';
+
+  @override
+  String get parcelTrackDelivered => 'تم التسليم';
+
+  @override
+  String get parcelTrackCancelled => 'ملغى';
+
+  @override
+  String get parcelTrackFailed => 'تعذّر التوصيل';
+
+  @override
+  String get parcelTrackExpired => 'انتهت المهلة';
+
+  @override
+  String get parcelCancelAction => 'إلغاء الطرد';
+
+  @override
+  String get parcelCancelConfirm =>
+      'هل تريد إلغاء هذا الطرد؟ سيتم مسح بيانات المستلم.';
+
+  @override
+  String get parcelCancelledNotice => 'تم إلغاء الطرد.';
+
+  @override
+  String get parcelCannotCancel =>
+      'عُرض الطرد على سائق بالفعل، لذلك لم يعد الإلغاء ممكنًا.';
+
+  @override
+  String parcelReceiverLine(String name, String phone) {
+    return 'المستلم: $name ($phone)';
+  }
+
+  @override
+  String get parcelReceiverRemoved => 'تم مسح بيانات المستلم.';
+
+  @override
+  String get parcelLimitReached =>
+      'لديك الحد الأقصى من الطرود قيد التوصيل. انتظر انتهاء أحدها أو ألغِ واحدًا.';
+
+  @override
+  String get parcelDailyLimit => 'تم بلوغ حد الطرود اليومي. حاول غدًا.';
+
+  @override
+  String get invalidReceiverPhone => 'أدخل رقم هاتف صحيحًا للمستلم.';
+
+  @override
+  String get receiverNameInvalid => 'أدخل اسم المستلم.';
+
+  @override
+  String get parcelAckRequired =>
+      'أكّد الإقرار الخاص بالمواد الممنوعة للمتابعة.';
+
+  @override
+  String get keepParcel => 'إبقاء الطرد';
+
+  @override
+  String get mapOfflineSaved => 'بدون اتصال - تُعرض الخريطة المحفوظة';
+
+  @override
+  String get clearMapCache => 'مسح الخريطة المحفوظة';
+
+  @override
+  String get clearMapCacheHint =>
+      'يحذف مربعات الخريطة المحفوظة على هذا الجهاز. تُحفظ من جديد أثناء التصفح.';
+
+  @override
+  String get mapCacheCleared => 'تم مسح الخريطة المحفوظة';
+
+  @override
+  String get mapCacheClearFailed => 'تعذّر مسح الخريطة المحفوظة';
+
+  @override
+  String get notifDocsExpiringTitle => 'مستند على وشك الانتهاء';
+
+  @override
+  String notifDocsExpiringBody(String document, String date) {
+    return 'ينتهي $document بتاريخ $date. أرسل مستندات مجددة قبل ذلك لتواصل العمل دون انقطاع.';
+  }
+
+  @override
+  String get notifDocsExpiredTitle => 'انتهت صلاحية مستنداتك';
+
+  @override
+  String get notifDocsExpiredBody =>
+      'تم تقييد حسابك ولا يمكنك الاتصال أو قبول رحلات جديدة حتى تُرسل مستندات مجددة وتتم الموافقة عليها. رحلاتك المقبولة سابقاً لا تتأثر.';
+
+  @override
+  String get notifDocsRenewalSubmittedTitle => 'تم إرسال مستندات التجديد';
+
+  @override
+  String get notifDocsRenewalSubmittedBody =>
+      'سيراجعها فريقنا وتصلك رسالة عند اتخاذ القرار.';
+
+  @override
+  String get documentKindContract => 'العقد';
+
+  @override
+  String get availabilityDocumentsExpired =>
+      'انتهت صلاحية مستنداتك. أرسل مستندات مجددة لاستعادة الوصول.';
+
+  @override
+  String get applicationDocumentsRequiredTitle => 'ارفع مستنداتك';
+
+  @override
+  String get applicationDocumentsRequiredBody =>
+      'تم إنشاء حسابك لكنه ليس قيد المراجعة بعد. ارفع كل المستندات المطلوبة ثم أرسل طلبك. تستغرق المراجعة عادةً حتى 24 ساعة.';
+
+  @override
+  String documentsStillNeeded(String documents) {
+    return 'ما زال مطلوباً: $documents';
+  }
+
+  @override
+  String get submitApplication => 'إرسال للمراجعة';
+
+  @override
+  String get documentsRequiredError =>
+      'ارفع كل المستندات المطلوبة قبل إرسال طلبك.';
+
+  @override
+  String get invitationCodeOptional => 'رمز الدعوة (اختياري)';
+
+  @override
+  String get fareEstimatedTitle => 'الأجرة التقديرية';
+
+  @override
+  String get fareBookedTitle => 'الأجرة التقديرية عند الطلب';
+
+  @override
+  String get fareDisclaimer =>
+      'تقديرية، وتُدفع مباشرة إلى السائق. لا تتم معالجة أي مدفوعات داخل التطبيق.';
+
+  @override
+  String get fareNotSet => 'لم تُحدَّد أجرة تقديرية لهذا المسار بعد.';
+
+  @override
+  String get farePerSeat => 'للمقعد الواحد';
+
+  @override
+  String fareSeatsLine(int count) {
+    return 'المقاعد × $count';
+  }
+
+  @override
+  String fareParcelLine(String size) {
+    return 'طرد $size';
+  }
+
+  @override
+  String get fareTotal => 'الإجمالي';
+
+  @override
+  String get notifDriverApproachingTitle => 'سائقك يقترب';
+
+  @override
+  String get notifDriverApproachingBody =>
+      'سائقك قريب من نقطة الانطلاق. يرجى الاستعداد.';
+
+  @override
+  String get ratingPromptTitle => 'كيف كانت رحلتك؟';
+
+  @override
+  String get ratingPromptBody =>
+      'قيّم السائق من 1 إلى 5 نجوم. تقييمك سري: لا يرى السائق التقييم ولا من قدّمه.';
+
+  @override
+  String ratingStarLabel(int count) {
+    return '$count نجوم';
+  }
+
+  @override
+  String get ratingSubmit => 'إرسال التقييم';
+
+  @override
+  String get ratingThanks => 'شكرًا لتقييمك الرحلة.';
+
+  @override
+  String get ratingFailed => 'تعذّر إرسال التقييم. حاول مرة أخرى.';
+
+  @override
+  String get ratingAlreadyRated => 'لقد قيّمت هذه الرحلة من قبل.';
 }

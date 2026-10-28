@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
+import 'package:masari_mobile/l10n/app_localizations.dart';
+
 import '../../features/canonical_routes/domain/canonical_route_models.dart';
+import '../maps/map_tile_cache.dart';
 import '../theme/app_tokens.dart';
 
 /// Defines the visual purpose of a Masari map marker.
@@ -91,6 +94,8 @@ class MasariMap extends StatefulWidget {
     this.interactive = true,
     this.onTap,
     this.controlsTop,
+    this.tileProvider,
+    this.tileCache,
     super.key,
   });
 
@@ -127,21 +132,39 @@ class MasariMap extends StatefulWidget {
   /// its own controls there. Defaults to a small inset.
   final double? controlsTop;
 
+  /// Replaces the tile source (widget tests pass a fake). By default tiles come
+  /// from [MapTileConfig.tileUrlTemplate] through the on-device [tileCache].
+  final TileProvider? tileProvider;
+
+  /// The cache whose "showing saved map" state the indicator follows.
+  /// Defaults to [MapTileCache.shared].
+  final MapTileCache? tileCache;
+
   @override
   State<MasariMap> createState() => _MasariMapState();
 }
-
-/// Map tile address. Builds can point it at another tile server (for example
-/// a local one while debugging) with --dart-define=MAP_TILE_URL=...
-const String _tileUrl = String.fromEnvironment(
-  'MAP_TILE_URL',
-  defaultValue: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-);
 
 class _MasariMapState extends State<MasariMap> {
   final MapController _controller = MapController();
 
   String? _selectedLabel;
+
+  MapTileCache get _tileCache => widget.tileCache ?? MapTileCache.shared;
+
+  // The tile layer disposes its provider with itself, so a rebuilt layer
+  // (see _reloadTiles) needs a fresh one.
+  TileProvider? _ownedProvider;
+  int _ownedProviderEpoch = -1;
+
+  TileProvider _provider() {
+    final injected = widget.tileProvider;
+    if (injected != null) return injected;
+    if (_ownedProviderEpoch != _tileEpoch || _ownedProvider == null) {
+      _ownedProviderEpoch = _tileEpoch;
+      _ownedProvider = NetworkTileProvider(cachingProvider: _tileCache);
+    }
+    return _ownedProvider!;
+  }
 
   /// Default Masari geographic area.
   static const LatLng _defaultCenter = LatLng(31.6, 35.15);
@@ -378,8 +401,11 @@ class _MasariMapState extends State<MasariMap> {
               // ==============================================================
               TileLayer(
                 key: ValueKey('tiles-$_tileEpoch'),
-                urlTemplate: _tileUrl,
-                userAgentPackageName: 'ps.masari.mobile',
+                urlTemplate: MapTileConfig.tileUrlTemplate,
+                userAgentPackageName: MapTileConfig.userAgentPackageName,
+                tileProvider: _provider(),
+                errorTileCallback: (tile, error, stackTrace) =>
+                    _tileCache.reportTileError(),
                 maxNativeZoom: 19,
                 // A tile that failed once is retried when it scrolls back into view.
                 evictErrorTileStrategy:
@@ -486,6 +512,19 @@ class _MasariMapState extends State<MasariMap> {
           start: 6,
           bottom: 5,
           child: _Attribution(label: widget.attributionLabel),
+        ),
+
+        // ====================================================================
+        // OFFLINE INDICATOR
+        // ====================================================================
+        PositionedDirectional(
+          start: 6,
+          bottom: 26,
+          child: ValueListenableBuilder<bool>(
+            valueListenable: _tileCache.showingSavedMap,
+            builder: (context, offline, _) =>
+                offline ? const _OfflineMapChip() : const SizedBox.shrink(),
+          ),
         ),
       ],
     );
@@ -932,6 +971,51 @@ class _Attribution extends StatelessWidget {
           color: theme.colorScheme.onSurfaceVariant,
           fontSize: 9,
           fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
+}
+
+/// Small, unobtrusive note that the map is drawn from tiles saved on the device.
+class _OfflineMapChip extends StatelessWidget {
+  const _OfflineMapChip();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final label = AppLocalizations.of(context).mapOfflineSaved;
+
+    return Semantics(
+      liveRegion: true,
+      label: label,
+      child: ExcludeSemantics(
+        child: Container(
+          key: const ValueKey('mapOfflineChip'),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.86),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.cloud_off_outlined,
+                size: 11,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

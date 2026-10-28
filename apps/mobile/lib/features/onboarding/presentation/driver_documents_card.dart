@@ -17,6 +17,7 @@ class DriverDocumentsCard extends ConsumerStatefulWidget {
     super.key,
     this.merchant = false,
     this.pickFile = _pickWithFilePicker,
+    this.onKindsChanged,
   });
 
   /// A shop owner uploads different papers than a driver.
@@ -24,6 +25,9 @@ class DriverDocumentsCard extends ConsumerStatefulWidget {
 
   /// Returns the chosen file's bytes, or null when the person cancelled.
   final Future<List<int>?> Function() pickFile;
+
+  /// Called with the kinds on file each time the list is (re)loaded.
+  final ValueChanged<Set<String>>? onKindsChanged;
 
   @override
   ConsumerState<DriverDocumentsCard> createState() =>
@@ -66,7 +70,9 @@ class _DriverDocumentsCardState extends ConsumerState<DriverDocumentsCard> {
       final list = await ref
           .read(onboardingRepositoryProvider)
           .driverDocuments(token, merchant: widget.merchant);
-      if (mounted) setState(() => _list = list);
+      if (!mounted) return;
+      setState(() => _list = list);
+      widget.onKindsChanged?.call(list.documents.map((d) => d.kind).toSet());
     } on ApiException catch (error) {
       if (!mounted) return;
       // Uploads switched off or no longer allowed: stay out of the way.
@@ -136,15 +142,8 @@ class _DriverDocumentsCardState extends ConsumerState<DriverDocumentsCard> {
     }
   }
 
-  String _kindLabel(AppLocalizations l10n, String kind) => switch (kind) {
-    'driver_licence' => l10n.documentKindDriverLicence,
-    'commercial_register' => l10n.documentKindCommercialRegister,
-    'shop_photo' => l10n.documentKindShopPhoto,
-    'vehicle_registration' => l10n.documentKindVehicleRegistration,
-    'national_id' => l10n.documentKindNationalId,
-    'insurance' => l10n.documentKindInsurance,
-    _ => l10n.documentKindOther,
-  };
+  String _kindLabel(AppLocalizations l10n, String kind) =>
+      documentKindLabel(l10n, kind);
 
   String _errorLabel(AppLocalizations l10n, String code) => switch (code) {
     'document_too_large' => l10n.documentTooLarge,
@@ -232,3 +231,14 @@ class _DriverDocumentsCardState extends ConsumerState<DriverDocumentsCard> {
     );
   }
 }
+
+/// The localized name of a document kind.
+String documentKindLabel(AppLocalizations l10n, String kind) => switch (kind) {
+  'driver_licence' => l10n.documentKindDriverLicence,
+  'commercial_register' => l10n.documentKindCommercialRegister,
+  'shop_photo' => l10n.documentKindShopPhoto,
+  'vehicle_registration' => l10n.documentKindVehicleRegistration,
+  'national_id' => l10n.documentKindNationalId,
+  'insurance' => l10n.documentKindInsurance,
+  _ => l10n.documentKindOther,
+};

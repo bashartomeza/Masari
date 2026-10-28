@@ -15,6 +15,7 @@ import {
   summarizeOverviewResults
 } from "./features/overview/overviewState";
 import { RequestsBoard } from "./features/requests/RequestsBoard";
+import { PassengerParcelsPanel } from "./features/requests/PassengerParcelsPanel";
 import { TripsManagement } from "./features/trips/TripsManagement";
 import { MatchingBatchingMonitoring } from "./features/monitoring/MatchingBatchingMonitoring";
 import { SettingsPanel } from "./features/settings/SettingsPanel";
@@ -23,6 +24,7 @@ import { UsersDirectory } from "./features/users/UsersDirectory";
 import { DemoControl } from "./features/demo/DemoControl";
 import { ModuleUnavailable } from "./features/placeholder/ModuleUnavailable";
 import { ReportsPanel } from "./features/reports/ReportsPanel";
+import { SuccessMetricsPanel } from "./features/reports/SuccessMetricsPanel";
 import { IncidentsPanel } from "./features/incidents/IncidentsPanel";
 import { UncertainAiRequests } from "./features/incidents/UncertainAiRequests";
 import { ProfilePanel } from "./features/profile/ProfilePanel";
@@ -561,7 +563,12 @@ export function App({
         );
 
       case "deliveries":
-        return <RequestsBoard requests={requests} orders={orders} search={search} />;
+        return (
+          <>
+            <RequestsBoard requests={requests} orders={orders} search={search} />
+            <PassengerParcelsPanel api={api} token={token} search={search} />
+          </>
+        );
 
       case "matchingBatching":
         return <MatchingBatchingMonitoring api={api} token={token} />;
@@ -608,7 +615,12 @@ export function App({
         );
 
       case "reports":
-        return <ReportsPanel api={api} token={token} />;
+        return (
+          <>
+            <ReportsPanel api={api} token={token} />
+            <SuccessMetricsPanel api={api} token={token} />
+          </>
+        );
 
       default:
         return null;

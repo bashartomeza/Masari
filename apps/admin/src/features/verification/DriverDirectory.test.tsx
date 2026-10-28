@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { DriverProfile, DriverVerification } from "../../api";
 import { LocaleProvider } from "../../i18n/LocaleContext";
 import type { Locale } from "../../i18n/translations";
-import { createDriverAccountChange, DriverDirectory, DriverReviewPanel } from "./DriverDirectory";
+import { createDriverAccountChange, DriverDirectory, DriverReviewPanel, expiryInputFrom } from "./DriverDirectory";
 
 function withLocale(locale: Locale, children: ReactNode) {
   const storage = { getItem: () => locale, setItem: () => undefined };
@@ -68,6 +68,41 @@ const panelProps = {
   onClose: () => undefined
 } as const;
 
+describe("driver document expiry", () => {
+  const restricted: DriverVerification = {
+    ...verification,
+    status: "documents_expired",
+    renewal_submitted_at: "2026-10-29T08:00:00.000Z",
+    expiry: {
+      licence: { expires_on: "2026-10-01", days_left: -28 },
+      vehicle_registration: null,
+      insurance: { expires_on: "2026-11-20", days_left: 22 },
+      contract: null
+    }
+  };
+
+  it("sends only filled, well-formed dates", () => {
+    expect(expiryInputFrom({ licence: "2027-10-28", vehicle_registration: "", insurance: "28/10/2027", contract: "" })).toEqual({ licence: "2027-10-28" });
+  });
+
+  it("shows recorded expiry dates and the restriction in English and Arabic", () => {
+    const en = textOf(withLocale("en", <DriverReviewPanel verification={restricted} {...panelProps} />));
+    expect(en).toContain("Driving licence");
+    expect(en).toContain("2026-10-01");
+    expect(en).toContain("expired");
+    expect(en).toContain("22 days left");
+    expect(en).toContain("Access restricted: documents expired");
+    const ar = textOf(withLocale("ar", <DriverReviewPanel verification={restricted} {...panelProps} />));
+    expect(ar).toContain("رخصة القيادة");
+    expect(ar).toContain("الوصول مقيّد لانتهاء المستندات");
+  });
+
+  it("asks for new dates when approving a submitted renewal", () => {
+    const en = textOf(withLocale("en", <DriverReviewPanel verification={{ ...restricted, status: "pending" }} {...panelProps} action="approve" />));
+    expect(en).toContain("licence expiry is required");
+  });
+});
+
 describe("driver verification module", () => {
   it("renders real driver rows rather than an unavailable placeholder", () => {
     const markup = textOf(
@@ -79,6 +114,30 @@ describe("driver verification module", () => {
     expect(markup).toContain("86");
     // The placeholder copy must be gone now that the module is API-backed.
     expect(markup).not.toContain("This module is not available yet");
+  });
+
+  it("shows the trust score with its components, in both languages", () => {
+    const scored: DriverProfile = {
+      ...driver,
+      trust_components: {
+        experience: { value: 0.76, sample: 8, weight: 10 },
+        cancellation: { value: 0.9, sample: 10, weight: 25 },
+        departure: { value: 0.8, sample: 6, weight: 20 },
+        arrival: { value: 0.7, sample: 0, weight: 15 },
+        rating: { value: 0.85, sample: 4, weight: 30 }
+      }
+    };
+    const english = textOf(withLocale("en", <DriverDirectory drivers={[scored]} search="" busy={false} onUpdateStatus={() => {}} />));
+    expect(english).toContain("Passenger ratings");
+    expect(english).toContain("Departure punctuality");
+    expect(english).toContain("90% from 10 observed");
+    const arabic = textOf(withLocale("ar", <DriverDirectory drivers={[scored]} search="" busy={false} onUpdateStatus={() => {}} />));
+    expect(arabic).toContain("تقييمات الركاب");
+  });
+
+  it("says the score is not computed yet when there is no breakdown", () => {
+    const markup = textOf(withLocale("en", <DriverDirectory drivers={[driver]} search="" busy={false} onUpdateStatus={() => {}} />));
+    expect(markup).toContain("Not computed yet");
   });
 
   it("renders the real pending queue and its server-backed review action", () => {

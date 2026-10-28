@@ -63,6 +63,10 @@ function validateCapacity(totalSeats: number, totalParcelCapacity: number) {
 
 async function requireApprovedProfile(db: PrismaClient | Prisma.TransactionClient, userId: string) {
   const profile = await db.driverProfile.findUnique({ where: { user_id: userId } });
+  if (profile && !profile.verified) {
+    const verification = await db.driverVerification.findUnique({ where: { user_id: userId }, select: { status: true } });
+    if (verification?.status === "documents_expired") throw new HttpError(403, "driver_documents_expired");
+  }
   if (!profile || !profile.verified) throw new HttpError(403, "driver_not_approved");
   return profile;
 }

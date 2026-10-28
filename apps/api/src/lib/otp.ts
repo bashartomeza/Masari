@@ -60,7 +60,8 @@ export async function dispatchOtpChallenge(
     where: {
       id: input.attemptId,
       expires_at: { gt: now },
-      redemption: { isNot: null },
+      // Invited attempts must hold a redemption; open-signup attempts have no invitation.
+      AND: [{ OR: [{ invitation_id: null }, { redemption: { isNot: null } }] }],
       OR: [
         { status: { in: ["created", "otp_sent"] }, otp_dispatch_claim_id: null },
         { status: "otp_dispatching", otp_dispatch_started_at: { lte: staleBefore } }

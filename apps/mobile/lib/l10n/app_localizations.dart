@@ -1637,7 +1637,7 @@ abstract class AppLocalizations {
   /// No description provided for @registerDriverHelp.
   ///
   /// In ar, this message translates to:
-  /// **'انقل الرحلات والتوصيلات. يتطلب رمز دعوة ومستنداتك وموافقة.'**
+  /// **'انقل الرحلات والتوصيلات. ترفع مستنداتك ويوافق المشرف على حسابك.'**
   String get registerDriverHelp;
 
   /// No description provided for @registerMerchantTitle.
@@ -1649,7 +1649,7 @@ abstract class AppLocalizations {
   /// No description provided for @registerMerchantHelp.
   ///
   /// In ar, this message translates to:
-  /// **'أرسل طلبات من متجرك. يتطلب رمز دعوة وموافقة.'**
+  /// **'أرسل طلبات من متجرك. ترفع مستنداتك ويوافق المشرف على حسابك.'**
   String get registerMerchantHelp;
 
   /// No description provided for @invitationCode.
@@ -4039,6 +4039,444 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'الوصول'**
   String get mapLegendDestination;
+
+  /// No description provided for @sendParcelTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال طرد'**
+  String get sendParcelTitle;
+
+  /// No description provided for @sendParcelEntryBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'أرسل طردًا صغيرًا مع سائق يسير أصلًا على مسار معتمد.'**
+  String get sendParcelEntryBody;
+
+  /// No description provided for @sendParcelIntro.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر المسار والمحطتين ثم أخبرنا من سيستلم الطرد. سيحمله سائق متجه في هذا الاتجاه.'**
+  String get sendParcelIntro;
+
+  /// No description provided for @sendParcelPickupHint.
+  ///
+  /// In ar, this message translates to:
+  /// **'سلّم الطرد للسائق عند هذه المحطة.'**
+  String get sendParcelPickupHint;
+
+  /// No description provided for @parcelSizeSmallHint.
+  ///
+  /// In ar, this message translates to:
+  /// **'S - صغير، يكفي لحقيبة'**
+  String get parcelSizeSmallHint;
+
+  /// No description provided for @parcelSizeMediumHint.
+  ///
+  /// In ar, this message translates to:
+  /// **'M - متوسط، بحجم علبة حذاء تقريبًا'**
+  String get parcelSizeMediumHint;
+
+  /// No description provided for @parcelSizeLargeNotAllowed.
+  ///
+  /// In ar, this message translates to:
+  /// **'الطرود الكبيرة مخصصة للمتاجر ولا يمكن إرسالها من حساب شخصي.'**
+  String get parcelSizeLargeNotAllowed;
+
+  /// No description provided for @receiverNameLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'اسم المستلم'**
+  String get receiverNameLabel;
+
+  /// No description provided for @receiverPhoneLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'هاتف المستلم'**
+  String get receiverPhoneLabel;
+
+  /// No description provided for @receiverPrivacyNote.
+  ///
+  /// In ar, this message translates to:
+  /// **'المستلم لا يحتاج إلى التطبيق. يُستخدم اسمه ورقمه لهذا التوصيل فقط، ولا يظهران لأي مستخدم آخر، ويُمسحان بعد انتهاء المدة.'**
+  String get receiverPrivacyNote;
+
+  /// No description provided for @parcelNoteLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'ملاحظة للسائق (اختياري)'**
+  String get parcelNoteLabel;
+
+  /// No description provided for @forbiddenItemsAck.
+  ///
+  /// In ar, this message translates to:
+  /// **'أقرّ بأن الطرد لا يحتوي على نقود أو أشياء ثمينة أو أدوية أو أسلحة أو مواد قابلة للاشتعال أو ممنوعة أو سريعة التلف.'**
+  String get forbiddenItemsAck;
+
+  /// No description provided for @sendParcelSubmit.
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال الطرد'**
+  String get sendParcelSubmit;
+
+  /// No description provided for @sendParcelRecorded.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم تسجيل طلب الطرد.'**
+  String get sendParcelRecorded;
+
+  /// No description provided for @sendParcelRecordedBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'نبحث عن سائق على هذا المسار. يمكنك الإلغاء ما لم يُعرض الطرد على سائق.'**
+  String get sendParcelRecordedBody;
+
+  /// No description provided for @myParcelsTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'طرودي'**
+  String get myParcelsTitle;
+
+  /// No description provided for @myParcelsEmpty.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم ترسل أي طرد بعد.'**
+  String get myParcelsEmpty;
+
+  /// No description provided for @parcelTrackSearching.
+  ///
+  /// In ar, this message translates to:
+  /// **'جارٍ البحث عن سائق'**
+  String get parcelTrackSearching;
+
+  /// No description provided for @parcelTrackAssigned.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم تعيين سائق'**
+  String get parcelTrackAssigned;
+
+  /// No description provided for @parcelTrackPickedUp.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم استلامه منك'**
+  String get parcelTrackPickedUp;
+
+  /// No description provided for @parcelTrackInTransit.
+  ///
+  /// In ar, this message translates to:
+  /// **'في الطريق'**
+  String get parcelTrackInTransit;
+
+  /// No description provided for @parcelTrackDelivered.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم التسليم'**
+  String get parcelTrackDelivered;
+
+  /// No description provided for @parcelTrackCancelled.
+  ///
+  /// In ar, this message translates to:
+  /// **'ملغى'**
+  String get parcelTrackCancelled;
+
+  /// No description provided for @parcelTrackFailed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر التوصيل'**
+  String get parcelTrackFailed;
+
+  /// No description provided for @parcelTrackExpired.
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت المهلة'**
+  String get parcelTrackExpired;
+
+  /// No description provided for @parcelCancelAction.
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء الطرد'**
+  String get parcelCancelAction;
+
+  /// No description provided for @parcelCancelConfirm.
+  ///
+  /// In ar, this message translates to:
+  /// **'هل تريد إلغاء هذا الطرد؟ سيتم مسح بيانات المستلم.'**
+  String get parcelCancelConfirm;
+
+  /// No description provided for @parcelCancelledNotice.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إلغاء الطرد.'**
+  String get parcelCancelledNotice;
+
+  /// No description provided for @parcelCannotCancel.
+  ///
+  /// In ar, this message translates to:
+  /// **'عُرض الطرد على سائق بالفعل، لذلك لم يعد الإلغاء ممكنًا.'**
+  String get parcelCannotCancel;
+
+  /// No description provided for @parcelReceiverLine.
+  ///
+  /// In ar, this message translates to:
+  /// **'المستلم: {name} ({phone})'**
+  String parcelReceiverLine(String name, String phone);
+
+  /// No description provided for @parcelReceiverRemoved.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم مسح بيانات المستلم.'**
+  String get parcelReceiverRemoved;
+
+  /// No description provided for @parcelLimitReached.
+  ///
+  /// In ar, this message translates to:
+  /// **'لديك الحد الأقصى من الطرود قيد التوصيل. انتظر انتهاء أحدها أو ألغِ واحدًا.'**
+  String get parcelLimitReached;
+
+  /// No description provided for @parcelDailyLimit.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم بلوغ حد الطرود اليومي. حاول غدًا.'**
+  String get parcelDailyLimit;
+
+  /// No description provided for @invalidReceiverPhone.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل رقم هاتف صحيحًا للمستلم.'**
+  String get invalidReceiverPhone;
+
+  /// No description provided for @receiverNameInvalid.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل اسم المستلم.'**
+  String get receiverNameInvalid;
+
+  /// No description provided for @parcelAckRequired.
+  ///
+  /// In ar, this message translates to:
+  /// **'أكّد الإقرار الخاص بالمواد الممنوعة للمتابعة.'**
+  String get parcelAckRequired;
+
+  /// No description provided for @keepParcel.
+  ///
+  /// In ar, this message translates to:
+  /// **'إبقاء الطرد'**
+  String get keepParcel;
+
+  /// No description provided for @mapOfflineSaved.
+  ///
+  /// In ar, this message translates to:
+  /// **'بدون اتصال - تُعرض الخريطة المحفوظة'**
+  String get mapOfflineSaved;
+
+  /// No description provided for @clearMapCache.
+  ///
+  /// In ar, this message translates to:
+  /// **'مسح الخريطة المحفوظة'**
+  String get clearMapCache;
+
+  /// No description provided for @clearMapCacheHint.
+  ///
+  /// In ar, this message translates to:
+  /// **'يحذف مربعات الخريطة المحفوظة على هذا الجهاز. تُحفظ من جديد أثناء التصفح.'**
+  String get clearMapCacheHint;
+
+  /// No description provided for @mapCacheCleared.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم مسح الخريطة المحفوظة'**
+  String get mapCacheCleared;
+
+  /// No description provided for @mapCacheClearFailed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر مسح الخريطة المحفوظة'**
+  String get mapCacheClearFailed;
+
+  /// No description provided for @notifDocsExpiringTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'مستند على وشك الانتهاء'**
+  String get notifDocsExpiringTitle;
+
+  /// No description provided for @notifDocsExpiringBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'ينتهي {document} بتاريخ {date}. أرسل مستندات مجددة قبل ذلك لتواصل العمل دون انقطاع.'**
+  String notifDocsExpiringBody(String document, String date);
+
+  /// No description provided for @notifDocsExpiredTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت صلاحية مستنداتك'**
+  String get notifDocsExpiredTitle;
+
+  /// No description provided for @notifDocsExpiredBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم تقييد حسابك ولا يمكنك الاتصال أو قبول رحلات جديدة حتى تُرسل مستندات مجددة وتتم الموافقة عليها. رحلاتك المقبولة سابقاً لا تتأثر.'**
+  String get notifDocsExpiredBody;
+
+  /// No description provided for @notifDocsRenewalSubmittedTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إرسال مستندات التجديد'**
+  String get notifDocsRenewalSubmittedTitle;
+
+  /// No description provided for @notifDocsRenewalSubmittedBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'سيراجعها فريقنا وتصلك رسالة عند اتخاذ القرار.'**
+  String get notifDocsRenewalSubmittedBody;
+
+  /// No description provided for @documentKindContract.
+  ///
+  /// In ar, this message translates to:
+  /// **'العقد'**
+  String get documentKindContract;
+
+  /// No description provided for @availabilityDocumentsExpired.
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت صلاحية مستنداتك. أرسل مستندات مجددة لاستعادة الوصول.'**
+  String get availabilityDocumentsExpired;
+
+  /// No description provided for @applicationDocumentsRequiredTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'ارفع مستنداتك'**
+  String get applicationDocumentsRequiredTitle;
+
+  /// No description provided for @applicationDocumentsRequiredBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إنشاء حسابك لكنه ليس قيد المراجعة بعد. ارفع كل المستندات المطلوبة ثم أرسل طلبك. تستغرق المراجعة عادةً حتى 24 ساعة.'**
+  String get applicationDocumentsRequiredBody;
+
+  /// No description provided for @documentsStillNeeded.
+  ///
+  /// In ar, this message translates to:
+  /// **'ما زال مطلوباً: {documents}'**
+  String documentsStillNeeded(String documents);
+
+  /// No description provided for @submitApplication.
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال للمراجعة'**
+  String get submitApplication;
+
+  /// No description provided for @documentsRequiredError.
+  ///
+  /// In ar, this message translates to:
+  /// **'ارفع كل المستندات المطلوبة قبل إرسال طلبك.'**
+  String get documentsRequiredError;
+
+  /// No description provided for @invitationCodeOptional.
+  ///
+  /// In ar, this message translates to:
+  /// **'رمز الدعوة (اختياري)'**
+  String get invitationCodeOptional;
+
+  /// No description provided for @fareEstimatedTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'الأجرة التقديرية'**
+  String get fareEstimatedTitle;
+
+  /// No description provided for @fareBookedTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'الأجرة التقديرية عند الطلب'**
+  String get fareBookedTitle;
+
+  /// No description provided for @fareDisclaimer.
+  ///
+  /// In ar, this message translates to:
+  /// **'تقديرية، وتُدفع مباشرة إلى السائق. لا تتم معالجة أي مدفوعات داخل التطبيق.'**
+  String get fareDisclaimer;
+
+  /// No description provided for @fareNotSet.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم تُحدَّد أجرة تقديرية لهذا المسار بعد.'**
+  String get fareNotSet;
+
+  /// No description provided for @farePerSeat.
+  ///
+  /// In ar, this message translates to:
+  /// **'للمقعد الواحد'**
+  String get farePerSeat;
+
+  /// No description provided for @fareSeatsLine.
+  ///
+  /// In ar, this message translates to:
+  /// **'المقاعد × {count}'**
+  String fareSeatsLine(int count);
+
+  /// No description provided for @fareParcelLine.
+  ///
+  /// In ar, this message translates to:
+  /// **'طرد {size}'**
+  String fareParcelLine(String size);
+
+  /// No description provided for @fareTotal.
+  ///
+  /// In ar, this message translates to:
+  /// **'الإجمالي'**
+  String get fareTotal;
+
+  /// No description provided for @notifDriverApproachingTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'سائقك يقترب'**
+  String get notifDriverApproachingTitle;
+
+  /// No description provided for @notifDriverApproachingBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'سائقك قريب من نقطة الانطلاق. يرجى الاستعداد.'**
+  String get notifDriverApproachingBody;
+
+  /// No description provided for @ratingPromptTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'كيف كانت رحلتك؟'**
+  String get ratingPromptTitle;
+
+  /// No description provided for @ratingPromptBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'قيّم السائق من 1 إلى 5 نجوم. تقييمك سري: لا يرى السائق التقييم ولا من قدّمه.'**
+  String get ratingPromptBody;
+
+  /// No description provided for @ratingStarLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'{count} نجوم'**
+  String ratingStarLabel(int count);
+
+  /// No description provided for @ratingSubmit.
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال التقييم'**
+  String get ratingSubmit;
+
+  /// No description provided for @ratingThanks.
+  ///
+  /// In ar, this message translates to:
+  /// **'شكرًا لتقييمك الرحلة.'**
+  String get ratingThanks;
+
+  /// No description provided for @ratingFailed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر إرسال التقييم. حاول مرة أخرى.'**
+  String get ratingFailed;
+
+  /// No description provided for @ratingAlreadyRated.
+  ///
+  /// In ar, this message translates to:
+  /// **'لقد قيّمت هذه الرحلة من قبل.'**
+  String get ratingAlreadyRated;
 }
 
 class _AppLocalizationsDelegate

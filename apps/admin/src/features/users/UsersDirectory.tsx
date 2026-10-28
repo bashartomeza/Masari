@@ -52,9 +52,9 @@ const roleKey = (s: string) => `role_${s}` as any;
 function contextText(user: UserListItem, t: (key: any) => string) {
   if (user.role_context.kind === "driver") {
     const state = user.role_context.driver_verification_status === "none" ? t("verificationStatus_no") : t(`verificationStatus_${user.role_context.driver_verification_status}` as any);
-    return <span className="cell-stack__sub">{t("driverReview")}: {state} · {user.role_context.driver_profile_exists ? t("yes") : t("no")}</span>;
+    return <span className="cell-stack__sub">{t("driverReview")}: {state} · {user.role_context.driver_profile_exists ? t("yes") : t("no")}{user.role_context.application_submitted === false ? ` · ${t("applicationNotSubmitted")}` : ""}</span>;
   }
-  if (user.role_context.kind === "merchant") return <span className="cell-stack__sub">{user.account_status === "pending" ? t("merchantAwaitingApproval") : "—"}</span>;
+  if (user.role_context.kind === "merchant") return <span className="cell-stack__sub">{user.account_status === "pending" ? t(user.role_context.application_submitted === false ? "applicationNotSubmitted" : "merchantAwaitingApproval") : "—"}</span>;
   return <span className="cell-stack__sub">—</span>;
 }
 
@@ -236,6 +236,9 @@ export function UsersDirectoryView(props: UsersDirectoryViewProps) {
   const { phase, data, page, pages, query, role, accountStatus, demoAccount, adminId, canAct, selectedId, detail, detailPhase, pending, reason, busy, error } = props;
   const accountControls = (user: UserStatusSnapshot) => {
     if (user.id === adminId) return <span className="muted">{t("selfAccountControlUnavailable")}</span>;
+    if (user.account_status === "pending" && user.role_context.kind !== "passenger" && user.role_context.kind !== "admin" && user.role_context.application_submitted === false) {
+      return <span className="muted">{t("applicationNotSubmitted")}</span>;
+    }
     if (user.account_status === "pending" && user.role === "merchant" && props.onMerchantDecision) {
       return canAct ? <div className="card__actions"><Button size="sm" variant="primary" icon="check_circle" onClick={() => props.onMerchantDecision!(user, "approve")}>{t("approveMerchant")}</Button><Button size="sm" variant="ghost" icon="block" onClick={() => props.onMerchantDecision!(user, "reject")}>{t("rejectMerchant")}</Button></div> : <span className="muted">{t("loading")}</span>;
     }

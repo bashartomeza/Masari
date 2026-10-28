@@ -806,14 +806,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get registerDriverHelp =>
-      'Carry trips and deliveries. Needs an invitation code, your documents and approval.';
+      'Carry trips and deliveries. You upload your documents and an admin approves your account.';
 
   @override
   String get registerMerchantTitle => 'Shop owner';
 
   @override
   String get registerMerchantHelp =>
-      'Send orders from your shop. Needs an invitation code and approval.';
+      'Send orders from your shop. You upload your documents and an admin approves your account.';
 
   @override
   String get invitationCode => 'Invitation code';
@@ -2164,4 +2164,257 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mapLegendDestination => 'Destination';
+
+  @override
+  String get sendParcelTitle => 'Send a parcel';
+
+  @override
+  String get sendParcelEntryBody =>
+      'Send a small parcel with a driver already travelling an approved route.';
+
+  @override
+  String get sendParcelIntro =>
+      'Choose a route and stops, then tell us who receives the parcel. A driver travelling that way carries it.';
+
+  @override
+  String get sendParcelPickupHint =>
+      'Hand the parcel to the driver at this stop.';
+
+  @override
+  String get parcelSizeSmallHint => 'S - small, fits in a bag';
+
+  @override
+  String get parcelSizeMediumHint => 'M - medium, about a shoebox';
+
+  @override
+  String get parcelSizeLargeNotAllowed =>
+      'Large parcels are for shops and cannot be sent from a personal account.';
+
+  @override
+  String get receiverNameLabel => 'Receiver\'s name';
+
+  @override
+  String get receiverPhoneLabel => 'Receiver\'s phone';
+
+  @override
+  String get receiverPrivacyNote =>
+      'The receiver does not need the app. Their name and phone are used only for this delivery, are never shown to other users, and are erased afterwards.';
+
+  @override
+  String get parcelNoteLabel => 'Note for the driver (optional)';
+
+  @override
+  String get forbiddenItemsAck =>
+      'I confirm the parcel contains no cash, valuables, medicine, weapons, flammable, illegal or perishable items.';
+
+  @override
+  String get sendParcelSubmit => 'Send parcel';
+
+  @override
+  String get sendParcelRecorded => 'Your parcel request was recorded.';
+
+  @override
+  String get sendParcelRecordedBody =>
+      'We are looking for a driver on this route. You can cancel until a driver is offered the parcel.';
+
+  @override
+  String get myParcelsTitle => 'My parcels';
+
+  @override
+  String get myParcelsEmpty => 'You have not sent any parcels yet.';
+
+  @override
+  String get parcelTrackSearching => 'Finding a driver';
+
+  @override
+  String get parcelTrackAssigned => 'Driver assigned';
+
+  @override
+  String get parcelTrackPickedUp => 'Picked up from you';
+
+  @override
+  String get parcelTrackInTransit => 'On the way';
+
+  @override
+  String get parcelTrackDelivered => 'Delivered';
+
+  @override
+  String get parcelTrackCancelled => 'Cancelled';
+
+  @override
+  String get parcelTrackFailed => 'Delivery failed';
+
+  @override
+  String get parcelTrackExpired => 'Expired';
+
+  @override
+  String get parcelCancelAction => 'Cancel parcel';
+
+  @override
+  String get parcelCancelConfirm =>
+      'Cancel this parcel? The receiver\'s details will be erased.';
+
+  @override
+  String get parcelCancelledNotice => 'Parcel cancelled.';
+
+  @override
+  String get parcelCannotCancel =>
+      'A driver has already been offered this parcel, so it can no longer be cancelled.';
+
+  @override
+  String parcelReceiverLine(String name, String phone) {
+    return 'Receiver: $name ($phone)';
+  }
+
+  @override
+  String get parcelReceiverRemoved => 'Receiver details have been erased.';
+
+  @override
+  String get parcelLimitReached =>
+      'You already have the maximum number of parcels on the way. Wait for one to finish or cancel one.';
+
+  @override
+  String get parcelDailyLimit =>
+      'Daily parcel limit reached. Try again tomorrow.';
+
+  @override
+  String get invalidReceiverPhone =>
+      'Enter a valid phone number for the receiver.';
+
+  @override
+  String get receiverNameInvalid => 'Enter the receiver\'s name.';
+
+  @override
+  String get parcelAckRequired =>
+      'Confirm the statement about forbidden items to continue.';
+
+  @override
+  String get keepParcel => 'Keep parcel';
+
+  @override
+  String get mapOfflineSaved => 'Offline - showing saved map';
+
+  @override
+  String get clearMapCache => 'Clear saved map';
+
+  @override
+  String get clearMapCacheHint =>
+      'Deletes map tiles saved on this device. They are saved again as you browse.';
+
+  @override
+  String get mapCacheCleared => 'Saved map cleared';
+
+  @override
+  String get mapCacheClearFailed => 'Could not clear the saved map';
+
+  @override
+  String get notifDocsExpiringTitle => 'Document expiring soon';
+
+  @override
+  String notifDocsExpiringBody(String document, String date) {
+    return 'Your $document expires on $date. Send renewed documents before then to keep working without interruption.';
+  }
+
+  @override
+  String get notifDocsExpiredTitle => 'Your documents have expired';
+
+  @override
+  String get notifDocsExpiredBody =>
+      'Your account is restricted: you cannot go online or accept new trips until you send renewed documents and they are approved. Trips you already accepted are not affected.';
+
+  @override
+  String get notifDocsRenewalSubmittedTitle => 'Renewal documents sent';
+
+  @override
+  String get notifDocsRenewalSubmittedBody =>
+      'Our team will review them and you will be notified of the decision.';
+
+  @override
+  String get documentKindContract => 'Contract';
+
+  @override
+  String get availabilityDocumentsExpired =>
+      'Your documents have expired. Send renewed documents to restore access.';
+
+  @override
+  String get applicationDocumentsRequiredTitle => 'Upload your documents';
+
+  @override
+  String get applicationDocumentsRequiredBody =>
+      'Your account is created but is not under review yet. Upload every required document, then send your application. Review usually takes up to 24 hours.';
+
+  @override
+  String documentsStillNeeded(String documents) {
+    return 'Still needed: $documents';
+  }
+
+  @override
+  String get submitApplication => 'Send for review';
+
+  @override
+  String get documentsRequiredError =>
+      'Upload all the required documents before sending your application.';
+
+  @override
+  String get invitationCodeOptional => 'Invitation code (optional)';
+
+  @override
+  String get fareEstimatedTitle => 'Estimated fare';
+
+  @override
+  String get fareBookedTitle => 'Estimated fare when requested';
+
+  @override
+  String get fareDisclaimer =>
+      'Estimated and paid directly to the driver. No payments are processed in the app.';
+
+  @override
+  String get fareNotSet => 'No estimated fare has been set for this route yet.';
+
+  @override
+  String get farePerSeat => 'Per seat';
+
+  @override
+  String fareSeatsLine(int count) {
+    return 'Seats × $count';
+  }
+
+  @override
+  String fareParcelLine(String size) {
+    return 'Parcel $size';
+  }
+
+  @override
+  String get fareTotal => 'Total';
+
+  @override
+  String get notifDriverApproachingTitle => 'Your driver is approaching';
+
+  @override
+  String get notifDriverApproachingBody =>
+      'Your driver is near your pickup point. Please get ready.';
+
+  @override
+  String get ratingPromptTitle => 'How was your trip?';
+
+  @override
+  String get ratingPromptBody =>
+      'Rate your driver from 1 to 5 stars. Your rating is private: the driver never sees it or who gave it.';
+
+  @override
+  String ratingStarLabel(int count) {
+    return '$count stars';
+  }
+
+  @override
+  String get ratingSubmit => 'Send rating';
+
+  @override
+  String get ratingThanks => 'Thanks for rating your trip.';
+
+  @override
+  String get ratingFailed => 'The rating could not be sent. Try again.';
+
+  @override
+  String get ratingAlreadyRated => 'You already rated this trip.';
 }

@@ -263,9 +263,9 @@
   "registerPassengerTitle": "مستخدم عادي",
   "registerPassengerHelp": "اطلب رحلات وتوصيلات. يصبح حسابك جاهزاً مباشرة بعد التسجيل.",
   "registerDriverTitle": "سائق",
-  "registerDriverHelp": "انقل الرحلات والتوصيلات. يتطلب رمز دعوة ومستنداتك وموافقة.",
+  "registerDriverHelp": "انقل الرحلات والتوصيلات. ترفع مستنداتك ويوافق المشرف على حسابك.",
   "registerMerchantTitle": "صاحب متجر",
-  "registerMerchantHelp": "أرسل طلبات من متجرك. يتطلب رمز دعوة وموافقة.",
+  "registerMerchantHelp": "أرسل طلبات من متجرك. ترفع مستنداتك ويوافق المشرف على حسابك.",
   "invitationCode": "رمز الدعوة",
   "phoneNumber": "رقم الهاتف",
   "sendVerificationCode": "إرسال رمز التحقق",
@@ -822,26 +822,157 @@
   "acceptanceRateValue": "{percent}%",
   "@acceptanceRateValue": {
     "placeholders": {
-      "percent": { "type": "int" }
+      "percent": {
+        "type": "int"
+      }
     }
   },
   "acceptanceRateDetail": "تم قبول {accepted} من {responded} عرضًا أجبت عنها. العروض التي انتهت دون رد لا تُحتسب.",
   "@acceptanceRateDetail": {
     "placeholders": {
-      "accepted": { "type": "int" },
-      "responded": { "type": "int" }
+      "accepted": {
+        "type": "int"
+      },
+      "responded": {
+        "type": "int"
+      }
     }
   },
   "acceptanceRateNeedMore": "تظهر نسبتك بعد {needed} عروض تم الرد عليها ({responded} حتى الآن).",
   "@acceptanceRateNeedMore": {
     "placeholders": {
-      "needed": { "type": "int" },
-      "responded": { "type": "int" }
+      "needed": {
+        "type": "int"
+      },
+      "responded": {
+        "type": "int"
+      }
     }
   },
   "emailOrPhone": "البريد الإلكتروني أو رقم الهاتف",
   "emailOrPhoneRequired": "أدخل بريدك الإلكتروني أو رقم هاتفك.",
   "emailOrPhoneInvalid": "أدخل بريدًا إلكترونيًا صحيحًا، أو رقم هاتف يبدأ بـ + ورمز الدولة.",
   "mapLegendStart": "البداية",
-  "mapLegendDestination": "الوصول"
+  "mapLegendDestination": "الوصول",
+  "sendParcelTitle": "إرسال طرد",
+  "sendParcelEntryBody": "أرسل طردًا صغيرًا مع سائق يسير أصلًا على مسار معتمد.",
+  "sendParcelIntro": "اختر المسار والمحطتين ثم أخبرنا من سيستلم الطرد. سيحمله سائق متجه في هذا الاتجاه.",
+  "sendParcelPickupHint": "سلّم الطرد للسائق عند هذه المحطة.",
+  "parcelSizeSmallHint": "S - صغير، يكفي لحقيبة",
+  "parcelSizeMediumHint": "M - متوسط، بحجم علبة حذاء تقريبًا",
+  "parcelSizeLargeNotAllowed": "الطرود الكبيرة مخصصة للمتاجر ولا يمكن إرسالها من حساب شخصي.",
+  "receiverNameLabel": "اسم المستلم",
+  "receiverPhoneLabel": "هاتف المستلم",
+  "receiverPrivacyNote": "المستلم لا يحتاج إلى التطبيق. يُستخدم اسمه ورقمه لهذا التوصيل فقط، ولا يظهران لأي مستخدم آخر، ويُمسحان بعد انتهاء المدة.",
+  "parcelNoteLabel": "ملاحظة للسائق (اختياري)",
+  "forbiddenItemsAck": "أقرّ بأن الطرد لا يحتوي على نقود أو أشياء ثمينة أو أدوية أو أسلحة أو مواد قابلة للاشتعال أو ممنوعة أو سريعة التلف.",
+  "sendParcelSubmit": "إرسال الطرد",
+  "sendParcelRecorded": "تم تسجيل طلب الطرد.",
+  "sendParcelRecordedBody": "نبحث عن سائق على هذا المسار. يمكنك الإلغاء ما لم يُعرض الطرد على سائق.",
+  "myParcelsTitle": "طرودي",
+  "myParcelsEmpty": "لم ترسل أي طرد بعد.",
+  "parcelTrackSearching": "جارٍ البحث عن سائق",
+  "parcelTrackAssigned": "تم تعيين سائق",
+  "parcelTrackPickedUp": "تم استلامه منك",
+  "parcelTrackInTransit": "في الطريق",
+  "parcelTrackDelivered": "تم التسليم",
+  "parcelTrackCancelled": "ملغى",
+  "parcelTrackFailed": "تعذّر التوصيل",
+  "parcelTrackExpired": "انتهت المهلة",
+  "parcelCancelAction": "إلغاء الطرد",
+  "parcelCancelConfirm": "هل تريد إلغاء هذا الطرد؟ سيتم مسح بيانات المستلم.",
+  "parcelCancelledNotice": "تم إلغاء الطرد.",
+  "parcelCannotCancel": "عُرض الطرد على سائق بالفعل، لذلك لم يعد الإلغاء ممكنًا.",
+  "parcelReceiverLine": "المستلم: {name} ({phone})",
+  "@parcelReceiverLine": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
+  "parcelReceiverRemoved": "تم مسح بيانات المستلم.",
+  "parcelLimitReached": "لديك الحد الأقصى من الطرود قيد التوصيل. انتظر انتهاء أحدها أو ألغِ واحدًا.",
+  "parcelDailyLimit": "تم بلوغ حد الطرود اليومي. حاول غدًا.",
+  "invalidReceiverPhone": "أدخل رقم هاتف صحيحًا للمستلم.",
+  "receiverNameInvalid": "أدخل اسم المستلم.",
+  "parcelAckRequired": "أكّد الإقرار الخاص بالمواد الممنوعة للمتابعة.",
+  "keepParcel": "إبقاء الطرد",
+  "mapOfflineSaved": "بدون اتصال - تُعرض الخريطة المحفوظة",
+  "clearMapCache": "مسح الخريطة المحفوظة",
+  "clearMapCacheHint": "يحذف مربعات الخريطة المحفوظة على هذا الجهاز. تُحفظ من جديد أثناء التصفح.",
+  "mapCacheCleared": "تم مسح الخريطة المحفوظة",
+  "mapCacheClearFailed": "تعذّر مسح الخريطة المحفوظة",
+  "notifDocsExpiringTitle": "مستند على وشك الانتهاء",
+  "notifDocsExpiringBody": "ينتهي {document} بتاريخ {date}. أرسل مستندات مجددة قبل ذلك لتواصل العمل دون انقطاع.",
+  "@notifDocsExpiringBody": {
+    "placeholders": {
+      "document": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "notifDocsExpiredTitle": "انتهت صلاحية مستنداتك",
+  "notifDocsExpiredBody": "تم تقييد حسابك ولا يمكنك الاتصال أو قبول رحلات جديدة حتى تُرسل مستندات مجددة وتتم الموافقة عليها. رحلاتك المقبولة سابقاً لا تتأثر.",
+  "notifDocsRenewalSubmittedTitle": "تم إرسال مستندات التجديد",
+  "notifDocsRenewalSubmittedBody": "سيراجعها فريقنا وتصلك رسالة عند اتخاذ القرار.",
+  "documentKindContract": "العقد",
+  "availabilityDocumentsExpired": "انتهت صلاحية مستنداتك. أرسل مستندات مجددة لاستعادة الوصول.",
+  "applicationDocumentsRequiredTitle": "ارفع مستنداتك",
+  "applicationDocumentsRequiredBody": "تم إنشاء حسابك لكنه ليس قيد المراجعة بعد. ارفع كل المستندات المطلوبة ثم أرسل طلبك. تستغرق المراجعة عادةً حتى 24 ساعة.",
+  "documentsStillNeeded": "ما زال مطلوباً: {documents}",
+  "@documentsStillNeeded": {
+    "placeholders": {
+      "documents": {
+        "type": "String"
+      }
+    }
+  },
+  "submitApplication": "إرسال للمراجعة",
+  "documentsRequiredError": "ارفع كل المستندات المطلوبة قبل إرسال طلبك.",
+  "invitationCodeOptional": "رمز الدعوة (اختياري)",
+  "fareEstimatedTitle": "الأجرة التقديرية",
+  "fareBookedTitle": "الأجرة التقديرية عند الطلب",
+  "fareDisclaimer": "تقديرية، وتُدفع مباشرة إلى السائق. لا تتم معالجة أي مدفوعات داخل التطبيق.",
+  "fareNotSet": "لم تُحدَّد أجرة تقديرية لهذا المسار بعد.",
+  "farePerSeat": "للمقعد الواحد",
+  "fareSeatsLine": "المقاعد × {count}",
+  "@fareSeatsLine": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "fareParcelLine": "طرد {size}",
+  "@fareParcelLine": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "fareTotal": "الإجمالي",
+  "notifDriverApproachingTitle": "سائقك يقترب",
+  "notifDriverApproachingBody": "سائقك قريب من نقطة الانطلاق. يرجى الاستعداد.",
+  "ratingPromptTitle": "كيف كانت رحلتك؟",
+  "ratingPromptBody": "قيّم السائق من 1 إلى 5 نجوم. تقييمك سري: لا يرى السائق التقييم ولا من قدّمه.",
+  "ratingStarLabel": "{count} نجوم",
+  "@ratingStarLabel": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "ratingSubmit": "إرسال التقييم",
+  "ratingThanks": "شكرًا لتقييمك الرحلة.",
+  "ratingFailed": "تعذّر إرسال التقييم. حاول مرة أخرى.",
+  "ratingAlreadyRated": "لقد قيّمت هذه الرحلة من قبل."
 }
