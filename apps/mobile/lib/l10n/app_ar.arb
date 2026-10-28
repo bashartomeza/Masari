@@ -458,6 +458,28 @@
   },
   "searchForTrip": "ابحث عن رحلة",
   "perPassenger": "للراكب",
+  "fareEstimatedTitle": "الأجرة التقديرية",
+  "fareBookedTitle": "الأجرة التقديرية عند الطلب",
+  "fareDisclaimer": "تقديرية، وتُدفع مباشرة إلى السائق. لا تتم معالجة أي مدفوعات داخل التطبيق.",
+  "fareNotSet": "لم تُحدَّد أجرة تقديرية لهذا المسار بعد.",
+  "farePerSeat": "للمقعد الواحد",
+  "fareSeatsLine": "المقاعد × {count}",
+  "@fareSeatsLine": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "fareParcelLine": "طرد {size}",
+  "@fareParcelLine": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "fareTotal": "الإجمالي",
   "departure": "المغادرة",
   "bookSeat": "احجز",
   "noAvailableTrips": "لا توجد رحلات متاحة حالياً",
@@ -805,6 +827,8 @@
   "notifIncidentUpdatedTitle": "تحديث على بلاغك",
   "notifIncidentReviewingBody": "بلاغك قيد المراجعة.",
   "notifIncidentResolvedBody": "تمت معالجة بلاغك.",
+  "notifDriverApproachingTitle": "سائقك يقترب",
+  "notifDriverApproachingBody": "سائقك قريب من نقطة الانطلاق. يرجى الاستعداد.",
   "verificationDocuments": "مستندات التوثيق",
   "verificationDocumentsHint": "للحصول على الموافقة، ارفع صوراً واضحة أو ملفات PDF لرخصة القيادة وتسجيل المركبة والهوية الوطنية. تُحفظ الملفات على خادمنا ولا يفتحها إلا فريق المراجعة.",
   "documentKind": "نوع المستند",
@@ -843,5 +867,19 @@
   "emailOrPhoneRequired": "أدخل بريدك الإلكتروني أو رقم هاتفك.",
   "emailOrPhoneInvalid": "أدخل بريدًا إلكترونيًا صحيحًا، أو رقم هاتف يبدأ بـ + ورمز الدولة.",
   "mapLegendStart": "البداية",
-  "mapLegendDestination": "الوصول"
+  "mapLegendDestination": "الوصول",
+  "ratingPromptTitle": "كيف كانت رحلتك؟",
+  "ratingPromptBody": "قيّم السائق من 1 إلى 5 نجوم. تقييمك سري: لا يرى السائق التقييم ولا من قدّمه.",
+  "ratingStarLabel": "{count} نجوم",
+  "@ratingStarLabel": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "ratingSubmit": "إرسال التقييم",
+  "ratingThanks": "شكرًا لتقييمك الرحلة.",
+  "ratingFailed": "تعذّر إرسال التقييم. حاول مرة أخرى.",
+  "ratingAlreadyRated": "لقد قيّمت هذه الرحلة من قبل."
 }

@@ -3,10 +3,12 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { auditEvent } from "../lib/audit.js";
 import { DEMO_ROUTE_POINTS } from "../lib/geo.js";
-import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
+import { requireAuth, requireRole, type AuthenticatedRequest } from "../middleware/auth.js";
+import { recomputeTrustForTrip } from "../services/driverTrust.js";
 import { HttpError } from "../middleware/error.js";
 import { AuditAction, MatchStatus, TripStatus } from "../generated/prisma/enums.js";
 import { advanceLegacyTrip, isLegacyTripTransitionAllowed } from "../services/tripLifecycle.js";
+import { maybeNotifyDriverApproaching, maybeNotifyDriverApproachingFromLatest } from "../services/driverApproaching.js";
 import { notifyMatchDecision } from "../services/notifications.js";
 import {
   UNAVAILABLE_REASON_MAX,
@@ -23,6 +25,7 @@ export const tripsRouter = Router();
 export const trackingSimulationRouter = Router();
 
 const ACTIVE_TRIP_STATUSES = ["created", "accepted", "pickup_started", "picked_up", "in_transit", "delivered"] as const;
+const TRUST_RELEVANT_STATUSES: ReadonlySet<string> = new Set(["completed", "cancelled", "failed"]);
 const statusSchema = z.object({ status: z.enum(["pickup_started", "picked_up", "in_transit", "delivered", "completed", "cancelled", "failed"]) });
 
 function routeParam(value: string | string[] | undefined) {
@@ -410,6 +413,8 @@ tripsRouter.post("/trips/:id/status", requireAuth, async (req: AuthenticatedRequ
       });
     });
 
+    await maybeNotifyDriverApproachingFromLatest(prisma, existing.id);
+    if (TRUST_RELEVANT_STATUSES.has(input.status)) await recomputeTrustForTrip(prisma, trip.id);
     res.json({ trip });
   } catch (error) {
     next(error);
@@ -509,6 +514,68 @@ tripsRouter.post("/trips/:id/delivery-confirmation", requireAuth, async (req: Au
   }
 });
 
+const ratingSchema = z.object({ stars: z.number().int().min(1).max(5) }).strict();
+
+/** The passenger on this trip, if any: the legacy request owner or a shared-trip manifest member. */
+async function isTripPassenger(tripId: string, userId: string) {
+  const trip = await prisma.trip.findUnique({
+    where: { id: tripId },
+    select: {
+      status: true,
+      driver_route: { select: { driver_id: true } },
+      passenger_request: { select: { passenger_id: true } },
+      canonical_manifest: {
+        select: { members: { select: { passenger_request: { select: { passenger_id: true } } } } }
+      }
+    }
+  });
+  if (!trip) return null;
+  const passengerIds = [
+    trip.passenger_request?.passenger_id,
+    ...(trip.canonical_manifest?.members ?? []).map((member) => member.passenger_request?.passenger_id)
+  ];
+  if (!passengerIds.includes(userId)) return null;
+  return { status: trip.status, driverId: trip.driver_route.driver_id };
+}
+
+// Passengers see only whether they have rated; the rating never reaches drivers.
+tripsRouter.get("/trips/:id/rating", requireAuth, requireRole("passenger"), async (req: AuthenticatedRequest, res, next) => {
+  try {
+    const tripId = routeParam(req.params.id);
+    if (!(await isTripPassenger(tripId, req.user!.id))) throw new HttpError(404, "trip_not_found");
+    const rating = await prisma.tripRating.findUnique({
+      where: { trip_id_passenger_id: { trip_id: tripId, passenger_id: req.user!.id } },
+      select: { stars: true }
+    });
+    res.json({ rating: rating ? { stars: rating.stars } : null });
+  } catch (error) {
+    next(error);
+  }
+});
+
+tripsRouter.post("/trips/:id/rating", requireAuth, requireRole("passenger"), async (req: AuthenticatedRequest, res, next) => {
+  try {
+    const tripId = routeParam(req.params.id);
+    const input = ratingSchema.parse(req.body);
+    const trip = await isTripPassenger(tripId, req.user!.id);
+    // Someone else's trip looks the same as a missing one.
+    if (!trip) throw new HttpError(404, "trip_not_found");
+    if (trip.status !== TripStatus.completed) throw new HttpError(409, "trip_not_completed");
+    try {
+      await prisma.tripRating.create({
+        data: { trip_id: tripId, passenger_id: req.user!.id, driver_id: trip.driverId, stars: input.stars }
+      });
+    } catch (error) {
+      if ((error as { code?: string }).code === "P2002") throw new HttpError(409, "trip_already_rated");
+      throw error;
+    }
+    await recomputeTrustForTrip(prisma, tripId);
+    res.status(201).json({ rating: { stars: input.stars } });
+  } catch (error) {
+    next(error);
+  }
+});
+
 trackingSimulationRouter.post("/trips/:id/simulate/step", requireAuth, async (req: AuthenticatedRequest, res, next) => {
   try {
     const trip = await getVisibleTrip(routeParam(req.params.id), req);
@@ -530,6 +597,7 @@ trackingSimulationRouter.post("/trips/:id/simulate/step", requireAuth, async (re
     });
     await auditEvent(prisma, { userId: req.user!.id, action: AuditAction.location_recorded, entityType: "LocationEvent", entityId: location.id });
     await auditEvent(prisma, { userId: req.user!.id, action: AuditAction.tracking_simulation_step, entityType: "Trip", entityId: trip.id, metadata: { sequence } });
+    await maybeNotifyDriverApproaching(prisma, trip.id, point);
     res.status(201).json({ location });
   } catch (error) {
     next(error);

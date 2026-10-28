@@ -17,6 +17,7 @@ import '../../../core/widgets/state_views.dart';
 import '../../checkpoints/application/checkpoint_controller.dart';
 import '../../incidents/presentation/report_incident_sheet.dart';
 import '../application/passenger_trip_controller.dart';
+import 'trip_rating_prompt.dart';
 
 class PassengerTripScreen extends ConsumerStatefulWidget {
   const PassengerTripScreen({required this.tripId, super.key});
@@ -602,6 +603,9 @@ class _PassengerTripScreenState extends ConsumerState<PassengerTripScreen> {
                 // REFRESH
                 // ==================================================
                 _buildRefreshButton(context, l10n),
+
+                if (data.trip.status.toLowerCase() == 'completed')
+                  TripRatingPrompt(tripId: widget.tripId),
 
                 ReportIncidentButton(tripId: widget.tripId),
               ],

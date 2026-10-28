@@ -6,6 +6,7 @@ import { prisma } from "../lib/prisma.js";
 import { requireAuth, requireRole, type AuthenticatedRequest } from "../middleware/auth.js";
 import { HttpError } from "../middleware/error.js";
 import { adminDeliveryConfirmations } from "../services/deliveryHandover.js";
+import { recomputeTrustForTrip } from "../services/driverTrust.js";
 import { ADMIN_FORWARD_TRIP_TRANSITION, advanceLegacyTrip } from "../services/tripLifecycle.js";
 
 const tripStatuses = ["created", "accepted", "pickup_started", "picked_up", "in_transit", "delivered", "completed", "cancelled"] as const;
@@ -269,6 +270,7 @@ adminTripsRouter.post("/admin/trips/:id/status", async (req: AuthenticatedReques
       });
       return { id: updated.id, status: updated.status };
     }, { isolationLevel: "Serializable" });
+    if (trip.status === TripStatus.completed) await recomputeTrustForTrip(prisma, trip.id);
     res.json({ trip });
   } catch (error) {
     next(error);

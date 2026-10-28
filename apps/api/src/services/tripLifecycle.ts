@@ -191,6 +191,7 @@ export async function advanceLegacyTrip(
       status: nextStatus,
       started_at: nextStatus === TripStatus.pickup_started ? new Date() : undefined,
       completed_at: completedAt,
+      cancelled_by_user_id: nextStatus === TripStatus.cancelled || nextStatus === TripStatus.failed ? options.actorId : undefined,
     },
   });
   if (claimed.count !== 1) throw new HttpError(409, "trip_status_conflict");
