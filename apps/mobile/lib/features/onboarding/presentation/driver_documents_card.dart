@@ -182,7 +182,10 @@ class _DriverDocumentsCardState extends ConsumerState<DriverDocumentsCard> {
                 key: ValueKey('driverDocument-${document.id}'),
                 contentPadding: EdgeInsets.zero,
                 title: Text(_kindLabel(l10n, document.kind)),
-                subtitle: Text('${(document.sizeBytes / 1024).ceil()} KB'),
+                // The embedding keeps "1 KB" in reading order inside right-to-left text.
+                subtitle: Text(
+                  '\u202A${(document.sizeBytes / 1024).ceil()} KB\u202C',
+                ),
                 trailing: IconButton(
                   tooltip: l10n.removeDocument,
                   icon: const Icon(Icons.delete_outline),

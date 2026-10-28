@@ -458,12 +458,16 @@ model AuthActionToken {
   token_digest      String            @unique @db.Char(64)
   token_key_version Int
   payload           Json?
+  // Short emailed code (registration only); kept as a keyed digest, with a wrong-guess counter.
+  code_digest       String?           @db.Char(64)
+  failed_attempts   Int               @default(0)
   expires_at        DateTime
   consumed_at       DateTime?
   created_at        DateTime          @default(now())
 
   user User? @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
+  @@index([subject_digest, purpose])
   @@index([purpose, expires_at, consumed_at])
   @@index([user_id, purpose, expires_at])
   @@map("auth_action_tokens")

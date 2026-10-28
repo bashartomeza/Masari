@@ -13,6 +13,7 @@ Everything runs on a disposable demo database. Nothing here touches real data, a
 | Admin sign-in | email `demo.admin@masari.app`, password `DEMO_ADMIN_PASSWORD` from `apps/api/.env` |
 | Demo app sign-ins (email + password from `apps/api/.env`) | passenger `demo.passenger@masari.app`, driver `demo.driver@masari.app` (and `demo.driver2@masari.app`), merchant `demo.merchant@masari.app` — passwords are `DEMO_PASSENGER_PASSWORD`, `DEMO_DRIVER_PASSWORD`, `DEMO_MERCHANT_PASSWORD` |
 | Sign-up invitation codes | `.staging-data/test-env/invitations.txt` (passenger +970590002001, driver +970590002002, merchant +970590002003) |
+| Email verification code (normal user sign-up) | the newest line for that email in `.staging-data/test-env/email-codes.txt` (no real email is sent; type the six-digit code into the app) |
 | One-time SMS codes | the newest line of `.staging-data/test-env/otp.txt` (there is no real SMS; the code is written to that file) |
 | Sample files on the emulator (Downloads) | `licence.jpg` (valid), `vehicle-registration.pdf` (valid), `not-really-an-image.jpg` (text pretending to be a photo) |
 | Pending / rejected demo accounts | Demo Pending Merchant, Demo Pending Driver, Demo Rejected Driver (already seeded) |
@@ -63,10 +64,10 @@ Use the codes in `invitations.txt`. After each sign-up, read the code from `otp.
 
 | ID | Do | Expect |
 | --- | --- | --- |
-| C01 | Sign-in screen → "New to Masari? Create an account" → pick the role (Driver or Shop owner) → enter that role's invitation code and its phone → Send verification code | A code-entry screen appears with a resend countdown |
+| C01 | Sign-in screen → "New to Masari? Create an account" | A screen asks "How will you use Masari?" with three choices: Normal user, Driver, Shop owner. Normal user opens the email sign-up form; Driver and Shop owner open the invitation-code and phone screen with the role already chosen; Back returns to sign-in |
 | C02 | Enter a wrong code | A clear error; you can try again |
-| C03 | Enter the right code (from `otp.txt`), then name, a password of at least 15 characters, tick the three consents, Create account | Account created; the passenger can sign in and is active straight away |
-| C04 | Repeat C01–C03 for the driver (+970590002002) | The screen says "Application under review" and shows a "Verification documents" card |
+| C03 | Choose Shop owner (invitation code and +970590002003), enter the right code (from `otp.txt`), then name, a password of at least 15 characters, tick the three consents, Create account | Account created; the screen says the account is pending and an admin review usually takes up to 24 hours |
+| C04 | Repeat for the driver (+970590002002) | The screen says "Application under review" and shows a "Verification documents" card |
 | C05 | Driver: Add a document → choose `licence.jpg` (type "Driving licence") | It appears in the list as "Driving licence · 1 KB" |
 | C06 | Add `vehicle-registration.pdf` with type "Vehicle registration" | It appears in the list |
 | C07 | Add `not-really-an-image.jpg` | Refused with "Only JPEG, PNG or PDF files can be uploaded"; nothing added |
@@ -75,9 +76,12 @@ Use the codes in `invitations.txt`. After each sign-up, read the code from `otp.
 | C10 | In the Admin site, open that driver's review | The uploaded documents are listed with a Download button; the downloaded file opens and is the right file |
 | C11 | Try to sign in on the phone as the new (pending) driver | You are not let in (account pending), with a clear message |
 | C12 | Admin approves that driver (A13), then press Refresh in the app's pending screen | It now says approved and offers sign-in; sign-in works |
-| C13 | Repeat C01–C03 for the merchant (+970590002003); Admin approves it (A09) | Same pending → approved path; the merchant signs in |
+| C13 | Admin approves the shop owner from C03 (A09), then sign in on the phone with their phone number and password | Same pending → approved path; the merchant home opens |
 | C14 | Use an invitation code twice, or a code with the wrong phone | Refused without revealing why |
 | C15 | Sign-in screen → "Check an existing application" with a pending applicant's phone and password | Shows the application status |
+| C16 | Shop owner (pending, from C03): Add a document → choose `licence.jpg` (type "Commercial register") | The pending screen shows "Verification documents" asking for the commercial register, national ID and shop photo; the file appears in the list as "Commercial register · 1 KB" |
+| C17 | In the Admin site, Users → the pending shop owner → Approve (or Reject) | The shop owner's documents are listed with a Download button before you decide; the downloaded file opens and is the right file |
+| C18 | Create account → Normal user → name, an email ending in @example.com, a password of at least 12 characters → Sign up; type the six-digit code from `email-codes.txt`, tick the three documents, Continue; then enter a phone such as +970590003020, Send code, type the code from `otp.txt`, Continue | The passenger home opens; no invitation code and no admin approval were needed |
 
 ## D. The main story (passenger + merchant + driver)
 

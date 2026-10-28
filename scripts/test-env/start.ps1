@@ -39,6 +39,24 @@ $env:APP_ENV = "demo"
 $env:PORT = "$ApiPort"
 $env:DEMO_RESET_ALLOWED_DATABASES = "masari_demo"
 $env:TEST_OTP_FILE = Join-Path $state "otp.txt"
+# Email sign-up needs a secret for its one-time tokens; keep one per test machine.
+$pepperFile = Join-Path $state "auth-pepper.txt"
+if (-not (Test-Path $pepperFile)) {
+  $bytes = New-Object byte[] 48
+  [Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
+  [Convert]::ToBase64String($bytes) | Set-Content -NoNewline $pepperFile
+}
+$env:AUTH_ACTION_TOKEN_PEPPER = (Get-Content $pepperFile -Raw).Trim()
+# Real verification emails: only when the Gmail App Password was stored (set-mail-password.ps1).
+Import-Module (Join-Path $PSScriptRoot "MailPassword.psm1") -Force
+if (Test-MailPassword) {
+  $env:DEMO_SMTP_USER = "basharto30@gmail.com"
+  $env:DEMO_SMTP_PASSWORD = Get-MailPassword
+  $mailMode = "real emails are sent from $($env:DEMO_SMTP_USER)"
+} else {
+  Remove-Item Env:DEMO_SMTP_USER, Env:DEMO_SMTP_PASSWORD -ErrorAction SilentlyContinue
+  $mailMode = "no real emails (tokens are only written to the file)"
+}
 $env:DRIVER_DOCUMENTS_ENABLED = "true"
 $env:DRIVER_DOCUMENTS_DIR = Join-Path $state "driver-docs"
 $env:CORS_ORIGINS = "http://localhost:$AdminPort,http://127.0.0.1:$AdminPort"
@@ -61,4 +79,5 @@ $adminUp = Wait-Http "http://localhost:$AdminPort/"
 Write-Output "API   http://localhost:$ApiPort   ready: $apiUp"
 Write-Output "Admin http://localhost:$AdminPort   ready: $adminUp"
 Write-Output "One-time sign-up codes appear in: $(Join-Path $state 'otp.txt')"
+Write-Output "Email sign-up codes (normal users) appear in: $(Join-Path $state 'email-codes.txt') - $mailMode"
 if (-not ($apiUp -and $adminUp)) { Write-Output "Something did not start; run stop.ps1 and check the build and .env."; exit 1 }

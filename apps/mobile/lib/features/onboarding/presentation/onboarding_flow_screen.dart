@@ -119,7 +119,7 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
           leading: warnBeforeLeaving
               ? BackButton(onPressed: () => Navigator.of(context).maybePop())
               : null,
-          title: Text(l10n.createInvitedAccount),
+          title: Text(l10n.createAccount),
           actions: const [LanguageSwitch()],
         ),
         body: SafeArea(

@@ -13,7 +13,7 @@ if (databaseName.toLowerCase() === "masari" || !allowed.includes(databaseName)) 
 process.env.APP_ENV ??= "demo";
 const { prisma } = await import(pathToFileURL(resolve(root, "apps/api/dist/lib/prisma.js")).href);
 const result = await prisma.user.updateMany({
-  where: { demo_account: false, OR: [{ phone: { startsWith: "+9705900020" } }, { phone: { startsWith: "+9705900030" } }] },
+  where: { demo_account: false, OR: [{ phone: { startsWith: "+9705900020" } }, { phone: { startsWith: "+9705900030" } }, { email: { endsWith: "@example.com" } }] },
   data: { demo_account: true }
 });
 console.log(`Marked ${result.count} test sign-up account(s) as demo data.`);

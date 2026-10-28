@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const db = vi.hoisted(() => ({
   $transaction: vi.fn(), user: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
-  authActionToken: { create: vi.fn(), findUnique: vi.fn(), updateMany: vi.fn() },
+  authActionToken: { create: vi.fn(), findUnique: vi.fn(), findFirst: vi.fn(), updateMany: vi.fn() },
   authSession: { create: vi.fn(), findMany: vi.fn(), updateMany: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
   refreshToken: { create: vi.fn(), updateMany: vi.fn() }, userConsent: { createMany: vi.fn() }, auditEvent: { create: vi.fn() }, trip: { findMany: vi.fn() }
 }));
@@ -38,9 +38,10 @@ function actor(overrides: any = {}) {
 async function start(server = app()) {
   return request(server).post("/api/v1/auth/mobile/register/start").send(registration).expect(202);
 }
+// The registration email carries a 6-digit code; verify/confirm hands back a longer token.
 function complete(body: any, proof = messages.at(-1)?.actionToken) {
-  return { registration_token: body.registration_token, email_verification_token: proof, locale: "en", consents,
-    adult_self_attestation: true };
+  return { registration_token: body.registration_token, ...(/^\d{6}$/.test(proof) ? { email_verification_code: proof } : { email_verification_token: proof }),
+    locale: "en", consents, adult_self_attestation: true };
 }
 function bearer(user: any) {
   db.authSession.findUnique.mockResolvedValue({ id: "session_1", user_id: user.id, user, security_version_at_issue: user.security_version,
@@ -66,9 +67,13 @@ describe("email authentication lifecycle", () => {
     });
     db.authActionToken.create.mockImplementation(async ({ data }: any) => { const a = { id: `action_${actions.length}`, consumed_at: null, ...data }; actions.push(a); return a; });
     db.authActionToken.findUnique.mockImplementation(async ({ where }: any) => actions.find((a) => a.token_digest === where.token_digest) ?? null);
+    db.authActionToken.findFirst.mockImplementation(async ({ where }: any) => [...actions].reverse().find((a) => Object.entries(where).every(([k, v]: any) =>
+      k === "expires_at" ? a[k] > v.gt : k === "code_digest" ? a[k] != null : a[k] === v)) ?? null);
     db.authActionToken.updateMany.mockImplementation(async ({ where, data }: any) => {
-      const matching = actions.filter((a) => Object.entries(where).every(([k, v]: any) => k === "expires_at" ? a[k] > v.gt : a[k] === v));
-      matching.forEach((a) => Object.assign(a, data)); return { count: matching.length };
+      const matching = actions.filter((a) => Object.entries(where).every(([k, v]: any) =>
+        k === "expires_at" ? a[k] > v.gt : k === "failed_attempts" ? (a[k] ?? 0) < v.lt : a[k] === v));
+      matching.forEach((a) => Object.assign(a, Object.fromEntries(Object.entries(data).map(([k, v]: any) =>
+        [k, v && typeof v === "object" && "increment" in v ? (a[k] ?? 0) + v.increment : v])))); return { count: matching.length };
     });
     db.authSession.create.mockResolvedValue({ id: "session_1", client_type: "mobile", device_name: null, created_at: new Date(), last_used_at: new Date(), expires_at: new Date(Date.now() + 600_000), revoked_at: null });
     db.authSession.findMany.mockResolvedValue([{ id: "session_1" }]); db.authSession.updateMany.mockResolvedValue({ count: 1 });
@@ -82,8 +87,27 @@ describe("email authentication lifecycle", () => {
     expect(users).toHaveLength(0); expect(r.body.next_action).toBe("verify_email");
     expect(messages[0].to).toBe("owner+tag@example.com");
     expect(JSON.stringify(actions)).not.toContain("owner"); expect(JSON.stringify(actions)).not.toContain(registration.password);
-    expect(JSON.stringify(r.body)).not.toContain(messages[0].actionToken);
+    expect(messages[0].actionToken).toMatch(/^\d{6}$/);
     expect(JSON.stringify(r.body)).not.toContain(registration.password);
+  });
+  it("burns the emailed code after five wrong guesses, even the right one afterwards", async () => {
+    const server = app(); const r = await start(server); const right = messages[0].actionToken;
+    const wrong = right === "000000" ? "000001" : "000000";
+    for (let i = 0; i < 5; i += 1) await request(server).post("/api/v1/auth/mobile/register/complete").send(complete(r.body, wrong)).expect(400);
+    await request(server).post("/api/v1/auth/mobile/register/complete").send(complete(r.body, right)).expect(400);
+    expect(users).toHaveLength(0);
+  });
+  it("keeps counting wrong guesses when the registration is retried", async () => {
+    const server = app(); const r = await start(server); const right = messages[0].actionToken;
+    await request(server).post("/api/v1/auth/mobile/register/complete").send(complete(r.body, right === "000000" ? "000001" : "000000")).expect(400);
+    expect(actions[0].failed_attempts).toBe(1);
+    await request(server).post("/api/v1/auth/mobile/register/complete").send(complete(r.body, right)).expect(201);
+  });
+  it("accepts only six digits and exactly one proof field", async () => {
+    const server = app(); const r = await start(server);
+    await request(server).post("/api/v1/auth/mobile/register/complete").send({ ...complete(r.body), email_verification_code: "12345" }).expect(400);
+    await request(server).post("/api/v1/auth/mobile/register/complete").send({ ...complete(r.body), email_verification_token: "a".repeat(43) }).expect(400);
+    expect(users).toHaveLength(0);
   });
   it("requires proof and current consent before passenger account/session creation", async () => {
     const server = app(); const r = await start(server);
@@ -177,7 +201,7 @@ describe("email authentication lifecycle", () => {
   });
   it("exchanges a registration email proof once before consent", async () => {
     const r = await start(); const first = messages[0].actionToken;
-    const proof = await request(app()).post("/api/v1/auth/email/verify/confirm").send({ action_token: first, registration_token: r.body.registration_token }).expect(200);
+    const proof = await request(app()).post("/api/v1/auth/email/verify/confirm").send({ code: first, registration_token: r.body.registration_token }).expect(200);
     expect(users).toHaveLength(0); expect(proof.body.next_action).toBe("consent_required");
     await request(app()).post("/api/v1/auth/mobile/register/complete").send(complete(r.body, first)).expect(400);
     await request(app()).post("/api/v1/auth/mobile/register/complete").send(complete(r.body, proof.body.email_verification_token)).expect(201);
