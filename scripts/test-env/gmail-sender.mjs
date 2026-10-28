@@ -1,4 +1,4 @@
-// Sends the demo's verification emails through a Gmail account (SMTP over TLS, port 465).
+// Sends the demo's verification emails through a Gmail account (SMTP with STARTTLS, port 587).
 // Demo use only: it needs the Gmail address and an App Password. No dependencies.
 import net from "node:net";
 import tls from "node:tls";
@@ -41,23 +41,12 @@ export function buildMessage({ from, message }) {
   return headers.join("\r\n") + "\r\n\r\n" + wrapped;
 }
 
-/** One SMTP conversation. Reads replies line by line; a "250-" style line continues. */
-async function smtpSend({ host, port, secure, user, password, from, to, data, timeoutMs }) {
-  const socket = secure
-    ? tls.connect({ host, port, servername: host })
-    : net.connect({ host, port });
+/** Reads SMTP replies from a socket, one complete (possibly multi-line) reply at a time. */
+function replyReader(socket, timeoutMs) {
   socket.setEncoding("utf8");
   let buffer = "";
   const waiters = [];
-  socket.on("data", (chunk) => {
-    buffer += chunk;
-    flush();
-  });
   const failAll = (error) => { while (waiters.length) waiters.shift().reject(error); };
-  socket.on("error", failAll);
-  socket.on("close", () => failAll(new Error("smtp_connection_closed")));
-  socket.setTimeout(timeoutMs, () => { socket.destroy(new Error("smtp_timeout")); });
-
   function flush() {
     while (waiters.length) {
       const lines = buffer.split("\r\n");
@@ -69,9 +58,28 @@ async function smtpSend({ host, port, secure, user, password, from, to, data, ti
       waiters.shift().resolve({ code: Number(reply[end].slice(0, 3)), text: reply.join("\n") });
     }
   }
-  const reply = () => new Promise((resolve, reject) => { waiters.push({ resolve, reject }); flush(); });
+  const onData = (chunk) => { buffer += chunk; flush(); };
+  const onError = (error) => failAll(error);
+  const onClose = () => failAll(new Error("smtp_connection_closed"));
+  socket.on("data", onData);
+  socket.on("error", onError);
+  socket.on("close", onClose);
+  socket.setTimeout(timeoutMs, () => socket.destroy(new Error("smtp_timeout")));
+  return {
+    next: () => new Promise((resolve, reject) => { waiters.push({ resolve, reject }); flush(); }),
+    detach: () => { socket.off("data", onData); socket.off("error", onError); socket.off("close", onClose); }
+  };
+}
+
+/**
+ * One SMTP conversation. mode "starttls" (port 587, the default for Gmail) starts in plain text and
+ * upgrades before any password is sent; "tls" is implicit TLS (port 465); "plain" is for tests.
+ */
+async function smtpSend({ host, port, mode, user, password, from, to, data, timeoutMs }) {
+  let socket = mode === "tls" ? tls.connect({ host, port, servername: host }) : net.connect({ host, port });
+  let reader = replyReader(socket, timeoutMs);
   const expect = async (code, label) => {
-    const r = await reply();
+    const r = await reader.next();
     if (r.code !== code) throw new Error(`smtp_${label}_${r.code}`);
   };
   const say = (line) => socket.write(line + "\r\n");
@@ -79,6 +87,13 @@ async function smtpSend({ host, port, secure, user, password, from, to, data, ti
   try {
     await expect(220, "greeting");
     say("EHLO masari.local"); await expect(250, "ehlo");
+    if (mode === "starttls") {
+      say("STARTTLS"); await expect(220, "starttls");
+      reader.detach();
+      socket = tls.connect({ socket, servername: host });
+      reader = replyReader(socket, timeoutMs);
+      say("EHLO masari.local"); await expect(250, "ehlo_tls");
+    }
     say("AUTH LOGIN"); await expect(334, "auth");
     say(b64(user)); await expect(334, "user");
     say(b64(password)); await expect(235, "password");
@@ -94,14 +109,14 @@ async function smtpSend({ host, port, secure, user, password, from, to, data, ti
   }
 }
 
-/** An EmailDelivery for the API. `host`, `port` and `secure` are only overridden by tests. */
-export function createGmailDelivery({ user, appPassword, host = "smtp.gmail.com", port = 465, secure = true, timeoutMs = 20000, onSent }) {
+/** An EmailDelivery for the API. `host`, `port` and `mode` are only overridden by tests. */
+export function createGmailDelivery({ user, appPassword, host = "smtp.gmail.com", port = 587, mode = "starttls", timeoutMs = 20000, onSent }) {
   const password = appPassword.replace(/\s+/g, "");
   return {
     kind: "test",
     async send(message) {
       await smtpSend({
-        host, port, secure, user, password, from: user, to: message.to,
+        host, port, mode, user, password, from: user, to: message.to,
         data: buildMessage({ from: user, message }), timeoutMs
       });
       onSent?.(message);

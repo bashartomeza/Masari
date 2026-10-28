@@ -43,7 +43,7 @@ const message = (extra = {}) => ({
 test("sends the token to the recipient from the Gmail account", async () => {
   const { server, log, port } = await fakeSmtp();
   try {
-    const delivery = createGmailDelivery({ user: "owner@gmail.com", appPassword: "abcd efgh ijkl mnop", host: "127.0.0.1", port, secure: false });
+    const delivery = createGmailDelivery({ user: "owner@gmail.com", appPassword: "abcd efgh ijkl mnop", host: "127.0.0.1", port, mode: "plain" });
     await delivery.send(message());
     assert.ok(log.lines.includes("MAIL FROM:<owner@gmail.com>"));
     assert.ok(log.lines.includes("RCPT TO:<someone@example.com>"));
@@ -58,7 +58,7 @@ test("sends the token to the recipient from the Gmail account", async () => {
 test("a refused password is reported, not swallowed", async () => {
   const { server, port } = await fakeSmtp({ rejectPassword: true });
   try {
-    const delivery = createGmailDelivery({ user: "owner@gmail.com", appPassword: "wrong", host: "127.0.0.1", port, secure: false });
+    const delivery = createGmailDelivery({ user: "owner@gmail.com", appPassword: "wrong", host: "127.0.0.1", port, mode: "plain" });
     await assert.rejects(delivery.send(message()), /smtp_password_535/);
   } finally { server.close(); }
 });
