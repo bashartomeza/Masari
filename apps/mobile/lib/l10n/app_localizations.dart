@@ -3908,6 +3908,18 @@ abstract class AppLocalizations {
   /// **'تمت معالجة بلاغك.'**
   String get notifIncidentResolvedBody;
 
+  /// No description provided for @notifDriverApproachingTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'سائقك يقترب'**
+  String get notifDriverApproachingTitle;
+
+  /// No description provided for @notifDriverApproachingBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'سائقك قريب من نقطة الانطلاق. يرجى الاستعداد.'**
+  String get notifDriverApproachingBody;
+
   /// No description provided for @verificationDocuments.
   ///
   /// In ar, this message translates to:

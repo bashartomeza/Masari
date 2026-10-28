@@ -2076,6 +2076,13 @@ class AppLocalizationsAr extends AppLocalizations {
   String get notifIncidentResolvedBody => 'تمت معالجة بلاغك.';
 
   @override
+  String get notifDriverApproachingTitle => 'سائقك يقترب';
+
+  @override
+  String get notifDriverApproachingBody =>
+      'سائقك قريب من نقطة الانطلاق. يرجى الاستعداد.';
+
+  @override
   String get verificationDocuments => 'مستندات التوثيق';
 
   @override

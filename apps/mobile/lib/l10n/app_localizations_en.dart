@@ -2090,6 +2090,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get notifIncidentResolvedBody => 'Your report has been resolved.';
 
   @override
+  String get notifDriverApproachingTitle => 'Your driver is approaching';
+
+  @override
+  String get notifDriverApproachingBody =>
+      'Your driver is near your pickup point. Please get ready.';
+
+  @override
   String get verificationDocuments => 'Verification documents';
 
   @override
