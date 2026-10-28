@@ -726,6 +726,8 @@
   "notifIncidentUpdatedTitle": "Update on your report",
   "notifIncidentReviewingBody": "Your report is under review.",
   "notifIncidentResolvedBody": "Your report has been resolved.",
+  "notifDriverApproachingTitle": "Your driver is approaching",
+  "notifDriverApproachingBody": "Your driver is near your pickup point. Please get ready.",
   "verificationDocuments": "Verification documents",
   "verificationDocumentsHint": "To get approved, upload clear photos or PDFs of your driving licence, your vehicle registration and your national ID. Files are stored on our server and only the review team can open them.",
   "documentKind": "Document type",
@@ -764,5 +766,19 @@
   "emailOrPhoneRequired": "Enter your email or phone number.",
   "emailOrPhoneInvalid": "Enter a valid email, or a phone number starting with + and the country code.",
   "mapLegendStart": "Start",
-  "mapLegendDestination": "Destination"
+  "mapLegendDestination": "Destination",
+  "ratingPromptTitle": "How was your trip?",
+  "ratingPromptBody": "Rate your driver from 1 to 5 stars. Your rating is private: the driver never sees it or who gave it.",
+  "ratingStarLabel": "{count} stars",
+  "@ratingStarLabel": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "ratingSubmit": "Send rating",
+  "ratingThanks": "Thanks for rating your trip.",
+  "ratingFailed": "The rating could not be sent. Try again.",
+  "ratingAlreadyRated": "You already rated this trip."
 }

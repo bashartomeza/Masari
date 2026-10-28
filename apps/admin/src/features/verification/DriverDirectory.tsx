@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { EVIDENCE_KINDS, type AccountStatus, type ApiClient, type ApiError, type DriverProfile, type DriverProfileDraft, type DriverVerification, type DriverVerificationStatus, type EvidenceKind, type UserAccountStatus } from "../../api";
+import { EVIDENCE_KINDS, TRUST_COMPONENT_KEYS, type AccountStatus, type ApiClient, type ApiError, type DriverProfile, type DriverProfileDraft, type DriverVerification, type DriverVerificationStatus, type EvidenceKind, type UserAccountStatus } from "../../api";
 import { useLocale } from "../../i18n/LocaleContext";
 import { AlertItem, BentoGrid, Button, Card, CardHeader, DataTable, EmptyState, Skeleton, StatusBadge, TechnicalValue, type Column, type Tone } from "../../ui";
 import type { OverviewResourceState } from "../overview/overviewState";
@@ -8,6 +8,18 @@ import { matchesSearch } from "../search";
 type VerificationApi = Pick<ApiClient, "driverVerifications" | "driverVerification" | "approveDriverVerification" | "rejectDriverVerification" | "reopenDriverVerification" | "recordDriverEvidence" | "downloadDriverDocument">;
 type ProfileForm = { vehicle_type: string; seats_total: string; parcel_capacity: string };
 type DriverAccountChange = { driver: DriverProfile; status: AccountStatus; expectedStatus: UserAccountStatus };
+
+/** The trust score with the components behind it. Aggregates only: never individual ratings. */
+function TrustCell({ driver }: { driver: DriverProfile }) {
+  const { t, number } = useLocale();
+  const components = driver.trust_components;
+  return <div>
+    <p className="cell-stack__title">{number(driver.trust_score)}</p>
+    {components
+      ? <ul className="cell-stack__sub trust-components">{TRUST_COMPONENT_KEYS.map((key) => components[key] && <li key={key}>{t(`trustComponent_${key}`)}: {t("trustComponentSample", { value: number(Math.round(components[key].value * 100)), count: number(components[key].sample) })}</li>)}</ul>
+      : <p className="cell-stack__sub">{t("trustNotComputed")}</p>}
+  </div>;
+}
 
 export function createDriverAccountChange(driver: DriverProfile, status: AccountStatus): DriverAccountChange {
   if (!driver.user) throw new Error("Driver account snapshot is required");
@@ -267,7 +279,7 @@ export function DriverDirectory({ api, token, drivers, search, busy, onUpdateSta
     { key: "driver", header: t("columnDriver"), cell: (driver) => <div><p className="cell-stack__title">{driver.user?.name ?? t("noData")}</p><p className="cell-stack__sub technical">{driver.user?.phone ?? ""}</p></div> },
     { key: "vehicle", header: t("columnVehicle"), cell: (driver) => <div><p className="cell-stack__title">{driver.vehicle_type}</p><p className="cell-stack__sub">{t("seatsAndParcels", { seats: number(driver.seats_total), parcels: number(driver.parcel_capacity) })}</p></div> },
     { key: "verified", header: t("columnVerified"), cell: (driver) => <StatusBadge tone={driver.verified ? "success" : "warning"}>{driver.verified ? t("verified") : t("unverified")}</StatusBadge> },
-    { key: "trust", header: t("trustScore"), cell: (driver) => number(driver.trust_score) },
+    { key: "trust", header: t("trustScore"), cell: (driver) => <TrustCell driver={driver} /> },
     { key: "account", header: t("columnAccountStatus"), cell: (driver) => <div><StatusBadge tone={accountTone(driver.user?.account_status)}>{t(`accountStatus_${driver.user?.account_status ?? "active"}`)}</StatusBadge>{driver.user?.status_reason && <p className="cell-stack__sub">{driver.user.status_reason}</p>}</div> },
     { key: "review", header: t("reviewAction"), cell: (driver) => <Button variant="secondary" size="sm" icon="id_card" disabled={!driver.user || detailLoading} onClick={() => driver.user && void openReview(driver.user.id)}>{t("reviewDetails")}</Button> },
     { key: "account-control", header: t("accountControl"), align: "end", cell: (driver) => {

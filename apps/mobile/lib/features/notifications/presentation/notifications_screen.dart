@@ -205,6 +205,7 @@ class _NotificationTile extends StatelessWidget {
     'driver_verification_approved' => Icons.verified_outlined,
     'driver_verification_rejected' => Icons.gpp_bad_outlined,
     'incident_updated' => Icons.flag_outlined,
+    'driver_approaching' => Icons.directions_car_outlined,
     _ => Icons.notifications_none_outlined,
   };
 
@@ -257,6 +258,11 @@ class _NotificationTile extends StatelessWidget {
         body: reason is String && reason.isNotEmpty
             ? l10n.notifVerificationRejectedReason(reason)
             : l10n.notifVerificationRejectedBody,
+      );
+    case 'driver_approaching':
+      return (
+        title: l10n.notifDriverApproachingTitle,
+        body: l10n.notifDriverApproachingBody,
       );
     case 'incident_updated':
       return (

@@ -3956,6 +3956,18 @@ abstract class AppLocalizations {
   /// **'تمت معالجة بلاغك.'**
   String get notifIncidentResolvedBody;
 
+  /// No description provided for @notifDriverApproachingTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'سائقك يقترب'**
+  String get notifDriverApproachingTitle;
+
+  /// No description provided for @notifDriverApproachingBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'سائقك قريب من نقطة الانطلاق. يرجى الاستعداد.'**
+  String get notifDriverApproachingBody;
+
   /// No description provided for @verificationDocuments.
   ///
   /// In ar, this message translates to:
@@ -4087,6 +4099,48 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'الوصول'**
   String get mapLegendDestination;
+
+  /// No description provided for @ratingPromptTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'كيف كانت رحلتك؟'**
+  String get ratingPromptTitle;
+
+  /// No description provided for @ratingPromptBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'قيّم السائق من 1 إلى 5 نجوم. تقييمك سري: لا يرى السائق التقييم ولا من قدّمه.'**
+  String get ratingPromptBody;
+
+  /// No description provided for @ratingStarLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'{count} نجوم'**
+  String ratingStarLabel(int count);
+
+  /// No description provided for @ratingSubmit.
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال التقييم'**
+  String get ratingSubmit;
+
+  /// No description provided for @ratingThanks.
+  ///
+  /// In ar, this message translates to:
+  /// **'شكرًا لتقييمك الرحلة.'**
+  String get ratingThanks;
+
+  /// No description provided for @ratingFailed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر إرسال التقييم. حاول مرة أخرى.'**
+  String get ratingFailed;
+
+  /// No description provided for @ratingAlreadyRated.
+  ///
+  /// In ar, this message translates to:
+  /// **'لقد قيّمت هذه الرحلة من قبل.'**
+  String get ratingAlreadyRated;
 }
 
 class _AppLocalizationsDelegate
