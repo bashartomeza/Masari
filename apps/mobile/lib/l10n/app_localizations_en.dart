@@ -2110,4 +2110,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String acceptanceRateNeedMore(int needed, int responded) {
     return 'Your rate appears after $needed answered offers ($responded so far).';
   }
+
+  @override
+  String get emailOrPhone => 'Email or phone number';
+
+  @override
+  String get emailOrPhoneRequired => 'Enter your email or phone number.';
+
+  @override
+  String get emailOrPhoneInvalid =>
+      'Enter a valid email, or a phone number starting with + and the country code.';
 }

@@ -147,8 +147,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             LengthLimitingTextInputFormatter(191),
                           ],
                           textInputAction: TextInputAction.next,
-                          decoration: InputDecoration(labelText: l10n.email),
-                          validator: (value) => _validateEmail(l10n, value),
+                          decoration: InputDecoration(
+                            labelText: l10n.emailOrPhone,
+                          ),
+                          validator: (value) =>
+                              _validateIdentifier(l10n, value),
                         ),
                         const SizedBox(height: AppTokens.spaceMedium),
                         TextFormField(
@@ -430,6 +433,16 @@ String _demoLabel(AppLocalizations l10n, DemoAccount account) {
     _ => account.labelKey,
   };
   return '$role  ${account.email}';
+}
+
+/// An email address, or an international phone number such as +970591234567.
+String? _validateIdentifier(AppLocalizations l10n, String? value) {
+  final text = value?.trim() ?? '';
+  if (text.isEmpty) return l10n.emailOrPhoneRequired;
+  if (text.contains('@')) return _validateEmail(l10n, text);
+  return RegExp(r'^\+[0-9]{7,15}$').hasMatch(text)
+      ? null
+      : l10n.emailOrPhoneInvalid;
 }
 
 String? _validateEmail(AppLocalizations l10n, String? value) {

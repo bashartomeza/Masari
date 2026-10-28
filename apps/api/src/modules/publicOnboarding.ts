@@ -875,6 +875,9 @@ export function createPublicOnboardingRouter(
           data: {
             name: displayName,
             phone: attempt.phone_e164,
+            // The one-time code verified this phone, and an Admin issued the invitation.
+            phone_verified_at: now,
+            profile_state: "complete",
             password_hash: passwordHash,
             role: attempt.intended_role,
             account_status: pending ? "pending" : "active",
