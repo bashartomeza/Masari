@@ -199,7 +199,6 @@ export function createCanonicalDemandService(db: PrismaClient = prisma) {
           metadata: {
             route_version_id: route.id,
             passenger_count: input.passengerCount,
-            fare_total_minor: fare.fare_total_minor,
             schema_version: CANONICAL_ENTRY_VERSION,
             request_id: actor.requestId
           }
