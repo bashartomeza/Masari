@@ -82,7 +82,7 @@ export function runPreflight(env, options = {}) {
   add("APP_RELEASE", release !== "" && !isPlaceholder(release), "APP_RELEASE must be set to an immutable release id (not a <placeholder>)");
 
   const db = val("DATABASE_URL");
-  add("DATABASE_URL", /^mysql:\/\/[^\s]+@[^\s/]+\/[A-Za-z0-9_]+/.test(db) && !isPlaceholder(db), "DATABASE_URL must be a real mysql://user:pass@host:port/db URL");
+  add("DATABASE_URL", /^mysql:\/\/[^\s]+@[^\s/]+\/[A-Za-z0-9_]+/.test(db) && !isPlaceholder(db), "DATABASE_URL must be a real mysql URL of the form mysql://<user>:<password>@<host>:<port>/<db>");
 
   const secrets = {};
   for (const name of ["JWT_SECRET", "REFRESH_TOKEN_PEPPER", "AUTH_ACTION_TOKEN_PEPPER"]) {

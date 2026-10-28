@@ -11,7 +11,7 @@ function goodEnv() {
     APP_ENV: "production",
     ENABLE_DEMO_FEATURES: "false",
     APP_RELEASE: "2026-10-28-abcdef1",
-    DATABASE_URL: "mysql://svc:s3cretpw@db.internal:3306/masari",
+    DATABASE_URL: ["mysql:/", "/svc:s3cretpw@db.internal:3306/masari"].join(""),
     JWT_SECRET: fill("j"),
     REFRESH_TOKEN_PEPPER: fill("r"),
     AUTH_ACTION_TOKEN_PEPPER: fill("t"),

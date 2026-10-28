@@ -58,7 +58,7 @@ Run it once per secret and paste the result straight into the secret store, not 
 | --- | --- |
 | `APP_ENV` | Must be `production`. |
 | `APP_RELEASE` | Immutable release identifier (commit hash or date-hash). Required. |
-| `DATABASE_URL` | `mysql://USER:PASSWORD@HOST:3306/masari`, private host. |
+| `DATABASE_URL` | `mysql://<user>:<password>@<host>:3306/masari`, private host. |
 | `JWT_SECRET` | Signs access tokens. 32+ chars, random. |
 | `REFRESH_TOKEN_PEPPER` | Hashes refresh tokens. 32+ chars, different from `JWT_SECRET`. |
 | `AUTH_ACTION_TOKEN_PEPPER` | Hashes email-action codes (verification, reset, six-digit short codes). 32+ chars, different from the two above. Generate with the command above. Needed for any email action. |
