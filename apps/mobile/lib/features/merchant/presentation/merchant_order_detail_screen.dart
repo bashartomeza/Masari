@@ -11,6 +11,7 @@ import '../../../core/widgets/masari_section.dart';
 import '../../../core/widgets/match_widgets.dart';
 import '../../../core/widgets/state_views.dart';
 import '../../../core/widgets/status_chip.dart';
+import '../../delivery_handover/presentation/handover_code_card.dart';
 import '../application/merchant_controller.dart';
 import '../data/merchant_models.dart';
 import 'merchant_ui.dart';
@@ -120,6 +121,16 @@ class _MerchantOrderDetailScreenState
           ),
         ),
         const SizedBox(height: AppTokens.spaceLarge),
+
+        // ------------------------------------------------------------------
+        // Receiver hand-over code: what the receiver tells the driver at delivery.
+        // ------------------------------------------------------------------
+        if (order.status != 'cancelled' &&
+            order.status != 'failed' &&
+            order.status != 'expired') ...[
+          HandoverCodeCard(orderId: order.id, initial: order.handover),
+          const SizedBox(height: AppTokens.spaceLarge),
+        ],
 
         // ------------------------------------------------------------------
         // Batch: consolidating parcels into one corridor trip.

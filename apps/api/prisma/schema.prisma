@@ -1085,6 +1085,7 @@ model MerchantOrder {
   trips          Trip[]
   canonical_dispatch CanonicalDemandDispatch?
   canonical_manifest_members CanonicalTripManifestMember[]
+  delivery_handover DeliveryHandover?
 
   @@unique([id, route_version_id], map: "merchant_orders_route_ownership_key")
   @@unique([id, operational_mode], map: "merchant_orders_mode_ownership_key")
@@ -1589,6 +1590,36 @@ model Incident {
   @@index([reporter_id, created_at])
   @@index([trip_id])
   @@map("incidents")
+}
+
+enum DeliveryConfirmationMethod {
+  receiver_code
+  receiver_unavailable
+  admin_override
+}
+
+/// How a parcel order is handed to its receiver. The sender is shown a six-digit
+/// code to give the receiver; the driver enters what the receiver reads out. Only
+/// a keyed digest of the code is stored. One row per parcel order, whoever created it.
+model DeliveryHandover {
+  id                  String                      @id @default(cuid())
+  merchant_order_id   String                      @unique
+  code_digest         String?                     @db.Char(64)
+  key_version         Int                         @default(1)
+  failed_attempts     Int                         @default(0)
+  expires_at          DateTime?
+  confirmed_at        DateTime?
+  confirmation_method DeliveryConfirmationMethod?
+  confirmed_by_id     String?
+  confirmed_trip_id   String?
+  unavailable_reason  String?                     @db.VarChar(300)
+  created_at          DateTime                    @default(now())
+  updated_at          DateTime                    @updatedAt
+
+  merchant_order MerchantOrder @relation(fields: [merchant_order_id], references: [id], onDelete: Cascade)
+
+  @@index([confirmation_method, confirmed_at])
+  @@map("delivery_handovers")
 }
 
 /// Append-only history of verification outcomes, so a re-review never erases
