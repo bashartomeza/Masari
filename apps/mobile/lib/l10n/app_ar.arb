@@ -778,6 +778,24 @@
       }
     }
   },
+  "notifDocsExpiringTitle": "مستند على وشك الانتهاء",
+  "notifDocsExpiringBody": "ينتهي {document} بتاريخ {date}. أرسل مستندات مجددة قبل ذلك لتواصل العمل دون انقطاع.",
+  "@notifDocsExpiringBody": {
+    "placeholders": {
+      "document": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "notifDocsExpiredTitle": "انتهت صلاحية مستنداتك",
+  "notifDocsExpiredBody": "تم تقييد حسابك ولا يمكنك الاتصال أو قبول رحلات جديدة حتى تُرسل مستندات مجددة وتتم الموافقة عليها. رحلاتك المقبولة سابقاً لا تتأثر.",
+  "notifDocsRenewalSubmittedTitle": "تم إرسال مستندات التجديد",
+  "notifDocsRenewalSubmittedBody": "سيراجعها فريقنا وتصلك رسالة عند اتخاذ القرار.",
+  "documentKindContract": "العقد",
+  "availabilityDocumentsExpired": "انتهت صلاحية مستنداتك. أرسل مستندات مجددة لاستعادة الوصول.",
   "notifUnknownTitle": "إشعار جديد",
   "notificationsMarkAllRead": "تعليم الكل كمقروء",
   "notificationsLoadError": "تعذّر تحميل الإشعارات.",

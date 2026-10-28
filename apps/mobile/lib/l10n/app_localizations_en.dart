@@ -2027,6 +2027,35 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get notifDocsExpiringTitle => 'Document expiring soon';
+
+  @override
+  String notifDocsExpiringBody(String document, String date) {
+    return 'Your $document expires on $date. Send renewed documents before then to keep working without interruption.';
+  }
+
+  @override
+  String get notifDocsExpiredTitle => 'Your documents have expired';
+
+  @override
+  String get notifDocsExpiredBody =>
+      'Your account is restricted: you cannot go online or accept new trips until you send renewed documents and they are approved. Trips you already accepted are not affected.';
+
+  @override
+  String get notifDocsRenewalSubmittedTitle => 'Renewal documents sent';
+
+  @override
+  String get notifDocsRenewalSubmittedBody =>
+      'Our team will review them and you will be notified of the decision.';
+
+  @override
+  String get documentKindContract => 'Contract';
+
+  @override
+  String get availabilityDocumentsExpired =>
+      'Your documents have expired. Send renewed documents to restore access.';
+
+  @override
   String get notifUnknownTitle => 'New notification';
 
   @override

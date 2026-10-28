@@ -595,6 +595,8 @@ String _safeError(AppLocalizations l10n, Object error) {
         return l10n.availabilityInvalidWindow;
       case 'availability_exceeds_vehicle_capacity':
         return l10n.availabilityExceedsVehicleCapacity;
+      case 'driver_documents_expired':
+        return l10n.availabilityDocumentsExpired;
       case 'driver_not_approved':
         return l10n.availabilityDriverNotApproved;
       case 'route_unavailable':

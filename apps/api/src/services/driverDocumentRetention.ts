@@ -17,7 +17,11 @@ export async function purgeDecidedDriverDocuments(
   const cutoff = new Date(now.getTime() - options.retentionDays * 24 * 60 * 60 * 1000);
   const documents = await db.driverVerificationDocument.findMany({
     where: {
-      verification: { status: { not: DriverVerificationStatus.pending }, reviewed_at: { lt: cutoff } }
+      // Renewal uploads (documents_expired / pending) are never purged before a decision.
+      verification: {
+        status: { in: [DriverVerificationStatus.approved, DriverVerificationStatus.rejected] },
+        reviewed_at: { lt: cutoff }
+      }
     },
     take: options.batchSize ?? 500,
     orderBy: { created_at: "asc" }

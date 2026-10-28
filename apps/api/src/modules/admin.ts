@@ -8,6 +8,16 @@ import { HttpError } from "../middleware/error.js";
 import { AccountStatus, AuditAction, DriverVerificationStatus } from "../generated/prisma/enums.js";
 import { Prisma } from "../generated/prisma/client.js";
 import { notifyDriverVerification } from "../services/notifications.js";
+import {
+  EXPIRY_COLUMN,
+  EXPIRY_KINDS,
+  daysUntilExpiry,
+  expiryDatesOf,
+  isExpired,
+  isoDate,
+  utcMidnight,
+  type ExpiryKind
+} from "../services/driverDocumentExpiry.js";
 
 export const adminRouter = Router();
 
@@ -189,6 +199,59 @@ type DriverVerificationRecord = Prisma.DriverVerificationGetPayload<{
   include: typeof driverVerificationInclude;
 }>;
 
+/** One entry per tracked document: its last valid day and the days left (negative once expired). */
+function serializeExpiry(verification: Partial<Parameters<typeof expiryDatesOf>[0]>, now = new Date()) {
+  const dates = expiryDatesOf({
+    licence_expires_at: verification.licence_expires_at ?? null,
+    vehicle_registration_expires_at: verification.vehicle_registration_expires_at ?? null,
+    insurance_expires_at: verification.insurance_expires_at ?? null,
+    contract_ends_at: verification.contract_ends_at ?? null
+  });
+  const out: Record<string, { expires_on: string; days_left: number } | null> = {};
+  for (const kind of EXPIRY_KINDS) {
+    const date = dates[kind];
+    out[kind] = date ? { expires_on: isoDate(date), days_left: daysUntilExpiry(date, now) } : null;
+  }
+  return out;
+}
+
+const expiryDateSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .transform((value) => new Date(`${value}T00:00:00.000Z`))
+  .refine((date) => !Number.isNaN(date.getTime()), "Invalid date");
+
+/** A date sets the expiry, null clears it, an omitted field is left as it is. */
+const expiryInputSchema = z
+  .object({
+    licence: expiryDateSchema.nullable(),
+    vehicle_registration: expiryDateSchema.nullable(),
+    insurance: expiryDateSchema.nullable(),
+    contract: expiryDateSchema.nullable()
+  })
+  .partial();
+
+type ExpiryInput = z.infer<typeof expiryInputSchema>;
+
+/** Merges the Admin's input over what is stored; every resulting date must still be valid today or later. */
+function resolveExpiry(
+  stored: Parameters<typeof expiryDatesOf>[0],
+  input: ExpiryInput | undefined,
+  now: Date
+): Record<(typeof EXPIRY_COLUMN)[ExpiryKind], Date | null> {
+  const merged = expiryDatesOf(stored);
+  for (const kind of EXPIRY_KINDS) {
+    if (input && input[kind] !== undefined) merged[kind] = input[kind]!;
+  }
+  const columns = {} as Record<(typeof EXPIRY_COLUMN)[ExpiryKind], Date | null>;
+  for (const kind of EXPIRY_KINDS) {
+    const value = merged[kind];
+    if (value && isExpired(value, now)) throw new HttpError(400, "expiry_date_in_past");
+    columns[EXPIRY_COLUMN[kind]] = value;
+  }
+  return columns;
+}
+
 function serializeDriverVerification(verification: DriverVerificationRecord) {
   const { driver_profile: driverProfile, ...candidate } = verification.user;
   return {
@@ -196,6 +259,9 @@ function serializeDriverVerification(verification: DriverVerificationRecord) {
     revision: verification.revision,
     application_submitted: verification.user.review_submitted_at !== null,
     status: verification.status,
+    expiry: serializeExpiry(verification),
+    documents_expired_at: verification.documents_expired_at ?? null,
+    renewal_submitted_at: verification.renewal_submitted_at ?? null,
     rejection_reason: verification.rejection_reason,
     submitted_at: verification.submitted_at,
     reviewed_at: verification.reviewed_at,
@@ -253,7 +319,8 @@ const verificationListSchema = z.object({
     .enum([
       DriverVerificationStatus.pending,
       DriverVerificationStatus.approved,
-      DriverVerificationStatus.rejected
+      DriverVerificationStatus.rejected,
+      DriverVerificationStatus.documents_expired
     ])
     .default(DriverVerificationStatus.pending),
   page: z.coerce.number().int().min(1).default(1),
@@ -273,7 +340,8 @@ const profileInputSchema = z.object({
 
 const approveVerificationSchema = z.object({
   expected_revision: z.number().int().min(1),
-  profile: profileInputSchema.optional()
+  profile: profileInputSchema.optional(),
+  expiry: expiryInputSchema.optional()
 });
 
 const rejectVerificationSchema = z.object({
@@ -399,6 +467,119 @@ adminRouter.get("/admin/driver-verifications", async (req: AuthenticatedRequest,
   }
 });
 
+const expiringQuerySchema = z.object({
+  within_days: z.coerce.number().int().min(0).max(365).default(30),
+  kind: z.enum(EXPIRY_KINDS).optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(50)
+});
+
+/** Approved drivers with a document that runs out soon (or already ran out and is not yet processed). */
+adminRouter.get("/admin/driver-verifications/expiring", async (req: AuthenticatedRequest, res, next) => {
+  try {
+    const input = expiringQuerySchema.parse(req.query);
+    const now = new Date();
+    const horizon = new Date(utcMidnight(now) + input.within_days * 24 * 60 * 60 * 1000);
+    const kinds = input.kind ? [input.kind] : [...EXPIRY_KINDS];
+    const where = {
+      status: DriverVerificationStatus.approved,
+      OR: kinds.map((kind) => ({ [EXPIRY_COLUMN[kind]]: { lte: horizon } }))
+    } satisfies Prisma.DriverVerificationWhereInput;
+    const [verifications, total] = await Promise.all([
+      prisma.driverVerification.findMany({
+        where,
+        include: driverVerificationInclude,
+        orderBy: [{ licence_expires_at: "asc" }, { id: "asc" }],
+        skip: (input.page - 1) * input.limit,
+        take: input.limit
+      }),
+      prisma.driverVerification.count({ where })
+    ]);
+    res.json({
+      verifications: verifications.map(serializeDriverVerification),
+      page: input.page,
+      limit: input.limit,
+      total,
+      within_days: input.within_days
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+const reReviewQuerySchema = z.object({
+  /** submitted: renewed documents waiting for Admin; awaiting_driver: restricted, nothing sent yet. */
+  state: z.enum(["submitted", "awaiting_driver", "all"]).default("submitted"),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(50)
+});
+
+adminRouter.get("/admin/driver-verifications/re-review", async (req: AuthenticatedRequest, res, next) => {
+  try {
+    const input = reReviewQuerySchema.parse(req.query);
+    const submitted = { status: DriverVerificationStatus.pending, renewal_submitted_at: { not: null } };
+    const awaiting = { status: DriverVerificationStatus.documents_expired };
+    const where: Prisma.DriverVerificationWhereInput =
+      input.state === "submitted" ? submitted : input.state === "awaiting_driver" ? awaiting : { OR: [submitted, awaiting] };
+    const [verifications, total] = await Promise.all([
+      prisma.driverVerification.findMany({
+        where,
+        include: driverVerificationInclude,
+        orderBy: [{ submitted_at: "asc" }, { id: "asc" }],
+        skip: (input.page - 1) * input.limit,
+        take: input.limit
+      }),
+      prisma.driverVerification.count({ where })
+    ]);
+    res.json({ verifications: verifications.map(serializeDriverVerification), page: input.page, limit: input.limit, total, state: input.state });
+  } catch (error) {
+    next(error);
+  }
+});
+
+const updateExpirySchema = z.object({ expected_revision: z.number().int().min(1), expiry: expiryInputSchema });
+
+/** Corrects the recorded dates of an approved driver, e.g. after a licence was renewed early. */
+adminRouter.post("/admin/driver-verifications/:userId/expiry", async (req: AuthenticatedRequest, res, next) => {
+  try {
+    const userId = requestParam(req.params.userId);
+    const input = updateExpirySchema.parse(req.body);
+    const result = await prisma.$transaction(
+      async (tx) => {
+        const current = await tx.driverVerification.findUnique({ where: { user_id: userId }, include: driverVerificationInclude });
+        if (!current) throw new HttpError(404, "driver_verification_not_found");
+        if (current.status !== DriverVerificationStatus.approved || current.revision !== input.expected_revision) {
+          throw new HttpError(409, "driver_verification_state_conflict");
+        }
+        const now = new Date();
+        const columns = resolveExpiry(current, input.expiry, now);
+        const changed = await tx.driverVerification.updateMany({
+          where: { id: current.id, status: DriverVerificationStatus.approved, revision: input.expected_revision },
+          data: columns
+        });
+        if (changed.count !== 1) throw new HttpError(409, "driver_verification_state_conflict");
+        await auditEvent(tx, {
+          userId: req.user!.id,
+          action: AuditAction.admin_action,
+          entityType: "DriverVerification",
+          entityId: current.id,
+          metadata: {
+            action: "driver_verification_expiry_updated",
+            target_user_id: current.user_id,
+            expiry: serializeExpiry(columns, now),
+            request_id: req.requestId
+          }
+        });
+        return tx.driverVerification.findUniqueOrThrow({ where: { id: current.id }, include: driverVerificationInclude });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+    );
+    res.json({ verification: serializeDriverVerification(result) });
+  } catch (error) {
+    next(isTransactionWriteConflict(error) ? new HttpError(409, "driver_verification_state_conflict") : error);
+  }
+});
+
 adminRouter.get("/admin/driver-verifications/:userId", async (req: AuthenticatedRequest, res, next) => {
   try {
     const userId = requestParam(req.params.userId);
@@ -436,6 +617,12 @@ adminRouter.post("/admin/driver-verifications/:userId/approve", async (req: Auth
         if (current.user.driver_profile && input.profile) throw new HttpError(409, "driver_profile_already_exists");
 
         const now = new Date();
+        const expiryColumns = resolveExpiry(current, input.expiry, now);
+        // A re-review after expiry must record the new licence date, otherwise
+        // the driver would be restricted again or never checked again.
+        if (current.renewal_submitted_at && !expiryColumns.licence_expires_at) {
+          throw new HttpError(400, "expiry_dates_required");
+        }
         const transitioned = await tx.driverVerification.updateMany({
           where: {
             id: current.id,
@@ -445,6 +632,9 @@ adminRouter.post("/admin/driver-verifications/:userId/approve", async (req: Auth
           data: {
             status: DriverVerificationStatus.approved,
             rejection_reason: null,
+            ...expiryColumns,
+            documents_expired_at: null,
+            renewal_submitted_at: null,
             reviewed_at: now,
             reviewed_by_id: req.user!.id,
             revision: { increment: 1 }
@@ -477,7 +667,8 @@ adminRouter.post("/admin/driver-verifications/:userId/approve", async (req: Auth
           entityType: "DriverVerification",
           entityId: current.id,
           metadata: {
-            action: "driver_verification_approved",
+            action: current.renewal_submitted_at ? "driver_verification_re_approved" : "driver_verification_approved",
+            expiry: serializeExpiry(expiryColumns, now),
             target_user_id: current.user_id,
             previous_status: current.status,
             new_status: DriverVerificationStatus.approved,
@@ -529,6 +720,8 @@ adminRouter.post("/admin/driver-verifications/:userId/reject", async (req: Authe
           data: {
             status: DriverVerificationStatus.rejected,
             rejection_reason: input.reason,
+            documents_expired_at: null,
+            renewal_submitted_at: null,
             reviewed_at: now,
             reviewed_by_id: req.user!.id,
             revision: { increment: 1 }

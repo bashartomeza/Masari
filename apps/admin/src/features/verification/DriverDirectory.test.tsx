@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { DriverProfile, DriverVerification } from "../../api";
 import { LocaleProvider } from "../../i18n/LocaleContext";
 import type { Locale } from "../../i18n/translations";
-import { createDriverAccountChange, DriverDirectory, DriverReviewPanel } from "./DriverDirectory";
+import { createDriverAccountChange, DriverDirectory, DriverReviewPanel, expiryInputFrom } from "./DriverDirectory";
 
 function withLocale(locale: Locale, children: ReactNode) {
   const storage = { getItem: () => locale, setItem: () => undefined };
@@ -67,6 +67,41 @@ const panelProps = {
   onConfirm: () => undefined,
   onClose: () => undefined
 } as const;
+
+describe("driver document expiry", () => {
+  const restricted: DriverVerification = {
+    ...verification,
+    status: "documents_expired",
+    renewal_submitted_at: "2026-10-29T08:00:00.000Z",
+    expiry: {
+      licence: { expires_on: "2026-10-01", days_left: -28 },
+      vehicle_registration: null,
+      insurance: { expires_on: "2026-11-20", days_left: 22 },
+      contract: null
+    }
+  };
+
+  it("sends only filled, well-formed dates", () => {
+    expect(expiryInputFrom({ licence: "2027-10-28", vehicle_registration: "", insurance: "28/10/2027", contract: "" })).toEqual({ licence: "2027-10-28" });
+  });
+
+  it("shows recorded expiry dates and the restriction in English and Arabic", () => {
+    const en = textOf(withLocale("en", <DriverReviewPanel verification={restricted} {...panelProps} />));
+    expect(en).toContain("Driving licence");
+    expect(en).toContain("2026-10-01");
+    expect(en).toContain("expired");
+    expect(en).toContain("22 days left");
+    expect(en).toContain("Access restricted: documents expired");
+    const ar = textOf(withLocale("ar", <DriverReviewPanel verification={restricted} {...panelProps} />));
+    expect(ar).toContain("رخصة القيادة");
+    expect(ar).toContain("الوصول مقيّد لانتهاء المستندات");
+  });
+
+  it("asks for new dates when approving a submitted renewal", () => {
+    const en = textOf(withLocale("en", <DriverReviewPanel verification={{ ...restricted, status: "pending" }} {...panelProps} action="approve" />));
+    expect(en).toContain("licence expiry is required");
+  });
+});
 
 describe("driver verification module", () => {
   it("renders real driver rows rather than an unavailable placeholder", () => {
