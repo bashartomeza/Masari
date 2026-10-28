@@ -805,6 +805,8 @@
   "notifIncidentUpdatedTitle": "تحديث على بلاغك",
   "notifIncidentReviewingBody": "بلاغك قيد المراجعة.",
   "notifIncidentResolvedBody": "تمت معالجة بلاغك.",
+  "notifDriverApproachingTitle": "سائقك يقترب",
+  "notifDriverApproachingBody": "سائقك قريب من نقطة الانطلاق. يرجى الاستعداد.",
   "verificationDocuments": "مستندات التوثيق",
   "verificationDocumentsHint": "للحصول على الموافقة، ارفع صوراً واضحة أو ملفات PDF لرخصة القيادة وتسجيل المركبة والهوية الوطنية. تُحفظ الملفات على خادمنا ولا يفتحها إلا فريق المراجعة.",
   "documentKind": "نوع المستند",

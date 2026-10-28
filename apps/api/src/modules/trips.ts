@@ -8,6 +8,7 @@ import { recomputeTrustForTrip } from "../services/driverTrust.js";
 import { HttpError } from "../middleware/error.js";
 import { AuditAction, MatchStatus, TripStatus } from "../generated/prisma/enums.js";
 import { advanceLegacyTrip, isLegacyTripTransitionAllowed } from "../services/tripLifecycle.js";
+import { maybeNotifyDriverApproaching, maybeNotifyDriverApproachingFromLatest } from "../services/driverApproaching.js";
 import { notifyMatchDecision } from "../services/notifications.js";
 import { isLegacyRouteTimely, legacyRouteTimingWhere, legacyParcelUnits, reserveLegacyCapacity, releaseLegacyCapacity, requireEligibleLegacyRoute } from "../services/legacyCapacity.js";
 
@@ -402,6 +403,7 @@ tripsRouter.post("/trips/:id/status", requireAuth, async (req: AuthenticatedRequ
       });
     });
 
+    await maybeNotifyDriverApproachingFromLatest(prisma, existing.id);
     if (TRUST_RELEVANT_STATUSES.has(input.status)) await recomputeTrustForTrip(prisma, trip.id);
     res.json({ trip });
   } catch (error) {
@@ -492,6 +494,7 @@ trackingSimulationRouter.post("/trips/:id/simulate/step", requireAuth, async (re
     });
     await auditEvent(prisma, { userId: req.user!.id, action: AuditAction.location_recorded, entityType: "LocationEvent", entityId: location.id });
     await auditEvent(prisma, { userId: req.user!.id, action: AuditAction.tracking_simulation_step, entityType: "Trip", entityId: trip.id, metadata: { sequence } });
+    await maybeNotifyDriverApproaching(prisma, trip.id, point);
     res.status(201).json({ location });
   } catch (error) {
     next(error);

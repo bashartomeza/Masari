@@ -89,6 +89,9 @@ const rawSchema = z.object({
   PORT: z.coerce.number().int().positive().default(3000),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).optional(),
   TRUST_PROXY: z.string().optional(),
+  APPROACH_ALERT_RADIUS_KM: z.coerce.number().min(0.05).max(25).default(1),
+  APPROACH_ALERT_ETA_MINUTES: z.coerce.number().min(0).max(120).default(0),
+  APPROACH_ALERT_ASSUMED_SPEED_KMH: z.coerce.number().min(5).max(120).default(30),
   READINESS_TIMEOUT_MS: z.coerce.number().int().min(10).max(10_000).default(2_000),
   RATE_LIMIT_GLOBAL_WINDOW_MS: z.coerce.number().int().min(1_000).max(3_600_000).default(900_000),
   RATE_LIMIT_GLOBAL_MAX: z.coerce.number().int().min(1).max(10_000).optional(),
@@ -641,6 +644,11 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
     googleOAuthClientIds,
     googleAuth: { mobileClientIds: googleMobileClientIds, adminClientIds: googleAdminClientIds, passengerSignupMode: raw.GOOGLE_PASSENGER_SIGNUP_MODE, passengerAllowlist: googlePassengerAllowlist },
     trustProxy,
+    approachingAlert: {
+      radiusKm: raw.APPROACH_ALERT_RADIUS_KM,
+      etaMinutes: raw.APPROACH_ALERT_ETA_MINUTES,
+      assumedSpeedKmh: raw.APPROACH_ALERT_ASSUMED_SPEED_KMH
+    },
     readinessTimeoutMs: raw.READINESS_TIMEOUT_MS,
     rateLimits: {
       global: { windowMs: raw.RATE_LIMIT_GLOBAL_WINDOW_MS, max: globalRateLimitMax },
