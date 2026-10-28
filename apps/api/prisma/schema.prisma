@@ -428,6 +428,7 @@ model User {
   driver_verification_evidence     DriverVerificationEvidence[]
   incidents_reported                Incident[]             @relation("IncidentReporter")
   incidents_reviewed               Incident[]             @relation("IncidentReviewer")
+  trip_ratings                     TripRating[]
 
   @@map("users")
 }
@@ -764,10 +765,13 @@ model DriverProfile {
   parcel_capacity Int
   verified        Boolean  @default(false)
   trust_score     Int      @default(70)
+  trust_components  Json?
+  trust_computed_at DateTime?
   created_at      DateTime @default(now())
 
-  user   User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  routes DriverRoute[]
+  user    User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  routes  DriverRoute[]
+  ratings TripRating[]
 
   @@map("driver_profiles")
 }
@@ -1210,6 +1214,7 @@ model Trip {
   status               TripStatus @default(created)
   started_at           DateTime?
   completed_at         DateTime?
+  cancelled_by_user_id String?    @db.VarChar(191)
   created_at           DateTime   @default(now())
   route_version_id     String?
   canonical_trip_version String?  @db.VarChar(50)
@@ -1224,6 +1229,7 @@ model Trip {
   legacy_assignment_key String? @unique @db.VarChar(191)
 
   incidents         Incident[]
+  ratings           TripRating[]
   driver_route      DriverRoute       @relation(fields: [driver_route_id], references: [id], onDelete: Restrict)
   mode_driver_route DriverRoute       @relation("TripAvailabilityMode", fields: [driver_route_id, operational_mode], references: [id, operational_mode], onDelete: Restrict, onUpdate: Restrict)
   passenger_request PassengerRequest? @relation(fields: [passenger_request_id], references: [id], onDelete: Restrict)
@@ -1620,4 +1626,24 @@ model MerchantApplicationDocument {
 
   @@index([user_id, created_at], map: "mad_user_created_idx")
   @@map("merchant_application_documents")
+}
+
+/// A passenger's 1-5 rating of a completed trip. One per passenger per trip.
+/// Individual rows are never shown to drivers; only the aggregate feeds the
+/// driver trust score.
+model TripRating {
+  id           String   @id @default(cuid())
+  trip_id      String
+  passenger_id String
+  driver_id    String
+  stars        Int
+  created_at   DateTime @default(now())
+
+  trip      Trip          @relation(fields: [trip_id], references: [id], onDelete: Cascade)
+  passenger User          @relation(fields: [passenger_id], references: [id], onDelete: Cascade)
+  driver    DriverProfile @relation(fields: [driver_id], references: [id], onDelete: Cascade)
+
+  @@unique([trip_id, passenger_id], map: "trip_ratings_trip_passenger_key")
+  @@index([driver_id, passenger_id])
+  @@map("trip_ratings")
 }

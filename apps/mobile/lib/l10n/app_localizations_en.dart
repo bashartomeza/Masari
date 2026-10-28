@@ -2164,4 +2164,28 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mapLegendDestination => 'Destination';
+
+  @override
+  String get ratingPromptTitle => 'How was your trip?';
+
+  @override
+  String get ratingPromptBody =>
+      'Rate your driver from 1 to 5 stars. Your rating is private: the driver never sees it or who gave it.';
+
+  @override
+  String ratingStarLabel(int count) {
+    return '$count stars';
+  }
+
+  @override
+  String get ratingSubmit => 'Send rating';
+
+  @override
+  String get ratingThanks => 'Thanks for rating your trip.';
+
+  @override
+  String get ratingFailed => 'The rating could not be sent. Try again.';
+
+  @override
+  String get ratingAlreadyRated => 'You already rated this trip.';
 }
