@@ -19,9 +19,9 @@ first real evidence is the new `ios-build` job in `.github/workflows/ci-mobile.y
   cleanly, but check that on the Mac.)
 - Usage strings (EN and AR): `NSLocationWhenInUseUsageDescription`,
   `NSCameraUsageDescription`, `NSPhotoLibraryUsageDescription`.
-- Deployment target iOS 13.0 (Flutter default). The plugins in `pubspec.yaml`
+- Deployment target iOS 14.0 (CI showed `file_picker_darwin` needs at least 14.0; Flutter default is 13.0). The plugins in `pubspec.yaml`
   (`file_picker`, `flutter_secure_storage`, `geolocator`, `google_sign_in`,
-  `shared_preferences`) are expected to support 13.0; confirm on the first CI run.
+  `shared_preferences`) must all support 14.0.
 - `ITSAppUsesNonExemptEncryption=false` (HTTPS only, no custom crypto). Revisit if that changes.
 - Git hygiene: Pods, `build/`, `xcuserdata`, `*.xcuserstate`, `Flutter/ephemeral`,
   `Generated.xcconfig`, `GeneratedPluginRegistrant.*`, `*.p12`, `*.mobileprovision`,
