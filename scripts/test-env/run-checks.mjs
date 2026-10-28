@@ -62,6 +62,8 @@ function powershellReset() {
 
 // ---------------------------------------------------------------------------
 // Main story and features: the existing end-to-end suites (they reset the data).
+console.log("== Clean start (removes earlier test sign-ups)");
+powershellReset();
 console.log("== Main story and features (existing smoke suites)");
 const smoke = runNpm("demo:smoke");
 await check("D01-D07,D09,D10,A18", "main story: request, batch, match, accept, trip, tracking, comparison (demo:smoke)", () => must(smoke.ok, smoke.out.slice(-300)));
