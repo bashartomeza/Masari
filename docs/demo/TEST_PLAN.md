@@ -124,6 +124,11 @@ Run after a reset so the seeded data is fresh. Use the demo accounts.
 | E06 | Send 11 reports without any being resolved | The 11th is refused with a message about too many open reports |
 | E07 | Admin: Incidents | The report from E05 is there (see A16); after you resolve it, the passenger gets two new notifications and does not see your internal note |
 | E08 | Driver: go online/offline | The state changes once per tap and survives closing the app |
+| E09 | Passenger (route entry switched on): home → Send a parcel → pick a route and stops, size S or M, receiver name and phone, tick the forbidden-items box → Send parcel | Submit stays disabled until everything is filled and the box is ticked; the parcel then appears under My parcels as "Finding a driver"; the receiver's phone is shown masked |
+| E10 | Same form: try size L, a phone that is too short, or leave the box unticked | Large is not offered; the others block Send parcel |
+| E11 | Passenger: create parcels until you have 3 in flight, then a 4th | The 4th is refused with a message about the maximum number of parcels |
+| E12 | Passenger: cancel a parcel that is still "Finding a driver" (confirm the dialog) | It becomes Cancelled and the receiver details are shown as erased; once a driver has been offered or assigned the parcel there is no Cancel button |
+| E13 | Admin: Deliveries page, "Passenger parcels" section | The parcel is listed with its tracking state in English and Arabic; no receiver name, phone or note anywhere |
 
 ## F. Things that must NOT work (safety checks)
 

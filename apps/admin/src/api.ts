@@ -242,6 +242,7 @@ return {
   },
   requests: (token: string) => apiRequest<{ requests: PassengerRequest[] }>("/admin/requests", { token }),
   orders: (token: string) => apiRequest<{ orders: MerchantOrder[] }>("/admin/orders", { token }),
+  passengerParcels: (token: string) => apiRequest<{ parcels: PassengerParcelRow[] }>("/admin/passenger-parcels", { token }),
   routes: (token: string) => apiRequest<{ routes: DriverRoute[] }>("/admin/routes", { token }),
   adminTrips: (
     token: string,
@@ -543,6 +544,30 @@ export type PassengerRequest = {
   destination_label: string;
   passenger_count: number;
   passenger?: User;
+};
+
+export type PassengerParcelTrackingState =
+  | "searching"
+  | "assigned"
+  | "picked_up"
+  | "in_transit"
+  | "delivered"
+  | "cancelled"
+  | "failed"
+  | "expired";
+
+/** Receiver details are deliberately absent from this shape. */
+export type PassengerParcelRow = {
+  id: string;
+  sender: { id: string; name: string };
+  size: string;
+  pickup_label: string;
+  dropoff_label: string | null;
+  tracking_state: PassengerParcelTrackingState;
+  dispatch_status: string | null;
+  requested_departure_from: string | null;
+  requested_departure_until: string | null;
+  created_at: string;
 };
 
 export type MerchantOrder = {

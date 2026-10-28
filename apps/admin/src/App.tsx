@@ -15,6 +15,7 @@ import {
   summarizeOverviewResults
 } from "./features/overview/overviewState";
 import { RequestsBoard } from "./features/requests/RequestsBoard";
+import { PassengerParcelsPanel } from "./features/requests/PassengerParcelsPanel";
 import { TripsManagement } from "./features/trips/TripsManagement";
 import { MatchingBatchingMonitoring } from "./features/monitoring/MatchingBatchingMonitoring";
 import { SettingsPanel } from "./features/settings/SettingsPanel";
@@ -561,7 +562,12 @@ export function App({
         );
 
       case "deliveries":
-        return <RequestsBoard requests={requests} orders={orders} search={search} />;
+        return (
+          <>
+            <RequestsBoard requests={requests} orders={orders} search={search} />
+            <PassengerParcelsPanel api={api} token={token} search={search} />
+          </>
+        );
 
       case "matchingBatching":
         return <MatchingBatchingMonitoring api={api} token={token} />;

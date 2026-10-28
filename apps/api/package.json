@@ -15,6 +15,7 @@
     "test:integration:legacy-online": "node dist/scripts/legacyOnlineStateIntegration.js",
     "test:integration:passenger-trip-association": "node dist/scripts/passengerTripAssociationIntegration.js",
     "documents:purge": "node dist/scripts/purgeDriverDocuments.js",
+    "parcels:purge-receivers": "node dist/scripts/purgePassengerParcelReceivers.js",
     "documents:expiry": "node dist/scripts/checkDriverDocumentExpiry.js",
     "trust:recompute": "node dist/scripts/recomputeDriverTrust.js",
     "canonical:match": "node dist/scripts/canonicalMatchingCommand.js",
