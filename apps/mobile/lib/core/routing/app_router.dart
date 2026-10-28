@@ -7,6 +7,7 @@ import '../../features/auth/application/auth_controller.dart';
 import '../../features/auth/domain/auth_models.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/auth_completion_screen.dart';
+import '../../features/auth/presentation/register_role_screen.dart';
 import '../../features/auth/presentation/signup_screen.dart';
 import '../../features/auth/presentation/splash_screen.dart';
 import '../../features/auth/presentation/unsupported_role_screen.dart';
@@ -125,6 +126,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/profile/phone',
         builder: (context, state) => const AuthCompletionScreen(phone: true),
+      ),
+      GoRoute(
+        path: '/register',
+        builder: (context, state) => const RegisterRoleScreen(),
       ),
       GoRoute(
         path: '/signup',
@@ -514,7 +519,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         return path == '/splash' ? null : '/splash';
       }
       if (auth.hasError) {
-        return (path == '/login' || path == '/signup') ? null : '/login';
+        return (path == '/login' || path == '/register' || path == '/signup')
+            ? null
+            : '/login';
       }
 
       if (auth.status == AuthStatus.restoring ||
@@ -523,7 +530,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       }
 
       if (auth.status == AuthStatus.authenticating) {
-        return (path == '/login' || path == '/signup') ? null : '/login';
+        return (path == '/login' || path == '/register' || path == '/signup')
+            ? null
+            : '/login';
       }
 
       if (auth.status == AuthStatus.registrationRequired) {
@@ -534,6 +543,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       if (auth.status != AuthStatus.authenticated || auth.user == null) {
         if (path == '/login' ||
+            path == '/register' ||
             path == '/signup' ||
             path.startsWith('/onboarding')) {
           return null;

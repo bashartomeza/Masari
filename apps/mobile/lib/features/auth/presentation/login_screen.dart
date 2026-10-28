@@ -265,13 +265,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                         if (onboardingEnabled) ...[
                           const Divider(height: AppTokens.spaceLarge),
-                          OutlinedButton(
-                            key: const ValueKey('createInvitedAccountButton'),
-                            onPressed: loading
-                                ? null
-                                : () => _openOnboarding('/onboarding'),
-                            child: Text(l10n.createInvitedAccount),
-                          ),
                           TextButton(
                             key: const ValueKey('checkApplicationStatusButton'),
                             onPressed: loading
@@ -401,7 +394,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _openSignUp() async {
     setState(() => _googleErrorKey = null);
     ref.read(authControllerProvider.notifier).clearError();
-    await context.push<void>('/signup');
+    await context.push<void>('/register');
     if (!mounted) return;
     ref.read(authControllerProvider.notifier).clearError();
   }
