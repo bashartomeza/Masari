@@ -393,7 +393,9 @@ async function main() {
   check(await prisma.authSession.count({ where: { user_id: passengerUser.id } }) === 0, "passenger completion creates no auth session");
   check(await prisma.refreshToken.count({ where: { session: { user_id: passengerUser.id } } }) === 0, "passenger completion creates no refresh token");
   const login = await request(app).post("/api/v1/auth/login").send({ phone: "٠٥٩٩١١١١١٤", region: "PS", password: passengerPassword });
-  check(login.status === 400 && login.body.error === "validation_error", "deprecated phone-only login is rejected by the email contract");
+  check(login.status === 401 && login.body.error === "invalid_credentials", "a phone number without a country code is refused at sign-in");
+  const phoneLogin = await request(app).post("/api/v1/auth/login").send({ phone: "+970599111114", password: passengerPassword });
+  check(phoneLogin.status === 200 && phoneLogin.body.user?.role === "passenger", "a verified invited passenger signs in with the verified phone");
 
   const driverPassword = "driver secure pass 2026";
   const driver = await onboard(admin, "driver", "+970599111115", "سائق مساري", driverPassword);
@@ -423,7 +425,7 @@ async function main() {
   const driverStatus = await request(app).get("/api/v1/onboarding/status").set("authorization", `Onboarding ${driverCompletionReplay.body.onboarding_status_token}`);
   check(driverStatus.status === 200 && driverStatus.body.onboarding_status === "pending_review", "pending status endpoint works");
   check((await request(app).get("/api/v1/driver/routes").set("authorization", `Onboarding ${driver.completed.body.onboarding_status_token}`)).status === 401, "pending token cannot access operational routes");
-  check((await request(app).post("/api/v1/auth/login").send({ phone: "+970599111115", password: driverPassword })).status === 400, "deprecated phone-only login is rejected for pending driver");
+  check((await request(app).post("/api/v1/auth/login").send({ phone: "+970599111115", password: driverPassword })).status === 403, "a pending driver cannot sign in by phone");
   const recovered = await request(app).post("/api/v1/onboarding/status-sessions").send({ phone: "+970599111115", region: "PS", password: driverPassword });
   check(
     recovered.status === 200 &&
