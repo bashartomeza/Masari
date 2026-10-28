@@ -1,0 +1,267 @@
+# Masari deployment runbook (masari.aynur.ps)
+
+Status: **PARKED.** Nothing here has been run. The Injazat hosting is not available yet. This runbook is the procedure to follow once it is. It complements `docs/operations/masari-aynur-ps-deployment.md` (layout and nginx sketch), `docs/operations/staging-startup.md` and `docs/operations/mysql-backup-restore.md`; where they differ, this file lists the reconciliation under "Audit findings".
+
+Never put real secret values in this file, in git, in chat or in CI logs. Every value below is a name or a generation command.
+
+## 1. Blockers that need the owner
+
+Tick each before the deploy day. Nothing in the repository can unblock these.
+
+- [ ] **Domain / DNS**: `masari.aynur.ps` A/AAAA record pointing at the Injazat host, and who controls the zone.
+- [ ] **Hosting account**: Injazat server or container platform with SSH or console access, Docker (or Node 22.17.1), a private MySQL 8 instance, and persistent disk.
+- [ ] **TLS certificate** for `masari.aynur.ps` (who issues and renews it).
+- [ ] **SMTP / email account**: an approved sending mailbox or provider (host, port, user, password, from-address, SPF/DKIM). See gap G1: the code also needs a production delivery adapter.
+- [ ] **SMS provider**: an approved Palestinian-coverage SMS/OTP provider and contract. See gap G2. Until then registration stays off.
+- [ ] **Android signing keystore**: owner generates and keeps the upload/release key and its passwords. See gap G4.
+- [ ] **Legal text**: owner-approved Arabic and English Terms, Privacy Notice and Adult 18+ Attestation (six documents) for the consent release.
+- [ ] **First admin identity**: the email address and an initial password the owner will use.
+- [ ] Owner-action items EDIT-01 to EDIT-10 in the PRD register (production stays unauthorized until they are resolved).
+
+## 2. Known gaps that need a code or config change
+
+These were found while auditing. They are not fixed here.
+
+- **G1 No production email delivery.** `apps/api/src/server.ts` calls `createApp(config, { logger })` with no `emailDelivery`. `EmailAuthService` returns 503 `email_auth_unavailable` in staging and production unless the delivery has `kind: "approved"`, and no approved adapter exists (the only sender is the demo Gmail script under `scripts/test-env/`). There are no SMTP environment variables in `config.ts`. Result: email sign-up, email verification and password reset do not work in production. Needs an SMTP adapter plus config (host, port, user, password, from) and wiring in `server.ts`.
+- **G2 No SMS/OTP provider.** `OTP_PROVIDER` accepts only `disabled` or `fake`, and `fake` is refused in production. `phoneVerificationProvider` is likewise never wired. Phone verification and public onboarding cannot be enabled.
+- **G3 No first-admin bootstrap.** There is no seed or CLI that creates a production admin; invitations cannot create admins (`passenger|driver|merchant` only). Section 7 gives a manual one-off SQL procedure; a small script would be safer.
+- **G4 Release APK is signed with the debug key.** `apps/mobile/android/app/build.gradle.kts` has `signingConfig = signingConfigs.getByName("debug")` with a TODO. A release signing config reading a git-ignored `key.properties` must be added before a distributable build.
+- **G5 `.env.production.example` leaves `AUTH_ACTION_TOKEN_PEPPER` commented out**, but it is required for email actions and the preflight treats it as required. Uncomment it in the example.
+- **G6 `compose.staging.yml` is incomplete for a real deploy.** It passes only a subset of variables (no `AUTH_ACTION_TOKEN_PEPPER`, no driver-document variables or volume) and publishes `127.0.0.1:3001`, while the production doc assumes port 3000. There is no production compose file.
+- **G7 Purge command path.** `docs/operations/masari-aynur-ps-deployment.md` says `node dist/scripts/purgeDriverDocuments.js`; inside the runtime image the file is `apps/api/dist/scripts/purgeDriverDocuments.js` (working dir `/app`). Use the path in section 9.
+- **G8 `.gitignore` ignores `**/.env.*`** (only `.env.example` is re-included), so `.env.production.example` and `.env.staging.example` are tracked only because they were force-added. Add negations if they are ever recreated.
+- **G9 CI builds only an unsigned APK against `api.staging.masari.invalid`** and there is no CI or script for a production deploy, by design; this runbook is manual.
+
+## 3. Prerequisites
+
+- Node `22.17.1`, npm `>=10.9.2 <11` (see root `package.json`), or Docker with the images from `apps/api/Dockerfile` (targets `migration` and `runtime`).
+- MySQL 8 reachable only from the API host; `mysql`, `mysqldump` clients on the operator machine for backups.
+- A reverse proxy (nginx) terminating TLS, HTTP to HTTPS redirect.
+- Flutter SDK and Android SDK on the build machine for the APK.
+- A clean checkout of exactly one reviewed commit of `production-readiness`. Record the commit as `APP_RELEASE`.
+
+## 4. Environment variables (names only)
+
+Template: `apps/api/.env.production.example`. Keep the real file outside the repository with mode `0600`, owned by the API user. Validate it with the preflight (section 5).
+
+Generate every secret independently (each must be at least 32 characters and unique):
+
+```sh
+node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
+```
+
+Run it once per secret and paste the result straight into the secret store, not into a shell history or chat.
+
+### Required in production
+
+| Variable | Purpose / rule |
+| --- | --- |
+| `APP_ENV` | Must be `production`. |
+| `APP_RELEASE` | Immutable release identifier (commit hash or date-hash). Required. |
+| `DATABASE_URL` | `mysql://<user>:<password>@<host>:3306/masari`, private host. |
+| `JWT_SECRET` | Signs access tokens. 32+ chars, random. |
+| `REFRESH_TOKEN_PEPPER` | Hashes refresh tokens. 32+ chars, different from `JWT_SECRET`. |
+| `AUTH_ACTION_TOKEN_PEPPER` | Hashes email-action codes (verification, reset, six-digit short codes). 32+ chars, different from the two above. Generate with the command above. Needed for any email action. |
+| `CORS_ORIGINS` | `https://masari.aynur.ps` (explicit https, no wildcard, no localhost). |
+| `TRUST_PROXY` | Proxy hop count `1` through `5` (use `1` for one nginx), or `none`. Must be explicit. |
+| `ENABLE_DEMO_FEATURES` | `false`. Any `true` aborts startup. |
+
+### Required for specific features
+
+| Variable | When |
+| --- | --- |
+| `DRIVER_DOCUMENTS_ENABLED=true`, `DRIVER_DOCUMENTS_DIR` | Driver and merchant document uploads. Directory must be absolute. |
+| `DRIVER_DOCUMENT_RETENTION_DAYS` | Retention for the purge job (default 90). |
+| `INVITATIONS_ENABLED=true` plus `INVITATION_CODE_PEPPER`, `PHONE_DIGEST_PEPPER`, `OTP_CODE_PEPPER`, `ONBOARDING_SESSION_PEPPER`, `IDEMPOTENCY_KEY_PEPPER`, `ABUSE_KEY_PEPPER` | Admin-issued invitations. Six distinct secrets, distinct from the core three. Each has a `*_KEY_VERSION` (default 1) for rotation. |
+| `ROUTE_MAPS_ENABLED=true`, `ROUTE_PROVIDER`, `ROUTE_PROVIDER_SECRET` | Only after a map provider is approved. Otherwise `ROUTE_PROVIDER=disabled`. |
+| SMTP settings | None exist yet; see gap G1. |
+| SMS provider settings | None exist yet; see gap G2. |
+
+### Optional with safe defaults
+
+`PORT` (3000), `LOG_LEVEL`, `ACCESS_TOKEN_TTL_SECONDS` (900; allowed 300-1800), `REFRESH_TOKEN_TTL_DAYS` (30; max 90), `READINESS_TIMEOUT_MS` (2000), `RATE_LIMIT_GLOBAL_WINDOW_MS`/`_MAX` (900000 / 300, max 50-1000), `RATE_LIMIT_LOGIN_WINDOW_MS`/`_MAX` (900000 / 10, max 3-50), `SUPPORTED_PHONE_REGIONS` (`PS` only), `AUTH_ACTION_TOKEN_KEY_VERSION`, and the `OTP_*` and `ONBOARDING_*` tuning values in the template.
+
+### Must stay off or unset in production (startup is refused otherwise)
+
+`ENABLE_DEMO_FEATURES`, `MULTI_ROUTE_ENTRY_ENABLED`, `MULTI_ROUTE_MATCHING_ENABLED`, `CANONICAL_TRIP_CREATION_ENABLED`, `CANONICAL_SHARED_TRIPS_ENABLED`, `CANONICAL_SHARED_TRIP_MOBILE_ENABLED`, `PUBLIC_ONBOARDING_ENABLED`, `ONBOARDING_TEST_LEGAL_FIXTURES_ENABLED`, `OTP_PROVIDER=fake`, `ROUTE_PROVIDER=fake`, `GOOGLE_PASSENGER_SIGNUP_MODE` other than `disabled`, `ROUTE_PROVIDER_CACHE_TTL_SECONDS` other than `0`. Do not set any `DEMO_*` variable.
+
+## 5. Preflight check (read-only)
+
+```sh
+node scripts/deploy/preflight.mjs --env-file /etc/masari/api.env --target production
+```
+
+It prints PASS, FAIL or WARN per item and never prints values. Exit code 1 means do not continue. The WARN lines about email/SMS delivery are expected until gaps G1/G2 are closed. The API itself repeats these checks at startup (`apps/api/src/config.ts`) and refuses to start on a bad configuration.
+
+## 6. Database creation and migrations
+
+1. Create the database and a dedicated user (run as the MySQL admin, replacing the placeholders, choosing a generated password):
+
+   ```sql
+   CREATE DATABASE masari CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+   CREATE USER 'masari_app'@'<api-host>' IDENTIFIED BY '<generated-password>';
+   GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, DROP, INDEX, REFERENCES ON masari.* TO 'masari_app'@'<api-host>';
+   ```
+
+2. Take a backup first if the database is not empty (section 12).
+3. Apply **all** migrations. Never from API startup, always as an explicit step:
+
+   ```sh
+   # with the migration image
+   docker run --rm --env DATABASE_URL --name masari-migrate masari-migrate:RELEASE
+   # or from a checkout
+   DATABASE_URL=... npm ci && npm run db:migrate      # prisma migrate deploy
+   npm run db:migrate:status                          # must report "Database schema is up to date"
+   ```
+
+   `prisma migrate deploy` applies every folder in `apps/api/prisma/migrations` in order. The most recent ones, which an older database will be missing, are:
+   - `20261025120000_in_app_notifications`
+   - `20261025140000_incident_reports`
+   - `20261025160000_driver_verification_history`
+   - `20261026120000_driver_verification_evidence`
+   - `20261026140000_driver_verification_documents`
+   - `20261028120000_merchant_application_documents`
+   - `20261028150000_auth_action_short_codes`
+
+   Never use `prisma migrate dev` or `db push` against this database.
+
+## 7. First admin bootstrap
+
+No tool exists yet (gap G3). Admin sign-in is by **email and password** at `/api/v1/auth/admin/login` (phone login is blocked for admins). Do this once, from the operator machine, with the owner present:
+
+1. Generate a bcrypt hash without putting the password in shell history (from the repository, after `npm ci`). Type the password at the prompt:
+
+   ```sh
+   node -e "const b=require('bcryptjs');const rl=require('readline').createInterface({input:process.stdin});rl.question('password: ',p=>{console.log(b.hashSync(p,12));rl.close()})"
+   ```
+
+   Use a unique password of 16+ characters.
+2. Insert the user (table `users`; the `id` is any unique string, for example a UUID):
+
+   ```sql
+   INSERT INTO users (id, name, email, email_verified_at, password_hash, role, account_status, profile_state, status_updated_at, demo_account, created_at)
+   VALUES (UUID(), '<admin name>', '<admin email>', NOW(), '<bcrypt hash>', 'admin', 'active', 'complete', NOW(), 0, NOW());
+   ```
+
+   If MySQL rejects a column, compare with `model User` in `apps/api/prisma/schema.prisma` and adjust; the schema is the authority.
+3. Sign in to the Admin site, then change the password policy in the owner's password manager. Clear the SQL client history.
+
+## 8. Consent documents release
+
+Registration stays closed until a complete consent release is active. In the Admin console, Settings, Consent releases (`/api/v1/admin/consent-releases`, see `docs/admin/consent-management.md`):
+
+1. Create a draft with all six documents (Terms, Privacy Notice, Adult 18+ Attestation, in Arabic and English) using the owner-approved text. The repository contains no legal wording.
+2. Review, record legal approval, then activate at or after the intended time.
+3. Confirm the Settings screen shows onboarding `READY`.
+
+## 9. Document storage (driver and merchant documents)
+
+1. Create the directory on persistent storage outside any web root and outside the nginx `root`:
+
+   ```sh
+   install -d -m 0700 -o <api-user> -g <api-user> /var/lib/masari/driver-documents
+   ```
+
+   If the API runs in Docker, the container user is `node` (uid 1000): `chown 1000:1000` the directory and bind-mount it at the same absolute path.
+2. Set `DRIVER_DOCUMENTS_ENABLED=true` and `DRIVER_DOCUMENTS_DIR=/var/lib/masari/driver-documents`.
+3. Back it up together with the database and restore both at the same point in time. A database restored without the files leaves rows whose downloads return 404.
+4. Schedule the daily retention purge (safe to repeat), for example from host cron:
+
+   ```sh
+   docker run --rm --env-file /etc/masari/api.env -v /var/lib/masari/driver-documents:/var/lib/masari/driver-documents \
+     masari-api:RELEASE node apps/api/dist/scripts/purgeDriverDocuments.js
+   ```
+5. nginx must allow request bodies a little above 5 MB (`client_max_body_size 6m;`).
+
+## 10. Build and run the API
+
+```sh
+docker build --target runtime   -f apps/api/Dockerfile -t masari-api:RELEASE .
+docker build --target migration -f apps/api/Dockerfile -t masari-migrate:RELEASE .
+```
+
+Run the migration (section 6), then start the API bound to loopback only so it is never public:
+
+```sh
+docker run -d --name masari-api --restart unless-stopped --env-file /etc/masari/api.env \
+  -p 127.0.0.1:3000:3000 -v /var/lib/masari/driver-documents:/var/lib/masari/driver-documents masari-api:RELEASE
+```
+
+The image has a health check on `/api/v1/health/ready`. Without Docker: `npm ci && npm run build:api`, then `node apps/api/dist/server.js` under a process manager (systemd) with the env file loaded.
+
+## 11. Build and serve the Admin site
+
+```sh
+VITE_APP_ENV=production VITE_ENABLE_DEMO_FEATURES=false VITE_API_BASE_URL=https://masari.aynur.ps npm run build:admin
+npm run security:artifacts -- --admin-dir apps/admin/dist
+```
+
+Copy `apps/admin/dist/` to `/srv/masari/admin` on the host. The scan must pass (no demo credentials or tools in the bundle). Do not set any `VITE_DEMO_*` variable.
+
+### HTTPS and reverse proxy
+
+Use the nginx sketch in `docs/operations/masari-aynur-ps-deployment.md`: `/api/v1/` proxied to `127.0.0.1:3000`, everything else served from `/srv/masari/admin` with `try_files $uri /index.html`, port 80 redirects to 443, `X-Forwarded-For` overwritten with `$remote_addr`, `client_max_body_size 6m`. `TRUST_PROXY=1` matches exactly one proxy hop. Also enable HSTS once HTTPS works (`add_header Strict-Transport-Security "max-age=31536000" always;`), keep the certificate renewal automated, and block direct access to port 3000 in the firewall.
+
+## 12. Backups, restore and rollback
+
+Existing tooling: `scripts/mysql-backup.mjs` and `scripts/mysql-restore-verify.mjs` (details in `docs/operations/mysql-backup-restore.md`). They read `DATABASE_URL` from `apps/api/.env` or the file named by `MASARI_ENV_FILE`, and never put the password on a command line.
+
+Before every deploy:
+
+```sh
+MASARI_ENV_FILE=/etc/masari/api.env npm run mysql:backup        # creates backups/mysql/<timestamp>.sql and a .sha256
+tar -C /var/lib/masari -czf backups/driver-documents-<timestamp>.tgz driver-documents
+```
+
+Verify a backup restores (rehearse monthly, and once before go-live), in a throwaway database, never the live one:
+
+```sh
+npm run mysql:restore:verify -- -- --dump backups/mysql/<file>.sql --database masari_restore_rehearsal_<yyyymmdd> --confirm-isolated --cleanup
+```
+
+Provisional targets from the existing doc: RPO 15 minutes, RTO 2 hours, 30 day retention (pending approval). A nightly dump alone does not meet the 15 minute RPO; enable MySQL binary logs or the host's snapshot service if that target is kept. Store backups encrypted and off the API host.
+
+### Rollback
+
+1. Stop writes (stop the API container or put nginx into maintenance).
+2. Application only: start the previous `masari-api:<old-release>` image. The migrations are additive, so the old image runs against the newer schema; leave the tables in place.
+3. Data problem: restore the pre-deploy dump into a fresh database, restore the matching documents archive, point `DATABASE_URL` at it, and start the previous image. Never restore over the live database without a fresh backup of its current state.
+4. Re-run the smoke tests (section 14).
+
+## 13. Android release build
+
+Gap G4: the Gradle release config currently uses the debug key. Before building for distribution add a release signing config (owner task) reading a git-ignored `apps/mobile/android/key.properties` with `storeFile`, `storePassword`, `keyAlias`, `keyPassword`; keep the keystore and passwords out of the repository and out of CI logs. Generate the keystore once, on a trusted machine, and back it up in at least two places (losing it prevents updates):
+
+```sh
+keytool -genkeypair -v -keystore masari-release.jks -alias masari -keyalg RSA -keysize 2048 -validity 10000
+```
+
+Build (points the app at the production API; the app appends `/api/v1` itself and refuses non-HTTPS in production):
+
+```sh
+cd apps/mobile
+flutter build apk --release --dart-define=APP_ENV=production --dart-define=ENABLE_DEMO_FEATURES=false --dart-define=API_BASE_URL=https://masari.aynur.ps
+```
+
+The same keys are in `apps/mobile/config/production.example.json` (`--dart-define-from-file`). The application id is `ps.masari.mobile`. Output: `apps/mobile/build/app/outputs/flutter-apk/app-release.apk`. Check `apksigner verify --print-certs` shows the release certificate, not "Android Debug".
+
+## 14. Smoke-test checklist after deploy
+
+Replace nothing with real credentials in this document; use the owner's admin account interactively.
+
+- [ ] `https://masari.aynur.ps/api/v1/health/live` returns 200, and `/api/v1/health/ready` returns 200 (DB reachable).
+- [ ] `http://masari.aynur.ps` redirects to HTTPS; certificate is valid and not expiring soon.
+- [ ] `http://<host>:3000` is not reachable from outside.
+- [ ] Admin site loads at `/`, a deep link reload works (SPA fallback), no demo controls or credential presets are visible.
+- [ ] Admin sign-in with the bootstrap account works; sign-out works; a wrong password is rejected.
+- [ ] Demo endpoints are absent: the demo reset route returns 404.
+- [ ] Settings shows consent onboarding `READY` after the release is active.
+- [ ] A document upload (5 MB or less) from a test applicant succeeds and appears in the Admin review, and the file exists under `DRIVER_DOCUMENTS_DIR` with mode not world-readable. (Requires an applicant account; see G1/G2.)
+- [ ] Email code delivery: a registration email arrives with a six-digit code (blocked until G1 is closed).
+- [ ] The APK installs, shows Arabic UI, connects to `https://masari.aynur.ps`, and the signing certificate is the release key.
+- [ ] A backup was taken and a restore rehearsal passed within the last month.
+- [ ] Logs contain request ids and no secrets; `APP_RELEASE` shows the expected release.
+
+## 15. Audit findings summary
+
+Contradictions found between existing material, now reconciled here: the staging doc binds the API to `127.0.0.1:3001` while the production doc uses 3000 (G6); the purge command path (G7); the example env comments out a pepper the code requires for email actions (G5); the production doc says registration stays off until an SMS provider exists, which is correct, but does not say that email sign-up is also unusable in production without a delivery adapter (G1). Items G1 to G4 block a usable public launch; the rest are cleanups.

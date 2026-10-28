@@ -18,6 +18,7 @@
     "canonical:match": "node dist/scripts/canonicalMatchingCommand.js",
     "canonical:shared": "node dist/scripts/canonicalSharedMatchingCommand.js",
     "simulate:compare": "tsx src/scripts/simulateComparison.ts",
+    "ai:eval": "tsx src/aiEval/run.ts",
     "qa:routes": "tsx src/scripts/routeManagementQa.ts",
     "maps:bakeoff": "tsx src/scripts/routeProviderBakeoff.ts",
     "prisma:generate": "prisma generate",

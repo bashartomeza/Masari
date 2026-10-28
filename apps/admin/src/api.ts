@@ -88,6 +88,8 @@ return {
     apiRequest<{ incident: IncidentRecord }>(`/admin/incidents/${encodeURIComponent(id)}`, { method: "PATCH", token, body }),
   reportSummary: (token: string, range: ReportRange) => apiRequest<ReportSummary>(`/admin/reports/summary${reportQuery(range)}`, { token }),
   reportExport: (token: string, dataset: ReportDataset, range: ReportRange) => downloadCsv(`/admin/reports/export${reportQuery(range, { dataset })}`, token),
+  successMetrics: (token: string, range: ReportRange) => apiRequest<SuccessMetricsResponse>(`/admin/success-metrics${reportQuery(range)}`, { token }),
+  successMetricsExport: (token: string, range: ReportRange) => downloadCsv(`/admin/success-metrics/export${reportQuery(range)}`, token),
   login: (email: string, password: string) => apiRequest<LoginResponse>("/auth/admin/login", { method: "POST", body: { email, password } }),
   googleLogin: (id_token: string) => apiRequest<LoginResponse>("/auth/admin/google", { method: "POST", body: { id_token } }),
   authCapabilities: () => apiRequest<{ google_admin_login_available: boolean; google_admin_client_id: string | null }>("/auth/capabilities"),
@@ -735,6 +737,18 @@ export type IncidentRecord = {
 };
 export type IncidentPage = { incidents: IncidentRecord[]; page: number; limit: number; total: number; open_total: number };
 export type ReportRange = { from?: string; to?: string };
+export type SuccessMetricKey = "matching_time" | "ai_understanding" | "status_continuity" | "batch_efficiency" | "driver_utilization" | "user_satisfaction" | "driver_verification" | "pickup_clarity" | "route_deviation";
+export type SuccessMetric = {
+  key: SuccessMetricKey;
+  unit: "seconds" | "percent" | "ratio" | "score";
+  target: string;
+  value: number | null;
+  status: "pass" | "fail" | "no_data";
+  sample_size: number;
+  previous_value: number | null;
+  trend: "improving" | "worsening" | "flat" | "none";
+};
+export type SuccessMetricsResponse = { range: { from: string; to: string }; generated_at: string; metrics: SuccessMetric[] };
 export type ReportDataset = "requests" | "orders" | "trips";
 type StatusCounts = Record<string, number>;
 export type ReportSummary = {
