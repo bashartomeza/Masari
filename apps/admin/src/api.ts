@@ -168,6 +168,13 @@ return {
       `/admin/driver-verifications/${encodeURIComponent(userId)}/evidence`,
       { method: "POST", token, body: note ? { expected_revision: expectedRevision, kind, note } : { expected_revision: expectedRevision, kind } }
     ),
+  merchantDocuments: (token: string, userId: string) =>
+    apiRequest<{ documents: Array<{ id: string; kind: string; mime_type: string; size_bytes: number; created_at: string }> }>(
+      `/admin/merchant-approvals/${encodeURIComponent(userId)}/documents`,
+      { token }
+    ),
+  downloadMerchantDocument: (token: string, userId: string, documentId: string) =>
+    downloadCsv(`/admin/merchant-approvals/${encodeURIComponent(userId)}/documents/${encodeURIComponent(documentId)}`, token),
   decideMerchantApproval: (token: string, userId: string, decision: "approve" | "reject", reason?: string) =>
     apiRequest<{ user: AdminUser }>(
       `/admin/merchant-approvals/${encodeURIComponent(userId)}/${decision}`,

@@ -1,5 +1,5 @@
 import type { PrismaClient } from "../generated/prisma/client.js";
-import { AuditAction, DriverVerificationStatus } from "../generated/prisma/enums.js";
+import { AccountStatus, AuditAction, DriverVerificationStatus } from "../generated/prisma/enums.js";
 import { auditEvent } from "../lib/audit.js";
 import type { DocumentStorage } from "./driverDocumentStorage.js";
 
@@ -32,6 +32,26 @@ export async function purgeDecidedDriverDocuments(
         entityType: "DriverVerification",
         entityId: document.verification_id,
         metadata: { action: "driver_document_purged", kind: document.kind, retention_days: options.retentionDays }
+      });
+    });
+    purged += 1;
+  }
+
+  // Shop-owner applications: same rule, measured from the account decision.
+  const merchantDocuments = await db.merchantApplicationDocument.findMany({
+    where: { user: { account_status: { not: AccountStatus.pending }, status_updated_at: { lt: cutoff } } },
+    take: options.batchSize ?? 500,
+    orderBy: { created_at: "asc" }
+  });
+  for (const document of merchantDocuments) {
+    await storage.remove(document.storage_key);
+    await db.$transaction(async (tx) => {
+      await tx.merchantApplicationDocument.delete({ where: { id: document.id } });
+      await auditEvent(tx, {
+        action: AuditAction.account_status_changed,
+        entityType: "User",
+        entityId: document.user_id,
+        metadata: { action: "merchant_document_purged", kind: document.kind, retention_days: options.retentionDays }
       });
     });
     purged += 1;

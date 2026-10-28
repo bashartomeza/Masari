@@ -288,6 +288,13 @@ const driverDocumentKinds = <String>[
   'other',
 ];
 
+const merchantDocumentKinds = <String>[
+  'commercial_register',
+  'national_id',
+  'shop_photo',
+  'other',
+];
+
 class DriverDocument {
   const DriverDocument({
     required this.id,

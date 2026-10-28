@@ -871,7 +871,17 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get pendingReviewBody =>
-      'تم إنشاء حسابك وهو قيد المراجعة. ستتمكن من تسجيل الدخول بعد الموافقة على الحساب.';
+      'تم إنشاء حسابك وهو الآن قيد الانتظار. سيراجعه المشرف وغالباً يستغرق ذلك حتى 24 ساعة. يمكنك تسجيل الدخول بعد الموافقة عليه.';
+
+  @override
+  String get merchantDocumentsHint =>
+      'للحصول على الموافقة، ارفع صوراً واضحة أو ملفات PDF للسجل التجاري (أو رخصة المتجر) والهوية الوطنية وصورة للمتجر. تُحفظ الملفات على خادمنا ولا يفتحها إلا فريق المراجعة.';
+
+  @override
+  String get documentKindCommercialRegister => 'السجل التجاري';
+
+  @override
+  String get documentKindShopPhoto => 'صورة المتجر';
 
   @override
   String get checkApplicationStatus => 'متابعة حالة طلب سابق';
@@ -2070,7 +2080,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get verificationDocumentsHint =>
-      'أضف صورًا واضحة أو ملفات PDF للمستندات التي يحتاجها المراجع، مثل رخصة القيادة وترخيص المركبة. تُحفظ الملفات على خادمنا ولا يمكن فتحها إلا من فريق المراجعة.';
+      'للحصول على الموافقة، ارفع صوراً واضحة أو ملفات PDF لرخصة القيادة وتسجيل المركبة والهوية الوطنية. تُحفظ الملفات على خادمنا ولا يفتحها إلا فريق المراجعة.';
 
   @override
   String get documentKind => 'نوع المستند';

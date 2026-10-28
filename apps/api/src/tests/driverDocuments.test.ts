@@ -224,6 +224,10 @@ describe("driver document retention", () => {
         findMany: vi.fn().mockResolvedValue([{ id: "d1", verification_id: "v1", kind: "national_id", storage_key: "a".repeat(48) }]),
         delete: vi.fn()
       },
+      merchantApplicationDocument: {
+        findMany: vi.fn().mockResolvedValue([{ id: "m1", user_id: "u1", kind: "shop_photo", storage_key: "b".repeat(48) }]),
+        delete: vi.fn()
+      },
       auditEvent: { create: vi.fn() },
       $transaction: vi.fn(async (callback: (client: unknown) => unknown) => callback(db))
     };
@@ -231,8 +235,12 @@ describe("driver document retention", () => {
 
     const result = await purgeDecidedDriverDocuments(db as never, { save: vi.fn(), read: vi.fn(), remove: async (key: string) => void removed.push(key) }, { retentionDays: 90, now });
 
-    expect(result).toEqual({ purged: 1 });
-    expect(removed).toEqual(["a".repeat(48)]);
+    expect(result).toEqual({ purged: 2 });
+    expect(removed).toEqual(["a".repeat(48), "b".repeat(48)]);
+    expect(db.merchantApplicationDocument.findMany.mock.calls[0][0].where).toEqual({
+      user: { account_status: { not: "pending" }, status_updated_at: { lt: new Date("2026-09-02T00:00:00Z") } }
+    });
+    expect(db.merchantApplicationDocument.delete).toHaveBeenCalledWith({ where: { id: "m1" } });
     expect(db.driverVerificationDocument.findMany.mock.calls[0][0].where).toEqual({
       verification: { status: { not: "pending" }, reviewed_at: { lt: new Date("2026-09-02T00:00:00Z") } }
     });

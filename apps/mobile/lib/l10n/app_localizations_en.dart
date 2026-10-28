@@ -869,7 +869,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get pendingReviewBody =>
-      'Your account was created and is under review. You can sign in after the account is approved.';
+      'Your account was created and is now pending. An admin will review it, which usually takes up to 24 hours. You can sign in once it is approved.';
+
+  @override
+  String get merchantDocumentsHint =>
+      'To get approved, upload clear photos or PDFs of your commercial register (or shop licence), your national ID and a photo of your shop. Files are stored on our server and only the review team can open them.';
+
+  @override
+  String get documentKindCommercialRegister => 'Commercial register';
+
+  @override
+  String get documentKindShopPhoto => 'Shop photo';
 
   @override
   String get checkApplicationStatus => 'Check an existing application';
@@ -2084,7 +2094,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get verificationDocumentsHint =>
-      'Add clear photos or PDFs of the documents the reviewer needs, such as your driving licence and vehicle registration. Files are stored on our server and only the review team can open them.';
+      'To get approved, upload clear photos or PDFs of your driving licence, your vehicle registration and your national ID. Files are stored on our server and only the review team can open them.';
 
   @override
   String get documentKind => 'Document type';

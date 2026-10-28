@@ -6,17 +6,19 @@ import type { AppConfig } from "../config.js";
 import { requireAuth, requireRole, type AuthenticatedRequest } from "../middleware/auth.js";
 import { HttpError } from "../middleware/error.js";
 import { requireOnboardingToken, type OnboardingAuthenticatedRequest } from "../middleware/onboardingAuth.js";
-import { AuditAction, DriverVerificationStatus } from "../generated/prisma/enums.js";
+import { AccountStatus, AuditAction, DriverVerificationStatus } from "../generated/prisma/enums.js";
 import { Prisma } from "../generated/prisma/client.js";
 import {
   DOCUMENT_KINDS,
   MAX_DOCUMENTS_PER_REVISION,
   MAX_DOCUMENT_BYTES,
+  MERCHANT_DOCUMENT_KINDS,
   createDocumentStorage,
   sniffDocumentMime
 } from "../services/driverDocumentStorage.js";
 
 const uploadQuerySchema = z.object({ kind: z.enum(DOCUMENT_KINDS) });
+const merchantUploadQuerySchema = z.object({ kind: z.enum(MERCHANT_DOCUMENT_KINDS) });
 
 const EXTENSIONS: Record<string, string> = { "application/pdf": "pdf", "image/png": "png", "image/jpeg": "jpg" };
 
@@ -186,6 +188,177 @@ export function createDriverDocumentsRouter(appConfig: AppConfig) {
           metadata: { action: "driver_document_viewed", document_id: document.id, kind: document.kind, request_id: req.requestId }
         });
         // Documents are attachments, never rendered in the console's own origin.
+        res.set({
+          "Content-Type": document.mime_type,
+          "Content-Disposition": `attachment; filename="${document.id}.${EXTENSIONS[document.mime_type] ?? "bin"}"`,
+          "X-Content-Type-Options": "nosniff",
+          "Cache-Control": "no-store",
+          "Content-Length": String(bytes.length)
+        });
+        res.send(bytes);
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
+
+  /** A shop owner's own pending application (pending-status session). */
+  function pendingMerchantId(req: OnboardingAuthenticatedRequest) {
+    const context = req.onboarding!;
+    if (context.userRole !== "merchant" || context.userStatus !== "pending" || !context.userId) {
+      throw new HttpError(403, "driver_documents_unavailable");
+    }
+    return context.userId;
+  }
+
+  async function assertMerchantPending(userId: string) {
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { role: true, account_status: true } });
+    if (!user || user.role !== "merchant" || user.account_status !== AccountStatus.pending) {
+      throw new HttpError(409, "driver_verification_state_conflict");
+    }
+  }
+
+  router.get("/onboarding/merchant-documents", available, applicant, async (req: OnboardingAuthenticatedRequest, res, next) => {
+    try {
+      const userId = pendingMerchantId(req);
+      await assertMerchantPending(userId);
+      const documents = await prisma.merchantApplicationDocument.findMany({
+        where: { user_id: userId },
+        orderBy: [{ created_at: "asc" }, { id: "asc" }]
+      });
+      res.json({
+        documents: documents.map(serializeDocument),
+        limits: { max_documents: MAX_DOCUMENTS_PER_REVISION, max_bytes: MAX_DOCUMENT_BYTES, kinds: MERCHANT_DOCUMENT_KINDS },
+        request_id: req.requestId
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post(
+    "/onboarding/merchant-documents",
+    available,
+    applicant,
+    express.raw({ type: () => true, limit: MAX_DOCUMENT_BYTES }),
+    async (req: OnboardingAuthenticatedRequest, res, next) => {
+      let savedKey: string | null = null;
+      try {
+        const { kind } = merchantUploadQuerySchema.parse(req.query);
+        const userId = pendingMerchantId(req);
+        await assertMerchantPending(userId);
+        const bytes = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
+        if (bytes.length === 0) throw new HttpError(400, "document_empty");
+        const mime = sniffDocumentMime(bytes);
+        if (!mime) throw new HttpError(415, "document_type_unsupported");
+
+        const saved = await storage!.save(bytes);
+        savedKey = saved.key;
+        const created = await prisma.$transaction(
+          async (tx) => {
+            const user = await tx.user.findUnique({ where: { id: userId }, select: { account_status: true } });
+            if (!user || user.account_status !== AccountStatus.pending) {
+              throw new HttpError(409, "driver_verification_state_conflict");
+            }
+            const count = await tx.merchantApplicationDocument.count({ where: { user_id: userId } });
+            if (count >= MAX_DOCUMENTS_PER_REVISION) throw new HttpError(409, "driver_document_limit");
+            const row = await tx.merchantApplicationDocument.create({
+              data: {
+                user_id: userId,
+                kind,
+                mime_type: mime,
+                size_bytes: bytes.length,
+                sha256: saved.sha256,
+                storage_key: saved.key
+              }
+            });
+            await auditEvent(tx, {
+              userId,
+              action: AuditAction.account_status_changed,
+              entityType: "User",
+              entityId: userId,
+              metadata: { action: "merchant_document_uploaded", kind, size_bytes: bytes.length, request_id: req.requestId }
+            });
+            return row;
+          },
+          { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+        );
+        savedKey = null;
+        res.status(201).json({ document: serializeDocument(created), request_id: req.requestId });
+      } catch (error) {
+        if (savedKey) await storage!.remove(savedKey).catch(() => undefined);
+        next(isWriteConflict(error) ? new HttpError(409, "driver_verification_state_conflict") : error);
+      }
+    }
+  );
+
+  router.delete("/onboarding/merchant-documents/:id", available, applicant, async (req: OnboardingAuthenticatedRequest, res, next) => {
+    try {
+      const userId = pendingMerchantId(req);
+      await assertMerchantPending(userId);
+      const document = await prisma.merchantApplicationDocument.findFirst({
+        where: { id: routeParam(req.params.id), user_id: userId }
+      });
+      if (!document) throw new HttpError(404, "driver_document_not_found");
+      await prisma.$transaction(async (tx) => {
+        await tx.merchantApplicationDocument.delete({ where: { id: document.id } });
+        await auditEvent(tx, {
+          userId,
+          action: AuditAction.account_status_changed,
+          entityType: "User",
+          entityId: userId,
+          metadata: { action: "merchant_document_deleted", kind: document.kind, request_id: req.requestId }
+        });
+      });
+      await storage!.remove(document.storage_key);
+      res.json({ deleted: true, request_id: req.requestId });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.get(
+    "/admin/merchant-approvals/:userId/documents",
+    available,
+    requireAuth,
+    requireRole("admin"),
+    async (req: AuthenticatedRequest, res, next) => {
+      try {
+        const documents = await prisma.merchantApplicationDocument.findMany({
+          where: { user_id: routeParam(req.params.userId) },
+          orderBy: [{ created_at: "asc" }, { id: "asc" }]
+        });
+        res.json({ documents: documents.map(serializeDocument), request_id: req.requestId });
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
+
+  router.get(
+    "/admin/merchant-approvals/:userId/documents/:documentId",
+    available,
+    requireAuth,
+    requireRole("admin"),
+    async (req: AuthenticatedRequest, res, next) => {
+      try {
+        const document = await prisma.merchantApplicationDocument.findFirst({
+          where: { id: routeParam(req.params.documentId), user_id: routeParam(req.params.userId) }
+        });
+        if (!document) throw new HttpError(404, "driver_document_not_found");
+        let bytes: Buffer;
+        try {
+          bytes = await storage!.read(document.storage_key);
+        } catch {
+          throw new HttpError(404, "driver_document_not_found");
+        }
+        await auditEvent(prisma, {
+          userId: req.user!.id,
+          action: AuditAction.admin_action,
+          entityType: "User",
+          entityId: document.user_id,
+          metadata: { action: "merchant_document_viewed", document_id: document.id, kind: document.kind, request_id: req.requestId }
+        });
         res.set({
           "Content-Type": document.mime_type,
           "Content-Disposition": `attachment; filename="${document.id}.${EXTENSIONS[document.mime_type] ?? "bin"}"`,
