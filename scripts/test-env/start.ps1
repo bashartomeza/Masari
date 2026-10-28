@@ -47,6 +47,16 @@ if (-not (Test-Path $pepperFile)) {
   [Convert]::ToBase64String($bytes) | Set-Content -NoNewline $pepperFile
 }
 $env:AUTH_ACTION_TOKEN_PEPPER = (Get-Content $pepperFile -Raw).Trim()
+# Real verification emails: only when the Gmail App Password was stored (set-mail-password.ps1).
+Import-Module (Join-Path $PSScriptRoot "MailPassword.psm1") -Force
+if (Test-MailPassword) {
+  $env:DEMO_SMTP_USER = "basharto20@gmail.com"
+  $env:DEMO_SMTP_PASSWORD = Get-MailPassword
+  $mailMode = "real emails are sent from $($env:DEMO_SMTP_USER)"
+} else {
+  Remove-Item Env:DEMO_SMTP_USER, Env:DEMO_SMTP_PASSWORD -ErrorAction SilentlyContinue
+  $mailMode = "no real emails (tokens are only written to the file)"
+}
 $env:DRIVER_DOCUMENTS_ENABLED = "true"
 $env:DRIVER_DOCUMENTS_DIR = Join-Path $state "driver-docs"
 $env:CORS_ORIGINS = "http://localhost:$AdminPort,http://127.0.0.1:$AdminPort"
@@ -69,5 +79,5 @@ $adminUp = Wait-Http "http://localhost:$AdminPort/"
 Write-Output "API   http://localhost:$ApiPort   ready: $apiUp"
 Write-Output "Admin http://localhost:$AdminPort   ready: $adminUp"
 Write-Output "One-time sign-up codes appear in: $(Join-Path $state 'otp.txt')"
-Write-Output "Email sign-up tokens (normal users) appear in: $(Join-Path $state 'email-codes.txt')"
+Write-Output "Email sign-up tokens (normal users) appear in: $(Join-Path $state 'email-codes.txt') - $mailMode"
 if (-not ($apiUp -and $adminUp)) { Write-Output "Something did not start; run stop.ps1 and check the build and .env."; exit 1 }

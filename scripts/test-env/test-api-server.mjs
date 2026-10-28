@@ -24,6 +24,7 @@ mkdirSync(dirname(otpFile), { recursive: true });
 
 const { createApp } = await import(dist("app.js"));
 const { FakeOtpProvider } = await import(dist("lib/otp.js"));
+const { createGmailDelivery } = await import("./gmail-sender.mjs");
 
 class LoggingOtpProvider extends FakeOtpProvider {
   async send(input) {
@@ -32,11 +33,24 @@ class LoggingOtpProvider extends FakeOtpProvider {
   }
 }
 
+// With a stored Gmail App Password the email is also really sent; the file is kept either way,
+// and a failed send is reported in the log without blocking the sign-up.
+const gmail = process.env.DEMO_SMTP_USER && process.env.DEMO_SMTP_PASSWORD
+  ? createGmailDelivery({ user: process.env.DEMO_SMTP_USER, appPassword: process.env.DEMO_SMTP_PASSWORD })
+  : null;
+delete process.env.DEMO_SMTP_PASSWORD;
 const loggingEmailDelivery = {
   kind: "test",
   async send(message) {
     appendFileSync(emailFile, `${new Date().toISOString()} ${message.to} ${message.purpose} ${message.actionToken}
 `);
+    if (!gmail) return;
+    try {
+      await gmail.send(message);
+      console.log(`email sent to ${message.to} (${message.purpose})`);
+    } catch (error) {
+      console.error(`email to ${message.to} could not be sent: ${error instanceof Error ? error.message : "unknown"}`);
+    }
   }
 };
 
