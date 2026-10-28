@@ -11,6 +11,7 @@ import '../../../core/widgets/route_chip.dart';
 import '../../../core/widgets/state_views.dart';
 import '../../security/presentation/security_actions.dart';
 import '../../security/presentation/session_status_banner.dart';
+import '../../canonical_routes/application/canonical_route_controller.dart';
 import '../../trips/data/trip_models.dart';
 import '../application/passenger_controller.dart';
 import '../data/passenger_models.dart';
@@ -61,6 +62,9 @@ class PassengerHomeScreen extends ConsumerWidget {
 
                   const SizedBox(height: AppTokens.spaceMedium),
                   DestinationSearchCard(onTap: openNewRequest),
+
+                  const SizedBox(height: AppTokens.spaceMedium),
+                  const _ParcelEntryCard(),
 
                   const SizedBox(height: AppTokens.spaceLarge),
                   const RoleSecurityActions(),
@@ -160,6 +164,67 @@ class _AssistantEntryCard extends StatelessWidget {
           const SizedBox(width: AppTokens.spaceSmall),
           const Icon(Icons.chevron_right, color: AppTheme.primary),
         ],
+      ),
+    );
+  }
+}
+
+/// Entry to sending a parcel and to the passenger's own parcels.
+class _ParcelEntryCard extends ConsumerWidget {
+  const _ParcelEntryCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Parcels travel the canonical routes, so the entry only appears where
+    // that is switched on. Any failure to learn this simply hides the card.
+    final available =
+        ref.watch(mobileCapabilitiesProvider).value?.multiRouteEntryAvailable ??
+        false;
+    if (!available) return const SizedBox.shrink();
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: AppTokens.spaceMedium),
+      child: MasariCard(
+        key: const ValueKey('openPassengerParcels'),
+        onTap: () => context.go('/passenger/parcels'),
+        child: Row(
+          children: [
+            Container(
+              width: AppTokens.minTouchTarget,
+              height: AppTokens.minTouchTarget,
+              decoration: BoxDecoration(
+                color: AppTheme.primaryContainer,
+                borderRadius: BorderRadius.circular(AppTokens.radiusMedium),
+              ),
+              child: const Icon(
+                Icons.inventory_2_outlined,
+                color: AppTheme.onPrimaryContainer,
+              ),
+            ),
+            const SizedBox(width: AppTokens.gutterMobile),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l10n.sendParcelTitle,
+                    style: theme.textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: AppTokens.spaceExtraSmall),
+                  Text(
+                    l10n.sendParcelEntryBody,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: AppTheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: AppTokens.spaceSmall),
+            const Icon(Icons.chevron_right, color: AppTheme.primary),
+          ],
+        ),
       ),
     );
   }

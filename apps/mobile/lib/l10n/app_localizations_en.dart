@@ -2164,4 +2164,130 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mapLegendDestination => 'Destination';
+
+  @override
+  String get sendParcelTitle => 'Send a parcel';
+
+  @override
+  String get sendParcelEntryBody =>
+      'Send a small parcel with a driver already travelling an approved route.';
+
+  @override
+  String get sendParcelIntro =>
+      'Choose a route and stops, then tell us who receives the parcel. A driver travelling that way carries it.';
+
+  @override
+  String get sendParcelPickupHint =>
+      'Hand the parcel to the driver at this stop.';
+
+  @override
+  String get parcelSizeSmallHint => 'S - small, fits in a bag';
+
+  @override
+  String get parcelSizeMediumHint => 'M - medium, about a shoebox';
+
+  @override
+  String get parcelSizeLargeNotAllowed =>
+      'Large parcels are for shops and cannot be sent from a personal account.';
+
+  @override
+  String get receiverNameLabel => 'Receiver\'s name';
+
+  @override
+  String get receiverPhoneLabel => 'Receiver\'s phone';
+
+  @override
+  String get receiverPrivacyNote =>
+      'The receiver does not need the app. Their name and phone are used only for this delivery, are never shown to other users, and are erased afterwards.';
+
+  @override
+  String get parcelNoteLabel => 'Note for the driver (optional)';
+
+  @override
+  String get forbiddenItemsAck =>
+      'I confirm the parcel contains no cash, valuables, medicine, weapons, flammable, illegal or perishable items.';
+
+  @override
+  String get sendParcelSubmit => 'Send parcel';
+
+  @override
+  String get sendParcelRecorded => 'Your parcel request was recorded.';
+
+  @override
+  String get sendParcelRecordedBody =>
+      'We are looking for a driver on this route. You can cancel until a driver is offered the parcel.';
+
+  @override
+  String get myParcelsTitle => 'My parcels';
+
+  @override
+  String get myParcelsEmpty => 'You have not sent any parcels yet.';
+
+  @override
+  String get parcelTrackSearching => 'Finding a driver';
+
+  @override
+  String get parcelTrackAssigned => 'Driver assigned';
+
+  @override
+  String get parcelTrackPickedUp => 'Picked up from you';
+
+  @override
+  String get parcelTrackInTransit => 'On the way';
+
+  @override
+  String get parcelTrackDelivered => 'Delivered';
+
+  @override
+  String get parcelTrackCancelled => 'Cancelled';
+
+  @override
+  String get parcelTrackFailed => 'Delivery failed';
+
+  @override
+  String get parcelTrackExpired => 'Expired';
+
+  @override
+  String get parcelCancelAction => 'Cancel parcel';
+
+  @override
+  String get parcelCancelConfirm =>
+      'Cancel this parcel? The receiver\'s details will be erased.';
+
+  @override
+  String get parcelCancelledNotice => 'Parcel cancelled.';
+
+  @override
+  String get parcelCannotCancel =>
+      'A driver has already been offered this parcel, so it can no longer be cancelled.';
+
+  @override
+  String parcelReceiverLine(String name, String phone) {
+    return 'Receiver: $name ($phone)';
+  }
+
+  @override
+  String get parcelReceiverRemoved => 'Receiver details have been erased.';
+
+  @override
+  String get parcelLimitReached =>
+      'You already have the maximum number of parcels on the way. Wait for one to finish or cancel one.';
+
+  @override
+  String get parcelDailyLimit =>
+      'Daily parcel limit reached. Try again tomorrow.';
+
+  @override
+  String get invalidReceiverPhone =>
+      'Enter a valid phone number for the receiver.';
+
+  @override
+  String get receiverNameInvalid => 'Enter the receiver\'s name.';
+
+  @override
+  String get parcelAckRequired =>
+      'Confirm the statement about forbidden items to continue.';
+
+  @override
+  String get keepParcel => 'Keep parcel';
 }

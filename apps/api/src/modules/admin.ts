@@ -959,6 +959,7 @@ adminRouter.get("/admin/requests", async (_req, res, next) => {
 adminRouter.get("/admin/orders", async (_req, res, next) => {
   try {
     const orders = await prisma.merchantOrder.findMany({
+      where: { passenger_parcel: null },
       include: { merchant: { select: safeUserSelect }, parcels: true }
     });
     res.json({ orders: orders.map((order) => ({ ...order, merchant: serializeSafeUser(order.merchant) })) });

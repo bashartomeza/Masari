@@ -61,6 +61,8 @@ import type { PassengerAssistantService } from "./services/passengerAssistant.js
 import { createAdminConsentRouter } from "./modules/adminConsents.js";
 import type { ConsentReleaseService } from "./services/consentReleases.js";
 import { adminTripsRouter } from "./modules/adminTrips.js";
+import { adminPassengerParcelsRouter, createPassengerParcelRouter } from "./modules/passengerParcels.js";
+import type { PassengerParcelService } from "./services/passengerParcels.js";
 import { notificationsRouter } from "./modules/notifications.js";
 import { reportsRouter } from "./modules/reports.js";
 import { incidentsRouter } from "./modules/incidents.js";
@@ -82,6 +84,7 @@ type AppDependencies = {
   routeManagementService?: RouteManagementService;
   driverAvailabilityService?: DriverAvailabilityService;
   canonicalDemandService?: CanonicalDemandService;
+  passengerParcelService?: PassengerParcelService;
   canonicalMatchingService?: CanonicalMatchingService;
   canonicalSharedMatchingService?: CanonicalSharedMatchingService;
   checkpointService?: CheckpointService;
@@ -153,6 +156,10 @@ export function createApp(
   );
   app.use(
     "/api/v1",
+    createPassengerParcelRouter(appConfig, dependencies.passengerParcelService),
+  );
+  app.use(
+    "/api/v1",
     createCanonicalMatchingRouter(
       appConfig,
       dependencies.canonicalMatchingService,
@@ -213,6 +220,7 @@ export function createApp(
   app.use("/api/v1", createRoutePreviewRouter(appConfig, routePreviewService));
   app.use("/api/v1", createAdminConsentRouter(dependencies.consentReleaseService));
   app.use("/api/v1", adminTripsRouter);
+  app.use("/api/v1", adminPassengerParcelsRouter);
   app.use(
     "/api/v1",
     createAdminMatchingMonitoringRouter(dependencies.adminMatchingMonitoringService),

@@ -405,6 +405,7 @@ model User {
   driver_verification_reviews      DriverVerification[]  @relation("DriverVerificationReviewer")
   passenger_requests               PassengerRequest[]
   merchant_orders                  MerchantOrder[]
+  passenger_parcels                PassengerParcelDetail[]
   audit_events                     AuditEvent[]
   auth_sessions                    AuthSession[]
   invitations_created              Invitation[]           @relation("InvitationCreator")
@@ -1047,6 +1048,7 @@ model MerchantOrder {
   trips          Trip[]
   canonical_dispatch CanonicalDemandDispatch?
   canonical_manifest_members CanonicalTripManifestMember[]
+  passenger_parcel PassengerParcelDetail?
 
   @@unique([id, route_version_id], map: "merchant_orders_route_ownership_key")
   @@unique([id, operational_mode], map: "merchant_orders_mode_ownership_key")
@@ -1075,6 +1077,27 @@ model Parcel {
 
   @@index([route_version_id, destination_stop_id])
   @@map("parcels")
+}
+
+model PassengerParcelDetail {
+  id                      String    @id @default(cuid())
+  order_id                String    @unique
+  sender_id               String
+  size                    String    @db.VarChar(1)
+  note                    String?   @db.VarChar(200)
+  receiver_name           String?   @db.VarChar(80)
+  receiver_phone          String?   @db.VarChar(32)
+  forbidden_items_ack_at  DateTime
+  retention_expires_at    DateTime
+  receiver_purged_at      DateTime?
+  created_at              DateTime  @default(now())
+
+  order  MerchantOrder @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  sender User          @relation(fields: [sender_id], references: [id], onDelete: Cascade)
+
+  @@index([sender_id, created_at], map: "ppd_sender_created_idx")
+  @@index([retention_expires_at, receiver_purged_at], map: "ppd_retention_idx")
+  @@map("passenger_parcel_details")
 }
 
 model ParcelBatch {

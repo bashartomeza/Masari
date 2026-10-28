@@ -2149,4 +2149,127 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get mapLegendDestination => 'الوصول';
+
+  @override
+  String get sendParcelTitle => 'إرسال طرد';
+
+  @override
+  String get sendParcelEntryBody =>
+      'أرسل طردًا صغيرًا مع سائق يسير أصلًا على مسار معتمد.';
+
+  @override
+  String get sendParcelIntro =>
+      'اختر المسار والمحطتين ثم أخبرنا من سيستلم الطرد. سيحمله سائق متجه في هذا الاتجاه.';
+
+  @override
+  String get sendParcelPickupHint => 'سلّم الطرد للسائق عند هذه المحطة.';
+
+  @override
+  String get parcelSizeSmallHint => 'S - صغير، يكفي لحقيبة';
+
+  @override
+  String get parcelSizeMediumHint => 'M - متوسط، بحجم علبة حذاء تقريبًا';
+
+  @override
+  String get parcelSizeLargeNotAllowed =>
+      'الطرود الكبيرة مخصصة للمتاجر ولا يمكن إرسالها من حساب شخصي.';
+
+  @override
+  String get receiverNameLabel => 'اسم المستلم';
+
+  @override
+  String get receiverPhoneLabel => 'هاتف المستلم';
+
+  @override
+  String get receiverPrivacyNote =>
+      'المستلم لا يحتاج إلى التطبيق. يُستخدم اسمه ورقمه لهذا التوصيل فقط، ولا يظهران لأي مستخدم آخر، ويُمسحان بعد انتهاء المدة.';
+
+  @override
+  String get parcelNoteLabel => 'ملاحظة للسائق (اختياري)';
+
+  @override
+  String get forbiddenItemsAck =>
+      'أقرّ بأن الطرد لا يحتوي على نقود أو أشياء ثمينة أو أدوية أو أسلحة أو مواد قابلة للاشتعال أو ممنوعة أو سريعة التلف.';
+
+  @override
+  String get sendParcelSubmit => 'إرسال الطرد';
+
+  @override
+  String get sendParcelRecorded => 'تم تسجيل طلب الطرد.';
+
+  @override
+  String get sendParcelRecordedBody =>
+      'نبحث عن سائق على هذا المسار. يمكنك الإلغاء ما لم يُعرض الطرد على سائق.';
+
+  @override
+  String get myParcelsTitle => 'طرودي';
+
+  @override
+  String get myParcelsEmpty => 'لم ترسل أي طرد بعد.';
+
+  @override
+  String get parcelTrackSearching => 'جارٍ البحث عن سائق';
+
+  @override
+  String get parcelTrackAssigned => 'تم تعيين سائق';
+
+  @override
+  String get parcelTrackPickedUp => 'تم استلامه منك';
+
+  @override
+  String get parcelTrackInTransit => 'في الطريق';
+
+  @override
+  String get parcelTrackDelivered => 'تم التسليم';
+
+  @override
+  String get parcelTrackCancelled => 'ملغى';
+
+  @override
+  String get parcelTrackFailed => 'تعذّر التوصيل';
+
+  @override
+  String get parcelTrackExpired => 'انتهت المهلة';
+
+  @override
+  String get parcelCancelAction => 'إلغاء الطرد';
+
+  @override
+  String get parcelCancelConfirm =>
+      'هل تريد إلغاء هذا الطرد؟ سيتم مسح بيانات المستلم.';
+
+  @override
+  String get parcelCancelledNotice => 'تم إلغاء الطرد.';
+
+  @override
+  String get parcelCannotCancel =>
+      'عُرض الطرد على سائق بالفعل، لذلك لم يعد الإلغاء ممكنًا.';
+
+  @override
+  String parcelReceiverLine(String name, String phone) {
+    return 'المستلم: $name ($phone)';
+  }
+
+  @override
+  String get parcelReceiverRemoved => 'تم مسح بيانات المستلم.';
+
+  @override
+  String get parcelLimitReached =>
+      'لديك الحد الأقصى من الطرود قيد التوصيل. انتظر انتهاء أحدها أو ألغِ واحدًا.';
+
+  @override
+  String get parcelDailyLimit => 'تم بلوغ حد الطرود اليومي. حاول غدًا.';
+
+  @override
+  String get invalidReceiverPhone => 'أدخل رقم هاتف صحيحًا للمستلم.';
+
+  @override
+  String get receiverNameInvalid => 'أدخل اسم المستلم.';
+
+  @override
+  String get parcelAckRequired =>
+      'أكّد الإقرار الخاص بالمواد الممنوعة للمتابعة.';
+
+  @override
+  String get keepParcel => 'إبقاء الطرد';
 }
