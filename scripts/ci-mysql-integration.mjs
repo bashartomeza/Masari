@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { executable } from "./lib/process.mjs";
@@ -41,6 +42,9 @@ try {
     ["test:integration:public-onboarding", "public onboarding race and privacy smoke", {
       PUBLIC_ONBOARDING_ENABLED: "true",
       ONBOARDING_TEST_LEGAL_FIXTURES_ENABLED: "true",
+      OPEN_DRIVER_MERCHANT_SIGNUP_ENABLED: "true",
+      DRIVER_DOCUMENTS_ENABLED: "true",
+      DRIVER_DOCUMENTS_DIR: resolve(tmpdir(), "masari-ci-public-onboarding-documents"),
       IDEMPOTENCY_PAYLOAD_PEPPER: "ci-only-payload-pepper-at-least-thirty-two-characters"
     }],
     ["test:integration:routes", "route lifecycle and concurrency smoke"],

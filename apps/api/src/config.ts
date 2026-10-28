@@ -99,6 +99,8 @@ const rawSchema = z.object({
   RATE_LIMIT_LOGIN_MAX: z.coerce.number().int().min(1).max(500).optional(),
   INVITATIONS_ENABLED: z.string().optional(),
   PUBLIC_ONBOARDING_ENABLED: z.string().optional(),
+  OPEN_DRIVER_MERCHANT_SIGNUP_ENABLED: z.string().optional(),
+  OPEN_SIGNUP_MAX_STARTS_PER_HOUR: z.coerce.number().int().min(1).max(10_000).default(200),
   DRIVER_DOCUMENTS_ENABLED: z.string().optional(),
   DRIVER_DOCUMENTS_DIR: z.string().min(1).optional(),
   DRIVER_DOCUMENT_RETENTION_DAYS: z.coerce.number().int().min(1).max(3650).default(90),
@@ -214,6 +216,7 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
   const invitationsEnabled = parseBoolean("INVITATIONS_ENABLED", raw.INVITATIONS_ENABLED);
   const driverDocumentsEnabled = parseBoolean("DRIVER_DOCUMENTS_ENABLED", raw.DRIVER_DOCUMENTS_ENABLED);
   const publicOnboardingEnabled = parseBoolean("PUBLIC_ONBOARDING_ENABLED", raw.PUBLIC_ONBOARDING_ENABLED);
+  const openSignupEnabled = parseBoolean("OPEN_DRIVER_MERCHANT_SIGNUP_ENABLED", raw.OPEN_DRIVER_MERCHANT_SIGNUP_ENABLED);
   const testLegalFixturesEnabled = parseBoolean(
     "ONBOARDING_TEST_LEGAL_FIXTURES_ENABLED",
     raw.ONBOARDING_TEST_LEGAL_FIXTURES_ENABLED
@@ -310,6 +313,12 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
   }
   if (publicOnboardingEnabled && productionLike) {
     problems.push("PUBLIC_ONBOARDING_ENABLED cannot be enabled in staging or production without an approved provider");
+  }
+  if (openSignupEnabled && !publicOnboardingEnabled) {
+    problems.push("OPEN_DRIVER_MERCHANT_SIGNUP_ENABLED requires PUBLIC_ONBOARDING_ENABLED");
+  }
+  if (openSignupEnabled && !driverDocumentsEnabled) {
+    problems.push("OPEN_DRIVER_MERCHANT_SIGNUP_ENABLED requires DRIVER_DOCUMENTS_ENABLED so applicants can upload their documents");
   }
   if (publicOnboardingEnabled && !invitationsEnabled) {
     problems.push("PUBLIC_ONBOARDING_ENABLED requires INVITATIONS_ENABLED");
@@ -600,6 +609,8 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
     },
     invitationsEnabled,
     publicOnboardingEnabled,
+    openSignupEnabled,
+    openSignupMaxStartsPerHour: raw.OPEN_SIGNUP_MAX_STARTS_PER_HOUR,
     driverDocuments: driverDocumentsEnabled
       ? { dir: raw.DRIVER_DOCUMENTS_DIR!, retentionDays: raw.DRIVER_DOCUMENT_RETENTION_DAYS }
       : undefined,

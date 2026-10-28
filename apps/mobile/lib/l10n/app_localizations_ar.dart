@@ -809,14 +809,14 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get registerDriverHelp =>
-      'انقل الرحلات والتوصيلات. يتطلب رمز دعوة ومستنداتك وموافقة.';
+      'انقل الرحلات والتوصيلات. ترفع مستنداتك ويوافق المشرف على حسابك.';
 
   @override
   String get registerMerchantTitle => 'صاحب متجر';
 
   @override
   String get registerMerchantHelp =>
-      'أرسل طلبات من متجرك. يتطلب رمز دعوة وموافقة.';
+      'أرسل طلبات من متجرك. ترفع مستنداتك ويوافق المشرف على حسابك.';
 
   @override
   String get invitationCode => 'رمز الدعوة';
@@ -1297,35 +1297,6 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get perPassenger => 'للراكب';
-
-  @override
-  String get fareEstimatedTitle => 'الأجرة التقديرية';
-
-  @override
-  String get fareBookedTitle => 'الأجرة التقديرية عند الطلب';
-
-  @override
-  String get fareDisclaimer =>
-      'تقديرية، وتُدفع مباشرة إلى السائق. لا تتم معالجة أي مدفوعات داخل التطبيق.';
-
-  @override
-  String get fareNotSet => 'لم تُحدَّد أجرة تقديرية لهذا المسار بعد.';
-
-  @override
-  String get farePerSeat => 'للمقعد الواحد';
-
-  @override
-  String fareSeatsLine(int count) {
-    return 'المقاعد × $count';
-  }
-
-  @override
-  String fareParcelLine(String size) {
-    return 'طرد $size';
-  }
-
-  @override
-  String get fareTotal => 'الإجمالي';
 
   @override
   String get departure => 'المغادرة';
@@ -2105,13 +2076,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get notifIncidentResolvedBody => 'تمت معالجة بلاغك.';
 
   @override
-  String get notifDriverApproachingTitle => 'سائقك يقترب';
-
-  @override
-  String get notifDriverApproachingBody =>
-      'سائقك قريب من نقطة الانطلاق. يرجى الاستعداد.';
-
-  @override
   String get verificationDocuments => 'مستندات التوثيق';
 
   @override
@@ -2185,6 +2149,64 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get mapLegendDestination => 'الوصول';
+
+  @override
+  String get applicationDocumentsRequiredTitle => 'ارفع مستنداتك';
+
+  @override
+  String get applicationDocumentsRequiredBody =>
+      'تم إنشاء حسابك لكنه ليس قيد المراجعة بعد. ارفع كل المستندات المطلوبة ثم أرسل طلبك. تستغرق المراجعة عادةً حتى 24 ساعة.';
+
+  @override
+  String documentsStillNeeded(String documents) {
+    return 'ما زال مطلوباً: $documents';
+  }
+
+  @override
+  String get submitApplication => 'إرسال للمراجعة';
+
+  @override
+  String get documentsRequiredError =>
+      'ارفع كل المستندات المطلوبة قبل إرسال طلبك.';
+
+  @override
+  String get invitationCodeOptional => 'رمز الدعوة (اختياري)';
+
+  @override
+  String get fareEstimatedTitle => 'الأجرة التقديرية';
+
+  @override
+  String get fareBookedTitle => 'الأجرة التقديرية عند الطلب';
+
+  @override
+  String get fareDisclaimer =>
+      'تقديرية، وتُدفع مباشرة إلى السائق. لا تتم معالجة أي مدفوعات داخل التطبيق.';
+
+  @override
+  String get fareNotSet => 'لم تُحدَّد أجرة تقديرية لهذا المسار بعد.';
+
+  @override
+  String get farePerSeat => 'للمقعد الواحد';
+
+  @override
+  String fareSeatsLine(int count) {
+    return 'المقاعد × $count';
+  }
+
+  @override
+  String fareParcelLine(String size) {
+    return 'طرد $size';
+  }
+
+  @override
+  String get fareTotal => 'الإجمالي';
+
+  @override
+  String get notifDriverApproachingTitle => 'سائقك يقترب';
+
+  @override
+  String get notifDriverApproachingBody =>
+      'سائقك قريب من نقطة الانطلاق. يرجى الاستعداد.';
 
   @override
   String get ratingPromptTitle => 'كيف كانت رحلتك؟';

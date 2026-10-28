@@ -22,7 +22,7 @@ describe("public onboarding boundary", () => {
   it("keeps safe config registered and every mutation absent when disabled", async () => {
     const app = createApp(disabledConfig());
     const config = await request(app).get("/api/v1/onboarding/config").expect(200);
-    expect(config.body).toEqual({ enabled: false, registration_roles: [], request_id: expect.any(String) });
+    expect(config.body).toEqual({ enabled: false, registration_roles: [], open_registration_roles: [], request_id: expect.any(String) });
     expect(JSON.stringify(config.body)).not.toMatch(/provider|pepper|environment/);
     const consent = await request(app).get("/api/v1/onboarding/consents?locale=ar").expect(404);
     expect(consent.body).toEqual({ error: "not_found", request_id: expect.any(String) });

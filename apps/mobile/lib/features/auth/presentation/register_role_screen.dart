@@ -13,8 +13,9 @@ import '../../onboarding/domain/onboarding_models.dart';
 /// The first step of registration: who is signing up.
 ///
 /// A normal user continues to the email / Google sign-up and is active at once.
-/// A driver or shop owner continues to the invitation, phone-verification and
-/// approval flow with that role already chosen.
+/// A driver or shop owner continues to phone verification (the invitation code is
+/// optional when open registration is on, required otherwise), document upload and
+/// admin approval, with that role already chosen.
 class RegisterRoleScreen extends ConsumerStatefulWidget {
   const RegisterRoleScreen({super.key});
 

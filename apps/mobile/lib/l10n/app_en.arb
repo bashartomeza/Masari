@@ -263,9 +263,9 @@
   "registerPassengerTitle": "Normal user",
   "registerPassengerHelp": "Request trips and deliveries. Your account is ready right after sign-up.",
   "registerDriverTitle": "Driver",
-  "registerDriverHelp": "Carry trips and deliveries. Needs an invitation code, your documents and approval.",
+  "registerDriverHelp": "Carry trips and deliveries. You upload your documents and an admin approves your account.",
   "registerMerchantTitle": "Shop owner",
-  "registerMerchantHelp": "Send orders from your shop. Needs an invitation code and approval.",
+  "registerMerchantHelp": "Send orders from your shop. You upload your documents and an admin approves your account.",
   "invitationCode": "Invitation code",
   "phoneNumber": "Phone number",
   "sendVerificationCode": "Send verification code",
@@ -430,14 +430,6 @@
   "availableTripsTo": "Available trips to {destination}",
   "searchForTrip": "Search for a trip",
   "perPassenger": "per passenger",
-  "fareEstimatedTitle": "Estimated fare",
-  "fareBookedTitle": "Estimated fare when requested",
-  "fareDisclaimer": "Estimated and paid directly to the driver. No payments are processed in the app.",
-  "fareNotSet": "No estimated fare has been set for this route yet.",
-  "farePerSeat": "Per seat",
-  "fareSeatsLine": "Seats × {count}",
-  "fareParcelLine": "Parcel {size}",
-  "fareTotal": "Total",
   "departure": "Departure",
   "bookSeat": "Book",
   "noAvailableTrips": "No available trips right now",
@@ -726,8 +718,6 @@
   "notifIncidentUpdatedTitle": "Update on your report",
   "notifIncidentReviewingBody": "Your report is under review.",
   "notifIncidentResolvedBody": "Your report has been resolved.",
-  "notifDriverApproachingTitle": "Your driver is approaching",
-  "notifDriverApproachingBody": "Your driver is near your pickup point. Please get ready.",
   "verificationDocuments": "Verification documents",
   "verificationDocumentsHint": "To get approved, upload clear photos or PDFs of your driving licence, your vehicle registration and your national ID. Files are stored on our server and only the review team can open them.",
   "documentKind": "Document type",
@@ -745,21 +735,31 @@
   "acceptanceRateValue": "{percent}%",
   "@acceptanceRateValue": {
     "placeholders": {
-      "percent": { "type": "int" }
+      "percent": {
+        "type": "int"
+      }
     }
   },
   "acceptanceRateDetail": "{accepted} of {responded} offers you answered were accepted. Offers that expired unanswered are not counted.",
   "@acceptanceRateDetail": {
     "placeholders": {
-      "accepted": { "type": "int" },
-      "responded": { "type": "int" }
+      "accepted": {
+        "type": "int"
+      },
+      "responded": {
+        "type": "int"
+      }
     }
   },
   "acceptanceRateNeedMore": "Your rate appears after {needed} answered offers ({responded} so far).",
   "@acceptanceRateNeedMore": {
     "placeholders": {
-      "needed": { "type": "int" },
-      "responded": { "type": "int" }
+      "needed": {
+        "type": "int"
+      },
+      "responded": {
+        "type": "int"
+      }
     }
   },
   "emailOrPhone": "Email or phone number",
@@ -767,6 +767,29 @@
   "emailOrPhoneInvalid": "Enter a valid email, or a phone number starting with + and the country code.",
   "mapLegendStart": "Start",
   "mapLegendDestination": "Destination",
+  "applicationDocumentsRequiredTitle": "Upload your documents",
+  "applicationDocumentsRequiredBody": "Your account is created but is not under review yet. Upload every required document, then send your application. Review usually takes up to 24 hours.",
+  "documentsStillNeeded": "Still needed: {documents}",
+  "@documentsStillNeeded": {
+    "placeholders": {
+      "documents": {
+        "type": "String"
+      }
+    }
+  },
+  "submitApplication": "Send for review",
+  "documentsRequiredError": "Upload all the required documents before sending your application.",
+  "invitationCodeOptional": "Invitation code (optional)",
+  "fareEstimatedTitle": "Estimated fare",
+  "fareBookedTitle": "Estimated fare when requested",
+  "fareDisclaimer": "Estimated and paid directly to the driver. No payments are processed in the app.",
+  "fareNotSet": "No estimated fare has been set for this route yet.",
+  "farePerSeat": "Per seat",
+  "fareSeatsLine": "Seats × {count}",
+  "fareParcelLine": "Parcel {size}",
+  "fareTotal": "Total",
+  "notifDriverApproachingTitle": "Your driver is approaching",
+  "notifDriverApproachingBody": "Your driver is near your pickup point. Please get ready.",
   "ratingPromptTitle": "How was your trip?",
   "ratingPromptBody": "Rate your driver from 1 to 5 stars. Your rating is private: the driver never sees it or who gave it.",
   "ratingStarLabel": "{count} stars",

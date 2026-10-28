@@ -806,14 +806,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get registerDriverHelp =>
-      'Carry trips and deliveries. Needs an invitation code, your documents and approval.';
+      'Carry trips and deliveries. You upload your documents and an admin approves your account.';
 
   @override
   String get registerMerchantTitle => 'Shop owner';
 
   @override
   String get registerMerchantHelp =>
-      'Send orders from your shop. Needs an invitation code and approval.';
+      'Send orders from your shop. You upload your documents and an admin approves your account.';
 
   @override
   String get invitationCode => 'Invitation code';
@@ -1302,35 +1302,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get perPassenger => 'per passenger';
-
-  @override
-  String get fareEstimatedTitle => 'Estimated fare';
-
-  @override
-  String get fareBookedTitle => 'Estimated fare when requested';
-
-  @override
-  String get fareDisclaimer =>
-      'Estimated and paid directly to the driver. No payments are processed in the app.';
-
-  @override
-  String get fareNotSet => 'No estimated fare has been set for this route yet.';
-
-  @override
-  String get farePerSeat => 'Per seat';
-
-  @override
-  String fareSeatsLine(int count) {
-    return 'Seats × $count';
-  }
-
-  @override
-  String fareParcelLine(String size) {
-    return 'Parcel $size';
-  }
-
-  @override
-  String get fareTotal => 'Total';
 
   @override
   String get departure => 'Departure';
@@ -2119,13 +2090,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get notifIncidentResolvedBody => 'Your report has been resolved.';
 
   @override
-  String get notifDriverApproachingTitle => 'Your driver is approaching';
-
-  @override
-  String get notifDriverApproachingBody =>
-      'Your driver is near your pickup point. Please get ready.';
-
-  @override
   String get verificationDocuments => 'Verification documents';
 
   @override
@@ -2200,6 +2164,64 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mapLegendDestination => 'Destination';
+
+  @override
+  String get applicationDocumentsRequiredTitle => 'Upload your documents';
+
+  @override
+  String get applicationDocumentsRequiredBody =>
+      'Your account is created but is not under review yet. Upload every required document, then send your application. Review usually takes up to 24 hours.';
+
+  @override
+  String documentsStillNeeded(String documents) {
+    return 'Still needed: $documents';
+  }
+
+  @override
+  String get submitApplication => 'Send for review';
+
+  @override
+  String get documentsRequiredError =>
+      'Upload all the required documents before sending your application.';
+
+  @override
+  String get invitationCodeOptional => 'Invitation code (optional)';
+
+  @override
+  String get fareEstimatedTitle => 'Estimated fare';
+
+  @override
+  String get fareBookedTitle => 'Estimated fare when requested';
+
+  @override
+  String get fareDisclaimer =>
+      'Estimated and paid directly to the driver. No payments are processed in the app.';
+
+  @override
+  String get fareNotSet => 'No estimated fare has been set for this route yet.';
+
+  @override
+  String get farePerSeat => 'Per seat';
+
+  @override
+  String fareSeatsLine(int count) {
+    return 'Seats × $count';
+  }
+
+  @override
+  String fareParcelLine(String size) {
+    return 'Parcel $size';
+  }
+
+  @override
+  String get fareTotal => 'Total';
+
+  @override
+  String get notifDriverApproachingTitle => 'Your driver is approaching';
+
+  @override
+  String get notifDriverApproachingBody =>
+      'Your driver is near your pickup point. Please get ready.';
 
   @override
   String get ratingPromptTitle => 'How was your trip?';

@@ -336,8 +336,10 @@ export type UserRoleContextDriver = {
   driver_profile_exists: boolean;
   driver_profile_verified: boolean;
   driver_verification_status: DriverVerificationStatus | "none";
+  /** False while an open-signup applicant has not sent the required documents for review. */
+  application_submitted?: boolean;
 };
-export type UserRoleContextMerchant = { kind: "merchant"; merchant_approval_connected: boolean };
+export type UserRoleContextMerchant = { kind: "merchant"; merchant_approval_connected: boolean; application_submitted?: boolean };
 export type UserRoleContextPassenger = { kind: "passenger" };
 export type UserRoleContextAdmin = { kind: "admin" };
 export type UserRoleContext = UserRoleContextDriver | UserRoleContextMerchant | UserRoleContextPassenger | UserRoleContextAdmin;
