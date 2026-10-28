@@ -28,10 +28,12 @@ export const emailCompleteBase = z.strictObject({ registration_token: registrati
   consents: z.array(consentInput).length(3), adult_self_attestation: z.literal(true), device_name: z.string().trim().min(1).max(120).optional() });
 export const emailCompleteSchema = emailCompleteBase.refine((v) => (v.email_verification_token === undefined) !== (v.email_verification_code === undefined));
 export const emailProofStartSchema = z.strictObject({ email: canonicalEmail, locale });
-export const emailProofConfirmSchema = z.strictObject({ action_token: actionToken.optional(), code: emailCode.optional(), registration_token: registrationToken.optional() })
-  .refine((v) => v.code === undefined ? v.action_token !== undefined : v.action_token === undefined && v.registration_token !== undefined);
-export const passwordResetSchema = z.strictObject({ action_token: actionToken, password: newPassword });
-export const passwordSetSchema = z.strictObject({ password: newPassword, current_password: z.string().min(1).max(200).optional(), reauthentication_token: actionToken.optional() });
+// The emailed proof is always the 6-digit code. It belongs either to a pending registration (identified by its
+// sealed registration_token) or to an existing account (identified by its email), never both.
+export const emailProofConfirmSchema = z.strictObject({ code: emailCode, registration_token: registrationToken.optional(), email: canonicalEmail.optional() })
+  .refine((v) => (v.registration_token === undefined) !== (v.email === undefined));
+export const passwordResetSchema = z.strictObject({ email: canonicalEmail, code: emailCode, password: newPassword });
+export const passwordSetSchema = z.strictObject({ password: newPassword, current_password: z.string().min(1).max(200).optional(), reauthentication_code: emailCode.optional() });
 const envelopeSchema = z.strictObject({ name: z.string(), email: canonicalEmail, passwordHash: z.string().regex(/^\$2[aby]\$\d\d\$.{53}$/), expires: z.number(), nonce: z.string() });
 
 // The pre-consent identity remains only in a short-lived authenticated-encrypted
@@ -83,8 +85,8 @@ export class EmailAuthService {
     catch (error) { if (error instanceof AuthActionError) throw new HttpError(400, "auth_action_invalid"); throw error; }
   }
 
-  private async checkCode(registrationToken: string, code: string) {
-    try { return await checkAuthActionCode(this.db, { code, subject: registrationToken, purpose: "email_verification", key: this.key() }); }
+  private async checkCode(subject: string, code: string, purpose: "email_verification" | "password_reset" | "password_set" = "email_verification") {
+    try { return await checkAuthActionCode(this.db, { code, subject, purpose, key: this.key() }); }
     catch (error) { if (error instanceof AuthActionError) throw new HttpError(400, "auth_action_invalid"); throw error; }
   }
   private async consumeChecked(tx: Prisma.TransactionClient, action: Awaited<ReturnType<typeof checkAuthActionCode>>) {
@@ -141,12 +143,12 @@ export class EmailAuthService {
     const key = this.key(); const sender = this.sender();
     const user = await this.db.user.findUnique({ where: { email: input.email } });
     if (user?.account_status === "active" && (purpose !== "password_reset" || (user.password_hash && user.email_verified_at))) {
-      const proof = await issueAuthAction(this.db, { purpose, key, userId: user.id, subject: userSubject(user) });
+      const proof = await issueAuthAction(this.db, { purpose, key, userId: user.id, subject: userSubject(user), withCode: true });
       // Provider latency is independent of the public response. Only an action
       // digest is persisted; the short-lived delivery closure holds the proof.
       // A failed attempt revokes only its own action, preserving concurrent retries.
       void Promise.resolve().then(() => sender.send({
-        to: input.email, locale: input.locale, purpose, actionToken: proof.rawToken, expiresAt: proof.expiresAt
+        to: input.email, locale: input.locale, purpose, actionToken: proof.code!, expiresAt: proof.expiresAt
       })).catch(async () => {
         log?.warn({ event: "auth_email_delivery_failed", purpose }, "Authentication email delivery failed");
         try {
@@ -161,9 +163,15 @@ export class EmailAuthService {
 
   async verify(input: z.infer<typeof emailProofConfirmSchema>) {
     if (input.registration_token) open(input.registration_token, this.key());
-    const checked = input.code === undefined ? undefined : await this.checkCode(input.registration_token!, input.code);
+    let account: Awaited<ReturnType<PrismaClient["user"]["findUnique"]>> = null;
+    if (input.email) {
+      account = await this.db.user.findUnique({ where: { email: input.email } });
+      if (!account) throw new HttpError(400, "auth_action_invalid");
+    }
+    // The wrong-guess counter is spent before the transaction so a rollback cannot hand it back.
+    const checked = await this.checkCode(input.registration_token ?? userSubject(account!), input.code);
     return this.db.$transaction(async (tx) => {
-      const proof = checked ? await this.consumeChecked(tx, checked) : await this.consume(tx, input.action_token!, "email_verification");
+      const proof = await this.consumeChecked(tx, checked);
       if (input.registration_token) {
         if (proof.user_id || !subjectMatches(proof.subject_digest, input.registration_token, this.key())) throw new HttpError(400, "auth_action_invalid");
         const next = await issueAuthAction(tx, { purpose: "email_verification", key: this.key(), subject: input.registration_token });
@@ -179,9 +187,14 @@ export class EmailAuthService {
 
   async reset(input: z.infer<typeof passwordResetSchema>) {
     const passwordHash = await bcrypt.hash(input.password, 12);
+    // An unknown email fails exactly like a wrong code. The code is checked against the newest open reset
+    // action for this user's subject, and that check spends a guess before the transaction starts.
+    const account = await this.db.user.findUnique({ where: { email: input.email } });
+    if (!account) throw new HttpError(400, "auth_action_invalid");
+    const checked = await this.checkCode(userSubject(account), input.code, "password_reset");
     return this.db.$transaction(async (tx) => {
-      const proof = await this.consume(tx, input.action_token, "password_reset");
-      if (!proof.user_id) throw new HttpError(400, "auth_action_invalid");
+      const proof = await this.consumeChecked(tx, checked);
+      if (!proof.user_id || proof.user_id !== account.id) throw new HttpError(400, "auth_action_invalid");
       const user = await tx.user.findUnique({ where: { id: proof.user_id } });
       if (!user || user.account_status !== "active" || !user.email_verified_at || !subjectMatches(proof.subject_digest, userSubject(user), this.key())) throw new HttpError(400, "auth_action_invalid");
       await this.changePassword(tx, user.id, passwordHash);
@@ -193,22 +206,30 @@ export class EmailAuthService {
     const key = this.key(); const sender = this.sender();
     const user = await this.db.user.findUnique({ where: { id: userId } });
     if (!user?.email || !user.email_verified_at || user.account_status !== "active") throw new HttpError(403, "reauthentication_required");
-    const proof = await issueAuthAction(this.db, { purpose: "password_set", key, userId, subject: userSubject(user) });
-    try { await sender.send({ to: user.email, locale: inputLocale, purpose: "password_set", actionToken: proof.rawToken, expiresAt: proof.expiresAt }); }
+    const proof = await issueAuthAction(this.db, { purpose: "password_set", key, userId, subject: userSubject(user), withCode: true });
+    try { await sender.send({ to: user.email, locale: inputLocale, purpose: "password_set", actionToken: proof.code!, expiresAt: proof.expiresAt }); }
     catch { await revokeAuthActions(this.db, { userId, purpose: "password_set", reason: "delivery_failed" }); throw new HttpError(503, "email_auth_unavailable"); }
     return { ok: true };
   }
 
   async setPassword(userId: string, securityVersion: number, input: z.infer<typeof passwordSetSchema>) {
     const passwordHash = await bcrypt.hash(input.password, 12);
+    // For a passwordless account the emailed code is checked (spending a guess) before the transaction.
+    let checked: Awaited<ReturnType<typeof checkAuthActionCode>> | undefined;
+    if (input.reauthentication_code !== undefined) {
+      const current = await this.db.user.findUnique({ where: { id: userId } });
+      if (current && !current.password_hash && current.account_status === "active" && current.email_verified_at && current.security_version === securityVersion) {
+        checked = await this.checkCode(userSubject(current), input.reauthentication_code, "password_set");
+      }
+    }
     return this.db.$transaction(async (tx) => {
       const user = await tx.user.findUnique({ where: { id: userId } });
       if (!user || user.account_status !== "active" || !user.email_verified_at || user.security_version !== securityVersion) throw new HttpError(403, "reauthentication_required");
       if (user.password_hash) {
         if (!input.current_password || !await bcrypt.compare(input.current_password, user.password_hash)) throw new HttpError(403, "reauthentication_required");
       } else {
-        if (!input.reauthentication_token) throw new HttpError(403, "reauthentication_required");
-        const proof = await this.consume(tx, input.reauthentication_token, "password_set");
+        if (!checked) throw new HttpError(403, "reauthentication_required");
+        const proof = await this.consumeChecked(tx, checked);
         if (proof.user_id !== user.id || !subjectMatches(proof.subject_digest, userSubject(user), this.key())) throw new HttpError(403, "reauthentication_required");
       }
       await this.changePassword(tx, user.id, passwordHash);
