@@ -401,6 +401,7 @@ model User {
 
   driver_profile                   DriverProfile?
   driver_verification              DriverVerification?  @relation("DriverVerificationApplicant")
+  merchant_application_documents   MerchantApplicationDocument[]
   driver_verification_reviews      DriverVerification[]  @relation("DriverVerificationReviewer")
   passenger_requests               PassengerRequest[]
   merchant_orders                  MerchantOrder[]
@@ -1597,4 +1598,22 @@ model DriverVerificationDocument {
 
   @@index([verification_id, revision, created_at], map: "dvd_verification_revision_idx")
   @@map("driver_verification_documents")
+}
+
+/// Documents a shop owner uploads while the account waits for Admin review. The
+/// file bytes live on server storage under `storage_key`, never in the database.
+model MerchantApplicationDocument {
+  id          String   @id @default(cuid())
+  user_id     String
+  kind        String   @db.VarChar(30)
+  mime_type   String   @db.VarChar(40)
+  size_bytes  Int
+  sha256      String   @db.VarChar(64)
+  storage_key String   @unique @db.VarChar(64)
+  created_at  DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, created_at], map: "mad_user_created_idx")
+  @@map("merchant_application_documents")
 }

@@ -317,6 +317,21 @@ await check("C13,A10", "merchant signs up (pending); rejection needs a reason an
   must(r.done.account_status === "pending", `status ${r.done.account_status}`);
   const users = await http("/admin/users?role=merchant&account_status=pending", { token: adminToken(), expect: 200 });
   const m = users.json.users.find((u) => u.phone === phones.merchant);
+  // Shop papers: upload, wrong kind refused, admin lists and downloads.
+  const shopToken = `Onboarding ${r.done.onboarding_status_token}`;
+  const shopUpload = (kind, bytes, expect) => http(`/onboarding/merchant-documents?kind=${kind}`, { method: "POST", token: shopToken, raw: bytes, headers: { "content-type": "application/octet-stream" }, expect });
+  await shopUpload("commercial_register", jpeg, 201);
+  await shopUpload("shop_photo", pdf, 201);
+  await shopUpload("driver_licence", jpeg, 400);
+  await shopUpload("shop_photo", Buffer.from("not a photo"), 415);
+  await http("/onboarding/driver-documents", { token: shopToken, expect: 403 });
+  const shopList = await http("/onboarding/merchant-documents", { token: shopToken, expect: 200 });
+  must(shopList.json.documents.length === 2, `shop owner sees ${shopList.json.documents.length} documents`);
+  const adminList = await http(`/admin/merchant-approvals/${m.id}/documents`, { token: adminToken(), expect: 200 });
+  must(adminList.json.documents.length === 2, `admin sees ${adminList.json.documents.length} documents`);
+  const shopDownload = await http(`/admin/merchant-approvals/${m.id}/documents/${adminList.json.documents[0].id}`, { token: adminToken(), expect: 200 });
+  must(shopDownload.buffer.equals(jpeg), "downloaded shop bytes differ");
+  await http(`/admin/merchant-approvals/${m.id}/documents`, { token: tokens.passenger, expect: 403 });
   await http(`/admin/merchant-approvals/${m.id}/reject`, { method: "POST", token: adminToken(), body: {}, expect: 400 });
   await http(`/admin/merchant-approvals/${m.id}/reject`, { method: "POST", token: adminToken(), body: { reason: "QA rejection" }, expect: 200 });
   const detail = await http(`/admin/users/${m.id}`, { token: adminToken(), expect: 200 });

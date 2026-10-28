@@ -66,6 +66,25 @@ void main() {
     );
   });
 
+  testWidgets('a shop owner sees shop papers and uses the shop endpoints', (
+    tester,
+  ) async {
+    final repository = _FakeRepository();
+    await _pump(
+      tester,
+      repository,
+      pick: () async => [0xff, 0xd8, 0xff, 1],
+      merchant: true,
+    );
+
+    expect(find.textContaining('commercial register'), findsWidgets);
+    await tester.tap(find.byKey(const ValueKey('driverDocumentAdd')));
+    await tester.pumpAndSettle();
+
+    expect(repository.uploads, [('commercial_register', 4)]);
+    expect(repository.merchantCalls.toSet(), {true});
+  });
+
   testWidgets('stays hidden when the server has uploads switched off', (
     tester,
   ) async {
@@ -79,6 +98,7 @@ Future<void> _pump(
   WidgetTester tester,
   _FakeRepository repository, {
   required Future<List<int>?> Function() pick,
+  bool merchant = false,
 }) async {
   tester.view.physicalSize = const Size(1000, 1800);
   tester.view.devicePixelRatio = 1;
@@ -96,7 +116,7 @@ Future<void> _pump(
         supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
           body: SingleChildScrollView(
-            child: DriverDocumentsCard(pickFile: pick),
+            child: DriverDocumentsCard(merchant: merchant, pickFile: pick),
           ),
         ),
       ),
@@ -121,6 +141,7 @@ class _FakeRepository extends OnboardingRepository {
   int? listStatus;
   int? uploadStatus;
   final tokens = <String>[];
+  final merchantCalls = <bool>[];
   final uploads = <(String, int)>[];
   final deleted = <String>[];
   final _documents = <DriverDocument>[
@@ -128,8 +149,12 @@ class _FakeRepository extends OnboardingRepository {
   ];
 
   @override
-  Future<DriverDocumentList> driverDocuments(String onboardingToken) async {
+  Future<DriverDocumentList> driverDocuments(
+    String onboardingToken, {
+    bool merchant = false,
+  }) async {
     tokens.add(onboardingToken);
+    merchantCalls.add(merchant);
     if (listStatus != null) {
       throw ApiException(
         ApiErrorType.unknown,
@@ -149,8 +174,10 @@ class _FakeRepository extends OnboardingRepository {
     String onboardingToken, {
     required String kind,
     required List<int> bytes,
+    bool merchant = false,
   }) async {
     tokens.add(onboardingToken);
+    merchantCalls.add(merchant);
     if (uploadStatus != null) {
       throw ApiException(
         ApiErrorType.validation,
@@ -169,7 +196,11 @@ class _FakeRepository extends OnboardingRepository {
   }
 
   @override
-  Future<void> deleteDriverDocument(String onboardingToken, String id) async {
+  Future<void> deleteDriverDocument(
+    String onboardingToken,
+    String id, {
+    bool merchant = false,
+  }) async {
     tokens.add(onboardingToken);
     deleted.add(id);
     _documents.removeWhere((document) => document.id == id);

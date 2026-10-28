@@ -13,7 +13,14 @@ import '../domain/onboarding_models.dart';
 /// Lets a driver whose application is under review add the documents the
 /// reviewer asks for. Shows nothing when the server has uploads switched off.
 class DriverDocumentsCard extends ConsumerStatefulWidget {
-  const DriverDocumentsCard({super.key, this.pickFile = _pickWithFilePicker});
+  const DriverDocumentsCard({
+    super.key,
+    this.merchant = false,
+    this.pickFile = _pickWithFilePicker,
+  });
+
+  /// A shop owner uploads different papers than a driver.
+  final bool merchant;
 
   /// Returns the chosen file's bytes, or null when the person cancelled.
   final Future<List<int>?> Function() pickFile;
@@ -36,7 +43,9 @@ class _DriverDocumentsCardState extends ConsumerState<DriverDocumentsCard> {
   bool _unavailable = false;
   bool _busy = false;
   String? _error;
-  String _kind = driverDocumentKinds.first;
+  late String _kind = widget.merchant
+      ? merchantDocumentKinds.first
+      : driverDocumentKinds.first;
 
   String? get _token =>
       ref.read(onboardingControllerProvider.notifier).pendingStatusToken;
@@ -56,7 +65,7 @@ class _DriverDocumentsCardState extends ConsumerState<DriverDocumentsCard> {
     try {
       final list = await ref
           .read(onboardingRepositoryProvider)
-          .driverDocuments(token);
+          .driverDocuments(token, merchant: widget.merchant);
       if (mounted) setState(() => _list = list);
     } on ApiException catch (error) {
       if (!mounted) return;
@@ -86,7 +95,12 @@ class _DriverDocumentsCardState extends ConsumerState<DriverDocumentsCard> {
       }
       await ref
           .read(onboardingRepositoryProvider)
-          .uploadDriverDocument(token, kind: _kind, bytes: bytes);
+          .uploadDriverDocument(
+            token,
+            kind: _kind,
+            bytes: bytes,
+            merchant: widget.merchant,
+          );
       await _load();
     } on ApiException catch (error) {
       if (!mounted) return;
@@ -113,7 +127,7 @@ class _DriverDocumentsCardState extends ConsumerState<DriverDocumentsCard> {
     try {
       await ref
           .read(onboardingRepositoryProvider)
-          .deleteDriverDocument(token, document.id);
+          .deleteDriverDocument(token, document.id, merchant: widget.merchant);
       await _load();
     } on ApiException {
       if (mounted) setState(() => _error = 'request_failed');
@@ -124,6 +138,8 @@ class _DriverDocumentsCardState extends ConsumerState<DriverDocumentsCard> {
 
   String _kindLabel(AppLocalizations l10n, String kind) => switch (kind) {
     'driver_licence' => l10n.documentKindDriverLicence,
+    'commercial_register' => l10n.documentKindCommercialRegister,
+    'shop_photo' => l10n.documentKindShopPhoto,
     'vehicle_registration' => l10n.documentKindVehicleRegistration,
     'national_id' => l10n.documentKindNationalId,
     'insurance' => l10n.documentKindInsurance,
@@ -152,7 +168,11 @@ class _DriverDocumentsCardState extends ConsumerState<DriverDocumentsCard> {
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: AppTokens.spaceSmall),
-          Text(l10n.verificationDocumentsHint),
+          Text(
+            widget.merchant
+                ? l10n.merchantDocumentsHint
+                : l10n.verificationDocumentsHint,
+          ),
           const SizedBox(height: AppTokens.spaceMedium),
           if (list == null && _error == null)
             const Center(child: CircularProgressIndicator())
@@ -175,7 +195,10 @@ class _DriverDocumentsCardState extends ConsumerState<DriverDocumentsCard> {
                 initialValue: _kind,
                 decoration: InputDecoration(labelText: l10n.documentKind),
                 items: [
-                  for (final kind in driverDocumentKinds)
+                  for (final kind
+                      in widget.merchant
+                          ? merchantDocumentKinds
+                          : driverDocumentKinds)
                     DropdownMenuItem(
                       value: kind,
                       child: Text(_kindLabel(l10n, kind)),

@@ -1757,8 +1757,26 @@ abstract class AppLocalizations {
   /// No description provided for @pendingReviewBody.
   ///
   /// In ar, this message translates to:
-  /// **'تم إنشاء حسابك وهو قيد المراجعة. ستتمكن من تسجيل الدخول بعد الموافقة على الحساب.'**
+  /// **'تم إنشاء حسابك وهو الآن قيد الانتظار. سيراجعه المشرف وغالباً يستغرق ذلك حتى 24 ساعة. يمكنك تسجيل الدخول بعد الموافقة عليه.'**
   String get pendingReviewBody;
+
+  /// No description provided for @merchantDocumentsHint.
+  ///
+  /// In ar, this message translates to:
+  /// **'للحصول على الموافقة، ارفع صوراً واضحة أو ملفات PDF للسجل التجاري (أو رخصة المتجر) والهوية الوطنية وصورة للمتجر. تُحفظ الملفات على خادمنا ولا يفتحها إلا فريق المراجعة.'**
+  String get merchantDocumentsHint;
+
+  /// No description provided for @documentKindCommercialRegister.
+  ///
+  /// In ar, this message translates to:
+  /// **'السجل التجاري'**
+  String get documentKindCommercialRegister;
+
+  /// No description provided for @documentKindShopPhoto.
+  ///
+  /// In ar, this message translates to:
+  /// **'صورة المتجر'**
+  String get documentKindShopPhoto;
 
   /// No description provided for @checkApplicationStatus.
   ///
@@ -3899,7 +3917,7 @@ abstract class AppLocalizations {
   /// No description provided for @verificationDocumentsHint.
   ///
   /// In ar, this message translates to:
-  /// **'أضف صورًا واضحة أو ملفات PDF للمستندات التي يحتاجها المراجع، مثل رخصة القيادة وترخيص المركبة. تُحفظ الملفات على خادمنا ولا يمكن فتحها إلا من فريق المراجعة.'**
+  /// **'للحصول على الموافقة، ارفع صوراً واضحة أو ملفات PDF لرخصة القيادة وتسجيل المركبة والهوية الوطنية. تُحفظ الملفات على خادمنا ولا يفتحها إلا فريق المراجعة.'**
   String get verificationDocumentsHint;
 
   /// No description provided for @documentKind.

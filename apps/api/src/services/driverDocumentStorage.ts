@@ -4,6 +4,7 @@ import { join } from "node:path";
 
 export const DOCUMENT_KINDS = ["driver_licence", "vehicle_registration", "national_id", "insurance", "other"] as const;
 export type DocumentKind = (typeof DOCUMENT_KINDS)[number];
+export const MERCHANT_DOCUMENT_KINDS = ["commercial_register", "national_id", "shop_photo", "other"] as const;
 export const MAX_DOCUMENT_BYTES = 5 * 1024 * 1024;
 /** Per-revision cap, so one application cannot fill the disk. */
 export const MAX_DOCUMENTS_PER_REVISION = 6;

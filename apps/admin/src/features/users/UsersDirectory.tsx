@@ -5,6 +5,7 @@ import { AlertItem, BentoGrid, Button, Card, CardHeader, DataTable, EmptyState, 
 
 type Props = { api: ApiClient; token: string; admin: User | null; search: string; canAct?: boolean };
 export type DemoFilter = "all" | "demo" | "real";
+type MerchantDocKind = "commercial_register" | "national_id" | "shop_photo" | "other";
 type UserStatusSnapshot = UserListItem | UserDetail;
 export type UserStatusIntent = { user: UserStatusSnapshot; nextStatus: AccountStatus; expectedStatus: UserAccountStatus };
 
@@ -77,6 +78,33 @@ export function UsersDirectory({ api, token, admin, search, canAct = true }: Pro
   const [merchantReason, setMerchantReason] = useState("");
   const [merchantBusy, setMerchantBusy] = useState(false);
   const [merchantError, setMerchantError] = useState<string | null>(null);
+  const [merchantDocs, setMerchantDocs] = useState<Array<{ id: string; kind: string; size_bytes: number }> | null>(null);
+  const merchantDecisionUserId = merchantDecision?.user.id;
+  useEffect(() => {
+    setMerchantDocs(null);
+    if (!merchantDecisionUserId || !token) return;
+    let live = true;
+    api.merchantDocuments(token, merchantDecisionUserId)
+      .then((result) => { if (live) setMerchantDocs(result.documents); })
+      .catch(() => { if (live) setMerchantDocs([]); });
+    return () => { live = false; };
+  }, [api, token, merchantDecisionUserId]);
+
+  async function downloadMerchantDocument(documentId: string) {
+    if (!merchantDecision || !token) return;
+    setMerchantError(null);
+    try {
+      const blob = await api.downloadMerchantDocument(token, merchantDecision.user.id, documentId);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `shop-document-${documentId}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch { setMerchantError(t("documentDownloadFailed")); }
+  }
   const query = useMemo(() => search.trim().slice(0, 64), [search]);
 
   async function loadUsers() {
@@ -148,6 +176,9 @@ export function UsersDirectory({ api, token, admin, search, canAct = true }: Pro
   const merchantCard = merchantDecision ? <Card span={6}>
     <CardHeader title={merchantDecision.decision === "approve" ? t("approveMerchant") : t("rejectMerchant")} />
     <AlertItem tone={merchantDecision.decision === "approve" ? "info" : "warning"} title={merchantDecision.user.name} description={merchantDecision.decision === "approve" ? t("approveMerchantEffect") : t("rejectMerchantEffect")} />
+    {merchantDocs && <div className="field"><strong>{t("merchantDocumentsTitle")}</strong>{merchantDocs.length === 0
+      ? <p className="muted">{t("merchantDocumentsNone")}</p>
+      : merchantDocs.map((item) => <p key={item.id}>{t(`merchantDocKind_${item.kind as MerchantDocKind}`)} <span className="muted">· {Math.ceil(item.size_bytes / 1024)} KB</span> <Button size="sm" variant="ghost" icon="id_card" onClick={() => void downloadMerchantDocument(item.id)}>{t("downloadDocument")}</Button></p>)}</div>}
     {merchantDecision.decision === "reject" && <label className="field">{t("statusReason")}<input value={merchantReason} maxLength={500} onChange={(e) => setMerchantReason(e.target.value)} /></label>}
     {merchantError && <p role="alert" className="overview-resource-note overview-resource-note--error">{merchantError}</p>}
     <div className="card__actions">

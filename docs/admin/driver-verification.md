@@ -54,3 +54,7 @@ All four routes require an authenticated Admin session. Responses use the existi
 ## Migration and rollback
 
 Migration `20260819150000_driver_verification_approval` is additive: it creates one table, backfills driver lifecycle rows, and adds foreign keys. Existing `driver_profiles.verified` remains the downstream source of operational gating. Before a production rollback, stop writes to the new Admin endpoints; the application can then be rolled back while the additive table remains in place. Dropping the table is not required for application rollback and would discard review reasons and audit linkage.
+
+## Shop-owner documents
+
+Shop owners upload their papers (commercial register or shop licence, national ID, a photo of the shop) from the pending-review screen in the app, up to six files of 5 MB. They use the same server storage and retention rules as driver documents. In Users, open Approve or Reject on a pending merchant: the documents are listed there with a Download button before you decide. Applicants are told that review usually takes up to 24 hours.

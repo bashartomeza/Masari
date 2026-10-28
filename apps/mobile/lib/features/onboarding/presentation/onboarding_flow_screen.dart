@@ -559,13 +559,16 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
         ],
       ),
     );
-    if (state.selectedRole != OnboardingRole.driver) return card;
+    final role = state.selectedRole;
+    if (role != OnboardingRole.driver && role != OnboardingRole.merchant) {
+      return card;
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         card,
         const SizedBox(height: AppTokens.spaceMedium),
-        const DriverDocumentsCard(),
+        DriverDocumentsCard(merchant: role == OnboardingRole.merchant),
       ],
     );
   }

@@ -198,9 +198,16 @@ class OnboardingRepository {
     }
   }
 
-  Future<DriverDocumentList> driverDocuments(String onboardingToken) async {
+  String _documentsPath(bool merchant) => merchant
+      ? '/onboarding/merchant-documents'
+      : '/onboarding/driver-documents';
+
+  Future<DriverDocumentList> driverDocuments(
+    String onboardingToken, {
+    bool merchant = false,
+  }) async {
     final json = await _get(
-      '/onboarding/driver-documents',
+      _documentsPath(merchant),
       onboardingToken: onboardingToken,
     );
     try {
@@ -214,12 +221,13 @@ class OnboardingRepository {
     String onboardingToken, {
     required String kind,
     required List<int> bytes,
+    bool merchant = false,
   }) async {
     final json = await _send(() {
       final headers = _headers(onboardingToken);
       headers[HttpHeaders.contentTypeHeader] = 'application/octet-stream';
       return client.post(
-        _uri('/onboarding/driver-documents?kind=$kind'),
+        _uri('${_documentsPath(merchant)}?kind=$kind'),
         headers: headers,
         body: bytes,
       );
@@ -235,10 +243,14 @@ class OnboardingRepository {
     }
   }
 
-  Future<void> deleteDriverDocument(String onboardingToken, String id) async {
+  Future<void> deleteDriverDocument(
+    String onboardingToken,
+    String id, {
+    bool merchant = false,
+  }) async {
     await _send(() {
       return client.delete(
-        _uri('/onboarding/driver-documents/${Uri.encodeComponent(id)}'),
+        _uri('${_documentsPath(merchant)}/${Uri.encodeComponent(id)}'),
         headers: _headers(onboardingToken),
       );
     });
