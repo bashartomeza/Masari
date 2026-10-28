@@ -9,6 +9,7 @@ import '../../../core/widgets/language_switch.dart';
 import '../../../core/widgets/masari_back_button.dart';
 import '../../../core/widgets/masari_card.dart';
 import '../../security/presentation/session_status_banner.dart';
+import '../../delivery_handover/presentation/handover_code_card.dart';
 import '../application/merchant_controller.dart';
 import '../data/merchant_models.dart';
 import 'merchant_ui.dart';
@@ -133,6 +134,10 @@ class _MerchantTripScreenState extends ConsumerState<MerchantTripScreen>
           ),
         ),
         const SizedBox(height: AppTokens.spaceMedium),
+        if (state.trip.isActive && state.trip.status != "delivered") ...[
+          HandoverCodeCard(orderId: state.order.id),
+          const SizedBox(height: AppTokens.spaceMedium),
+        ],
         MasariCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,

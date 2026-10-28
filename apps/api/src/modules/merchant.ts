@@ -9,6 +9,7 @@ import { requireAuth, requireRole, type AuthenticatedRequest } from "../middlewa
 import { HttpError } from "../middleware/error.js";
 import { AuditAction } from "../generated/prisma/enums.js";
 import { releaseLegacyCapacity } from "../services/legacyCapacity.js";
+import { describeHandover, issueHandover } from "../services/deliveryHandover.js";
 import { latitudeSchema, longitudeSchema } from "../lib/validation.js";
 import { BATCHING_LIMITS } from "../lib/batchingConfig.js";
 
@@ -113,12 +114,15 @@ function serializeLegacyMerchantOrder(value: Record<string, unknown>) {
     parcels: Array.isArray(value.parcels)
       ? value.parcels.map((parcel) => serializeLegacyParcel(parcel as Record<string, unknown>))
       : undefined,
+    // Confirmation state only; the code itself is shown once, when it is issued.
+    handover: describeHandover((value.delivery_handover ?? null) as Parameters<typeof describeHandover>[0]),
     parcel_batches: batches
   };
 }
 
 const merchantOrderInclude = {
   parcels: true,
+  delivery_handover: true,
   parcel_batches: {
     select: {
       id: true,
@@ -224,7 +228,7 @@ merchantRouter.get("/merchant/order-operation", async (req: AuthenticatedRequest
     }
     const order = await prisma.merchantOrder.findFirst({
       where: { id: record.resource_id, merchant_id: req.user!.id, canonical_entry_version: null },
-      include: { parcels: true }
+      include: { parcels: true, delivery_handover: true }
     });
     if (!order) throw new HttpError(409, "idempotency_replay_unavailable");
     res.json({ order: serializeLegacyMerchantOrder(order as unknown as Record<string, unknown>), replayed: true });
@@ -274,13 +278,13 @@ export async function createLegacyMerchantOrder(
       }
       const original = await tx.merchantOrder.findFirst({
         where: { id: claim.record.resource_id, merchant_id: userId, canonical_entry_version: null },
-        include: { parcels: true }
+        include: { parcels: true, delivery_handover: true }
       });
       if (!original) throw new HttpError(409, "idempotency_replay_unavailable");
-      return { order: original, replayed: true };
+      return { order: original, replayed: true, handoverCode: null as string | null };
     }
 
-    const order = await tx.merchantOrder.create({
+    const created = await tx.merchantOrder.create({
       data: {
         merchant_id: userId,
         pickup_label: normalized.pickup_label,
@@ -294,8 +298,11 @@ export async function createLegacyMerchantOrder(
           }))
         }
       },
-      include: { parcels: true }
+      include: { parcels: true, delivery_handover: true }
     });
+    // The receiver's handover code; the sender passes it on, the driver enters it at delivery.
+    const handover = await issueHandover(tx, created.id);
+    const order = { ...created, delivery_handover: await tx.deliveryHandover.findUnique({ where: { merchant_order_id: created.id } }) };
     await auditEvent(tx, {
       userId,
       action: AuditAction.merchant_order_created,
@@ -312,7 +319,7 @@ export async function createLegacyMerchantOrder(
         responseStatus: 201
       });
     }
-    return { order, replayed: false };
+    return { order, replayed: false, handoverCode: handover.code };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   return result;
 }
@@ -325,8 +332,9 @@ merchantRouter.post("/merchant/orders", async (req: AuthenticatedRequest, res, n
     const rawKey = req.header("idempotency-key");
     const key = rawKey === undefined ? undefined : merchantCreateIdempotencyKey.parse(rawKey);
     const result = await createLegacyMerchantOrder(req.user!.id, input, key);
+    const serialized = serializeLegacyMerchantOrder(result.order as unknown as Record<string, unknown>);
     res.status(result.replayed ? 200 : 201).json({
-      order: serializeLegacyMerchantOrder(result.order as unknown as Record<string, unknown>),
+      order: result.handoverCode ? { ...serialized, handover: { ...serialized.handover, code: result.handoverCode } } : serialized,
       ...(key === undefined ? {} : { replayed: result.replayed })
     });
   } catch (error) {

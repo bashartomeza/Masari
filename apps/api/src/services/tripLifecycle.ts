@@ -2,6 +2,7 @@ import type { Prisma } from "../generated/prisma/client.js";
 import { AuditAction, TripStatus } from "../generated/prisma/enums.js";
 import { HttpError } from "../middleware/error.js";
 import { notifyTripStatus } from "./notifications.js";
+import { confirmHandover, tripOrderIds, unconfirmedOrderIds } from "./deliveryHandover.js";
 
 export const LEGACY_TRIP_TRANSITIONS: Readonly<Record<string, readonly TripStatus[]>> = {
   accepted: [TripStatus.pickup_started, TripStatus.cancelled],
@@ -39,6 +40,8 @@ export type LegacyTripLifecycleSnapshot = {
 type AdvanceOptions = {
   actorId: string;
   expectedStatus: TripStatus;
+  /** Admin forward-moves may close unconfirmed handovers; they are recorded as admin_override. */
+  adminOverride?: boolean;
 };
 
 async function batchMemberOrderIds(tx: Prisma.TransactionClient, batchId: string) {
@@ -161,6 +164,24 @@ export async function advanceLegacyTrip(
     throw new HttpError(409, "invalid_trip_status_transition");
   }
 
+  if (nextStatus === TripStatus.delivered) {
+    // A parcel trip is only delivered once every order's receiver confirmation is on file.
+    const missing = await unconfirmedOrderIds(tx, await tripOrderIds(tx, trip));
+    if (missing.length && !options.adminOverride) throw new HttpError(409, "delivery_confirmation_required");
+    for (const orderId of missing) {
+      await confirmHandover(tx, { orderId, method: "admin_override", actorId: options.actorId, tripId: trip.id });
+      await tx.auditEvent.create({
+        data: {
+          user_id: options.actorId,
+          action: AuditAction.trip_status_updated,
+          entity_type: "Trip",
+          entity_id: trip.id,
+          metadata: { event: "delivery_confirmed", method: "admin_override", order_id: orderId },
+        },
+      });
+    }
+  }
+
   const completedAt = nextStatus === TripStatus.completed || nextStatus === TripStatus.failed ? new Date() : undefined;
   // A conditional single-record update can return its earlier snapshot after a
   // competing MySQL write. Claim by affected-row count before any side effects.
@@ -170,6 +191,7 @@ export async function advanceLegacyTrip(
       status: nextStatus,
       started_at: nextStatus === TripStatus.pickup_started ? new Date() : undefined,
       completed_at: completedAt,
+      cancelled_by_user_id: nextStatus === TripStatus.cancelled || nextStatus === TripStatus.failed ? options.actorId : undefined,
     },
   });
   if (claimed.count !== 1) throw new HttpError(409, "trip_status_conflict");

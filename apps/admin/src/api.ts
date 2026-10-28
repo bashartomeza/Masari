@@ -88,12 +88,16 @@ return {
     apiRequest<{ incident: IncidentRecord }>(`/admin/incidents/${encodeURIComponent(id)}`, { method: "PATCH", token, body }),
   reportSummary: (token: string, range: ReportRange) => apiRequest<ReportSummary>(`/admin/reports/summary${reportQuery(range)}`, { token }),
   reportExport: (token: string, dataset: ReportDataset, range: ReportRange) => downloadCsv(`/admin/reports/export${reportQuery(range, { dataset })}`, token),
+  successMetrics: (token: string, range: ReportRange) => apiRequest<SuccessMetricsResponse>(`/admin/success-metrics${reportQuery(range)}`, { token }),
+  successMetricsExport: (token: string, range: ReportRange) => downloadCsv(`/admin/success-metrics/export${reportQuery(range)}`, token),
   login: (email: string, password: string) => apiRequest<LoginResponse>("/auth/admin/login", { method: "POST", body: { email, password } }),
   googleLogin: (id_token: string) => apiRequest<LoginResponse>("/auth/admin/google", { method: "POST", body: { id_token } }),
   authCapabilities: () => apiRequest<{ google_admin_login_available: boolean; google_admin_client_id: string | null }>("/auth/capabilities"),
   me: (token: string) => apiRequest<MeResponse>("/me", { token }),
   capabilities: (token: string) => apiRequest<CapabilitiesResponse>("/capabilities", { token }),
   dashboard: (token: string) => apiRequest<DashboardResponse>("/admin/dashboard", { token }),
+  comparisonSimulation: (token: string, query?: { seed?: number; manual_response_delay_min?: number }) =>
+    apiRequest<{ simulation: ComparisonSimulation }>(withQuery("/compare/simulation", query ?? {}), { token }),
   monitoringOverview: (token: string, query?: Range) =>
     apiRequest<Observed<Overview>>(withQuery("/admin/matching-batching/overview", query ?? {}), { token }),
   monitoringMatches: (token: string, query: MatchQueryInput) =>
@@ -266,6 +270,10 @@ return {
     body: RouteVersionActionPayload[Action],
     key: string
   ) => apiRequest<{ version: ServiceRouteVersion }>(`/admin/route-versions/${id}/${action}`, { method: "POST", token, body, idempotencyKey: key }),
+  routeFares: (token: string, routeId: string) =>
+    apiRequest<RouteFaresResponse>(`/admin/service-routes/${encodeURIComponent(routeId)}/fares`, { token }),
+  setRouteFares: (token: string, routeId: string, body: RouteFaresUpdate) =>
+    apiRequest<RouteFaresResponse>(`/admin/service-routes/${encodeURIComponent(routeId)}/fares`, { method: "PUT", token, body }),
   retireServiceRoute: (token: string, id: string, body: RouteRetirementPayload, key: string) => apiRequest<{ route: ServiceRoute }>(`/admin/service-routes/${id}/retire`, { method: "POST", token, body, idempotencyKey: key }),
   canonicalStops: (token: string, query = "") => apiRequest<StopPage>(`/admin/stops${query}`, { token }),
   createCanonicalStop: (token: string, body: CanonicalStopDraft, key: string) => apiRequest<{ stop: CanonicalStop }>("/admin/stops", { method: "POST", token, body, idempotencyKey: key }),
@@ -369,6 +377,11 @@ export type UserDetail = {
   merchant_order_count: number;
 };
 
+export const TRUST_COMPONENT_KEYS = ["experience", "cancellation", "departure", "arrival", "rating"] as const;
+export type TrustComponentKey = (typeof TRUST_COMPONENT_KEYS)[number];
+/** value is 0..1 after damping; sample is the number of observations behind it. */
+export type TrustComponents = Record<TrustComponentKey, { value: number; sample: number; weight: number }>;
+
 /**
  * A driver profile from `GET /admin/drivers`.
  *
@@ -382,6 +395,9 @@ export type DriverProfile = {
   parcel_capacity: number;
   verified: boolean;
   trust_score: number;
+  /** Per-component breakdown of the trust score; null until first computed. */
+  trust_components?: TrustComponents | null;
+  trust_computed_at?: string | null;
   created_at: string;
   user?: AdminUser;
   routes?: DriverRoute[];
@@ -529,6 +545,39 @@ export type Match = {
 
 export type MatchRunResponse = { match: Match; scoringBreakdown: Record<string, number>; candidatesConsidered: number };
 export type BatchResponse = { batch: { id: string; status: string; estimated_distance_saved: string; explanation: string; merchant_order?: MerchantOrder } };
+export type SimulationMethodKey = "manual" | "nearest" | "masari";
+export type SimulationDistribution = { avg: number; median: number; p90: number };
+export type SimulationMetrics = {
+  requests: number;
+  matched: number;
+  unmatched: number;
+  unmatchedPct: number;
+  waitingMin: SimulationDistribution;
+  matchingMin: SimulationDistribution;
+  routeDeviationKm: number;
+  routeDeviationKmPerMatched: number;
+  vehiclesUsed: number;
+  vehiclesTotal: number;
+  vehicleUtilisationPct: number;
+  seatUtilisationPct: number;
+  parcelUtilisationPct: number;
+};
+export type ComparisonSimulation = {
+  simulated: true;
+  version: string;
+  params: { seed: number; manualResponseDelayMin: number; nearestMatchDelayMin: number; masariOfferDelayMin: number; masariBatchWindowMin: number };
+  aggregate: Record<SimulationMethodKey, SimulationMetrics>;
+  scenarios: Array<{
+    key: string;
+    label: string;
+    origin: "hand_written" | "generated";
+    requests: number;
+    passengerRequests: number;
+    parcelOrders: number;
+    drivers: number;
+    methods: Record<SimulationMethodKey, SimulationMetrics>;
+  }>;
+};
 export type Comparison = {
   id: string;
   winner: string;
@@ -610,6 +659,15 @@ export type AdminTripListItem = {
   has_stored_location: boolean;
   demo_context: boolean;
   supported_admin_transition: AdminForwardTripStatus | null;
+  delivery_confirmation?: AdminTripDeliveryConfirmation | null;
+};
+export type AdminTripDeliveryConfirmation = {
+  required: boolean;
+  total_orders: number;
+  confirmed_orders: number;
+  methods: Array<"receiver_code" | "receiver_unavailable" | "admin_override">;
+  flagged: boolean;
+  reasons: string[];
 };
 export type AdminTripDetail = AdminTripListItem & {
   latest_stored_location: {
@@ -700,6 +758,18 @@ export type IncidentRecord = {
 };
 export type IncidentPage = { incidents: IncidentRecord[]; page: number; limit: number; total: number; open_total: number };
 export type ReportRange = { from?: string; to?: string };
+export type SuccessMetricKey = "matching_time" | "ai_understanding" | "status_continuity" | "batch_efficiency" | "driver_utilization" | "user_satisfaction" | "driver_verification" | "pickup_clarity" | "route_deviation";
+export type SuccessMetric = {
+  key: SuccessMetricKey;
+  unit: "seconds" | "percent" | "ratio" | "score";
+  target: string;
+  value: number | null;
+  status: "pass" | "fail" | "no_data";
+  sample_size: number;
+  previous_value: number | null;
+  trend: "improving" | "worsening" | "flat" | "none";
+};
+export type SuccessMetricsResponse = { range: { from: string; to: string }; generated_at: string; metrics: SuccessMetric[] };
 export type ReportDataset = "requests" | "orders" | "trips";
 type StatusCounts = Record<string, number>;
 export type ReportSummary = {
@@ -710,6 +780,31 @@ export type ReportSummary = {
   trips: { total: number; by_status: StatusCounts };
   matches: { total: number; by_status: StatusCounts };
   drivers: { total: number; verified: number; pending_verification: number };
+};
+export type RouteFareItem = "passenger_seat" | "parcel_s" | "parcel_m" | "parcel_l";
+export type RouteFareCurrent = { fare_id: string; amount_minor: number; currency: string; effective_from: string } | null;
+export type RouteFareHistoryRow = {
+  id: string;
+  item: RouteFareItem;
+  amount_minor: number | null;
+  currency: string;
+  effective_from: string;
+  reason: string | null;
+  created_at: string;
+  created_by: { id: string; name: string } | null;
+};
+export type RouteFaresResponse = {
+  route_id: string;
+  currency: string;
+  display_only: true;
+  current: Record<RouteFareItem, RouteFareCurrent>;
+  history: RouteFareHistoryRow[];
+  server_now: string;
+};
+export type RouteFaresUpdate = {
+  changes: Array<{ item: RouteFareItem; amount_minor: number | null }>;
+  effective_from?: string;
+  reason: string;
 };
 export type RoutePage = { routes: ServiceRoute[]; page: number; limit: number; total: number };
 export type StopPage = { stops: CanonicalStop[]; page: number; limit: number; total: number };

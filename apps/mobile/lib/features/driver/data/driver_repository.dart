@@ -207,7 +207,10 @@ class DriverRepository {
 
   Future<DriverTrip> tripDetail(String id) async {
     final json = await apiClient.getJson('/trips/$id');
-    return DriverTrip.fromJson(json['trip'] as Map<String, dynamic>);
+    return DriverTrip.fromJson({
+      ...(json['trip'] as Map<String, dynamic>),
+      'delivery_confirmation': json['delivery_confirmation'],
+    });
   }
 
   Future<void> updateTripStatus(String id, String status) async {

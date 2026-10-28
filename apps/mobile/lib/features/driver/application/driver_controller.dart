@@ -1,3 +1,4 @@
+import '../../delivery_handover/data/delivery_handover_repository.dart';
 import '../../../core/api/authoritative_refresh.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -494,6 +495,29 @@ class DriverTripController extends AsyncNotifier<DriverTripState> {
     if (current == null || _actionRunning || next == null) return;
     await _runAction(
       () => ref.read(driverRepositoryProvider).updateTripStatus(_tripId, next),
+    );
+    if (ref.mounted) ref.invalidate(driverDashboardProvider);
+  }
+
+  /// Completes the delivery with the receivers' codes, or records why the
+  /// receiver was unavailable. The trip becomes delivered once every parcel
+  /// order on it is confirmed.
+  Future<void> confirmDelivery({
+    Map<String, String>? codesByOrderId,
+    String? unavailableReason,
+  }) async {
+    final current = state.value;
+    if (current == null ||
+        _actionRunning ||
+        current.trip.status != 'in_transit') {
+      return;
+    }
+    final repository = ref.read(deliveryHandoverRepositoryProvider);
+    final tripId = _tripId;
+    await _runAction(
+      () => unavailableReason != null
+          ? repository.confirmReceiverUnavailable(tripId, unavailableReason)
+          : repository.confirmWithCodes(tripId, codesByOrderId ?? const {}),
     );
     if (ref.mounted) ref.invalidate(driverDashboardProvider);
   }

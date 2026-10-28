@@ -12,7 +12,8 @@ const prismaMock = vi.hoisted(() => ({
   authSession: { findUnique: vi.fn(), update: vi.fn() },
   auditEvent: { create: vi.fn() },
   idempotencyRecord: { create: vi.fn(), findUniqueOrThrow: vi.fn(), updateMany: vi.fn() },
-  merchantOrder: { create: vi.fn(), findFirst: vi.fn() }
+  merchantOrder: { create: vi.fn(), findFirst: vi.fn() },
+  deliveryHandover: { findUnique: vi.fn(), create: vi.fn() }
 }));
 
 vi.mock("../lib/prisma.js", () => ({ prisma: prismaMock }));
@@ -85,6 +86,8 @@ describe("merchant bulk orders API", () => {
       state.orders.set(order.id, order);
       return order;
     });
+    prismaMock.deliveryHandover.findUnique.mockResolvedValue(null);
+    prismaMock.deliveryHandover.create.mockResolvedValue({});
     prismaMock.merchantOrder.findFirst.mockImplementation(({ where }: { where: { id: string } }) => state.orders.get(where.id) ?? null);
   });
 
