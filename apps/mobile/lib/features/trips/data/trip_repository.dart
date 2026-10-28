@@ -32,6 +32,19 @@ class TripRepository {
     return PassengerTrip.fromJson(json['trip'] as Map<String, dynamic>);
   }
 
+  /// The signed-in passenger's own rating of the trip, or null if not rated.
+  Future<int?> myRating(String tripId) async {
+    final json = await apiClient.getJson('/trips/$tripId/rating');
+    final rating = json['rating'];
+    if (rating is! Map<String, dynamic>) return null;
+    final stars = rating['stars'];
+    return stars is int ? stars : null;
+  }
+
+  Future<void> submitRating(String tripId, int stars) async {
+    await apiClient.postJson('/trips/$tripId/rating', body: {'stars': stars});
+  }
+
   Future<TripLocation?> latestLocation(String id) async {
     final json = await apiClient.getJson('/trips/$id/location');
     final location = json['location'];

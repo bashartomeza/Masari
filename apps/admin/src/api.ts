@@ -369,6 +369,11 @@ export type UserDetail = {
   merchant_order_count: number;
 };
 
+export const TRUST_COMPONENT_KEYS = ["experience", "cancellation", "departure", "arrival", "rating"] as const;
+export type TrustComponentKey = (typeof TRUST_COMPONENT_KEYS)[number];
+/** value is 0..1 after damping; sample is the number of observations behind it. */
+export type TrustComponents = Record<TrustComponentKey, { value: number; sample: number; weight: number }>;
+
 /**
  * A driver profile from `GET /admin/drivers`.
  *
@@ -382,6 +387,9 @@ export type DriverProfile = {
   parcel_capacity: number;
   verified: boolean;
   trust_score: number;
+  /** Per-component breakdown of the trust score; null until first computed. */
+  trust_components?: TrustComponents | null;
+  trust_computed_at?: string | null;
   created_at: string;
   user?: AdminUser;
   routes?: DriverRoute[];
