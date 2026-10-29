@@ -24,8 +24,8 @@ These were found while auditing. They are not fixed here.
 
 - **G1 (closed) Production email delivery.** `apps/api/src/services/smtpEmailDelivery.ts` is an approved SMTP `EmailDelivery` (STARTTLS or implicit TLS, AUTH PLAIN/LOGIN, certificate verification, timeouts, header-injection protection, bilingual templates in `emailTemplates.ts`), enabled with `EMAIL_DELIVERY=smtp` and wired in `server.ts`. Email sign-up, verification and password reset/set work in staging and production once the SMTP variables below are set. Without them those endpoints still answer 503 `email_auth_unavailable` (fail-closed).
 - **G2 No SMS/OTP provider.** `OTP_PROVIDER` accepts only `disabled` or `fake`, and `fake` is refused in production. `phoneVerificationProvider` is likewise never wired. Phone verification and public onboarding cannot be enabled.
-- **G3 No first-admin bootstrap.** There is no seed or CLI that creates a production admin; invitations cannot create admins (`passenger|driver|merchant` only). Section 7 gives a manual one-off SQL procedure; a small script would be safer.
-- **G4 Release APK is signed with the debug key.** `apps/mobile/android/app/build.gradle.kts` has `signingConfig = signingConfigs.getByName("debug")` with a TODO. A release signing config reading a git-ignored `key.properties` must be added before a distributable build.
+- **G3 No first-admin bootstrap. RESOLVED.** `npm run admin:create -w @masari/api` creates the first (or an additional) admin from a hidden password prompt, and `npm run admin:list -w @masari/api` lists admins read-only. See section 7.
+- **G4 Release APK was signed with the debug key. RESOLVED.** `apps/mobile/android/app/build.gradle.kts` now signs release builds from git-ignored `android/key.properties` or `MASARI_KEYSTORE_*` environment variables and fails the build if neither is present. CI uses an explicit debug-signing opt-in. The owner must still generate the upload keystore: see `docs/mobile/ANDROID_RELEASE.md`.
 - **G5 `.env.production.example` leaves `AUTH_ACTION_TOKEN_PEPPER` commented out**, but it is required for email actions and the preflight treats it as required. Uncomment it in the example.
 - **G6 `compose.staging.yml` is incomplete for a real deploy.** It passes only a subset of variables (no `AUTH_ACTION_TOKEN_PEPPER`, no driver-document variables or volume) and publishes `127.0.0.1:3001`, while the production doc assumes port 3000. There is no production compose file.
 - **G7 Purge command path.** `docs/operations/masari-aynur-ps-deployment.md` says `node dist/scripts/purgeDriverDocuments.js`; inside the runtime image the file is `apps/api/dist/scripts/purgeDriverDocuments.js` (working dir `/app`). Use the path in section 9.
@@ -127,25 +127,32 @@ It prints PASS, FAIL or WARN per item and never prints values. Exit code 1 means
 
 ## 7. First admin bootstrap
 
-No tool exists yet (gap G3). Admin sign-in is by **email and password** at `/api/v1/auth/admin/login` (phone login is blocked for admins). Do this once, from the operator machine, with the owner present:
+Gap G3 is resolved by `npm run admin:create`. Admin sign-in is by **email and password** at `/api/v1/auth/admin/login` (phone login is blocked for admins). Run it once, from the operator machine or inside the API container, with the owner present, after migrations (section 6) and with the production environment file loaded (`APP_ENV=production`, `DATABASE_URL` from the env file).
 
-1. Generate a bcrypt hash without putting the password in shell history (from the repository, after `npm ci`). Type the password at the prompt:
+1. Build once (`npm run build -w @masari/api`); the runtime image already contains `apps/api/dist/scripts/createAdmin.js`.
+2. Dry run first. Nothing is written:
 
    ```sh
-   node -e "const b=require('bcryptjs');const rl=require('readline').createInterface({input:process.stdin});rl.question('password: ',p=>{console.log(b.hashSync(p,12));rl.close()})"
+   npm run admin:create -w @masari/api -- --email <admin email> --name "<admin name>" --dry-run
+   ```
+3. Create the admin. The password is read from a **hidden prompt** (typed twice) and is never a command-line argument:
+
+   ```sh
+   npm run admin:create -w @masari/api -- --email <admin email> --name "<admin name>"
    ```
 
-   Use a unique password of 16+ characters.
-2. Insert the user (table `users`; the `id` is any unique string, for example a UUID):
+   Non-interactive alternatives, both still keeping the password out of argv and shell history: `--password-file <path>` (a file with mode 0600, delete it afterwards) or `--password-stdin`. `ADMIN_EMAIL` and `ADMIN_NAME` may replace the flags.
+4. The command creates a user with role `admin`, status `active`, email verified, a bcrypt (cost 12) hash exactly as the login route expects, and writes an `admin_action` audit event (`admin_created_cli`). The password must be 16 or more characters (and at most 72 bytes); use a unique one from the owner's password manager.
+5. Confirm with the read-only listing (email, status, created and last login times; no hashes):
 
-   ```sql
-   INSERT INTO users (id, name, email, email_verified_at, password_hash, role, account_status, profile_state, status_updated_at, demo_account, created_at)
-   VALUES (UUID(), '<admin name>', '<admin email>', NOW(), '<bcrypt hash>', 'admin', 'active', 'complete', NOW(), 0, NOW());
+   ```sh
+   npm run admin:list -w @masari/api
    ```
-
-   If MySQL rejects a column, compare with `model User` in `apps/api/prisma/schema.prisma` and adjust; the schema is the authority.
-3. Sign in to the Admin site, then change the password policy in the owner's password manager. Clear the SQL client history.
-
+6. Safety rules built into the command:
+   - It refuses if the email already exists. To set a new password for an existing admin add `--reset-password`: it replaces the hash, increments `security_version`, revokes all sessions and writes an `admin_password_reset_cli` audit event.
+   - It refuses to run when demo features are enabled (`APP_ENV` `demo`/`test`), when the database name is listed in `DEMO_RESET_ALLOWED_DATABASES`, or when any `demo_account` user exists. `--allow-demo-database` overrides this deliberately; never use it in production.
+   - Further admins use the same command with a different email.
+7. Sign in to the Admin site to confirm, and clear any password file.
 ## 8. Consent documents release
 
 Registration stays closed until a complete consent release is active. In the Admin console, Settings, Consent releases (`/api/v1/admin/consent-releases`, see `docs/admin/consent-management.md`):
@@ -230,17 +237,13 @@ Provisional targets from the existing doc: RPO 15 minutes, RTO 2 hours, 30 day r
 
 ## 13. Android release build
 
-Gap G4: the Gradle release config currently uses the debug key. Before building for distribution add a release signing config (owner task) reading a git-ignored `apps/mobile/android/key.properties` with `storeFile`, `storePassword`, `keyAlias`, `keyPassword`; keep the keystore and passwords out of the repository and out of CI logs. Generate the keystore once, on a trusted machine, and back it up in at least two places (losing it prevents updates):
-
-```sh
-keytool -genkeypair -v -keystore masari-release.jks -alias masari -keyalg RSA -keysize 2048 -validity 10000
-```
+Gap G4 is resolved in code: release builds are signed from git-ignored `apps/mobile/android/key.properties` (or `MASARI_KEYSTORE_*` environment variables) and fail without it. Generating and backing up the keystore remains an owner task; follow `docs/mobile/ANDROID_RELEASE.md` (keytool commands, Play App Signing, checklist, optional manual `release-android.yml` workflow that needs owner-added GitHub secrets).
 
 Build (points the app at the production API; the app appends `/api/v1` itself and refuses non-HTTPS in production):
 
 ```sh
 cd apps/mobile
-flutter build apk --release --dart-define=APP_ENV=production --dart-define=ENABLE_DEMO_FEATURES=false --dart-define=API_BASE_URL=https://masari.aynur.ps
+flutter build apk --release --build-number=<N> --dart-define=APP_ENV=production --dart-define=ENABLE_DEMO_FEATURES=false --dart-define=API_BASE_URL=https://masari.aynur.ps
 ```
 
 The same keys are in `apps/mobile/config/production.example.json` (`--dart-define-from-file`). The application id is `ps.masari.mobile`. Output: `apps/mobile/build/app/outputs/flutter-apk/app-release.apk`. Check `apksigner verify --print-certs` shows the release certificate, not "Android Debug".
@@ -253,6 +256,7 @@ Replace nothing with real credentials in this document; use the owner's admin ac
 - [ ] `http://masari.aynur.ps` redirects to HTTPS; certificate is valid and not expiring soon.
 - [ ] `http://<host>:3000` is not reachable from outside.
 - [ ] Admin site loads at `/`, a deep link reload works (SPA fallback), no demo controls or credential presets are visible.
+- [ ] `npm run admin:create -w @masari/api -- --email <admin email> --name "<name>" --dry-run` succeeds against production (validates the guard and flags, writes nothing), and `npm run admin:list -w @masari/api` shows the bootstrap admin as `active`.
 - [ ] Admin sign-in with the bootstrap account works; sign-out works; a wrong password is rejected.
 - [ ] Demo endpoints are absent: the demo reset route returns 404.
 - [ ] Settings shows consent onboarding `READY` after the release is active.
@@ -264,4 +268,4 @@ Replace nothing with real credentials in this document; use the owner's admin ac
 
 ## 15. Audit findings summary
 
-Contradictions found between existing material, now reconciled here: the staging doc binds the API to `127.0.0.1:3001` while the production doc uses 3000 (G6); the purge command path (G7); the example env comments out a pepper the code requires for email actions (G5); the production doc says registration stays off until an SMS provider exists, which is correct, but does not say that email sign-up is also unusable in production without a delivery adapter (G1, now closed by the SMTP adapter). Items G2 to G4 block a usable public launch; the rest are cleanups.
+Contradictions found between existing material, now reconciled here: the staging doc binds the API to `127.0.0.1:3001` while the production doc uses 3000 (G6); the purge command path (G7); the example env comments out a pepper the code requires for email actions (G5); the production doc says registration stays off until an SMS provider exists, which is correct, but does not say that email sign-up is also unusable in production without a delivery adapter (G1, now closed by the SMTP adapter). Only G2 (no SMS provider) still blocks a usable public launch; the rest are cleanups.
