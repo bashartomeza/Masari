@@ -24,21 +24,42 @@ mkdirSync(dirname(otpFile), { recursive: true });
 
 const { createApp } = await import(dist("app.js"));
 const { FakeOtpProvider } = await import(dist("lib/otp.js"));
-const { createGmailDelivery } = await import("./gmail-sender.mjs");
+const { createGmailDelivery, createPhoneCodeMailer } = await import("./gmail-sender.mjs");
+
+// With a stored Gmail App Password the email is also really sent; the file is kept either way,
+// and a failed send is reported in the log without blocking the sign-up. Phone codes have no SMS
+// provider in the demo, so they are emailed to DEMO_CODE_INBOX (default: the sender's own inbox).
+const smtpReady = Boolean(process.env.DEMO_SMTP_USER && process.env.DEMO_SMTP_PASSWORD);
+const gmail = smtpReady
+  ? createGmailDelivery({ user: process.env.DEMO_SMTP_USER, appPassword: process.env.DEMO_SMTP_PASSWORD })
+  : null;
+const phoneMailer = smtpReady
+  ? createPhoneCodeMailer({ user: process.env.DEMO_SMTP_USER, appPassword: process.env.DEMO_SMTP_PASSWORD, inbox: process.env.DEMO_CODE_INBOX || process.env.DEMO_SMTP_USER })
+  : null;
+delete process.env.DEMO_SMTP_PASSWORD;
+
+// The scripted checks use fixed QA numbers and read the codes from the file, so they are not emailed.
+const automatedPhone = /^\+97059000(02|03)\d{2}$/;
+function emailPhoneCode(input) {
+  if (!phoneMailer || automatedPhone.test(input.phoneE164)) return;
+  void sendPhoneCode(input);
+}
+async function sendPhoneCode(input) {
+  try {
+    await phoneMailer.send(input);
+    console.log(`phone code for ${input.phoneE164} emailed to the demo inbox`);
+  } catch (error) {
+    console.error(`phone code for ${input.phoneE164} could not be emailed: ${error instanceof Error ? error.message : "unknown"}`);
+  }
+}
 
 class LoggingOtpProvider extends FakeOtpProvider {
   async send(input) {
     appendFileSync(otpFile, `${new Date().toISOString()} ${input.phoneE164} ${input.code}\n`);
+    emailPhoneCode(input);
     return super.send(input);
   }
 }
-
-// With a stored Gmail App Password the email is also really sent; the file is kept either way,
-// and a failed send is reported in the log without blocking the sign-up.
-const gmail = process.env.DEMO_SMTP_USER && process.env.DEMO_SMTP_PASSWORD
-  ? createGmailDelivery({ user: process.env.DEMO_SMTP_USER, appPassword: process.env.DEMO_SMTP_PASSWORD })
-  : null;
-delete process.env.DEMO_SMTP_PASSWORD;
 const loggingEmailDelivery = {
   kind: "test",
   async send(message) {
@@ -60,6 +81,7 @@ const loggingPhoneProvider = {
   async send(input) {
     appendFileSync(otpFile, `${new Date().toISOString()} ${input.phoneE164} ${input.code}
 `);
+    emailPhoneCode(input);
   }
 };
 
