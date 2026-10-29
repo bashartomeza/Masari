@@ -172,12 +172,21 @@ Registration stays closed until a complete consent release is active. In the Adm
    If the API runs in Docker, the container user is `node` (uid 1000): `chown 1000:1000` the directory and bind-mount it at the same absolute path.
 2. Set `DRIVER_DOCUMENTS_ENABLED=true` and `DRIVER_DOCUMENTS_DIR=/var/lib/masari/driver-documents`.
 3. Back it up together with the database and restore both at the same point in time. A database restored without the files leaves rows whose downloads return 404.
-4. Schedule the daily retention purge (safe to repeat), for example from host cron:
+4. Schedule the daily jobs (each is safe to repeat). Run them from host cron with the same image and env file:
+
+   | Job | Command (inside `/app`) | When |
+   |---|---|---|
+   | Driver document retention purge | `node apps/api/dist/scripts/purgeDriverDocuments.js` | daily |
+   | Driver document expiry (reminders, restrict expired drivers) | `node apps/api/dist/scripts/checkDriverDocumentExpiry.js` | daily, early morning |
+   | Driver trust score recompute | `node apps/api/dist/scripts/recomputeDriverTrust.js` | daily |
+   | Passenger parcel receiver-data purge | `node apps/api/dist/scripts/purgePassengerParcelReceivers.js` | daily |
 
    ```sh
    docker run --rm --env-file /etc/masari/api.env -v /var/lib/masari/driver-documents:/var/lib/masari/driver-documents \
      masari-api:RELEASE node apps/api/dist/scripts/purgeDriverDocuments.js
    ```
+
+   The expiry job is what turns an expired licence into a restricted driver and sends the 7-day reminders; without it nothing expires. Have cron mail or your monitor alert on any job that exits non-zero or stops running.
 5. nginx must allow request bodies a little above 5 MB (`client_max_body_size 6m;`).
 
 ## 10. Build and run the API
@@ -268,4 +277,4 @@ Replace nothing with real credentials in this document; use the owner's admin ac
 
 ## 15. Audit findings summary
 
-Contradictions found between existing material, now reconciled here: the staging doc binds the API to `127.0.0.1:3001` while the production doc uses 3000 (G6); the purge command path (G7); the example env comments out a pepper the code requires for email actions (G5); the production doc says registration stays off until an SMS provider exists, which is correct, but does not say that email sign-up is also unusable in production without a delivery adapter (G1, now closed by the SMTP adapter). Only G2 (no SMS provider) still blocks a usable public launch; the rest are cleanups.
+Contradictions found between existing material, now reconciled here: the staging doc binds the API to `127.0.0.1:3001` while the production doc uses 3000 (G6); the purge command path (G7); the example env comments out a pepper the code requires for email actions (G5); the production doc says registration stays off until an SMS provider exists, which is correct, but does not say that email sign-up is also unusable in production without a delivery adapter (G1, now closed by the SMTP adapter). G2 (no SMS provider) is closed: Masari sends no SMS, and every phone code goes by email through the same SMTP delivery (see `docs/security/email-codes-instead-of-sms.md`). What still blocks a public launch is owner-side: the production mail account, hosting and domain, the Android signing key, the legal texts and the first admin.
