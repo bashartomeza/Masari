@@ -86,3 +86,47 @@ test("env file parsing works and output never reveals secret values", () => {
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+const smtpEnv = () => ({
+  ...goodEnv(),
+  EMAIL_DELIVERY: "smtp",
+  SMTP_HOST: "smtp.mail.test",
+  SMTP_PORT: "587",
+  SMTP_SECURE: "starttls",
+  SMTP_USER: "mailer",
+  SMTP_PASSWORD: "an-smtp-secret-value",
+  EMAIL_FROM_ADDRESS: "no-reply@masari.aynur.ps"
+});
+
+test("a complete smtp configuration passes and email-off only warns", () => {
+  assert.deepEqual(failing(runPreflight(smtpEnv())), []);
+  const off = runPreflight(goodEnv());
+  assert.ok(off.some((r) => r.id === "EMAIL_DELIVERY_DISABLED" && r.status === "WARN"));
+  assert.ok(!runPreflight(smtpEnv()).some((r) => r.id === "EMAIL_DELIVERY_DISABLED"));
+});
+
+test("an incomplete or unsafe smtp configuration fails", () => {
+  for (const name of ["SMTP_HOST", "SMTP_USER", "SMTP_PASSWORD", "EMAIL_FROM_ADDRESS"]) {
+    assert.ok(failing(runPreflight({ ...smtpEnv(), [name]: undefined })).includes(name), name);
+  }
+  assert.ok(failing(runPreflight({ ...smtpEnv(), SMTP_PASSWORD: "<smtp-account-password>" })).includes("SMTP_PASSWORD"));
+  assert.ok(failing(runPreflight({ ...smtpEnv(), SMTP_HOST: "localhost" })).includes("SMTP_HOST"));
+  assert.ok(failing(runPreflight({ ...smtpEnv(), SMTP_PORT: "99999" })).includes("SMTP_PORT"));
+  assert.ok(failing(runPreflight({ ...smtpEnv(), SMTP_SECURE: "plain" })).includes("SMTP_SECURE"));
+  assert.ok(failing(runPreflight({ ...smtpEnv(), EMAIL_FROM_ADDRESS: "not-an-address" })).includes("EMAIL_FROM_ADDRESS"));
+  assert.ok(failing(runPreflight({ ...goodEnv(), EMAIL_DELIVERY: "gmail" })).includes("EMAIL_DELIVERY"));
+});
+
+test("the smtp password never appears in preflight output", () => {
+  const dir = mkdtempSync(join(tmpdir(), "masari-preflight-smtp-"));
+  try {
+    const file = join(dir, "api.env");
+    const env = smtpEnv();
+    writeFileSync(file, Object.entries(env).map(([k, v]) => `${k}="${v}"`).join("\n") + "\n");
+    const lines = [];
+    assert.equal(main(["--env-file", file], {}, (l) => lines.push(l)), 0);
+    assert.equal(lines.join("\n").includes(env.SMTP_PASSWORD), false);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

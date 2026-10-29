@@ -42,6 +42,11 @@ const optionalGroqApiKey = z.preprocess(
   z.string().trim().min(20).optional()
 );
 
+const optionalText = (max: number) => z.preprocess(
+  (value) => typeof value === "string" && value.trim() === "" ? undefined : value,
+  z.string().trim().max(max).optional()
+);
+
 const rawSchema = z.object({
   APP_ENV: z.enum(APP_ENVIRONMENTS),
   DATABASE_URL: z.string().min(1),
@@ -105,6 +110,14 @@ const rawSchema = z.object({
   DRIVER_DOCUMENTS_DIR: z.string().min(1).optional(),
   DRIVER_DOCUMENT_RETENTION_DAYS: z.coerce.number().int().min(1).max(3650).default(90),
   OTP_PROVIDER: z.enum(["disabled", "fake"]).default("disabled"),
+  EMAIL_DELIVERY: z.preprocess((v) => typeof v === "string" && v.trim() === "" ? undefined : v, z.enum(["disabled", "smtp"]).default("disabled")),
+  SMTP_HOST: optionalText(255),
+  SMTP_PORT: z.preprocess((v) => typeof v === "string" && v.trim() === "" ? undefined : v, z.coerce.number().int().min(1).max(65_535).optional()),
+  SMTP_SECURE: z.preprocess((v) => typeof v === "string" && v.trim() === "" ? undefined : v, z.enum(["starttls", "tls"]).default("starttls")),
+  SMTP_USER: optionalText(255),
+  SMTP_PASSWORD: z.preprocess((v) => typeof v === "string" && v.trim() === "" ? undefined : v, z.string().max(512).optional()),
+  EMAIL_FROM_ADDRESS: optionalText(255),
+  EMAIL_FROM_NAME: optionalText(100),
   SUPPORTED_PHONE_REGIONS: z.string().default("PS"),
   GOOGLE_OAUTH_CLIENT_IDS: z.string().optional(),
   GOOGLE_MOBILE_SERVER_CLIENT_ID: z.string().trim().min(1).refine((v) => !v.includes(",")).optional(),
@@ -453,6 +466,43 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
     problems.push("AUTH_ACTION_TOKEN_PEPPER must be distinct from JWT and refresh-token secrets");
   }
 
+  // Production email delivery over SMTP. Problems name variables only, never values.
+  let email: { delivery: "disabled" | "smtp"; smtp?: { host: string; port: number; secure: "starttls" | "tls"; user?: string; password?: string; fromAddress: string; fromName: string } } = { delivery: raw.EMAIL_DELIVERY };
+  if (raw.EMAIL_DELIVERY === "smtp") {
+    const missing: string[] = [];
+    if (!raw.SMTP_HOST) missing.push("SMTP_HOST");
+    if (!raw.EMAIL_FROM_ADDRESS) missing.push("EMAIL_FROM_ADDRESS");
+    if (productionLike) {
+      if (!raw.SMTP_USER) missing.push("SMTP_USER");
+      if (!raw.SMTP_PASSWORD) missing.push("SMTP_PASSWORD");
+    } else if (Boolean(raw.SMTP_USER) !== Boolean(raw.SMTP_PASSWORD)) {
+      problems.push("SMTP_USER and SMTP_PASSWORD must be set together");
+    }
+    if (missing.length) problems.push(`EMAIL_DELIVERY=smtp requires ${missing.join(", ")}`);
+    if (raw.SMTP_HOST && !/^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$|^\[[0-9A-Fa-f:.]+\]$/.test(raw.SMTP_HOST)) {
+      problems.push("SMTP_HOST must be a bare host name or IP address");
+    }
+    if (raw.SMTP_HOST && productionLike && ["localhost", "127.0.0.1", "[::1]"].includes(raw.SMTP_HOST.toLowerCase())) {
+      problems.push("SMTP_HOST must not be a loopback address in staging and production");
+    }
+    if (raw.EMAIL_FROM_ADDRESS && !z.string().email().safeParse(raw.EMAIL_FROM_ADDRESS).success) {
+      problems.push("EMAIL_FROM_ADDRESS must be a valid email address");
+    }
+    if (raw.EMAIL_FROM_NAME && /[\u0000-\u001f]/.test(raw.EMAIL_FROM_NAME)) {
+      problems.push("EMAIL_FROM_NAME must not contain control characters");
+    }
+    if (raw.SMTP_USER && /[\u0000-\u001f]/.test(raw.SMTP_USER)) problems.push("SMTP_USER must not contain control characters");
+    if (raw.SMTP_PASSWORD && /[\u0000-\u001f]/.test(raw.SMTP_PASSWORD)) problems.push("SMTP_PASSWORD must not contain control characters");
+    if (raw.SMTP_PASSWORD && productionLike && isUnsafeSecret(raw.SMTP_PASSWORD)) problems.push("SMTP_PASSWORD uses a known placeholder value");
+    if (productionLike && !raw.AUTH_ACTION_TOKEN_PEPPER) problems.push("EMAIL_DELIVERY=smtp requires AUTH_ACTION_TOKEN_PEPPER");
+    if (!missing.length) {
+      email = { delivery: "smtp", smtp: {
+        host: raw.SMTP_HOST!, port: raw.SMTP_PORT ?? (raw.SMTP_SECURE === "tls" ? 465 : 587), secure: raw.SMTP_SECURE,
+        user: raw.SMTP_USER, password: raw.SMTP_PASSWORD, fromAddress: raw.EMAIL_FROM_ADDRESS!, fromName: raw.EMAIL_FROM_NAME ?? "Masari"
+      } };
+    }
+  }
+
   const accessTokenTtlSeconds = raw.ACCESS_TOKEN_TTL_SECONDS ?? (productionLike ? 900 : 28_800);
   const refreshTokenTtlDays = raw.REFRESH_TOKEN_TTL_DAYS ?? 30;
   if (
@@ -546,6 +596,7 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
           }
         }
       : undefined,
+    email,
     corsOrigins,
     appRelease: raw.APP_RELEASE ?? "unreleased",
     port: raw.PORT,

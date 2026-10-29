@@ -6,6 +6,8 @@ const AUTH_CREDENTIAL_FIELD_NAMES = [
   "apikey",
   "apiKey",
   "CHECKPOINTS_API_KEY",
+  "SMTP_PASSWORD",
+  "smtp_password",
   "AWEENRAYEH_PARTNER_API_KEY",
   "x-api-key",
   "X-Api-Key",

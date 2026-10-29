@@ -142,9 +142,22 @@ export function runPreflight(env, options = {}) {
 
   add("PORT", intIn(val("PORT") || "3000", 1, 65535) !== false, "PORT must be a valid port number");
 
-  // Delivery providers are not configured through environment variables today
-  // (see runbook "Known gaps"); remind the operator without failing the env check.
-  results.push({ id: "EMAIL_SMS_DELIVERY", status: "WARN", message: "approved email/SMS delivery cannot be verified from the environment; confirm per the runbook (known gap G1)" });
+  // Email delivery (SMTP). Without it email sign-up, verification and password reset answer 503.
+  const emailDelivery = val("EMAIL_DELIVERY") || "disabled";
+  add("EMAIL_DELIVERY", ["disabled", "smtp"].includes(emailDelivery), "EMAIL_DELIVERY must be smtp or disabled");
+  if (emailDelivery === "smtp") {
+    const host = val("SMTP_HOST");
+    add("SMTP_HOST", /^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$/.test(host) && !isPlaceholder(host) && !["localhost", "127.0.0.1"].includes(host.toLowerCase()), "SMTP_HOST must be a real, non-loopback host name when EMAIL_DELIVERY=smtp");
+    add("SMTP_PORT", intIn(val("SMTP_PORT"), 1, 65535) !== false, "SMTP_PORT must be 1-65535 when set (default 587, or 465 for tls)");
+    add("SMTP_SECURE", ["", "starttls", "tls"].includes(val("SMTP_SECURE")), "SMTP_SECURE must be starttls or tls");
+    add("SMTP_USER", val("SMTP_USER") !== "" && !isPlaceholder(val("SMTP_USER")), "SMTP_USER required when EMAIL_DELIVERY=smtp");
+    add("SMTP_PASSWORD", val("SMTP_PASSWORD") !== "" && !isPlaceholder(val("SMTP_PASSWORD")), "SMTP_PASSWORD required (not a placeholder) when EMAIL_DELIVERY=smtp");
+    const from = val("EMAIL_FROM_ADDRESS");
+    add("EMAIL_FROM_ADDRESS", /^[^\s@<>"]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(from) && !isPlaceholder(from), "EMAIL_FROM_ADDRESS must be a real sender address when EMAIL_DELIVERY=smtp");
+  } else {
+    results.push({ id: "EMAIL_DELIVERY_DISABLED", status: "WARN", message: "EMAIL_DELIVERY is not smtp; email sign-up, verification and password reset will answer 503" });
+  }
+  results.push({ id: "SMS_DELIVERY", status: "WARN", message: "approved SMS/OTP delivery cannot be verified from the environment; confirm per the runbook (known gap G2)" });
   return results;
 }
 
