@@ -278,8 +278,12 @@ await check("C04,C05,C06,C07,C08,C09", "driver signs up, uploads documents, wron
   await upload(token, "driver_licence", Buffer.from("this is plain text pretending to be a photo"), 415);
   const list = await http("/onboarding/driver-documents", { token: `Onboarding ${token}`, expect: 200 });
   must(list.json.documents.length === 2, `have ${list.json.documents.length}`);
-  await http(`/onboarding/driver-documents/${list.json.documents[1].id}`, { method: "DELETE", token: `Onboarding ${token}`, expect: 200 });
-  for (let i = 0; i < 5; i += 1) await upload(token, "other", jpeg, 201); // 1 + 5 = 6
+  // A required document (licence, registration, national ID) cannot be removed once the application is
+  // submitted, so the delete check uses an optional "other" file.
+  const extra = await upload(token, "other", jpeg, 201);
+  await http(`/onboarding/driver-documents/${extra.json.document.id}`, { method: "DELETE", token: `Onboarding ${token}`, expect: 200 });
+  await http(`/onboarding/driver-documents/${list.json.documents[1].id}`, { method: "DELETE", token: `Onboarding ${token}`, expect: 409 });
+  for (let i = 0; i < 4; i += 1) await upload(token, "other", jpeg, 201); // 2 + 4 = 6
   const seventh = await upload(token, "other", jpeg);
   must(seventh.status === 409, `7th document gave ${seventh.status}`);
 });
