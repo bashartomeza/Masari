@@ -45,6 +45,8 @@ Start everything: `pwsh -NoProfile -File scripts/test-env/start.ps1`. Stop: `scr
 | A17 | Reports page: change dates, download all three CSV files | Numbers match the lists; files open (Arabic text readable in Excel) |
 | A18 | Matching, Shipments & batching, Trips & tracking, Comparison pages | They show the seeded demo data (the combined passenger+parcel trip, the 1-trip-vs-6 comparison) without errors |
 | A19 | Sign out, then press the browser Back button | You are not let back into the Admin pages |
+| A20 | Reports page → Success metrics (or `GET /api/v1/admin/success-metrics`, and `/export` for the CSV): open it as the Admin, then try it as a passenger and without signing in | Admin: figures for the last 30 days with the previous period for comparison, a CSV download; passenger: refused (403); not signed in: 401; a start date after the end date, or a range over a year, is refused |
+| A21 | Matching / Batching page → Simulated comparison tab (or `GET /api/v1/compare/simulation?seed=7`) | Manual, nearest-driver and Masari results, labelled as simulated; the same seed always gives the same numbers, another seed differs; nothing is written; passengers cannot call it |
 
 ## B. Phone: signing in
 
@@ -94,6 +96,15 @@ Use the codes in `invitations.txt`. After each sign-up, read the code from `otp.
 | C28 | Request a code for the same phone more than 5 times in a day, or start more than 10 sign-ups from the one phone in an hour | The app shows a "too many attempts" message; no further codes are produced in `otp.txt` |
 | C29 | Sign-in screen → "Check an existing application" for the C20 driver before documents are sent | It shows "Upload your documents", not "under review" |
 | C30 | Invitation codes still work: repeat C03 or C04 with a code from `invitations.txt` | Created as before; the application is under review at once (no extra "Send for review" step) |
+| C31 | Create account → Normal user → name, email ending @example.com, password of 12+ characters → Sign up; read the code from the newest line for that email in `email-codes.txt` and type it | The code is six digits (not a long token) and finishes the sign-up; typing the same code again later does not work |
+| C32 | Start another email sign-up and type a wrong six-digit code five times, then the right code | Each wrong code is refused; after the fifth even the right code is refused and no account exists; start again to get a new code |
+| C33 | In the six-digit box try 5 digits, 7 digits, letters, or a space in the middle | Refused before it is checked (the Continue button stays disabled or the API answers 400) |
+| C34 | Sign-in screen → Forgot password → enter the email; read the code from `email-codes.txt`; enter email + code + a new password. Also try an email that has no account | The screen says the same thing for known and unknown emails and no email is produced for the unknown one; the new password signs in, the old one does not; the same code cannot be used twice |
+| C35 | Forgot password: type a wrong six-digit code five times, then the right one | The reset is locked; the right code is refused; ask for a new code |
+| C36 | Open registration (as C19): Driver, no invitation code, new phone such as +970590005xxx; wrong then right phone code; name, password, consents | Account created with no invitation; the app says "Upload your documents", not "under review" (API: onboarding status `documents_required`) |
+| C37 | Press "Send for review" (API: `POST /onboarding/application/submit`) with no documents, then with only the licence and registration | Refused with 409 `documents_required`, listing the missing documents (3 first, then 1); nothing is submitted |
+| C38 | Admin site: look for that driver in the approvals queue and try to approve or reject by API before it was submitted | Not in the queue; approve and reject answer 409 `application_not_submitted`; the driver cannot sign in |
+| C39 | Add the national ID, press "Send for review" (twice) | Accepted ("Application under review"); a second press does nothing new; the driver is now in the admin queue with three documents |
 
 ## D. The main story (passenger + merchant + driver)
 
@@ -129,6 +140,35 @@ Run after a reset so the seeded data is fresh. Use the demo accounts.
 | E11 | Passenger: create parcels until you have 3 in flight, then a 4th | The 4th is refused with a message about the maximum number of parcels |
 | E12 | Passenger: cancel a parcel that is still "Finding a driver" (confirm the dialog) | It becomes Cancelled and the receiver details are shown as erased; once a driver has been offered or assigned the parcel there is no Cancel button |
 | E13 | Admin: Deliveries page, "Passenger parcels" section | The parcel is listed with its tracking state in English and Arabic; no receiver name, phone or note anywhere |
+| E14 | Admin → create three stops and a route, publish it (API: `/admin/stops`, `/admin/service-routes`, versions, stops, publish). Needs the route switches (the local test environment turns them on) | The route appears in the public route catalogue (`GET /routes`) |
+| E15 | Admin → the route's "Estimated fares" tab (API: `PUT /admin/service-routes/:id/fares`): set seat 15.00, parcel S 7.00, M 9.00 with a reason; then try amount 0, 12.5 agorot, a 2-letter reason, a passenger account, and the same fares again | Saved with your name in the history; 0, fractions and a too-short reason are refused (400), a passenger is refused (403), saving unchanged fares answers 409 `fare_unchanged` |
+| E16 | Passenger requests 2 seats on that route (API: `POST /passenger/route-requests`); the Admin then raises the seat fare to 20.00; the passenger repeats the same request key, then makes a new one | The route list and the request show the fare as an estimate paid directly to the driver (2 x 15.00 = 30.00); after the change the first request still says 15.00 (frozen), a new request says 20.00 |
+| E17 | Passenger parcel (API: `POST /passenger/parcels` with an `Idempotency-Key`): size S, receiver name and phone, forbidden-items box ticked; send the same key again | Created as "Finding a driver"; the receiver phone is shown masked; the second send returns the same parcel and creates no second one; a different body with the same key is refused (409) |
+| E18 | Same call with size L, a 3-digit phone, the box unticked or missing, a drop-off before the pickup, a 1-letter name, or an unknown field | Each is refused with 400 (or a 4xx for the stops); nothing is created |
+| E19 | Open that parcel as another passenger, a driver, a shop owner and signed out; then the Admin parcel list (`GET /admin/passenger-parcels`) | Others get 404, 403 or 401; the Admin list shows the parcel but no receiver name, phone or note |
+| E20 | Create parcels until 3 are in flight, then a 4th | The 4th is refused with 409 `passenger_parcel_limit_reached` |
+| E21 | Cancel a parcel that is still "Finding a driver"; cancel it again; then create a new one | Cancelled, receiver name, phone and note erased; a second cancel is refused (409); the freed slot allows a new parcel |
+| E22 | As the sender open the parcel's delivery code (API: `GET /parcel-orders/:id/handover`, `POST .../handover/regenerate`) | The state never shows the code; "Get a new code" returns a six-digit code once; others get 404; an Admin cannot re-issue it (403) |
+| E23 | Shop owner → bulk orders (API: `POST /merchant/orders/bulk/preview`): paste a CSV with 5 rows (one has size Q); also try as a passenger | The preview lists the valid orders, the bad row with its row number and an Arabic message, and a batch plan; nothing is created; passengers are refused |
+| E24 | Submit the CSV without an Idempotency-Key, then with the bad row and without "skip invalid" | Both are refused (400) and no order is created |
+| E25 | Submit the valid rows with an Idempotency-Key, then send exactly the same upload again; then submit with "skip invalid" | First: 3 orders created; the retry creates nothing (all "replayed", the same order numbers, the order list still has 3); skipping the bad row creates the valid ones and reports 1 failed |
+| E26 | Preview or submit a CSV with 51 rows; then one with exactly 50 | 51 rows: rejected as a whole with `csv_too_many_rows` and nothing created; 50 rows are accepted by the preview |
+| E27 | Passenger assistant with no AI key (Assistant on the passenger home): "from Bab Al-Zawiya to Bethlehem Center tomorrow at 8am with 2 seats", and the same in Arabic | The rule-based fallback fills pickup, destination, time and 2 seats for review; admins and signed-out users cannot use it; an empty message is refused |
+| E28 | Ask the assistant for a ride to Nablus (English and Arabic) | A clear reply that the place is not supported yet, listing the supported places as suggestions |
+| E29 | Send the assistant something it cannot read; then Admin → Incidents → uncertain assistant requests (API: `GET /admin/ai-uncertain-requests`); resolve it with a note | A clear request is not queued; the unclear one is queued once with its reason and no passenger identity; resolving needs the current revision, a resolved one cannot be resolved again, and the open count drops |
+| E30 | Passenger with an accepted trip: step the simulated driver (Simulate step) until it is near the pickup, then open Notifications | Exactly one "your driver is approaching" notification (no coordinates in it), however many steps follow; the shop owner gets none |
+| E31 | Driver on an in-transit parcel trip: try Delivered with the normal status button, then confirm with no code, and try to confirm as the passenger or shop owner | The status route refuses (409 `delivery_confirmation_required`), no code is 400, other roles 403; the trip stays in transit |
+| E32 | Shop owner: Get a new code for the order (API: `POST /parcel-orders/:id/handover/regenerate`); the driver tries to read or re-issue it | A six-digit code is returned once, attempts remaining 5; the driver gets 404 for both |
+| E33 | Driver enters a wrong code five times, then the right code; then the shop owner gets a new code | Wrong codes are refused (422); after five, even the right code is refused (429 `handover_locked`) and the order shows locked; a new code unlocks it |
+| E34 | Driver enters the right code; the Admin opens the trip (API: `GET /admin/trips/:id`) | The trip becomes delivered; the Admin sees it confirmed by receiver code and not flagged; the code is shown nowhere; confirming again is refused |
+| E35 | Passenger rates the finished trip: before completion, 0 and 6 stars, then 5 stars, then again; drivers and shop owners try to rate or read it | Before completion 409 `trip_not_completed`; 0, 6 and 4.5 are 400; 5 stars saved (201); a second rating 409 `trip_already_rated`; the passenger can see only their own rating; drivers get 403/404 and no driver screen or API shows a star rating |
+| E36 | After the trip: driver trust score (Admin → user detail) and `npm run trust:recompute -w @masari/api` against the demo database | A whole number from 0 to 100 with its breakdown and calculation time; the Admin sees the same number; the job reports 0 failed and gives the same score when run again |
+| E37 | Second trip: the driver chooses "Receiver unavailable" with no reason, a 9-character reason, a 301-character reason, then a proper reason | The first three are refused (400); the proper one delivers the trip, the Admin trip list and detail show it flagged with the reason, and the sender sees how it was confirmed |
+| E38 | Admin approves a new driver with document dates (API: `expiry` on approve): try a licence date in the past, then valid dates | A past date is refused (400 `expiry_date_in_past`); valid dates are saved and the driver appears under "Expiring soon" (within 30 days); a driver cannot read that list |
+| E39 | Run the expiry job (`npm run documents:expiry -w @masari/api`) with the licence ending in 5 days, twice | The driver gets one "document expires soon" reminder; the second run adds none; the driver is still approved |
+| E40 | Set the licence date to yesterday (database edit on masari_demo) and run the job again; then try to go online | The driver becomes "documents expired", is unverified, gets a notification, and going online is refused with 403 `driver_documents_expired`; a second run restricts nobody twice; the driver still signs in; the Admin sees the driver under "Awaiting driver" |
+| E41 | Driver renewal (API: `/driver/document-renewal`): submit with no file, upload a text file, upload a photo, submit | No file: 409; text file: 415; with a photo the application goes to the Admin re-review queue; going online is still refused; passengers cannot use the renewal area |
+| E42 | Admin approves the renewal: first without new dates, then with a new licence date | Without new dates it is refused (400); with a new date the driver is approved and verified again at once, the history shows expired and renewal submitted, going online is no longer refused for documents, and the job does not restrict them again |
 
 ## F. Things that must NOT work (safety checks)
 
@@ -147,7 +187,7 @@ Run after a reset so the seeded data is fresh. Use the demo accounts.
 
 ## G. Not in scope (do not report these as bugs)
 
-Real SMS delivery (codes come from `otp.txt`), push notifications, payments, fares and earnings amounts, live tracking, PDF or Excel exports, maps and the checkpoint feeds (switched off), and anything on a real server (hosting is not set up yet).
+Real SMS delivery (codes come from `otp.txt`) and real email delivery (codes come from `email-codes.txt`), push notifications, payments and real money movement (route fares are display-only estimates; earnings amounts are not tracked), live tracking, PDF or Excel exports, maps and the checkpoint feeds (switched off), and anything on a real server (hosting is not set up yet).
 
 ## Results
 
