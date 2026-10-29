@@ -41,6 +41,29 @@ export function buildMessage({ from, message }) {
   return headers.join("\r\n") + "\r\n\r\n" + wrapped;
 }
 
+/** Demo stand-in for an SMS: the phone code goes to a fixed inbox, with the phone number in the subject. */
+export function buildPhoneCodeMessage({ from, to, phone, code, locale = "en", expiresAt }) {
+  const minutes = expiresAt ? Math.max(1, Math.round((expiresAt.getTime() - Date.now()) / 60000)) : 10;
+  const ar = locale === "ar";
+  const subject = ar ? `رمز تحقق الهاتف ${phone} (نسخة تجريبية)` : `Masari demo: phone code for ${phone}`;
+  const body = [
+    ar ? `هذا بديل تجريبي عن الرسالة النصية. رمز التحقق للهاتف ${phone}:` : `This email stands in for an SMS in the demo. Verification code for ${phone}:`,
+    "",
+    code,
+    "",
+    ar ? `ينتهي الرمز بعد ${minutes} دقيقة تقريباً.` : `The code expires in about ${minutes} minutes.`
+  ].join("\r\n");
+  const headers = [
+    `From: Masari demo <${from}>`,
+    `To: ${to}`,
+    `Subject: ${encodedSubject(subject)}`,
+    "MIME-Version: 1.0",
+    "Content-Type: text/plain; charset=UTF-8",
+    "Content-Transfer-Encoding: base64"
+  ];
+  return headers.join("\r\n") + "\r\n\r\n" + b64(body).replace(/(.{76})/g, "$1\r\n");
+}
+
 /** Reads SMTP replies from a socket, one complete (possibly multi-line) reply at a time. */
 function replyReader(socket, timeoutMs) {
   socket.setEncoding("utf8");
@@ -107,6 +130,19 @@ async function smtpSend({ host, port, mode, user, password, from, to, data, time
   } finally {
     socket.end();
   }
+}
+
+/** Sends demo phone codes (the SMS stand-in) to one inbox. `host`, `port` and `mode` are only overridden by tests. */
+export function createPhoneCodeMailer({ user, appPassword, inbox = user, host = "smtp.gmail.com", port = 587, mode = "starttls", timeoutMs = 20000 }) {
+  const password = appPassword.replace(/\s+/g, "");
+  return {
+    async send(input) {
+      await smtpSend({
+        host, port, mode, user, password, from: user, to: inbox, timeoutMs,
+        data: buildPhoneCodeMessage({ from: user, to: inbox, phone: input.phoneE164, code: input.code, locale: input.locale, expiresAt: input.expiresAt })
+      });
+    }
+  };
 }
 
 /** An EmailDelivery for the API. `host`, `port` and `mode` are only overridden by tests. */

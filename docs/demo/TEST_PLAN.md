@@ -14,7 +14,7 @@ Everything runs on a disposable demo database. Nothing here touches real data, a
 | Demo app sign-ins (email + password from `apps/api/.env`) | passenger `demo.passenger@masari.app`, driver `demo.driver@masari.app` (and `demo.driver2@masari.app`), merchant `demo.merchant@masari.app` — passwords are `DEMO_PASSENGER_PASSWORD`, `DEMO_DRIVER_PASSWORD`, `DEMO_MERCHANT_PASSWORD` |
 | Sign-up invitation codes | `.staging-data/test-env/invitations.txt` (passenger +970590002001, driver +970590002002, merchant +970590002003) |
 | Email verification code (normal user sign-up) | the newest line for that email in `.staging-data/test-env/email-codes.txt` (no real email is sent; type the six-digit code into the app) |
-| One-time SMS codes | the newest line of `.staging-data/test-env/otp.txt` (there is no real SMS; the code is written to that file) |
+| One-time phone codes (the demo has no SMS) | the newest line of `.staging-data/test-env/otp.txt`; with the demo mail account set up the code is also emailed to the demo inbox, with the phone number in the subject (not for the fixed QA numbers +97059000200x and +97059000300x) |
 | Sample files on the emulator (Downloads) | `licence.jpg` (valid), `vehicle-registration.pdf` (valid), `not-really-an-image.jpg` (text pretending to be a photo) |
 | Pending / rejected demo accounts | Demo Pending Merchant, Demo Pending Driver, Demo Rejected Driver (already seeded) |
 
