@@ -343,7 +343,7 @@ async function invitationPrecedenceChecks(
   legal: Array<{ id: string; type: string; content_hash: string }>,
   squat: { phone: string; squatterId: string }
 ) {
-  await prisma.abuseCounter.deleteMany({ where: { bucket_type: { in: ["otp_ip_hour", "otp_phone_day", "otp_email_day", "registration_conflict_ip"] } } });
+  await prisma.abuseCounter.deleteMany({ where: { bucket_type: { in: ["otp_ip_hour", "otp_phone_day", "otp_email_day", "registration_conflict_ip", "admin_invitation_create"] } } });
   const adminPost = (path: string, body: object) => request(app).post(path).set("authorization", `Bearer ${admin}`).send(body);
 
   // 1. The squatter (unverified phone, verified email) is released when the invited person starts and completes.
@@ -369,7 +369,10 @@ async function invitationPrecedenceChecks(
   check(releases.length >= 1 && !JSON.stringify(releases.map((r) => r.metadata)).includes(squat.phone), "the release is audited without the phone number");
 
   // 2. A verified holder is never evicted: a new invitation for the same phone stays unavailable.
-  const again = await invitationRecord(admin, "driver", squat.phone);
+  // (The first invitation's mailbox now has an account, so the second one needs its own contact email.)
+  const againResponse = await adminPost("/api/v1/admin/invitations", { role: "driver", phone: squat.phone, contact_email: "second.invite@example.com", region: "PS" });
+  check(againResponse.status === 201, "a second invitation for the same phone can still be issued");
+  const again = { id: againResponse.body.invitation.id as string, code: againResponse.body.code as string };
   const blocked = await request(emailApp).post("/api/v1/onboarding/attempts").set("idempotency-key", key("verified-start"))
     .send({ invitation_code: again.code, role: "driver", phone: squat.phone, region: "PS", locale: "en" });
   check(blocked.status === 404, "a verified phone holder blocks the invited start");
