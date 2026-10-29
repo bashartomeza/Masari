@@ -11,7 +11,7 @@ Tick each before the deploy day. Nothing in the repository can unblock these.
 - [ ] **Domain / DNS**: `masari.aynur.ps` A/AAAA record pointing at the Injazat host, and who controls the zone.
 - [ ] **Hosting account**: Injazat server or container platform with SSH or console access, Docker (or Node 22.17.1), a private MySQL 8 instance, and persistent disk.
 - [ ] **TLS certificate** for `masari.aynur.ps` (who issues and renews it).
-- [ ] **SMTP / email account**: an approved sending mailbox or provider (host, port, user, password, from-address, SPF/DKIM). See gap G1: the code also needs a production delivery adapter.
+- [ ] **SMTP / email account**: an approved sending mailbox or provider (host, port, user, password, from-address, SPF/DKIM). Configure it with the `EMAIL_DELIVERY=smtp` variables in section 4 (gap G1 is closed).
 - [ ] **SMS provider**: an approved Palestinian-coverage SMS/OTP provider and contract. See gap G2. Until then registration stays off.
 - [ ] **Android signing keystore**: owner generates and keeps the upload/release key and its passwords. See gap G4.
 - [ ] **Legal text**: owner-approved Arabic and English Terms, Privacy Notice and Adult 18+ Attestation (six documents) for the consent release.
@@ -22,7 +22,7 @@ Tick each before the deploy day. Nothing in the repository can unblock these.
 
 These were found while auditing. They are not fixed here.
 
-- **G1 No production email delivery.** `apps/api/src/server.ts` calls `createApp(config, { logger })` with no `emailDelivery`. `EmailAuthService` returns 503 `email_auth_unavailable` in staging and production unless the delivery has `kind: "approved"`, and no approved adapter exists (the only sender is the demo Gmail script under `scripts/test-env/`). There are no SMTP environment variables in `config.ts`. Result: email sign-up, email verification and password reset do not work in production. Needs an SMTP adapter plus config (host, port, user, password, from) and wiring in `server.ts`.
+- **G1 (closed) Production email delivery.** `apps/api/src/services/smtpEmailDelivery.ts` is an approved SMTP `EmailDelivery` (STARTTLS or implicit TLS, AUTH PLAIN/LOGIN, certificate verification, timeouts, header-injection protection, bilingual templates in `emailTemplates.ts`), enabled with `EMAIL_DELIVERY=smtp` and wired in `server.ts`. Email sign-up, verification and password reset/set work in staging and production once the SMTP variables below are set. Without them those endpoints still answer 503 `email_auth_unavailable` (fail-closed).
 - **G2 No SMS/OTP provider.** `OTP_PROVIDER` accepts only `disabled` or `fake`, and `fake` is refused in production. `phoneVerificationProvider` is likewise never wired. Phone verification and public onboarding cannot be enabled.
 - **G3 No first-admin bootstrap. RESOLVED.** `npm run admin:create -w @masari/api` creates the first (or an additional) admin from a hidden password prompt, and `npm run admin:list -w @masari/api` lists admins read-only. See section 7.
 - **G4 Release APK was signed with the debug key. RESOLVED.** `apps/mobile/android/app/build.gradle.kts` now signs release builds from git-ignored `android/key.properties` or `MASARI_KEYSTORE_*` environment variables and fails the build if neither is present. CI uses an explicit debug-signing opt-in. The owner must still generate the upload keystore: see `docs/mobile/ANDROID_RELEASE.md`.
@@ -74,7 +74,7 @@ Run it once per secret and paste the result straight into the secret store, not 
 | `DRIVER_DOCUMENT_RETENTION_DAYS` | Retention for the purge job (default 90). |
 | `INVITATIONS_ENABLED=true` plus `INVITATION_CODE_PEPPER`, `PHONE_DIGEST_PEPPER`, `OTP_CODE_PEPPER`, `ONBOARDING_SESSION_PEPPER`, `IDEMPOTENCY_KEY_PEPPER`, `ABUSE_KEY_PEPPER` | Admin-issued invitations. Six distinct secrets, distinct from the core three. Each has a `*_KEY_VERSION` (default 1) for rotation. |
 | `ROUTE_MAPS_ENABLED=true`, `ROUTE_PROVIDER`, `ROUTE_PROVIDER_SECRET` | Only after a map provider is approved. Otherwise `ROUTE_PROVIDER=disabled`. |
-| SMTP settings | None exist yet; see gap G1. |
+| `EMAIL_DELIVERY=smtp` plus `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`, `EMAIL_FROM_ADDRESS` (optional `SMTP_PORT`, `SMTP_SECURE`, `EMAIL_FROM_NAME`) | Email sign-up, verification and password reset/set. All of host, user, password and from-address are required together in staging/production (startup is refused otherwise). `SMTP_SECURE` is `starttls` (default, port 587; credentials are sent only after a verified TLS upgrade) or `tls` (implicit TLS, default port 465). `SMTP_PORT` defaults from `SMTP_SECURE`. Also needs `AUTH_ACTION_TOKEN_PEPPER`. The password is never logged. Set SPF/DKIM/DMARC for the sender domain with your mail provider. |
 | SMS provider settings | None exist yet; see gap G2. |
 
 ### Optional with safe defaults
@@ -91,7 +91,7 @@ Run it once per secret and paste the result straight into the secret store, not 
 node scripts/deploy/preflight.mjs --env-file /etc/masari/api.env --target production
 ```
 
-It prints PASS, FAIL or WARN per item and never prints values. Exit code 1 means do not continue. The WARN lines about email/SMS delivery are expected until gaps G1/G2 are closed. The API itself repeats these checks at startup (`apps/api/src/config.ts`) and refuses to start on a bad configuration.
+It prints PASS, FAIL or WARN per item and never prints values. Exit code 1 means do not continue. It FAILs an incomplete `EMAIL_DELIVERY=smtp` configuration and WARNs when email delivery is off; the SMS WARN is expected until gap G2 is closed. The API itself repeats these checks at startup (`apps/api/src/config.ts`) and refuses to start on a bad configuration.
 
 ## 6. Database creation and migrations
 
@@ -260,12 +260,12 @@ Replace nothing with real credentials in this document; use the owner's admin ac
 - [ ] Admin sign-in with the bootstrap account works; sign-out works; a wrong password is rejected.
 - [ ] Demo endpoints are absent: the demo reset route returns 404.
 - [ ] Settings shows consent onboarding `READY` after the release is active.
-- [ ] A document upload (5 MB or less) from a test applicant succeeds and appears in the Admin review, and the file exists under `DRIVER_DOCUMENTS_DIR` with mode not world-readable. (Requires an applicant account; see G1/G2.)
-- [ ] Email code delivery: a registration email arrives with a six-digit code (blocked until G1 is closed).
+- [ ] A document upload (5 MB or less) from a test applicant succeeds and appears in the Admin review, and the file exists under `DRIVER_DOCUMENTS_DIR` with mode not world-readable. (Requires an applicant account; see G2.)
+- [ ] Email code delivery: a registration email arrives within a minute with a six-digit code on its own line and the expiry in minutes (Arabic or English by the request locale). Repeat for password reset. A wrong `SMTP_PASSWORD` must make the request answer 503 and the code must not work.
 - [ ] The APK installs, shows Arabic UI, connects to `https://masari.aynur.ps`, and the signing certificate is the release key.
 - [ ] A backup was taken and a restore rehearsal passed within the last month.
 - [ ] Logs contain request ids and no secrets; `APP_RELEASE` shows the expected release.
 
 ## 15. Audit findings summary
 
-Contradictions found between existing material, now reconciled here: the staging doc binds the API to `127.0.0.1:3001` while the production doc uses 3000 (G6); the purge command path (G7); the example env comments out a pepper the code requires for email actions (G5); the production doc says registration stays off until an SMS provider exists, which is correct, but does not say that email sign-up is also unusable in production without a delivery adapter (G1). Items G1, G2 and G4 block a usable public launch; the rest are cleanups.
+Contradictions found between existing material, now reconciled here: the staging doc binds the API to `127.0.0.1:3001` while the production doc uses 3000 (G6); the purge command path (G7); the example env comments out a pepper the code requires for email actions (G5); the production doc says registration stays off until an SMS provider exists, which is correct, but does not say that email sign-up is also unusable in production without a delivery adapter (G1, now closed by the SMTP adapter). Only G2 (no SMS provider) still blocks a usable public launch; the rest are cleanups.
