@@ -30,7 +30,7 @@ import {
   onboardingSessionTokenData,
   revokeOnboardingSessions
 } from "../lib/onboardingSessions.js";
-import { contactEmailSchema } from "../lib/contactEmail.js";
+import { contactEmailSchema, normalizeEmailForAbuse } from "../lib/contactEmail.js";
 import { PHONE_INPUT_MAX_LENGTH, maskPhone, normalizePhoneToE164, phoneLast4 } from "../lib/phone.js";
 import { consentDigestMatches } from "../lib/consentContent.js";
 import { missingDocumentKinds, requiredDocumentKinds } from "../lib/applicationReview.js";
@@ -341,7 +341,7 @@ function otpDayBuckets(appConfig: AppConfig, phone: string, email: string | null
   const limit = appConfig.onboarding!.otpMaxSendsPerPhoneDay;
   return [
     { type: "otp_phone_day", subject: phone, seconds: 86_400, limit },
-    ...(email ? [{ type: "otp_email_day", subject: email, seconds: 86_400, limit }] : []),
+    ...(email ? [{ type: "otp_email_day", subject: normalizeEmailForAbuse(email), seconds: 86_400, limit }] : []),
     { type: "otp_ip_hour", subject: ip, seconds: 3_600, limit: 20 }
   ];
 }
@@ -367,6 +367,42 @@ function startResponse(
     next_action: retryable ? "resend_otp" : "verify_otp",
     request_id: requestId
   };
+}
+
+/** Conflict answers per source IP per hour; beyond this the endpoint answers 429 instead of confirming a conflict. */
+const REGISTRATION_CONFLICT_IP_HOURLY_LIMIT = 5;
+const PHONE_HOLDER_SELECT = { id: true, phone_verified_at: true, email_verified_at: true } as const;
+
+/**
+ * Only an account whose phone was never verified AND that can still sign in by its verified email may lose
+ * the number. An account holding a verified phone is never touched.
+ */
+function isReleasableHolder(holder: { phone_verified_at: Date | null; email_verified_at: Date | null }) {
+  return holder.phone_verified_at === null && holder.email_verified_at !== null;
+}
+
+/**
+ * Admin-vouched claims win over self-typed (unverified) ones: free the number from an unverified holder inside
+ * the caller's transaction. Returns false when a verified (or non-releasable) account holds it.
+ * The audit record carries no phone, email or code.
+ */
+async function releaseUnverifiedPhone(tx: Prisma.TransactionClient, phone: string, requestId: string, invitationId: string) {
+  const holder = await tx.user.findUnique({ where: { phone }, select: PHONE_HOLDER_SELECT });
+  if (!holder) return true;
+  if (!isReleasableHolder(holder)) return false;
+  const released = await tx.user.updateMany({
+    where: { id: holder.id, phone, phone_verified_at: null },
+    data: { phone: null, profile_state: "phone_required" }
+  });
+  if (released.count !== 1) return false;
+  await auditEvent(tx, {
+    userId: holder.id,
+    action: AuditAction.admin_action,
+    entityType: "User",
+    entityId: holder.id,
+    metadata: { event: "unverified_phone_released", reason: "invitation_claim", invitation_id: invitationId, request_id: requestId }
+  });
+  return true;
 }
 
 async function findBoundInvitation(appConfig: AppConfig, input: z.infer<typeof startSchema>, invitationCode: string) {
@@ -398,8 +434,10 @@ async function findBoundInvitation(appConfig: AppConfig, input: z.infer<typeof s
     invitation.used_count < invitation.max_uses &&
     invitation.max_uses === 1;
   if (!recoverableAttempt && !unusedInvitation) throw new HttpError(404, "onboarding_unavailable");
-  if (!recoverableAttempt && (await prisma.user.findUnique({ where: { phone }, select: { id: true } }))) {
-    throw new HttpError(404, "onboarding_unavailable");
+  if (!recoverableAttempt) {
+    // A phone typed in (never verified) by a self-registered account does not block an Admin-vouched claim.
+    const holder = await prisma.user.findUnique({ where: { phone }, select: PHONE_HOLDER_SELECT });
+    if (holder && !isReleasableHolder(holder)) throw new HttpError(404, "onboarding_unavailable");
   }
   return { invitation, phone, normalizedCode };
 }
@@ -496,11 +534,12 @@ export function createPublicOnboardingRouter(
   });
 
   /**
-   * Open driver / shop-owner signup: an attempt with no invitation. The phone number is
-   * proven by the same OTP flow, and the response never says whether the number already
-   * has an account (an existing number just fails later, after the one-time code proves
-   * the caller holds the phone). One live open attempt per phone: starting again
-   * supersedes the older one.
+   * Open driver / shop-owner signup: an attempt with no invitation. The one-time code is
+   * emailed, so it proves the mailbox and NOT the phone number; the phone stays unverified
+   * and an Admin invitation for it always outranks it. The start response never says whether
+   * the number already has an account (an existing number just fails at completion with
+   * registration_conflict, which is capped per IP so it cannot be used to enumerate numbers).
+   * One live open attempt per phone: starting again supersedes the older one.
    */
   async function startOpenAttempt(
     req: Request,
@@ -607,7 +646,7 @@ export function createPublicOnboardingRouter(
         await consumeBuckets(req, appConfig, [
           { type: "open_start_ip", subject: requestIp(req), seconds: 3_600, limit: 10 },
           { type: "open_start_phone", subject: phone, seconds: 86_400, limit: 5 },
-          { type: "open_start_email", subject: input.email!, seconds: 86_400, limit: 5 },
+          { type: "open_start_email", subject: normalizeEmailForAbuse(input.email!), seconds: 86_400, limit: 5 },
           { type: "open_start_global", subject: "all", seconds: 3_600, limit: appConfig.openSignupMaxStartsPerHour }
         ]);
         claim = await claimPublicOperation(req, appConfig, {
@@ -680,7 +719,10 @@ export function createPublicOnboardingRouter(
           locked.intended_role !== input.role ||
           locked.intended_phone_digest !== phoneDigest(phone, appConfig.onboarding!.keys.phoneDigest)
         ) throw new Error("start_unavailable");
-        if (await tx.user.findUnique({ where: { phone }, select: { id: true } })) throw new Error("start_unavailable");
+        if (!(await releaseUnverifiedPhone(tx, phone, req.requestId, locked.id))) throw new Error("start_unavailable");
+        // Never burn the invitation on a contact email that already has an account: completion would 409 forever.
+        if (provider.provesPhone === false && locked.contact_email &&
+          (await tx.user.findUnique({ where: { email: locked.contact_email }, select: { id: true } }))) throw new Error("start_unavailable");
         const created = await tx.onboardingAttempt.create({
           data: {
             invitation_id: locked.id,
@@ -995,9 +1037,11 @@ export function createPublicOnboardingRouter(
             registrationGrantDigest(input.registration_grant, appConfig.onboarding!.keys.onboardingSession)
           )
         ) throw new HttpError(409, "registration_grant_invalid");
-        if (await tx.user.findUnique({ where: { phone: attempt.phone_e164 }, select: { id: true } })) {
-          throw new HttpError(409, "registration_conflict");
-        }
+        // An Admin invitation outranks a self-typed, unverified phone; open sign-up never takes a held number.
+        const phoneFree = attempt.invitation_id !== null
+          ? await releaseUnverifiedPhone(tx, attempt.phone_e164, req.requestId, attempt.invitation_id)
+          : !(await tx.user.findUnique({ where: { phone: attempt.phone_e164 }, select: { id: true } }));
+        if (!phoneFree) throw new HttpError(409, "registration_conflict");
         const documents = await currentConsentDocuments(tx, input.locale, now);
         if (documents.length !== REQUIRED_CONSENTS.length) throw new HttpError(409, "consent_version_changed");
         for (const document of documents) {
@@ -1127,7 +1171,18 @@ export function createPublicOnboardingRouter(
         entityId: attemptId,
         metadata: { outcome: safeError, request_id: req.requestId }
       }).catch(() => undefined);
-      next(error instanceof HttpError || error instanceof z.ZodError ? error : new HttpError(409, "registration_conflict"));
+      const finalError = error instanceof HttpError || error instanceof z.ZodError ? error : new HttpError(409, "registration_conflict");
+      if (finalError instanceof HttpError && finalError.message === "registration_conflict") {
+        // registration_conflict reveals that a number/mailbox is registered: cap how many one source can collect.
+        try {
+          await consumeBuckets(req, appConfig, [
+            { type: "registration_conflict_ip", subject: requestIp(req), seconds: 3_600, limit: REGISTRATION_CONFLICT_IP_HOURLY_LIMIT }
+          ]);
+        } catch (limited) {
+          if (limited instanceof HttpError) { next(limited); return; }
+        }
+      }
+      next(finalError);
     }
   });
 

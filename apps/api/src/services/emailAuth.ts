@@ -5,7 +5,8 @@ import type { Logger } from "pino";
 import type { AppConfig } from "../config.js";
 import type { Prisma, PrismaClient } from "../generated/prisma/client.js";
 import { AuthActionError, checkAuthActionCode, consumeAuthAction, consumeCheckedAuthAction, issueAuthAction, revokeAuthActions } from "../lib/authActionTokens.js";
-import { hexDigestMatches, keyedDigest, type VersionedKey } from "../lib/keyedDigest.js";
+import { normalizeEmailForAbuse } from "../lib/contactEmail.js";
+import { abuseSubjectDigest, hexDigestMatches, keyedDigest, type VersionedKey } from "../lib/keyedDigest.js";
 import { revokeAllUserSessions } from "../lib/refreshTokens.js";
 import { HttpError } from "../middleware/error.js";
 import { ConsentReleaseService } from "./consentReleases.js";
@@ -102,12 +103,35 @@ export class EmailAuthService {
     })) };
   }
 
+  /**
+   * Per-inbox send guard shared by the three public "email me a code" starts. The inbox is keyed by its normalised
+   * alias-free form (abuse key only; the address is stored as typed). A start inside the resend cooldown while an
+   * earlier code is still open, or past the daily cap, must not send or issue anything: it would supersede the
+   * in-flight code and let a third party burn it, or mail-bomb the inbox.
+   */
+  private emailDigest(email: string) {
+    return abuseSubjectDigest("auth_email_code", normalizeEmailForAbuse(email), this.key());
+  }
+  private async mayIssueEmailCode(email: string, purpose: "email_verification" | "password_reset") {
+    const limits = this.config.emailCodeLimits ?? { resendCooldownSeconds: 60, maxPerDay: 10 };
+    const digest = this.emailDigest(email); const now = Date.now();
+    const base = { payload: { path: "$.email_digest", equals: digest } };
+    if (limits.resendCooldownSeconds > 0) {
+      const inFlight = await this.db.authActionToken.count({ where: { ...base, purpose, consumed_at: null, created_at: { gte: new Date(now - limits.resendCooldownSeconds * 1000) } } });
+      if (inFlight > 0) return false;
+    }
+    const today = await this.db.authActionToken.count({ where: { ...base, purpose: { in: ["email_verification", "password_reset"] }, created_at: { gte: new Date(now - 86_400_000) } } });
+    return today < limits.maxPerDay;
+  }
+
   async start(input: z.infer<typeof emailStartSchema>) {
     const key = this.key(); const sender = this.sender();
+    // Starting a registration never reveals whether the address is taken, so a plain 429 leaks nothing.
+    if (!(await this.mayIssueEmailCode(input.email, "email_verification"))) throw new HttpError(429, "rate_limited");
     const expires = Date.now() + 24 * 60 * 60 * 1000;
     const envelope = seal({ name: input.name, email: input.email, passwordHash: await bcrypt.hash(input.password, 12), expires, nonce: randomBytes(16).toString("hex") }, key);
     // The email carries only the short code; the long token stays server-side.
-    const proof = await issueAuthAction(this.db, { purpose: "email_verification", key, subject: envelope, withCode: true });
+    const proof = await issueAuthAction(this.db, { purpose: "email_verification", key, subject: envelope, withCode: true, payload: { email_digest: this.emailDigest(input.email) } });
     try { await sender.send({ to: input.email, locale: input.locale, purpose: "email_verification", actionToken: proof.code!, expiresAt: proof.expiresAt }); }
     catch { await revokeAuthActions(this.db, { subject: envelope, key, reason: "delivery_failed" }); throw new HttpError(503, "email_auth_unavailable"); }
     return { registration_token: envelope, expires_at: new Date(expires).toISOString(), next_action: "verify_email" };
@@ -142,8 +166,10 @@ export class EmailAuthService {
   async proofStart(input: z.infer<typeof emailProofStartSchema>, purpose: "email_verification" | "password_reset", log?: Pick<Logger, "warn" | "error">) {
     const key = this.key(); const sender = this.sender();
     const user = await this.db.user.findUnique({ where: { email: input.email } });
-    if (user?.account_status === "active" && (purpose !== "password_reset" || (user.password_hash && user.email_verified_at))) {
-      const proof = await issueAuthAction(this.db, { purpose, key, userId: user.id, subject: userSubject(user), withCode: true });
+    // Cooldown and daily cap answer with the same generic success, without sending or superseding the open code.
+    if (user?.account_status === "active" && (purpose !== "password_reset" || (user.password_hash && user.email_verified_at)) &&
+      await this.mayIssueEmailCode(input.email, purpose)) {
+      const proof = await issueAuthAction(this.db, { purpose, key, userId: user.id, subject: userSubject(user), withCode: true, payload: { email_digest: this.emailDigest(input.email) } });
       // Provider latency is independent of the public response. Only an action
       // digest is persisted; the short-lived delivery closure holds the proof.
       // A failed attempt revokes only its own action, preserving concurrent retries.

@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const db = vi.hoisted(() => ({ $transaction: vi.fn(), user: { findUnique: vi.fn(), updateMany: vi.fn() }, externalIdentity: { findUnique: vi.fn(), create: vi.fn() }, authActionToken: { create: vi.fn(), findUnique: vi.fn(), updateMany: vi.fn(), count: vi.fn() }, authSession: { findUnique: vi.fn(), update: vi.fn() }, trip: { findMany: vi.fn() }, auditEvent: { create: vi.fn() } }));
 vi.mock("../lib/prisma.js", () => ({ prisma: db }));
+const abuse = vi.hoisted(() => ({ count: 0 }));
+vi.mock("../lib/abuseCounters.js", () => ({ consumeAbuseCounter: vi.fn(async (_db: unknown, input: { limit: number }) => ({ allowed: ++abuse.count <= input.limit })) }));
 const { createApp } = await import("../app.js");
 const { config } = await import("../config.js");
 const { signAuthToken } = await import("../middleware/auth.js");
@@ -19,7 +21,7 @@ const phone = "+14155552671";
 function matches(row: any, where: any): boolean { return Object.entries(where).every(([k, v]: any) => k === "OR" ? v.some((w: any) => matches(row, w)) : k === "payload" ? row.payload?.phone_digest === v.equals : v && typeof v === "object" && "gte" in v ? row[k] >= v.gte : v && typeof v === "object" && "gt" in v ? row[k] > v.gt : row[k] === v); }
 describe("explicit identity linking and verified phone profile", () => {
   beforeEach(async () => {
-    vi.clearAllMocks(); actions = []; identities = []; messages = []; audits = [];
+    vi.clearAllMocks(); abuse.count = 0; actions = []; identities = []; messages = []; audits = [];
     users = [{ id: "u1", role: "passenger", email: "owner@example.com", email_verified_at: new Date(), password_hash: await bcrypt.hash("correct-password", 4), security_version: 1, account_status: "active", profile_state: "phone_required", phone: null, phone_verified_at: null }];
     verifier.mockResolvedValue({ sub: "subject", email: "different@example.com", emailVerified: true });
     db.user.findUnique.mockImplementation(async ({ where }) => users.find((u) => matches(u, where)) ?? null);
@@ -88,6 +90,13 @@ describe("explicit identity linking and verified phone profile", () => {
     users.push({ id: "other", phone });
     await request(server).post(confirmPath).set("authorization", bearer()).send({ action_token: r.body.action_token, phone, code: messages[0].code }).expect(409);
     expect(users[0].phone).toBeNull(); expect(actions[0].consumed_at).toBeNull();
+  });
+  it("caps phone_already_in_use answers per account: 409 a few times, then a plain 429", async () => {
+    const server = app(); const r = await request(server).post(startPath).set("authorization", bearer()).send({ phone, locale: "en" }).expect(202);
+    users.push({ id: "other", phone });
+    const body = { action_token: r.body.action_token, phone, code: messages[0].code };
+    for (let i = 0; i < 3; i++) await request(server).post(confirmPath).set("authorization", bearer()).send(body).expect(409);
+    await request(server).post(confirmPath).set("authorization", bearer()).send(body).expect(429);
   });
   it("rejects invalid phone and fails closed for missing or test production providers", async () => {
     await request(app()).post(startPath).set("authorization", bearer()).send({ phone: "00000", locale: "en" }).expect(400);
