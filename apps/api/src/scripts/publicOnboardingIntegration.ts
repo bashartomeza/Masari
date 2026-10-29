@@ -323,7 +323,7 @@ async function emailDeliveryChecks(legal: Array<{ id: string; type: string; cont
   check(verified.status === 200, "the emailed code verifies the attempt");
   const done = await request(emailApp).post(`/api/v1/onboarding/attempts/${started.body.attempt.id}/complete`)
     .set("authorization", token).set("idempotency-key", key("email-complete"))
-    .send({ registration_grant: verified.body.registration_grant, display_name: "Email Driver", password: "email driver secure pass 2026", locale: "en", consents: legal, adult_self_attestation: true });
+    .send({ registration_grant: verified.body.registration_grant, display_name: "Email Driver", password: "email driver secure pass 2026", locale: "ar", consents: legal, adult_self_attestation: true });
   check(done.status === 201, "email-verified open sign-up completes");
   const user = await prisma.user.findUniqueOrThrow({ where: { phone } });
   check(user.email === email && user.email_verified_at !== null, "the proven email becomes the verified sign-in identity");
