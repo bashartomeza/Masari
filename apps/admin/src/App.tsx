@@ -18,6 +18,7 @@ import { RequestsBoard } from "./features/requests/RequestsBoard";
 import { PassengerParcelsPanel } from "./features/requests/PassengerParcelsPanel";
 import { TripsManagement } from "./features/trips/TripsManagement";
 import { MatchingBatchingMonitoring } from "./features/monitoring/MatchingBatchingMonitoring";
+import { InvitationsPage } from "./features/invitations/InvitationsPage";
 import { SettingsPanel } from "./features/settings/SettingsPanel";
 import { DriverDirectory } from "./features/verification/DriverDirectory";
 import { UsersDirectory } from "./features/users/UsersDirectory";
@@ -589,6 +590,9 @@ export function App({
       case "profile":
         return <ProfilePanel admin={admin} />;
 
+      case "invitations":
+        return <InvitationsPage api={api} token={token} />;
+
       case "users":
         return <UsersDirectory api={api} token={token} admin={admin} search={search} canAct={canAct} />;
 
@@ -633,6 +637,7 @@ export function App({
     matchingBatching: t("matchingDescription"),
     trips: t("tripsDescription"),
     users: t("usersDescription"),
+    invitations: t("invitationsDescription"),
     drivers: t("verificationDescription"),
     reports: t("reportsDescription"),
     incidentsSafety: t("incidentsDescription"),
