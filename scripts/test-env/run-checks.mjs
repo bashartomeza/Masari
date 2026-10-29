@@ -5,60 +5,11 @@
 // line per check and a summary; exits non-zero if anything failed.
 //
 //   node scripts/test-env/run-checks.mjs
-import { spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-
-const root = resolve(import.meta.dirname, "../..");
-const env = Object.fromEntries(
-  readFileSync(resolve(root, "apps/api/.env"), "utf8").split(/\r?\n/).map((l) => l.match(/^([A-Z0-9_]+)=(.*)$/)).filter(Boolean).map((m) => [m[1], m[2].replace(/^"|"$/g, "")])
-);
-const databaseUrl = env.DATABASE_URL.replace(/\/[A-Za-z0-9_]+(\?|$)/, "/masari_demo$1");
-Object.assign(process.env, env, { DATABASE_URL: databaseUrl, DEMO_RESET_ALLOWED_DATABASES: "masari_demo", APP_ENV: "demo" });
-
-const base = "http://localhost:3000/api/v1";
-const stateDir = resolve(root, ".staging-data/test-env");
-const otpFile = resolve(stateDir, "otp.txt");
-const results = [];
-
-async function http(path, { method = "GET", token, body, headers = {}, raw, expect } = {}) {
-  const init = { method, headers: { ...headers } };
-  if (token) init.headers.authorization = token.startsWith("Onboarding ") ? token : `Bearer ${token}`;
-  if (raw !== undefined) init.body = raw;
-  else if (body !== undefined) { init.headers["content-type"] = "application/json"; init.body = JSON.stringify(body); }
-  const response = await fetch(base + path, init);
-  const buffer = Buffer.from(await response.arrayBuffer());
-  let json = null;
-  try { json = JSON.parse(buffer.toString()); } catch { /* not json */ }
-  if (expect !== undefined && ![].concat(expect).includes(response.status)) {
-    throw new Error(`${method} ${path} -> ${response.status} (wanted ${[].concat(expect).join("/")}) ${buffer.toString().slice(0, 140)}`);
-  }
-  return { status: response.status, json, buffer, headers: response.headers };
-}
-
-async function check(id, name, fn) {
-  try {
-    await fn();
-    results.push({ id, name, ok: true });
-    console.log(`PASS ${id} ${name}`);
-  } catch (error) {
-    results.push({ id, name, ok: false, why: String(error.message ?? error).slice(0, 300) });
-    console.log(`FAIL ${id} ${name}\n     ${String(error.message ?? error).slice(0, 300)}`);
-  }
-}
-const must = (condition, message) => { if (!condition) throw new Error(message); };
-
-function runNpm(script) {
-  const result = spawnSync("npm", ["run", script], { cwd: root, env: process.env, shell: true, encoding: "utf8", timeout: 240_000 });
-  const out = (result.stdout ?? "") + (result.stderr ?? "");
-  return { ok: result.status === 0 && /"ok":\s*true/.test(out), out };
-}
-
-function powershellReset() {
-  const result = spawnSync("pwsh", ["-NoProfile", "-File", "scripts/test-env/reset-data.ps1"], { cwd: root, encoding: "utf8", timeout: 240_000 });
-  if (result.status !== 0) throw new Error("reset-data failed: " + (result.stdout + result.stderr).slice(-300));
-}
+import { root, env, base, stateDir, otpFile, results, http, check, must, runNpm, powershellReset, latestOtp } from "./check-kit.mjs";
+import { runNewFeatureChecks } from "./new-feature-checks.mjs";
 
 // ---------------------------------------------------------------------------
 // Main story and features: the existing end-to-end suites (they reset the data).
@@ -215,10 +166,6 @@ const phones = { passenger: "+970590003001", driverA: "+970590003002", driverB: 
 async function invite(role, phone) {
   return (await http("/admin/invitations", { method: "POST", token: adminToken(), body: { role, phone }, expect: 201 })).json.code;
 }
-function latestOtp(phone) {
-  const lines = readFileSync(otpFile, "utf8").trim().split("\n").filter((l) => l.includes(phone));
-  return lines.at(-1)?.split(" ").at(-1);
-}
 async function signUp({ role, phone, code, name }) {
   const consents = (await http("/onboarding/consents?locale=en", { expect: 200 })).json.documents;
   const started = (await http("/onboarding/attempts", { method: "POST", headers: { "idempotency-key": `qa-start-${phone.slice(-4)}-${Date.now()}` }, body: { invitation_code: code, role, phone, locale: "en" }, expect: 201 })).json;
@@ -363,6 +310,8 @@ await check("F06", "the capability list does not claim live tracking", async () 
   const caps = await http("/capabilities", { token: tokens.passenger, expect: 200 });
   must(caps.json.live_tracking_available === false, "live tracking claimed");
 });
+
+await runNewFeatureChecks({ tokens });
 
 // ---------------------------------------------------------------------------
 // Mark everything created here as demo data so the next reset removes it.
