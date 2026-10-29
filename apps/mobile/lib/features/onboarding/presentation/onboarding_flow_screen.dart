@@ -26,6 +26,7 @@ class OnboardingFlowScreen extends ConsumerStatefulWidget {
 class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
   final _invitation = TextEditingController();
   final _phone = TextEditingController();
+  final _email = TextEditingController();
   final _otp = TextEditingController();
   final _displayName = TextEditingController();
   final _password = TextEditingController();
@@ -60,6 +61,7 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
     _timer?.cancel();
     _invitation.dispose();
     _phone.dispose();
+    _email.dispose();
     _otp.dispose();
     _displayName.dispose();
     _password.dispose();
@@ -230,6 +232,7 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
               key: const ValueKey('invitationCodeField'),
               controller: _invitation,
               textInputAction: TextInputAction.next,
+              onChanged: (_) => setState(() {}),
               decoration: InputDecoration(
                 labelText:
                     state.config?.openRegistrationRoles.contains(
@@ -259,6 +262,22 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
               ),
             ),
           ),
+          if (_invitation.text.trim().isEmpty) ...[
+            const SizedBox(height: AppTokens.spaceMedium),
+            Directionality(
+              textDirection: TextDirection.ltr,
+              child: TextField(
+                key: const ValueKey('onboardingEmailField'),
+                controller: _email,
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.done,
+                autocorrect: false,
+                enableSuggestions: false,
+                inputFormatters: [LengthLimitingTextInputFormatter(191)],
+                decoration: InputDecoration(labelText: l10n.emailForCode),
+              ),
+            ),
+          ],
           const SizedBox(height: AppTokens.spaceLarge),
           FilledButton(
             key: const ValueKey('sendVerificationCodeButton'),
@@ -297,6 +316,8 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
             l10n.enterVerificationCode,
             style: Theme.of(context).textTheme.titleLarge,
           ),
+          const SizedBox(height: AppTokens.spaceSmall),
+          Text(l10n.codeSentToEmail, key: const ValueKey('codeSentToEmail')),
           if (state.maskedPhone != null) ...[
             const SizedBox(height: AppTokens.spaceSmall),
             Directionality(
@@ -675,12 +696,14 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
         .start(
           invitationCode: _invitation.text,
           phone: _phone.text,
+          email: _email.text,
           locale: locale == 'en' ? 'en' : 'ar',
         );
     final result = ref.read(onboardingControllerProvider).value;
     if (result?.stage == OnboardingStage.otpSent) {
       _invitation.clear();
       _phone.clear();
+      _email.clear();
     }
   }
 
@@ -696,6 +719,7 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
     _confirmPassword.clear();
     _invitation.clear();
     _phone.clear();
+    _email.clear();
     _displayName.clear();
     _terms = false;
     _privacy = false;

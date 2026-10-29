@@ -828,6 +828,13 @@ class AppLocalizationsAr extends AppLocalizations {
   String get sendVerificationCode => 'إرسال رمز التحقق';
 
   @override
+  String get emailForCode => 'البريد الإلكتروني (نرسل الرمز إليه)';
+
+  @override
+  String get codeSentToEmail =>
+      'أرسلنا رمزاً من ستة أرقام إلى بريدك الإلكتروني. تحقق من بريدك، بما في ذلك مجلد الرسائل غير المرغوبة.';
+
+  @override
   String get enterVerificationCode => 'أدخل رمز التحقق';
 
   @override

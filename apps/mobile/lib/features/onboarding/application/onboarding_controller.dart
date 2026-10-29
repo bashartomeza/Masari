@@ -171,6 +171,7 @@ class OnboardingController extends AsyncNotifier<OnboardingState> {
   Future<void> start({
     required String invitationCode,
     required String phone,
+    String email = '',
     required String locale,
   }) async {
     final current = state.value;
@@ -189,9 +190,16 @@ class OnboardingController extends AsyncNotifier<OnboardingState> {
       state = AsyncData(current.copyWith(errorCode: 'validation_error'));
       return;
     }
+    // Open sign-up emails the code, so it needs a plausible address; invited applicants use the Admin's.
+    if (invitationCode.trim().isEmpty &&
+        !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email.trim())) {
+      state = AsyncData(current.copyWith(errorCode: 'validation_error'));
+      return;
+    }
     final payload = <String, String>{
       'invitation': invitationCode.trim(),
       'phone': phone.trim(),
+      'email': invitationCode.trim().isEmpty ? email.trim().toLowerCase() : '',
       'role': role.apiValue,
       'locale': locale,
     };
@@ -207,6 +215,7 @@ class OnboardingController extends AsyncNotifier<OnboardingState> {
           invitationCode: invitationCode,
           role: role,
           phone: phone,
+          email: email,
           locale: locale,
           idempotencyKey: key,
         );

@@ -14,7 +14,7 @@ Everything runs on a disposable demo database. Nothing here touches real data, a
 | Demo app sign-ins (email + password from `apps/api/.env`) | passenger `demo.passenger@masari.app`, driver `demo.driver@masari.app` (and `demo.driver2@masari.app`), merchant `demo.merchant@masari.app` — passwords are `DEMO_PASSENGER_PASSWORD`, `DEMO_DRIVER_PASSWORD`, `DEMO_MERCHANT_PASSWORD` |
 | Sign-up invitation codes | `.staging-data/test-env/invitations.txt` (passenger +970590002001, driver +970590002002, merchant +970590002003) |
 | Email verification code (normal user sign-up) | the newest line for that email in `.staging-data/test-env/email-codes.txt` (no real email is sent; type the six-digit code into the app) |
-| One-time phone codes (the demo has no SMS) | the newest line of `.staging-data/test-env/otp.txt`; with the demo mail account set up the code is also emailed to the demo inbox, with the phone number in the subject (not for the fixed QA numbers +97059000200x and +97059000300x) |
+| One-time codes (Masari sends no SMS; they go by email) | the newest line of `.staging-data/test-env/otp.txt`; with the demo mail account set up the code is also emailed to the address entered in the app (not for the fixed QA numbers +97059000200x and +97059000300x or `@example.com` addresses) |
 | Sample files on the emulator (Downloads) | `licence.jpg` (valid), `vehicle-registration.pdf` (valid), `not-really-an-image.jpg` (text pretending to be a photo) |
 | Pending / rejected demo accounts | Demo Pending Merchant, Demo Pending Driver, Demo Rejected Driver (already seeded) |
 
@@ -187,7 +187,7 @@ Run after a reset so the seeded data is fresh. Use the demo accounts.
 
 ## G. Not in scope (do not report these as bugs)
 
-Real SMS delivery (codes come from `otp.txt`) and real email delivery (codes come from `email-codes.txt`), push notifications, payments and real money movement (route fares are display-only estimates; earnings amounts are not tracked), live tracking, PDF or Excel exports, maps and the checkpoint feeds (switched off), and anything on a real server (hosting is not set up yet).
+There is no SMS at all (Masari sends codes by email; the demo reads them from `otp.txt`) and real email delivery (codes come from `email-codes.txt`), push notifications, payments and real money movement (route fares are display-only estimates; earnings amounts are not tracked), live tracking, PDF or Excel exports, maps and the checkpoint feeds (switched off), and anything on a real server (hosting is not set up yet).
 
 ## Results
 

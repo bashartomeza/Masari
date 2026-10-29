@@ -144,6 +144,24 @@ describe("explicit identity linking and verified phone profile", () => {
     await request(server).post(linkPath).set("authorization", bearer()).send({ id_token: "raw", reauthentication_token: messages[0].actionToken }).expect(400);
     expect(actions[0].consumed_at).toBeNull(); expect(identities).toHaveLength(0);
   });
+  it("emails the phone code to the verified account email and stores the phone unverified (no SMS)", async () => {
+    const { EmailPhoneVerificationProvider } = await import("../services/identityProfile.js");
+    const sent: any[] = [];
+    const server = app({ phoneVerificationProvider: new EmailPhoneVerificationProvider({ kind: "approved", send: async (m: any) => { sent.push(m); } }) });
+    const r = await request(server).post(startPath).set("authorization", bearer()).send({ phone, locale: "en" }).expect(202);
+    expect(sent).toEqual([expect.objectContaining({ to: "owner@example.com", purpose: "phone_code", locale: "en" })]);
+    expect(JSON.stringify(r.body)).not.toContain(sent[0].actionToken);
+    await request(server).post(confirmPath).set("authorization", bearer()).send({ action_token: r.body.action_token, phone, code: sent[0].actionToken }).expect(200);
+    // The code proves the mailbox, not the phone: no phone sign-in, profile still completes.
+    expect(users[0]).toMatchObject({ phone, profile_state: "complete", phone_verified_at: null });
+  });
+  it("refuses to email a phone code to an unverified email", async () => {
+    const { EmailPhoneVerificationProvider } = await import("../services/identityProfile.js");
+    users[0].email_verified_at = null;
+    const server = app({ phoneVerificationProvider: new EmailPhoneVerificationProvider({ kind: "approved", send: async () => {} }) });
+    await request(server).post(startPath).set("authorization", bearer()).send({ phone, locale: "en" }).expect(403);
+    expect(actions).toHaveLength(0);
+  });
   it("expires Google linking email reauthentication within fifteen minutes", async () => {
     users[0].password_hash = null; const server = app(); const before = Date.now();
     await request(server).post(`${linkPath}/start`).set("authorization", bearer()).send({ locale: "en" }).expect(202);

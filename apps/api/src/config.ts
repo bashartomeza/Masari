@@ -109,7 +109,7 @@ const rawSchema = z.object({
   DRIVER_DOCUMENTS_ENABLED: z.string().optional(),
   DRIVER_DOCUMENTS_DIR: z.string().min(1).optional(),
   DRIVER_DOCUMENT_RETENTION_DAYS: z.coerce.number().int().min(1).max(3650).default(90),
-  OTP_PROVIDER: z.enum(["disabled", "fake"]).default("disabled"),
+  OTP_PROVIDER: z.enum(["disabled", "fake", "email"]).default("disabled"),
   EMAIL_DELIVERY: z.preprocess((v) => typeof v === "string" && v.trim() === "" ? undefined : v, z.enum(["disabled", "smtp"]).default("disabled")),
   SMTP_HOST: optionalText(255),
   SMTP_PORT: z.preprocess((v) => typeof v === "string" && v.trim() === "" ? undefined : v, z.coerce.number().int().min(1).max(65_535).optional()),
@@ -324,8 +324,11 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
   if (raw.CHECKPOINTS_API_KEY && isUnsafeSecret(raw.CHECKPOINTS_API_KEY)) {
     problems.push("CHECKPOINTS_API_KEY uses a known placeholder or default value");
   }
-  if (publicOnboardingEnabled && productionLike) {
-    problems.push("PUBLIC_ONBOARDING_ENABLED cannot be enabled in staging or production without an approved provider");
+  if (publicOnboardingEnabled && productionLike && raw.OTP_PROVIDER !== "email") {
+    problems.push("PUBLIC_ONBOARDING_ENABLED in staging or production requires OTP_PROVIDER=email");
+  }
+  if (raw.OTP_PROVIDER === "email" && raw.EMAIL_DELIVERY !== "smtp") {
+    problems.push("OTP_PROVIDER=email requires EMAIL_DELIVERY=smtp (and the SMTP_* settings)");
   }
   if (openSignupEnabled && !publicOnboardingEnabled) {
     problems.push("OPEN_DRIVER_MERCHANT_SIGNUP_ENABLED requires PUBLIC_ONBOARDING_ENABLED");
@@ -336,8 +339,8 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
   if (publicOnboardingEnabled && !invitationsEnabled) {
     problems.push("PUBLIC_ONBOARDING_ENABLED requires INVITATIONS_ENABLED");
   }
-  if (publicOnboardingEnabled && raw.OTP_PROVIDER !== "fake") {
-    problems.push("PUBLIC_ONBOARDING_ENABLED requires the fake provider in local, test, or demo");
+  if (publicOnboardingEnabled && raw.OTP_PROVIDER !== "fake" && raw.OTP_PROVIDER !== "email") {
+    problems.push("PUBLIC_ONBOARDING_ENABLED requires OTP_PROVIDER=email (or fake in local, test, or demo)");
   }
   if (productionLike && testLegalFixturesEnabled) {
     problems.push("ONBOARDING_TEST_LEGAL_FIXTURES_ENABLED is forbidden in staging and production");
@@ -659,6 +662,7 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
       }
     },
     invitationsEnabled,
+    otpProvider: raw.OTP_PROVIDER,
     publicOnboardingEnabled,
     openSignupEnabled,
     openSignupMaxStartsPerHour: raw.OPEN_SIGNUP_MAX_STARTS_PER_HOUR,

@@ -12,7 +12,7 @@ Tick each before the deploy day. Nothing in the repository can unblock these.
 - [ ] **Hosting account**: Injazat server or container platform with SSH or console access, Docker (or Node 22.17.1), a private MySQL 8 instance, and persistent disk.
 - [ ] **TLS certificate** for `masari.aynur.ps` (who issues and renews it).
 - [ ] **SMTP / email account**: an approved sending mailbox or provider (host, port, user, password, from-address, SPF/DKIM). Configure it with the `EMAIL_DELIVERY=smtp` variables in section 4 (gap G1 is closed).
-- [ ] **SMS provider**: an approved Palestinian-coverage SMS/OTP provider and contract. See gap G2. Until then registration stays off.
+- [x] **No SMS provider is needed.** Masari sends no SMS: every one-time code is emailed through the SMTP account above (gap G2 is closed by decision; see `docs/security/email-codes-instead-of-sms.md`).
 - [ ] **Android signing keystore**: owner generates and keeps the upload/release key and its passwords. See gap G4.
 - [ ] **Legal text**: owner-approved Arabic and English Terms, Privacy Notice and Adult 18+ Attestation (six documents) for the consent release.
 - [ ] **First admin identity**: the email address and an initial password the owner will use.
@@ -23,7 +23,7 @@ Tick each before the deploy day. Nothing in the repository can unblock these.
 These were found while auditing. They are not fixed here.
 
 - **G1 (closed) Production email delivery.** `apps/api/src/services/smtpEmailDelivery.ts` is an approved SMTP `EmailDelivery` (STARTTLS or implicit TLS, AUTH PLAIN/LOGIN, certificate verification, timeouts, header-injection protection, bilingual templates in `emailTemplates.ts`), enabled with `EMAIL_DELIVERY=smtp` and wired in `server.ts`. Email sign-up, verification and password reset/set work in staging and production once the SMTP variables below are set. Without them those endpoints still answer 503 `email_auth_unavailable` (fail-closed).
-- **G2 No SMS/OTP provider.** `OTP_PROVIDER` accepts only `disabled` or `fake`, and `fake` is refused in production. `phoneVerificationProvider` is likewise never wired. Phone verification and public onboarding cannot be enabled.
+- **G2 (closed by decision) No SMS provider.** Masari will not use SMS. `OTP_PROVIDER=email` emails the onboarding code (invited and open sign-up) and the phone-step code after email sign-up through the same SMTP delivery as G1; it needs `EMAIL_DELIVERY=smtp`. `OTP_PROVIDER=fake` stays refused in staging/production. SMTP is the only delivery requirement; public onboarding (`PUBLIC_ONBOARDING_ENABLED`) may be enabled in production once `OTP_PROVIDER=email`, the onboarding peppers and the legal text exist. A phone number whose code only went to an email is stored unverified (see the trade-off document).
 - **G3 No first-admin bootstrap. RESOLVED.** `npm run admin:create -w @masari/api` creates the first (or an additional) admin from a hidden password prompt, and `npm run admin:list -w @masari/api` lists admins read-only. See section 7.
 - **G4 Release APK was signed with the debug key. RESOLVED.** `apps/mobile/android/app/build.gradle.kts` now signs release builds from git-ignored `android/key.properties` or `MASARI_KEYSTORE_*` environment variables and fails the build if neither is present. CI uses an explicit debug-signing opt-in. The owner must still generate the upload keystore: see `docs/mobile/ANDROID_RELEASE.md`.
 - **G5 `.env.production.example` leaves `AUTH_ACTION_TOKEN_PEPPER` commented out**, but it is required for email actions and the preflight treats it as required. Uncomment it in the example.
@@ -75,7 +75,7 @@ Run it once per secret and paste the result straight into the secret store, not 
 | `INVITATIONS_ENABLED=true` plus `INVITATION_CODE_PEPPER`, `PHONE_DIGEST_PEPPER`, `OTP_CODE_PEPPER`, `ONBOARDING_SESSION_PEPPER`, `IDEMPOTENCY_KEY_PEPPER`, `ABUSE_KEY_PEPPER` | Admin-issued invitations. Six distinct secrets, distinct from the core three. Each has a `*_KEY_VERSION` (default 1) for rotation. |
 | `ROUTE_MAPS_ENABLED=true`, `ROUTE_PROVIDER`, `ROUTE_PROVIDER_SECRET` | Only after a map provider is approved. Otherwise `ROUTE_PROVIDER=disabled`. |
 | `EMAIL_DELIVERY=smtp` plus `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`, `EMAIL_FROM_ADDRESS` (optional `SMTP_PORT`, `SMTP_SECURE`, `EMAIL_FROM_NAME`) | Email sign-up, verification and password reset/set. All of host, user, password and from-address are required together in staging/production (startup is refused otherwise). `SMTP_SECURE` is `starttls` (default, port 587; credentials are sent only after a verified TLS upgrade) or `tls` (implicit TLS, default port 465). `SMTP_PORT` defaults from `SMTP_SECURE`. Also needs `AUTH_ACTION_TOKEN_PEPPER`. The password is never logged. Set SPF/DKIM/DMARC for the sender domain with your mail provider. |
-| SMS provider settings | None exist yet; see gap G2. |
+| `OTP_PROVIDER=email` | Emails every one-time code through the SMTP delivery above (requires `EMAIL_DELIVERY=smtp`). Leave `disabled` while registration is off. There are no SMS settings. |
 
 ### Optional with safe defaults
 
@@ -83,7 +83,7 @@ Run it once per secret and paste the result straight into the secret store, not 
 
 ### Must stay off or unset in production (startup is refused otherwise)
 
-`ENABLE_DEMO_FEATURES`, `MULTI_ROUTE_ENTRY_ENABLED`, `MULTI_ROUTE_MATCHING_ENABLED`, `CANONICAL_TRIP_CREATION_ENABLED`, `CANONICAL_SHARED_TRIPS_ENABLED`, `CANONICAL_SHARED_TRIP_MOBILE_ENABLED`, `PUBLIC_ONBOARDING_ENABLED`, `ONBOARDING_TEST_LEGAL_FIXTURES_ENABLED`, `OTP_PROVIDER=fake`, `ROUTE_PROVIDER=fake`, `GOOGLE_PASSENGER_SIGNUP_MODE` other than `disabled`, `ROUTE_PROVIDER_CACHE_TTL_SECONDS` other than `0`. Do not set any `DEMO_*` variable.
+`ENABLE_DEMO_FEATURES`, `MULTI_ROUTE_ENTRY_ENABLED`, `MULTI_ROUTE_MATCHING_ENABLED`, `CANONICAL_TRIP_CREATION_ENABLED`, `CANONICAL_SHARED_TRIPS_ENABLED`, `CANONICAL_SHARED_TRIP_MOBILE_ENABLED`, `ONBOARDING_TEST_LEGAL_FIXTURES_ENABLED`, `OTP_PROVIDER=fake`, and `PUBLIC_ONBOARDING_ENABLED` unless `OTP_PROVIDER=email`, `ROUTE_PROVIDER=fake`, `GOOGLE_PASSENGER_SIGNUP_MODE` other than `disabled`, `ROUTE_PROVIDER_CACHE_TTL_SECONDS` other than `0`. Do not set any `DEMO_*` variable.
 
 ## 5. Preflight check (read-only)
 
@@ -91,7 +91,7 @@ Run it once per secret and paste the result straight into the secret store, not 
 node scripts/deploy/preflight.mjs --env-file /etc/masari/api.env --target production
 ```
 
-It prints PASS, FAIL or WARN per item and never prints values. Exit code 1 means do not continue. It FAILs an incomplete `EMAIL_DELIVERY=smtp` configuration and WARNs when email delivery is off; the SMS WARN is expected until gap G2 is closed. The API itself repeats these checks at startup (`apps/api/src/config.ts`) and refuses to start on a bad configuration.
+It prints PASS, FAIL or WARN per item and never prints values. Exit code 1 means do not continue. It FAILs an incomplete `EMAIL_DELIVERY=smtp` configuration and WARNs when email delivery is off; it also FAILs `OTP_PROVIDER=fake`, and `PUBLIC_ONBOARDING_ENABLED=true` or `OTP_PROVIDER=email` without `OTP_PROVIDER=email` / `EMAIL_DELIVERY=smtp`. There is no SMS check any more. The API itself repeats these checks at startup (`apps/api/src/config.ts`) and refuses to start on a bad configuration.
 
 ## 6. Database creation and migrations
 

@@ -269,6 +269,8 @@
   "invitationCode": "رمز الدعوة",
   "phoneNumber": "رقم الهاتف",
   "sendVerificationCode": "إرسال رمز التحقق",
+  "emailForCode": "البريد الإلكتروني (نرسل الرمز إليه)",
+  "codeSentToEmail": "أرسلنا رمزاً من ستة أرقام إلى بريدك الإلكتروني. تحقق من بريدك، بما في ذلك مجلد الرسائل غير المرغوبة.",
   "enterVerificationCode": "أدخل رمز التحقق",
   "resendCode": "إعادة إرسال الرمز",
   "resendAvailableIn": "تتوفر إعادة الإرسال خلال",

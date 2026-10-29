@@ -25,7 +25,6 @@ const FORBIDDEN_TRUE = [
   "CANONICAL_TRIP_CREATION_ENABLED",
   "CANONICAL_SHARED_TRIPS_ENABLED",
   "CANONICAL_SHARED_TRIP_MOBILE_ENABLED",
-  "PUBLIC_ONBOARDING_ENABLED",
   "ONBOARDING_TEST_LEGAL_FIXTURES_ENABLED"
 ];
 
@@ -123,7 +122,10 @@ export function runPreflight(env, options = {}) {
   add("RATE_LIMIT_GLOBAL_MAX", intIn(val("RATE_LIMIT_GLOBAL_MAX"), 50, 1000) !== false, "RATE_LIMIT_GLOBAL_MAX must be 50-1000 when set");
   add("RATE_LIMIT_LOGIN_MAX", intIn(val("RATE_LIMIT_LOGIN_MAX"), 3, 50) !== false, "RATE_LIMIT_LOGIN_MAX must be 3-50 when set");
 
-  add("OTP_PROVIDER", val("OTP_PROVIDER") !== "fake", "OTP_PROVIDER=fake is forbidden (use disabled until an approved SMS provider is integrated)");
+  if (bool("PUBLIC_ONBOARDING_ENABLED")) add("PUBLIC_ONBOARDING_ENABLED", (val("OTP_PROVIDER") || "disabled") === "email", "PUBLIC_ONBOARDING_ENABLED requires OTP_PROVIDER=email in staging/production");
+  const otpProvider = val("OTP_PROVIDER") || "disabled";
+  add("OTP_PROVIDER", ["disabled", "email"].includes(otpProvider), "OTP_PROVIDER must be disabled or email (fake is forbidden; Masari sends no SMS, codes go by email)");
+  if (otpProvider === "email") add("OTP_PROVIDER_EMAIL", val("EMAIL_DELIVERY") === "smtp", "OTP_PROVIDER=email requires EMAIL_DELIVERY=smtp");
   add("SUPPORTED_PHONE_REGIONS", (val("SUPPORTED_PHONE_REGIONS") || "PS").toUpperCase() === "PS", "SUPPORTED_PHONE_REGIONS must be PS");
   add("GOOGLE_PASSENGER_SIGNUP_MODE", (val("GOOGLE_PASSENGER_SIGNUP_MODE") || "disabled") === "disabled", "Google passenger signup must stay disabled in staging/production (config refuses otherwise)");
 
@@ -157,7 +159,6 @@ export function runPreflight(env, options = {}) {
   } else {
     results.push({ id: "EMAIL_DELIVERY_DISABLED", status: "WARN", message: "EMAIL_DELIVERY is not smtp; email sign-up, verification and password reset will answer 503" });
   }
-  results.push({ id: "SMS_DELIVERY", status: "WARN", message: "approved SMS/OTP delivery cannot be verified from the environment; confirm per the runbook (known gap G2)" });
   return results;
 }
 

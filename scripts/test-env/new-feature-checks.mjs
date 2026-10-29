@@ -121,6 +121,7 @@ async function openSignUp({ role, phone, name, invitationCode }) {
   const consents = (await http("/onboarding/consents?locale=en", { expect: 200 })).json.documents;
   const body = { role, phone, locale: "en" };
   if (invitationCode) body.invitation_code = invitationCode;
+  else body.email = `qa.open.${phone.slice(-4)}@example.com`;
   const started = (await http("/onboarding/attempts", { method: "POST", headers: { "idempotency-key": key("start") }, body, expect: 201 })).json;
   const continuation = `Onboarding ${started.onboarding_token}`;
   await sleep(400);
@@ -156,7 +157,7 @@ async function openSignupChecks(admin) {
     must(partial.status === 409 && partial.json.missing_documents.length === 1, `two documents: ${partial.status} ${JSON.stringify(partial.json).slice(0, 120)}`);
   });
   await check("F09", "a passenger cannot register through the open driver/shop sign-up (no invitation code)", async () => {
-    const r = await http("/onboarding/attempts", { method: "POST", headers: { "idempotency-key": key("passenger-open") }, body: { role: "passenger", phone: `+97059005${String(Date.now()).slice(-4)}`, locale: "en" } });
+    const r = await http("/onboarding/attempts", { method: "POST", headers: { "idempotency-key": key("passenger-open") }, body: { role: "passenger", phone: `+97059005${String(Date.now()).slice(-4)}`, email: `qa.pass.${tag}@example.com`, locale: "en" } });
     must(r.status >= 400 && r.status < 500, `passenger sign-up without a code gave ${r.status}`);
   });
   await check("C38","admin approval is blocked before the application is submitted", async () => {

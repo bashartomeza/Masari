@@ -30,6 +30,7 @@ import {
   onboardingSessionTokenData,
   revokeOnboardingSessions
 } from "../lib/onboardingSessions.js";
+import { contactEmailSchema } from "../lib/contactEmail.js";
 import { PHONE_INPUT_MAX_LENGTH, maskPhone, normalizePhoneToE164, phoneLast4 } from "../lib/phone.js";
 import { consentDigestMatches } from "../lib/consentContent.js";
 import { missingDocumentKinds, requiredDocumentKinds } from "../lib/applicationReview.js";
@@ -58,9 +59,12 @@ const startSchema = z.strictObject({
   invitation_code: z.string().trim().min(20).max(32).optional(),
   role: roleSchema,
   phone: z.string().trim().min(7).max(PHONE_INPUT_MAX_LENGTH),
+  // Open sign-up only: Masari sends no SMS, so the one-time code goes to this address.
+  // Invited applicants never supply one; their code goes to the address the Admin recorded.
+  email: contactEmailSchema.optional(),
   region: z.string().trim().regex(/^[A-Za-z]{2}$/).optional(),
   locale: localeSchema
-});
+}).refine((value) => (value.invitation_code === undefined) === (value.email !== undefined));
 const verifySchema = z.strictObject({ otp: z.string().regex(/^\d{6}$/) });
 const consentInputSchema = z.strictObject({
   id: z.string().min(1).max(191),
@@ -332,6 +336,16 @@ async function issueRegistrationGrant(appConfig: AppConfig, attemptId: string) {
   return { token: grant, expiresAt };
 }
 
+/** Daily send caps for one attempt: keyed on the phone and, when a mailbox receives the code, on that mailbox too. */
+function otpDayBuckets(appConfig: AppConfig, phone: string, email: string | null | undefined, ip: string) {
+  const limit = appConfig.onboarding!.otpMaxSendsPerPhoneDay;
+  return [
+    { type: "otp_phone_day", subject: phone, seconds: 86_400, limit },
+    ...(email ? [{ type: "otp_email_day", subject: email, seconds: 86_400, limit }] : []),
+    { type: "otp_ip_hour", subject: ip, seconds: 3_600, limit: 20 }
+  ];
+}
+
 function startResponse(
   attempt: { id: string; status: string; phone_e164: string; expires_at: Date },
   token: string,
@@ -450,7 +464,9 @@ export function createPublicOnboardingRouter(
 
   if (!appConfig.publicOnboardingEnabled || !appConfig.onboarding || !appConfig.publicRegistration) return router;
   const onboarding = appConfig.onboarding;
-  if (provider.name !== "fake") throw new Error("public_onboarding_fake_provider_required");
+  if (provider.name !== "fake" && provider.name !== "email") throw new Error("public_onboarding_provider_required");
+  // Never fall back to the fake provider when email delivery was configured.
+  if (appConfig.otpProvider === "email" && provider.name !== "email") throw new Error("public_onboarding_email_provider_required");
   const continuation = requireOnboardingToken(appConfig, ["continuation"]);
   const completionContinuation = requireOnboardingToken(appConfig, ["continuation"], {
     allowCompletedContinuationReplay: true
@@ -534,6 +550,7 @@ export function createPublicOnboardingRouter(
           phone_digest: digest,
           phone_digest_version: onboarding.keys.phoneDigest.version,
           phone_last4: phoneLast4(phone),
+          delivery_email: input.email ?? null,
           request_ip_digest: abuseSubjectDigest("onboarding_ip", requestIp(req), onboarding.keys.abuse),
           request_ip_digest_version: onboarding.keys.abuse.version,
           created_request_id: req.requestId,
@@ -550,8 +567,7 @@ export function createPublicOnboardingRouter(
     });
     const rotated = await rotateContinuation(appConfig, attempt.id);
     await consumeBuckets(req, appConfig, [
-      { type: "otp_phone_day", subject: phone, seconds: 86_400, limit: onboarding.otpMaxSendsPerPhoneDay },
-      { type: "otp_ip_hour", subject: requestIp(req), seconds: 3_600, limit: 20 }
+      ...otpDayBuckets(appConfig, phone, input.email, requestIp(req))
     ]);
     const delivery = await dispatchOtpChallenge(prisma, provider, {
       attemptId: attempt.id,
@@ -591,12 +607,13 @@ export function createPublicOnboardingRouter(
         await consumeBuckets(req, appConfig, [
           { type: "open_start_ip", subject: requestIp(req), seconds: 3_600, limit: 10 },
           { type: "open_start_phone", subject: phone, seconds: 86_400, limit: 5 },
+          { type: "open_start_email", subject: input.email!, seconds: 86_400, limit: 5 },
           { type: "open_start_global", subject: "all", seconds: 3_600, limit: appConfig.openSignupMaxStartsPerHour }
         ]);
         claim = await claimPublicOperation(req, appConfig, {
           operation: "onboarding_open_start",
           scope: phone,
-          payload: { role: input.role, phone, region: input.region, locale: input.locale }
+          payload: { role: input.role, phone, email: input.email, region: input.region, locale: input.locale }
         });
         await startOpenAttempt(req, res, input, phone, claim);
         return;
@@ -672,6 +689,7 @@ export function createPublicOnboardingRouter(
             phone_digest: locked.intended_phone_digest,
             phone_digest_version: locked.phone_digest_version,
             phone_last4: phoneLast4(phone),
+            delivery_email: locked.contact_email,
             request_ip_digest: abuseSubjectDigest("onboarding_ip", requestIp(req), appConfig.onboarding!.keys.abuse),
             request_ip_digest_version: appConfig.onboarding!.keys.abuse.version,
             created_request_id: req.requestId,
@@ -694,10 +712,7 @@ export function createPublicOnboardingRouter(
         return created;
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
       const rotated = await rotateContinuation(appConfig, attempt.id);
-      await consumeBuckets(req, appConfig, [
-        { type: "otp_phone_day", subject: phone, seconds: 86_400, limit: onboarding.otpMaxSendsPerPhoneDay },
-        { type: "otp_ip_hour", subject: requestIp(req), seconds: 3_600, limit: 20 }
-      ]);
+      await consumeBuckets(req, appConfig, otpDayBuckets(appConfig, phone, attempt.delivery_email, requestIp(req)));
       const delivery = await dispatchOtpChallenge(prisma, provider, {
         attemptId: attempt.id,
         key: onboarding.keys.otpCode,
@@ -792,8 +807,7 @@ export function createPublicOnboardingRouter(
         return;
       }
       await consumeBuckets(req, appConfig, [
-        { type: "otp_phone_day", subject: attempt.phone_e164, seconds: 86_400, limit: onboarding.otpMaxSendsPerPhoneDay },
-        { type: "otp_ip_hour", subject: requestIp(req), seconds: 3_600, limit: 20 },
+        ...otpDayBuckets(appConfig, attempt.phone_e164, attempt.delivery_email, requestIp(req)),
         { type: "otp_attempt", subject: attempt.id, seconds: 86_400, limit: onboarding.otpMaxResends + 1 },
         { type: "otp_invitation", subject: attempt.invitation_id ?? attempt.id, seconds: 86_400, limit: onboarding.otpMaxResends + 1 }
       ]);
@@ -993,12 +1007,20 @@ export function createPublicOnboardingRouter(
           }
         }
         const pending = attempt.intended_role === "driver" || attempt.intended_role === "merchant";
+        // Email-delivered code: it proves the mailbox, not the phone. The mailbox becomes the verified sign-in
+        // identity; the phone counts as verified only when an Admin vouched for it through an invitation.
+        const emailProven = provider.provesPhone === false && attempt.delivery_email !== null;
+        const phoneVouched = attempt.invitation_id !== null || provider.provesPhone !== false;
+        if (emailProven && (await tx.user.findUnique({ where: { email: attempt.delivery_email! }, select: { id: true } }))) {
+          throw new HttpError(409, "registration_conflict");
+        }
         const user = await tx.user.create({
           data: {
             name: displayName,
             phone: attempt.phone_e164,
-            // The one-time code verified this phone, and an Admin issued the invitation.
-            phone_verified_at: now,
+            ...(emailProven ? { email: attempt.delivery_email, email_verified_at: now } : {}),
+            // Admin-issued invitation (or a provider that proves the phone): trusted. Open sign-up by email: unverified.
+            phone_verified_at: phoneVouched ? now : null,
             profile_state: "complete",
             password_hash: passwordHash,
             role: attempt.intended_role,

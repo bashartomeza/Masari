@@ -164,7 +164,7 @@ await check("A14", "rejected application can be reopened; history keeps the reje
 // --- Sign-up with invitations (all three roles), documents, rejection
 const phones = { passenger: "+970590003001", driverA: "+970590003002", driverB: "+970590003003", merchant: "+970590003004" };
 async function invite(role, phone) {
-  return (await http("/admin/invitations", { method: "POST", token: adminToken(), body: { role, phone }, expect: 201 })).json.code;
+  return (await http("/admin/invitations", { method: "POST", token: adminToken(), body: { role, phone, contact_email: `qa.${phone.slice(-4)}@example.com` }, expect: 201 })).json.code;
 }
 async function signUp({ role, phone, code, name }) {
   const consents = (await http("/onboarding/consents?locale=en", { expect: 200 })).json.documents;

@@ -269,6 +269,8 @@
   "invitationCode": "Invitation code",
   "phoneNumber": "Phone number",
   "sendVerificationCode": "Send verification code",
+  "emailForCode": "Email address (we send the code here)",
+  "codeSentToEmail": "We emailed a six-digit code. Check your email, including the spam folder.",
   "enterVerificationCode": "Enter verification code",
   "resendCode": "Resend code",
   "resendAvailableIn": "Resend available in",

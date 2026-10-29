@@ -44,8 +44,10 @@ describe("public onboarding boundary", () => {
       APP_RELEASE: "test",
       TRUST_PROXY: "none"
     };
-    expect(() => createConfig({ ...base, PUBLIC_ONBOARDING_ENABLED: "true" })).toThrow(/cannot be enabled/);
+    expect(() => createConfig({ ...base, PUBLIC_ONBOARDING_ENABLED: "true" })).toThrow(/requires OTP_PROVIDER=email/);
     expect(() => createConfig({ ...base, OTP_PROVIDER: "fake" })).toThrow(/forbidden/);
+    // Email delivery needs the SMTP settings; Masari sends no SMS.
+    expect(() => createConfig({ ...base, OTP_PROVIDER: "email" })).toThrow(/OTP_PROVIDER=email requires EMAIL_DELIVERY=smtp/);
   });
 
   it("uses an isolated keyed digest for secret-bearing idempotency payloads", () => {

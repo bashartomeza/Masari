@@ -495,6 +495,8 @@ model Invitation {
   intended_phone_digest String         @db.Char(64)
   phone_digest_version  Int
   phone_last4           String         @db.Char(4)
+  /// Where the one-time code is emailed (Masari sends no SMS). Null only on pre-email invitations.
+  contact_email         String?        @db.VarChar(191)
   campaign              String?        @db.VarChar(100)
   source                String?        @db.VarChar(100)
   metadata              Json?
@@ -543,6 +545,8 @@ model OnboardingAttempt {
   phone_digest                   String                  @db.Char(64)
   phone_digest_version           Int
   phone_last4                    String                  @db.Char(4)
+  /// Address the one-time code is emailed to (admin-entered for invited, user-entered for open sign-up).
+  delivery_email                 String?                 @db.VarChar(191)
   status                         OnboardingAttemptStatus @default(created)
   current_challenge_id           String?                 @unique
   completed_user_id              String?

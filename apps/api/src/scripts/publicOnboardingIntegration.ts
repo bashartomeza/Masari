@@ -5,7 +5,7 @@ import { config } from "../config.js";
 import { prisma } from "../lib/prisma.js";
 import { abuseSubjectDigest } from "../lib/keyedDigest.js";
 import { normalizeInvitationCode } from "../lib/invitations.js";
-import { FakeOtpProvider } from "../lib/otp.js";
+import { EmailOtpProvider, FakeOtpProvider } from "../lib/otp.js";
 import { resetDemoData, DEMO_ACCOUNTS } from "../modules/demoReset.js";
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -75,7 +75,7 @@ async function invitationRecord(token: string, role: "passenger" | "driver" | "m
   const response = await request(app)
     .post("/api/v1/admin/invitations")
     .set("authorization", `Bearer ${token}`)
-    .send({ role, phone, region: "PS", source: "integration" });
+    .send({ role, phone, contact_email: `invited.${phone.slice(-6)}@example.com`, region: "PS", source: "integration" });
   assert(response.status === 201, `Invitation creation failed for ${role}`);
   return { id: response.body.invitation.id as string, code: response.body.code as string };
 }
@@ -174,7 +174,7 @@ async function openStart(role: string, phone: string) {
   return request(app)
     .post("/api/v1/onboarding/attempts")
     .set("idempotency-key", key("open-start"))
-    .send({ role, phone, region: "PS", locale: "ar" });
+    .send({ role, phone, email: `open.${phone.slice(-6)}@example.com`, region: "PS", locale: "ar" });
 }
 
 async function uploadDocument(path: string, token: string, kind: string) {
@@ -191,7 +191,7 @@ const submitApplication = (token: string) =>
 /** Open driver / shop-owner signup: no invitation, documents required before review. */
 async function openSignupChecks(admin: string, legal: Array<{ id: string; type: string; content_hash: string }>) {
   await prisma.abuseCounter.deleteMany({
-    where: { bucket_type: { in: ["otp_ip_hour", "otp_phone_day", "open_start_ip", "open_start_phone", "open_start_global"] } }
+    where: { bucket_type: { in: ["otp_ip_hour", "otp_phone_day", "otp_email_day", "open_start_ip", "open_start_phone", "open_start_email", "open_start_global"] } }
   });
   const openConfig = await request(app).get("/api/v1/onboarding/config");
   check(
@@ -214,6 +214,7 @@ async function openSignupChecks(admin: string, legal: Array<{ id: string; type: 
   check(started.status === 201, "open driver start succeeds");
   const attempt = await prisma.onboardingAttempt.findUniqueOrThrow({ where: { id: started.body.attempt.id } });
   check(attempt.invitation_id === null, "open attempt has no invitation");
+  check(attempt.delivery_email === "open.222202@example.com", "open attempt records the email the code is sent to");
   const wrongOtp = await verify(started.body.attempt.id, started.body.onboarding_token, "000000");
   check(wrongOtp.status === 400, "a wrong code is refused as in the invited flow");
   const verified = await verify(started.body.attempt.id, started.body.onboarding_token, latestOtp());
@@ -301,6 +302,35 @@ async function openSignupChecks(admin: string, legal: Array<{ id: string; type: 
   check(
     (await verify(again.body.attempt.id, again.body.onboarding_token, "123456")).status === 401,
     "the superseded attempt's token no longer works"
+  );
+  await emailDeliveryChecks(legal);
+}
+
+/** OTP_PROVIDER=email behaviour: the code travels by email only, and an unproven phone is not a sign-in identity. */
+async function emailDeliveryChecks(legal: Array<{ id: string; type: string; content_hash: string }>) {
+  const sent: Array<{ to: string; purpose: string; actionToken: string }> = [];
+  const emailApp = createApp(config, { otpProvider: new EmailOtpProvider({ kind: "approved", send: async (m) => { sent.push(m); } }) });
+  await prisma.abuseCounter.deleteMany({ where: { bucket_type: { in: ["otp_ip_hour", "otp_phone_day", "otp_email_day", "open_start_ip", "open_start_phone", "open_start_email", "open_start_global"] } } });
+  const phone = "+970599333301";
+  const email = "email.flow@example.com";
+  const started = await request(emailApp).post("/api/v1/onboarding/attempts").set("idempotency-key", key("email-start"))
+    .send({ role: "driver", phone, email, region: "PS", locale: "en" });
+  check(started.status === 201 && sent.length === 1 && sent[0].to === email && sent[0].purpose === "phone_code", "the code is emailed to the open applicant");
+  check(!JSON.stringify(started.body).includes(sent[0].actionToken) && !JSON.stringify(started.body).includes(email), "the start response carries neither the code nor the email");
+  const token = `Onboarding ${started.body.onboarding_token}`;
+  const verified = await request(emailApp).post(`/api/v1/onboarding/attempts/${started.body.attempt.id}/verify`)
+    .set("authorization", token).set("idempotency-key", key("email-verify")).send({ otp: sent[0].actionToken });
+  check(verified.status === 200, "the emailed code verifies the attempt");
+  const done = await request(emailApp).post(`/api/v1/onboarding/attempts/${started.body.attempt.id}/complete`)
+    .set("authorization", token).set("idempotency-key", key("email-complete"))
+    .send({ registration_grant: verified.body.registration_grant, display_name: "Email Driver", password: "email driver secure pass 2026", locale: "ar", consents: legal, adult_self_attestation: true });
+  check(done.status === 201, "email-verified open sign-up completes");
+  const user = await prisma.user.findUniqueOrThrow({ where: { phone } });
+  check(user.email === email && user.email_verified_at !== null, "the proven email becomes the verified sign-in identity");
+  check(user.phone_verified_at === null, "an email-verified open sign-up leaves the phone unverified");
+  check(
+    (await request(emailApp).post("/api/v1/auth/login").send({ phone, password: "email driver secure pass 2026" })).status === 401,
+    "an unverified phone cannot be used to sign in"
   );
 }
 

@@ -1670,6 +1670,18 @@ abstract class AppLocalizations {
   /// **'إرسال رمز التحقق'**
   String get sendVerificationCode;
 
+  /// No description provided for @emailForCode.
+  ///
+  /// In ar, this message translates to:
+  /// **'البريد الإلكتروني (نرسل الرمز إليه)'**
+  String get emailForCode;
+
+  /// No description provided for @codeSentToEmail.
+  ///
+  /// In ar, this message translates to:
+  /// **'أرسلنا رمزاً من ستة أرقام إلى بريدك الإلكتروني. تحقق من بريدك، بما في ذلك مجلد الرسائل غير المرغوبة.'**
+  String get codeSentToEmail;
+
   /// No description provided for @enterVerificationCode.
   ///
   /// In ar, this message translates to:
