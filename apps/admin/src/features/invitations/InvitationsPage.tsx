@@ -8,11 +8,13 @@ const ROLES: InvitationRole[] = ["passenger", "driver", "merchant"];
 const statusTone: Record<InvitationRecord["status"], Tone> = { unused: "info", used: "success", expired: "danger", revoked: "neutral" };
 
 /** Pure so it is testable: an API failure becomes either "feature off" or a translatable message. */
-export function classifyInvitationError(error: unknown): "disabled" | "invalid_phone" | "rate_limited" | "failed" {
+export function classifyInvitationError(error: unknown): "disabled" | "invalid_phone" | "email_in_use" | "not_revocable" | "rate_limited" | "failed" {
   const status = (error as ApiError | undefined)?.status;
   const code = error instanceof Error ? error.message : "";
   if (status === 404 || code === "not_found") return "disabled";
   if (code === "invalid_phone") return "invalid_phone";
+  if (code === "invitation_email_in_use") return "email_in_use";
+  if (code === "invitation_not_revocable") return "not_revocable";
   if (status === 429 || code === "invitation_rate_limit_exceeded") return "rate_limited";
   return "failed";
 }
@@ -68,7 +70,7 @@ export function InvitationsPage({
     }
     setNotice({
       kind: "error",
-      message: kind === "invalid_phone" ? t("invitationsPhoneInvalid") : kind === "rate_limited" ? t("invitationsRateLimited") : t("invitationsActionFailed")
+      message: kind === "invalid_phone" ? t("invitationsPhoneInvalid") : kind === "email_in_use" ? t("invitationsEmailInUse") : kind === "not_revocable" ? t("invitationsNotRevocable") : kind === "rate_limited" ? t("invitationsRateLimited") : t("invitationsActionFailed")
     });
   }
 
@@ -140,7 +142,7 @@ export function InvitationsPage({
       key: "actions",
       header: "",
       align: "end",
-      cell: (row) => row.status === "unused"
+      cell: (row) => row.status === "unused" || row.status === "used"
         ? <Button size="sm" variant="destructive" onClick={() => void revoke(row)} disabled={busy}>{t("invitationsRevoke")}</Button>
         : null
     }

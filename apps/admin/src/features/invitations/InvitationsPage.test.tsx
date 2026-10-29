@@ -40,6 +40,8 @@ describe("classifyInvitationError", () => {
     expect(classifyInvitationError(Object.assign(new Error("not_found"), { status: 404 }))).toBe("disabled");
     expect(classifyInvitationError(new Error("invalid_phone"))).toBe("invalid_phone");
     expect(classifyInvitationError(Object.assign(new Error("x"), { status: 429 }))).toBe("rate_limited");
+    expect(classifyInvitationError(Object.assign(new Error("invitation_email_in_use"), { status: 409 }))).toBe("email_in_use");
+    expect(classifyInvitationError(Object.assign(new Error("invitation_not_revocable"), { status: 409 }))).toBe("not_revocable");
     expect(classifyInvitationError(new Error("boom"))).toBe("failed");
   });
 });

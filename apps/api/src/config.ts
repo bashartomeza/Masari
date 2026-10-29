@@ -102,6 +102,8 @@ const rawSchema = z.object({
   RATE_LIMIT_GLOBAL_MAX: z.coerce.number().int().min(1).max(10_000).optional(),
   RATE_LIMIT_LOGIN_WINDOW_MS: z.coerce.number().int().min(1_000).max(3_600_000).default(900_000),
   RATE_LIMIT_LOGIN_MAX: z.coerce.number().int().min(1).max(500).optional(),
+  EMAIL_CODE_RESEND_COOLDOWN_SECONDS: z.coerce.number().int().min(0).max(3600).default(60),
+  EMAIL_CODE_MAX_PER_EMAIL_PER_DAY: z.coerce.number().int().min(1).max(100).default(10),
   INVITATIONS_ENABLED: z.string().optional(),
   PUBLIC_ONBOARDING_ENABLED: z.string().optional(),
   OPEN_DRIVER_MERCHANT_SIGNUP_ENABLED: z.string().optional(),
@@ -720,6 +722,7 @@ export function createConfig(environment: NodeJS.ProcessEnv | Record<string, str
       global: { windowMs: raw.RATE_LIMIT_GLOBAL_WINDOW_MS, max: globalRateLimitMax },
       login: { windowMs: raw.RATE_LIMIT_LOGIN_WINDOW_MS, max: loginRateLimitMax }
     },
+    emailCodeLimits: { resendCooldownSeconds: raw.EMAIL_CODE_RESEND_COOLDOWN_SECONDS, maxPerDay: raw.EMAIL_CODE_MAX_PER_EMAIL_PER_DAY },
     demo: demoFeaturesEnabled
       ? {
           resetKey: demoValues.resetKey!,

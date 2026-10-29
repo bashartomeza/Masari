@@ -191,7 +191,7 @@ const submitApplication = (token: string) =>
 /** Open driver / shop-owner signup: no invitation, documents required before review. */
 async function openSignupChecks(admin: string, legal: Array<{ id: string; type: string; content_hash: string }>) {
   await prisma.abuseCounter.deleteMany({
-    where: { bucket_type: { in: ["otp_ip_hour", "otp_phone_day", "otp_email_day", "open_start_ip", "open_start_phone", "open_start_email", "open_start_global"] } }
+    where: { bucket_type: { in: ["otp_ip_hour", "otp_phone_day", "otp_email_day", "open_start_ip", "open_start_phone", "open_start_email", "open_start_global", "registration_conflict_ip"] } }
   });
   const openConfig = await request(app).get("/api/v1/onboarding/config");
   check(
@@ -303,14 +303,14 @@ async function openSignupChecks(admin: string, legal: Array<{ id: string; type: 
     (await verify(again.body.attempt.id, again.body.onboarding_token, "123456")).status === 401,
     "the superseded attempt's token no longer works"
   );
-  await emailDeliveryChecks(legal);
+  await emailDeliveryChecks(admin, legal);
 }
 
 /** OTP_PROVIDER=email behaviour: the code travels by email only, and an unproven phone is not a sign-in identity. */
-async function emailDeliveryChecks(legal: Array<{ id: string; type: string; content_hash: string }>) {
+async function emailDeliveryChecks(admin: string, legal: Array<{ id: string; type: string; content_hash: string }>) {
   const sent: Array<{ to: string; purpose: string; actionToken: string }> = [];
   const emailApp = createApp(config, { otpProvider: new EmailOtpProvider({ kind: "approved", send: async (m) => { sent.push(m); } }) });
-  await prisma.abuseCounter.deleteMany({ where: { bucket_type: { in: ["otp_ip_hour", "otp_phone_day", "otp_email_day", "open_start_ip", "open_start_phone", "open_start_email", "open_start_global"] } } });
+  await prisma.abuseCounter.deleteMany({ where: { bucket_type: { in: ["otp_ip_hour", "otp_phone_day", "otp_email_day", "open_start_ip", "open_start_phone", "open_start_email", "open_start_global", "registration_conflict_ip"] } } });
   const phone = "+970599333301";
   const email = "email.flow@example.com";
   const started = await request(emailApp).post("/api/v1/onboarding/attempts").set("idempotency-key", key("email-start"))
@@ -332,6 +332,73 @@ async function emailDeliveryChecks(legal: Array<{ id: string; type: string; cont
     (await request(emailApp).post("/api/v1/auth/login").send({ phone, password: "email driver secure pass 2026" })).status === 401,
     "an unverified phone cannot be used to sign in"
   );
+  await invitationPrecedenceChecks(admin, emailApp, sent, legal, { phone, squatterId: user.id });
+}
+
+/** An Admin-vouched claim always beats a self-typed, unverified phone; invitations are not burned or stuck. */
+async function invitationPrecedenceChecks(
+  admin: string,
+  emailApp: ReturnType<typeof createApp>,
+  sent: Array<{ to: string; purpose: string; actionToken: string }>,
+  legal: Array<{ id: string; type: string; content_hash: string }>,
+  squat: { phone: string; squatterId: string }
+) {
+  await prisma.abuseCounter.deleteMany({ where: { bucket_type: { in: ["otp_ip_hour", "otp_phone_day", "otp_email_day", "registration_conflict_ip"] } } });
+  const adminPost = (path: string, body: object) => request(app).post(path).set("authorization", `Bearer ${admin}`).send(body);
+
+  // 1. The squatter (unverified phone, verified email) is released when the invited person starts and completes.
+  const invited = await invitationRecord(admin, "driver", squat.phone);
+  sent.length = 0;
+  const started = await request(emailApp).post("/api/v1/onboarding/attempts").set("idempotency-key", key("squat-start"))
+    .send({ invitation_code: invited.code, role: "driver", phone: squat.phone, region: "PS", locale: "en" });
+  check(started.status === 201, "an invitation start succeeds although an unverified account holds the phone");
+  check(sent.length === 1, "the invited start emails exactly one code");
+  const token = `Onboarding ${started.body.onboarding_token}`;
+  const verified = await request(emailApp).post(`/api/v1/onboarding/attempts/${started.body.attempt.id}/verify`)
+    .set("authorization", token).set("idempotency-key", key("squat-verify")).send({ otp: sent[0].actionToken });
+  check(verified.status === 200, "the invited applicant verifies the emailed code");
+  const done = await request(emailApp).post(`/api/v1/onboarding/attempts/${started.body.attempt.id}/complete`)
+    .set("authorization", token).set("idempotency-key", key("squat-complete"))
+    .send({ registration_grant: verified.body.registration_grant, display_name: "Invited Driver", password: "invited driver secure pass 2026", locale: "ar", consents: legal, adult_self_attestation: true });
+  check(done.status === 201, "the invited applicant completes registration");
+  const owner = await prisma.user.findUniqueOrThrow({ where: { phone: squat.phone } });
+  check(owner.id !== squat.squatterId && owner.phone_verified_at !== null, "the phone now belongs to the admin-vouched account");
+  const squatter = await prisma.user.findUniqueOrThrow({ where: { id: squat.squatterId } });
+  check(squatter.phone === null && squatter.profile_state === "phone_required" && squatter.email_verified_at !== null, "the unverified holder lost only the phone and keeps its verified email");
+  const releases = await prisma.auditEvent.findMany({ where: { entity_id: squat.squatterId, action: "admin_action" } });
+  check(releases.length >= 1 && !JSON.stringify(releases.map((r) => r.metadata)).includes(squat.phone), "the release is audited without the phone number");
+
+  // 2. A verified holder is never evicted: a new invitation for the same phone stays unavailable.
+  const again = await invitationRecord(admin, "driver", squat.phone);
+  const blocked = await request(emailApp).post("/api/v1/onboarding/attempts").set("idempotency-key", key("verified-start"))
+    .send({ invitation_code: again.code, role: "driver", phone: squat.phone, region: "PS", locale: "en" });
+  check(blocked.status === 404, "a verified phone holder blocks the invited start");
+  check((await prisma.user.findUniqueOrThrow({ where: { id: owner.id } })).phone === squat.phone, "a verified holder keeps its phone");
+  check((await prisma.invitation.findUniqueOrThrow({ where: { id: again.id } })).used_count === 0, "the blocked start did not redeem the invitation");
+
+  // 3. A contact email that already has an account is refused at creation and never burns an invitation at start.
+  const takenEmail = await adminPost("/api/v1/admin/invitations", { role: "passenger", phone: "+970599444401", contact_email: "email.flow@example.com", region: "PS" });
+  check(takenEmail.status === 409 && takenEmail.body.error === "invitation_email_in_use", "invitation creation refuses an email that already has an account");
+  const late = await invitationRecord(admin, "driver", "+970599444402");
+  await prisma.user.create({ data: { name: "Late Owner", email: "invited.444402@example.com", email_verified_at: new Date(), role: "passenger",
+    account_status: "active", profile_state: "phone_required", security_version: 1, demo_account: false } });
+  const lateStart = await request(emailApp).post("/api/v1/onboarding/attempts").set("idempotency-key", key("late-email"))
+    .send({ invitation_code: late.code, role: "driver", phone: "+970599444402", region: "PS", locale: "en" });
+  check(lateStart.status === 404, "a start whose contact email gained an account is refused");
+  check((await prisma.invitation.findUniqueOrThrow({ where: { id: late.id } })).used_count === 0, "that refused start did not redeem the invitation");
+
+  // 4. A redeemed invitation whose attempt never completed can be revoked; a completed one cannot.
+  const stuck = await invitationRecord(admin, "driver", "+970599444403");
+  const stuckStart = await start(stuck.code, "driver", "+970599444403");
+  check(stuckStart.status === 201, "an invitation is redeemed at start");
+  const stuckOtp = latestOtp();
+  const revoked = await adminPost(`/api/v1/admin/invitations/${stuck.id}/revoke`, { reason: "never completed" });
+  check(revoked.status === 200 && revoked.body.invitation.status === "revoked", "an invitation with an unfinished attempt can be revoked");
+  check((await prisma.onboardingAttempt.findUniqueOrThrow({ where: { id: stuckStart.body.attempt.id } })).status === "cancelled", "revoking cancels the unfinished attempt");
+  check((await verify(stuckStart.body.attempt.id, stuckStart.body.onboarding_token, stuckOtp)).status !== 200, "a revoked invitation's attempt can no longer be verified");
+  const completedInvitation = await prisma.invitation.findFirstOrThrow({ where: { redemptions: { some: { user_id: { not: null } } }, revoked_at: null } });
+  const notRevocable = await adminPost(`/api/v1/admin/invitations/${completedInvitation.id}/revoke`, { reason: "too late" });
+  check(notRevocable.status === 409 && notRevocable.body.error === "invitation_not_revocable", "a completed invitation cannot be revoked");
 }
 
 async function main() {

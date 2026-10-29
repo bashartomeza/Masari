@@ -4,7 +4,8 @@ import type { AppConfig } from "../config.js";
 import type { Prisma, PrismaClient } from "../generated/prisma/client.js";
 import { AuthActionError, consumeAuthAction, issueAuthAction } from "../lib/authActionTokens.js";
 import { verifyGoogleIdentity, type GoogleVerifier } from "../lib/googleIdentity.js";
-import { keyedDigest, hexDigestMatches } from "../lib/keyedDigest.js";
+import { consumeAbuseCounter } from "../lib/abuseCounters.js";
+import { abuseSubjectDigest, keyedDigest, hexDigestMatches } from "../lib/keyedDigest.js";
 import { generateOtpCode } from "../lib/otp.js";
 import { normalizePhoneToE164 } from "../lib/phone.js";
 import { HttpError } from "../middleware/error.js";
@@ -129,9 +130,25 @@ export class IdentityProfileService {
     catch { await this.db.authActionToken.updateMany({ where: { id: proof.action.id, consumed_at: null }, data: { consumed_at: new Date() } }); throw new HttpError(503, "phone_verification_unavailable"); }
     return { action_token: proof.rawToken, expires_at: proof.expiresAt.toISOString(), next_action: "verify_phone" };
   }
+  /**
+   * phone_already_in_use confirms that a number is registered, even after a correct code. Cap how many such
+   * answers one account can collect per day; past the cap the answer becomes a plain 429.
+   */
+  private async capPhoneConflicts<T>(userId: string, run: () => Promise<T>): Promise<T> {
+    try { return await run(); }
+    catch (e) {
+      if (e instanceof HttpError && e.message === "phone_already_in_use") {
+        const key = this.key();
+        const counter = await consumeAbuseCounter(this.db, { bucketType: "profile_phone_conflict", subjectDigest: abuseSubjectDigest("profile_phone_conflict", userId, key),
+          digestVersion: key.version, windowSeconds: 86_400, limit: 3 });
+        if (!counter.allowed) throw new HttpError(429, "rate_limited");
+      }
+      throw e;
+    }
+  }
   async phoneConfirm(id: string, version: number, input: z.infer<typeof phoneConfirmSchema>) {
     const sender = this.sender(this.phoneProvider, "phone_verification_unavailable");
-    const valid = await this.transaction(async (tx) => {
+    const valid = await this.capPhoneConflicts(id, () => this.transaction(async (tx) => {
       const user = await this.user(tx, id, version);
       const proof = await this.consume(tx, input.action_token, "phone_verification");
       if (proof.user_id !== id) throw new HttpError(400, "auth_action_invalid");
@@ -145,7 +162,7 @@ export class IdentityProfileService {
       if (changed.count !== 1) throw new HttpError(403, "account_unavailable");
       await auditEvent(tx, { userId: id, action: "otp_verified", entityType: "User", entityId: id, metadata: { purpose: "profile_phone_completion" } });
       return true;
-    }, "phone_already_in_use");
+    }, "phone_already_in_use"));
     if (!valid) throw new HttpError(400, "auth_action_invalid");
     return { ok: true, profile_state: "complete" };
   }
