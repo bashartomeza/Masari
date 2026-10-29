@@ -136,7 +136,7 @@ describe("open signup start endpoint", () => {
     request(app)
       .post("/api/v1/onboarding/attempts")
       .set("idempotency-key", "open-signup-key-1")
-      .send({ role: "driver", phone: "+970590000001", locale: "en", ...body });
+      .send({ role: "driver", phone: "+970590000001", email: "Applicant@Example.com", locale: "en", ...body });
 
   it("answers 404 and writes nothing while the switch is off", async () => {
     const response = await start(createApp(config())).expect(404);
@@ -158,9 +158,17 @@ describe("open signup start endpoint", () => {
     expect(response.body.next_action).toBe("verify_otp");
     expect(JSON.stringify(response.body)).not.toContain("+970590000001");
     const data = prismaMock.onboardingAttempt.create.mock.calls[0][0].data;
-    expect(data).toMatchObject({ intended_role: "driver", phone_e164: "+970590000001" });
+    expect(data).toMatchObject({ intended_role: "driver", phone_e164: "+970590000001", delivery_email: "applicant@example.com" });
     expect(data).not.toHaveProperty("invitation_id");
     expect(dispatch).toHaveBeenCalledTimes(1);
+  });
+
+  it("requires the email the one-time code is sent to, and never takes one with an invitation", async () => {
+    const app = createApp(config({ OPEN_DRIVER_MERCHANT_SIGNUP_ENABLED: "true" }));
+    await start(app, { email: undefined }).expect(400);
+    await start(app, { email: "not-an-email" }).expect(400);
+    await start(app, { invitation_code: "ABCDEFGHJKLMNPQRSTUV2345" }).expect(400);
+    expect(prismaMock.onboardingAttempt.create).not.toHaveBeenCalled();
   });
 
   it("supersedes the older open attempt for the same phone", async () => {
@@ -186,6 +194,8 @@ describe("open signup start endpoint", () => {
       expect.arrayContaining([
         expect.objectContaining({ bucketType: "open_start_ip", limit: 10, windowSeconds: 3_600 }),
         expect.objectContaining({ bucketType: "open_start_phone", limit: 5, windowSeconds: 86_400 }),
+        expect.objectContaining({ bucketType: "open_start_email", limit: 5, windowSeconds: 86_400 }),
+        expect.objectContaining({ bucketType: "otp_email_day", windowSeconds: 86_400 }),
         expect.objectContaining({ bucketType: "open_start_global", limit: 7, windowSeconds: 3_600 })
       ])
     );

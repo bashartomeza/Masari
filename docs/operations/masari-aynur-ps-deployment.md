@@ -23,7 +23,7 @@ API (`apps/api/.env.production.example` is the template; never commit real value
 - `CORS_ORIGINS=https://masari.aynur.ps`
 - `TRUST_PROXY=1` when exactly one proxy sits in front (use the real hop count; the API refuses to start without an explicit value)
 - `DATABASE_URL` to a private MySQL 8 host, plus `JWT_SECRET`, `REFRESH_TOKEN_PEPPER` and the other secrets as separate random values of at least 32 characters
-- Registration stays off (`PUBLIC_ONBOARDING_ENABLED=false`, `OTP_PROVIDER=disabled`) until an approved SMS provider and current legal text exist; the config refuses to enable it in production without them
+- Registration stays off (`PUBLIC_ONBOARDING_ENABLED=false`, `OTP_PROVIDER=disabled`) until the legal text exists and the owner opens it; there is no SMS provider to wait for (Masari emails its codes: `OTP_PROVIDER=email` with the SMTP delivery)
 
 Admin build:
 
@@ -83,4 +83,4 @@ server { listen 80; server_name masari.aynur.ps; return 301 https://$host$reques
 
 ## Still the owner's to confirm
 
-Provider and credential items (EDIT-01 to 09), exact-head release verification (EDIT-10), the 90-day document retention, the SMS provider and legal text before registration is opened, and who holds the TLS certificate and DNS for `masari.aynur.ps`.
+Provider and credential items (EDIT-01 to 09), exact-head release verification (EDIT-10), the 90-day document retention, the legal text before registration is opened, and who holds the TLS certificate and DNS for `masari.aynur.ps`.

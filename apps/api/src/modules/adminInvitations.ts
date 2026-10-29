@@ -8,6 +8,7 @@ import { abuseSubjectDigest } from "../lib/keyedDigest.js";
 import { createInvitation } from "../lib/invitations.js";
 import { PHONE_INPUT_MAX_LENGTH, normalizePhoneToE164 } from "../lib/phone.js";
 import { phoneDigest } from "../lib/keyedDigest.js";
+import { contactEmailSchema, maskEmail } from "../lib/contactEmail.js";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth, requireRole, type AuthenticatedRequest } from "../middleware/auth.js";
 import { HttpError } from "../middleware/error.js";
@@ -18,6 +19,8 @@ const cleanOptional = (maximum: number) =>
 const createSchema = z.strictObject({
   role: z.enum([OnboardingRole.passenger, OnboardingRole.driver, OnboardingRole.merchant]),
   phone: z.string().trim().min(7).max(PHONE_INPUT_MAX_LENGTH),
+  // Masari sends no SMS: the one-time code is emailed here. The phone number stays the admin-vouched identity.
+  contact_email: contactEmailSchema,
   region: z.string().trim().regex(/^[A-Za-z]{2}$/).optional(),
   campaign: cleanOptional(100),
   source: cleanOptional(100),
@@ -50,6 +53,7 @@ function serializeInvitation(invitation: {
   id: string;
   intended_role: string;
   phone_last4: string | null;
+  contact_email?: string | null;
   campaign: string | null;
   source: string | null;
   max_uses: number;
@@ -66,6 +70,7 @@ function serializeInvitation(invitation: {
     id: invitation.id,
     role: invitation.intended_role,
     phone: invitation.phone_last4 ? `••• •• ${invitation.phone_last4}` : null,
+    contact_email: maskEmail(invitation.contact_email),
     campaign: invitation.campaign,
     source: invitation.source,
     max_uses: invitation.max_uses,
@@ -106,6 +111,7 @@ export function createAdminInvitationRouter(appConfig: AppConfig) {
           createdById: req.user!.id,
           intendedRole: input.role,
           intendedPhone: input.phone,
+          contactEmail: input.contact_email,
           phoneRegion: input.region,
           campaign: input.campaign,
           source: input.source,

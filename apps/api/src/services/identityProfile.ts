@@ -20,8 +20,21 @@ export const phoneStartSchema = z.strictObject({ phone: phoneInput, locale: z.en
 export const phoneConfirmSchema = z.strictObject({ action_token: token, phone: phoneInput, code: z.string().regex(/^\d{6}$/) });
 export interface PhoneVerificationProvider {
   readonly kind: "test" | "approved";
+  /** False when the code proves only an email mailbox (no SMS): the phone is then stored unverified. Default true. */
+  readonly provesPhone?: boolean;
   /** Resolve only after delivery is accepted; reject unknown or failed delivery. */
-  send(input: { phoneE164: string; code: string; locale: "ar" | "en"; expiresAt: Date; idempotencyKey: string }): Promise<void>;
+  send(input: { phoneE164: string; email?: string; code: string; locale: "ar" | "en"; expiresAt: Date; idempotencyKey: string }): Promise<void>;
+}
+
+/** Masari sends no SMS: the code for adding a phone goes to the account's own verified email. */
+export class EmailPhoneVerificationProvider implements PhoneVerificationProvider {
+  readonly kind = "approved" as const;
+  readonly provesPhone = false;
+  constructor(private readonly delivery: EmailDelivery) {}
+  async send(input: { email?: string; code: string; locale: "ar" | "en"; expiresAt: Date }) {
+    if (!input.email) throw new Error("email_required");
+    await this.delivery.send({ to: input.email, locale: input.locale, purpose: "phone_code", actionToken: input.code, expiresAt: input.expiresAt });
+  }
 }
 
 export class IdentityProfileService {
@@ -99,19 +112,25 @@ export class IdentityProfileService {
   async phoneStart(id: string, version: number, input: z.infer<typeof phoneStartSchema>) {
     const sender = this.sender(this.phoneProvider, "phone_verification_unavailable");
     const code = generateOtpCode(); const phoneDigest = keyedDigest("masari:auth-profile-phone", input.phone, this.key());
+    let email: string | undefined;
     const proof = await this.transaction(async (tx) => {
       const user = await this.user(tx, id, version);
       if (user.phone && user.phone !== input.phone) throw new HttpError(409, "phone_change_requires_reauthentication");
+      if (sender.provesPhone === false) {
+        // Email-delivered code: only a verified mailbox may receive it, (an already registered phone is refused at confirmation).
+        if (!user.email || !user.email_verified_at) throw new HttpError(403, "email_verification_required");
+        email = user.email;
+      }
       const count = await tx.authActionToken.count({ where: { purpose: "phone_verification", created_at: { gte: new Date(Date.now() - 3600000) }, OR: [{ user_id: id }, { payload: { path: "$.phone_digest", equals: phoneDigest } }] } });
       if (count >= 5) throw new HttpError(429, "rate_limited");
       return issueAuthAction(tx, { purpose: "phone_verification", userId: id, key: this.key(), subject: JSON.stringify([id, version, input.phone, code]), payload: { phone_digest: phoneDigest } });
     }, "phone_already_in_use");
-    try { await sender.send({ phoneE164: input.phone, code, locale: input.locale, expiresAt: proof.expiresAt, idempotencyKey: proof.action.id }); }
+    try { await sender.send({ phoneE164: input.phone, email, code, locale: input.locale, expiresAt: proof.expiresAt, idempotencyKey: proof.action.id }); }
     catch { await this.db.authActionToken.updateMany({ where: { id: proof.action.id, consumed_at: null }, data: { consumed_at: new Date() } }); throw new HttpError(503, "phone_verification_unavailable"); }
     return { action_token: proof.rawToken, expires_at: proof.expiresAt.toISOString(), next_action: "verify_phone" };
   }
   async phoneConfirm(id: string, version: number, input: z.infer<typeof phoneConfirmSchema>) {
-    this.sender(this.phoneProvider, "phone_verification_unavailable");
+    const sender = this.sender(this.phoneProvider, "phone_verification_unavailable");
     const valid = await this.transaction(async (tx) => {
       const user = await this.user(tx, id, version);
       const proof = await this.consume(tx, input.action_token, "phone_verification");
@@ -122,7 +141,7 @@ export class IdentityProfileService {
       if (user.phone && user.phone !== input.phone) throw new HttpError(409, "phone_change_requires_reauthentication");
       const owner = await tx.user.findUnique({ where: { phone: input.phone } });
       if (owner && owner.id !== id) throw new HttpError(409, "phone_already_in_use");
-      const changed = await tx.user.updateMany({ where: { id, security_version: version, account_status: "active" }, data: { phone: input.phone, phone_verified_at: new Date(), profile_state: "complete" } });
+      const changed = await tx.user.updateMany({ where: { id, security_version: version, account_status: "active" }, data: { phone: input.phone, phone_verified_at: sender.provesPhone === false ? null : new Date(), profile_state: "complete" } });
       if (changed.count !== 1) throw new HttpError(403, "account_unavailable");
       await auditEvent(tx, { userId: id, action: "otp_verified", entityType: "User", entityId: id, metadata: { purpose: "profile_phone_completion" } });
       return true;

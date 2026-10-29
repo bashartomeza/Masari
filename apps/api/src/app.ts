@@ -2,7 +2,7 @@ import express from "express";
 import type { Logger } from "pino";
 import { createAuthRouter } from "./modules/auth.js";
 import type { EmailDelivery } from "./services/emailAuth.js";
-import type { PhoneVerificationProvider } from "./services/identityProfile.js";
+import { EmailPhoneVerificationProvider, type PhoneVerificationProvider } from "./services/identityProfile.js";
 import type { GoogleVerifier } from "./lib/googleIdentity.js";
 import { createDemoRouter } from "./modules/demoReset.js";
 import { passengerRouter } from "./modules/passenger.js";
@@ -31,7 +31,7 @@ import type { ReadinessCheck } from "./lib/readiness.js";
 import { createAdminInvitationRouter } from "./modules/adminInvitations.js";
 import { createPublicOnboardingRouter } from "./modules/publicOnboarding.js";
 import { createDriverDocumentsRouter } from "./modules/driverDocuments.js";
-import type { OtpProvider } from "./lib/otp.js";
+import { EmailOtpProvider, type OtpProvider } from "./lib/otp.js";
 import {
   createAdminRouteManagementRouter,
   createRouteCatalogRouter,
@@ -108,6 +108,15 @@ export function createApp(
 ) {
   const app = express();
   const logger = dependencies.logger ?? createOperationalLogger(appConfig);
+  // OTP_PROVIDER=email: Masari sends no SMS, so both phone-code flows (onboarding attempts and the phone step after
+  // email sign-up) deliver their code through the approved SMTP email delivery.
+  if (appConfig.otpProvider === "email" && dependencies.emailDelivery) {
+    dependencies = {
+      ...dependencies,
+      otpProvider: dependencies.otpProvider ?? new EmailOtpProvider(dependencies.emailDelivery),
+      phoneVerificationProvider: dependencies.phoneVerificationProvider ?? new EmailPhoneVerificationProvider(dependencies.emailDelivery)
+    };
+  }
 
   app.disable("x-powered-by");
   app.set("trust proxy", appConfig.trustProxy);

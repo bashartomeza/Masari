@@ -130,3 +130,12 @@ test("the smtp password never appears in preflight output", () => {
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("OTP_PROVIDER=email needs SMTP, fake is refused, and public onboarding needs the email provider", () => {
+  const smtp = { EMAIL_DELIVERY: "smtp", SMTP_HOST: "smtp.mail.example.org", SMTP_USER: "svc-mailer", SMTP_PASSWORD: "x".repeat(24), EMAIL_FROM_ADDRESS: "no-reply@masari.aynur.ps" };
+  assert.deepEqual(failing(runPreflight({ ...goodEnv(), ...smtp, OTP_PROVIDER: "email", PUBLIC_ONBOARDING_ENABLED: "true" })).filter((id) => /OTP|PUBLIC/.test(id)), []);
+  assert.ok(failing(runPreflight({ ...goodEnv(), OTP_PROVIDER: "email" })).includes("OTP_PROVIDER_EMAIL"));
+  assert.ok(failing(runPreflight({ ...goodEnv(), OTP_PROVIDER: "fake" })).includes("OTP_PROVIDER"));
+  assert.ok(failing(runPreflight({ ...goodEnv(), PUBLIC_ONBOARDING_ENABLED: "true" })).includes("PUBLIC_ONBOARDING_ENABLED"));
+  assert.ok(!runPreflight(goodEnv()).some((r) => r.id === "SMS_DELIVERY"));
+});

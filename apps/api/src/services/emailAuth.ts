@@ -12,7 +12,7 @@ import { ConsentReleaseService } from "./consentReleases.js";
 
 export type EmailDelivery = {
   kind: "test" | "approved";
-  send(message: { to: string; locale: "ar" | "en"; purpose: "email_verification" | "password_reset" | "password_set"; actionToken: string; expiresAt: Date }): Promise<void>;
+  send(message: { to: string; locale: "ar" | "en"; purpose: "email_verification" | "password_reset" | "password_set" | "phone_code"; actionToken: string; expiresAt: Date }): Promise<void>;
 };
 export const canonicalEmail = z.string().trim().toLowerCase().email().max(191);
 export const newPassword = z.string().min(12).max(72).refine((value) => Buffer.byteLength(value, "utf8") <= 72);

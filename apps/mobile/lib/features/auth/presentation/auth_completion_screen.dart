@@ -236,8 +236,8 @@ class _AuthCompletionScreenState extends ConsumerState<AuthCompletionScreen> {
               Text(
                 authText(
                   context,
-                  'Verify a real contact number before using Masari services.',
-                  'تحقق من رقم تواصل حقيقي قبل استخدام خدمات مساري.',
+                  'Add a real contact number before using Masari services. We email the verification code to the email address on your account.',
+                  'أضف رقم تواصل حقيقياً قبل استخدام خدمات مساري. نرسل رمز التحقق إلى البريد الإلكتروني المسجل في حسابك.',
                 ),
               ),
               TextField(
@@ -370,12 +370,8 @@ class _AuthCompletionScreenState extends ConsumerState<AuthCompletionScreen> {
                 decoration: InputDecoration(
                   labelText: authText(
                     context,
-                    widget.phone
-                        ? 'Six-digit verification code'
-                        : 'Six-digit code from your email',
-                    widget.phone
-                        ? 'رمز التحقق المكون من ستة أرقام'
-                        : 'الرمز المكون من ستة أرقام من بريدك الإلكتروني',
+                    'Six-digit code from your email',
+                    'الرمز المكون من ستة أرقام من بريدك الإلكتروني',
                   ),
                 ),
               ),

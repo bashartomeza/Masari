@@ -825,6 +825,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sendVerificationCode => 'Send verification code';
 
   @override
+  String get emailForCode => 'Email address (we send the code here)';
+
+  @override
+  String get codeSentToEmail =>
+      'We emailed a six-digit code. Check your email, including the spam folder.';
+
+  @override
   String get enterVerificationCode => 'Enter verification code';
 
   @override

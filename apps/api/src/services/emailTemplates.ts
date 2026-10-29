@@ -31,6 +31,13 @@ const COPY: Record<Locale, Record<Purpose, Copy>> = {
       ignore: "If you did not ask to reset your password, you can ignore this message; your password has not changed.",
       secret: enSecret
     },
+    phone_code: {
+      subject: "Your Masari verification code",
+      intro: "Enter this verification code in the Masari app to continue. Masari sends codes by email, not by text message:",
+      expiry: enExpiry,
+      ignore: "If you did not ask for it, you can ignore this message.",
+      secret: enSecret
+    },
     password_set: {
       subject: "Set your Masari password",
       intro: "Enter this code in the Masari app to set a password for your account:",
@@ -52,6 +59,13 @@ const COPY: Record<Locale, Record<Purpose, Copy>> = {
       intro: "أدخل هذا الرمز في تطبيق مساري لإعادة تعيين كلمة المرور:",
       expiry: arExpiry,
       ignore: "إن لم تطلب إعادة تعيين كلمة المرور فتجاهل هذه الرسالة؛ لم تتغير كلمة مرورك.",
+      secret: arSecret
+    },
+    phone_code: {
+      subject: "رمز التحقق من مساري",
+      intro: "أدخل رمز التحقق هذا في تطبيق مساري للمتابعة. يرسل مساري الرموز عبر البريد الإلكتروني وليس عبر الرسائل النصية:",
+      expiry: arExpiry,
+      ignore: "إن لم تطلب هذا الرمز فتجاهل هذه الرسالة.",
       secret: arSecret
     },
     password_set: {

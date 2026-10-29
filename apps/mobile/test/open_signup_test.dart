@@ -49,6 +49,7 @@ void main() {
         final body = jsonDecode(request.body) as Map<String, dynamic>;
         expect(body.containsKey('invitation_code'), isFalse);
         expect(body['role'], 'driver');
+        expect(body['email'], 'driver@example.com');
         return http.Response(_startBody, 201);
       });
 
@@ -56,6 +57,7 @@ void main() {
         invitationCode: '  ',
         role: OnboardingRole.driver,
         phone: '+970590000001',
+        email: 'driver@example.com',
         locale: 'ar',
         idempotencyKey: 'idem-open-start',
       );
@@ -123,6 +125,7 @@ void main() {
       await controller.start(
         invitationCode: '',
         phone: '+970590000001',
+        email: 'driver@example.com',
         locale: 'ar',
       );
 
@@ -131,6 +134,26 @@ void main() {
         container.read(onboardingControllerProvider).value?.stage,
         OnboardingStage.otpSent,
       );
+    });
+
+    test('open sign-up needs an email address for the code', () async {
+      final fake = _FakeRepository(openRoles: [OnboardingRole.driver]);
+      final container = _container(fake, _MemoryStorage());
+      addTearDown(container.dispose);
+      await container.read(onboardingControllerProvider.future);
+      final controller = container.read(onboardingControllerProvider.notifier)
+        ..chooseRole(OnboardingRole.driver);
+
+      await controller.start(
+        invitationCode: '',
+        phone: '+970590000001',
+        email: 'not-an-email',
+        locale: 'ar',
+      );
+
+      final state = container.read(onboardingControllerProvider).value!;
+      expect(fake.startCodes, isEmpty);
+      expect(state.errorCode, 'validation_error');
     });
 
     test('a role that is not open still needs an invitation code', () async {
@@ -333,6 +356,7 @@ class _FakeRepository extends OnboardingRepository {
     required String invitationCode,
     required OnboardingRole role,
     required String phone,
+    String email = '',
     required String locale,
     required String idempotencyKey,
   }) async {
