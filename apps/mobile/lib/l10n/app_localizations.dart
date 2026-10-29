@@ -4477,6 +4477,102 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'لقد قيّمت هذه الرحلة من قبل.'**
   String get ratingAlreadyRated;
+
+  /// No description provided for @renewalTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'جدّد مستنداتك'**
+  String get renewalTitle;
+
+  /// No description provided for @renewalOpen.
+  ///
+  /// In ar, this message translates to:
+  /// **'تجديد المستندات'**
+  String get renewalOpen;
+
+  /// No description provided for @renewalBannerTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت صلاحية مستنداتك'**
+  String get renewalBannerTitle;
+
+  /// No description provided for @renewalBannerBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكنك الاتصال بالإنترنت أو قبول رحلات جديدة حتى ترسل مستنداتك المجدَّدة وتتم الموافقة عليها.'**
+  String get renewalBannerBody;
+
+  /// No description provided for @renewalBannerSubmittedTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'التجديد قيد المراجعة'**
+  String get renewalBannerSubmittedTitle;
+
+  /// No description provided for @renewalBannerSubmittedBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'مستنداتك المجدَّدة بانتظار المراجعة.'**
+  String get renewalBannerSubmittedBody;
+
+  /// No description provided for @renewalIntro.
+  ///
+  /// In ar, this message translates to:
+  /// **'ارفع صوراً واضحة أو ملفات PDF لرخصة القيادة وترخيص المركبة والتأمين المجدَّدة، ثم أرسلها للمراجعة. الرحلات التي قبلتها سابقاً لا تتأثر.'**
+  String get renewalIntro;
+
+  /// No description provided for @renewalUploaded.
+  ///
+  /// In ar, this message translates to:
+  /// **'المستندات المرفوعة'**
+  String get renewalUploaded;
+
+  /// No description provided for @renewalNoDocuments.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يتم رفع أي مستندات مجدَّدة بعد.'**
+  String get renewalNoDocuments;
+
+  /// No description provided for @renewalSubmit.
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال للمراجعة'**
+  String get renewalSubmit;
+
+  /// No description provided for @renewalSubmittedTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'بانتظار المراجعة'**
+  String get renewalSubmittedTitle;
+
+  /// No description provided for @renewalSubmittedBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'استلمنا مستنداتك المجدَّدة. سيتم إشعارك عندما يوافق فريق المراجعة عليها.'**
+  String get renewalSubmittedBody;
+
+  /// No description provided for @renewalDocumentsRequired.
+  ///
+  /// In ar, this message translates to:
+  /// **'ارفع مستنداً مجدَّداً واحداً على الأقل قبل الإرسال.'**
+  String get renewalDocumentsRequired;
+
+  /// No description provided for @renewalStateConflict.
+  ///
+  /// In ar, this message translates to:
+  /// **'تغيّرت حالة التجديد. اسحب للتحديث وحاول مرة أخرى.'**
+  String get renewalStateConflict;
+
+  /// No description provided for @renewalLoadError.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل حالة التجديد.'**
+  String get renewalLoadError;
+
+  /// No description provided for @renewalNothingToRenew.
+  ///
+  /// In ar, this message translates to:
+  /// **'مستنداتك محدّثة. لا يوجد ما يتطلب التجديد.'**
+  String get renewalNothingToRenew;
 }
 
 class _AppLocalizationsDelegate

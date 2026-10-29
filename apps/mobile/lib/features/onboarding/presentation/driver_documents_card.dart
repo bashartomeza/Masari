@@ -16,7 +16,7 @@ class DriverDocumentsCard extends ConsumerStatefulWidget {
   const DriverDocumentsCard({
     super.key,
     this.merchant = false,
-    this.pickFile = _pickWithFilePicker,
+    this.pickFile = pickDocumentWithFilePicker,
     this.onKindsChanged,
   });
 
@@ -34,7 +34,7 @@ class DriverDocumentsCard extends ConsumerStatefulWidget {
       _DriverDocumentsCardState();
 }
 
-Future<List<int>?> _pickWithFilePicker() async {
+Future<List<int>?> pickDocumentWithFilePicker() async {
   final file = await FilePicker.pickFile(
     type: FileType.custom,
     allowedExtensions: const ['jpg', 'jpeg', 'png', 'pdf'],

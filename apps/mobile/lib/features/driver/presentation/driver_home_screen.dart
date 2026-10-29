@@ -16,6 +16,7 @@ import '../../auth/application/auth_controller.dart';
 import '../../canonical_routes/application/canonical_route_controller.dart';
 import '../../security/presentation/security_actions.dart';
 import '../../security/presentation/session_status_banner.dart';
+import '../../driver_renewal/presentation/driver_renewal_banner.dart';
 import '../application/driver_controller.dart';
 import '../data/driver_stats_source.dart';
 import '../domain/driver_home_stats.dart';
@@ -92,6 +93,7 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                     const SizedBox(height: AppTokens.spaceMedium),
                     const SessionStatusBanner(),
                     const SizedBox(height: AppTokens.spaceMedium),
+                    const DriverRenewalBanner(),
 
                     _StatsRow(stats: stats),
 

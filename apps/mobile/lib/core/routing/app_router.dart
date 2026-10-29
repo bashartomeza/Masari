@@ -25,6 +25,8 @@ import '../../features/driver/presentation/driver_my_trip_screen.dart';
 import '../../features/driver/presentation/driver_performance_screen.dart';
 import '../../features/driver/presentation/driver_route_screen.dart';
 import '../../features/driver/presentation/driver_trip_screen.dart';
+import '../../features/driver_renewal/presentation/driver_renewal_banner.dart';
+import '../../features/driver_renewal/presentation/driver_renewal_screen.dart';
 import '../../features/matching/presentation/match_detail_screen.dart';
 import '../../features/merchant/presentation/create_merchant_order_screen.dart';
 import '../../features/merchant/presentation/merchant_bulk_orders_screen.dart';
@@ -182,6 +184,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/driver/availability/new',
         builder: (context, state) => const DriverAvailabilityFormScreen(),
+      ),
+      GoRoute(
+        path: driverRenewalPath,
+        builder: (context, state) => const DriverRenewalScreen(),
       ),
       GoRoute(
         path: '/driver/trip/:id',

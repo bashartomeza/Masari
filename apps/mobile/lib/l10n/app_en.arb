@@ -873,5 +873,21 @@
   "ratingSubmit": "Send rating",
   "ratingThanks": "Thanks for rating your trip.",
   "ratingFailed": "The rating could not be sent. Try again.",
-  "ratingAlreadyRated": "You already rated this trip."
+  "ratingAlreadyRated": "You already rated this trip.",
+  "renewalTitle": "Renew your documents",
+  "renewalOpen": "Renew documents",
+  "renewalBannerTitle": "Your documents have expired",
+  "renewalBannerBody": "You cannot go online or accept new trips until you send renewed documents and they are approved.",
+  "renewalBannerSubmittedTitle": "Renewal under review",
+  "renewalBannerSubmittedBody": "Your renewed documents are waiting for review.",
+  "renewalIntro": "Upload clear photos or PDFs of your renewed driving licence, vehicle registration and insurance, then send them for review. Trips you already accepted are not affected.",
+  "renewalUploaded": "Uploaded documents",
+  "renewalNoDocuments": "No renewed documents uploaded yet.",
+  "renewalSubmit": "Send for review",
+  "renewalSubmittedTitle": "Waiting for review",
+  "renewalSubmittedBody": "We received your renewed documents. You will be notified once the review team approves them.",
+  "renewalDocumentsRequired": "Upload at least one renewed document before sending.",
+  "renewalStateConflict": "Your renewal status changed. Pull to refresh and try again.",
+  "renewalLoadError": "Could not load your renewal status.",
+  "renewalNothingToRenew": "Your documents are up to date. Nothing to renew."
 }

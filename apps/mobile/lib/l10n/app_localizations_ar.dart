@@ -2399,4 +2399,59 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get ratingAlreadyRated => 'لقد قيّمت هذه الرحلة من قبل.';
+
+  @override
+  String get renewalTitle => 'جدّد مستنداتك';
+
+  @override
+  String get renewalOpen => 'تجديد المستندات';
+
+  @override
+  String get renewalBannerTitle => 'انتهت صلاحية مستنداتك';
+
+  @override
+  String get renewalBannerBody =>
+      'لا يمكنك الاتصال بالإنترنت أو قبول رحلات جديدة حتى ترسل مستنداتك المجدَّدة وتتم الموافقة عليها.';
+
+  @override
+  String get renewalBannerSubmittedTitle => 'التجديد قيد المراجعة';
+
+  @override
+  String get renewalBannerSubmittedBody =>
+      'مستنداتك المجدَّدة بانتظار المراجعة.';
+
+  @override
+  String get renewalIntro =>
+      'ارفع صوراً واضحة أو ملفات PDF لرخصة القيادة وترخيص المركبة والتأمين المجدَّدة، ثم أرسلها للمراجعة. الرحلات التي قبلتها سابقاً لا تتأثر.';
+
+  @override
+  String get renewalUploaded => 'المستندات المرفوعة';
+
+  @override
+  String get renewalNoDocuments => 'لم يتم رفع أي مستندات مجدَّدة بعد.';
+
+  @override
+  String get renewalSubmit => 'إرسال للمراجعة';
+
+  @override
+  String get renewalSubmittedTitle => 'بانتظار المراجعة';
+
+  @override
+  String get renewalSubmittedBody =>
+      'استلمنا مستنداتك المجدَّدة. سيتم إشعارك عندما يوافق فريق المراجعة عليها.';
+
+  @override
+  String get renewalDocumentsRequired =>
+      'ارفع مستنداً مجدَّداً واحداً على الأقل قبل الإرسال.';
+
+  @override
+  String get renewalStateConflict =>
+      'تغيّرت حالة التجديد. اسحب للتحديث وحاول مرة أخرى.';
+
+  @override
+  String get renewalLoadError => 'تعذّر تحميل حالة التجديد.';
+
+  @override
+  String get renewalNothingToRenew =>
+      'مستنداتك محدّثة. لا يوجد ما يتطلب التجديد.';
 }

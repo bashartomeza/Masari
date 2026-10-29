@@ -48,6 +48,21 @@ class AuthenticatedApiClient {
     }, beforeRetry: beforeRetry);
   }
 
+  Future<Map<String, dynamic>> postBytes(
+    String path, {
+    required List<int> bytes,
+    String contentType = 'application/octet-stream',
+  }) {
+    return sessionCoordinator.sendAuthenticated(
+      (token) => apiClient.postBytes(
+        path,
+        bytes: bytes,
+        token: token,
+        contentType: contentType,
+      ),
+    );
+  }
+
   Future<Map<String, dynamic>> patchJson(
     String path, {
     Map<String, dynamic> body = const {},

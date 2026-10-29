@@ -974,5 +974,21 @@
   "ratingSubmit": "إرسال التقييم",
   "ratingThanks": "شكرًا لتقييمك الرحلة.",
   "ratingFailed": "تعذّر إرسال التقييم. حاول مرة أخرى.",
-  "ratingAlreadyRated": "لقد قيّمت هذه الرحلة من قبل."
+  "ratingAlreadyRated": "لقد قيّمت هذه الرحلة من قبل.",
+  "renewalTitle": "جدّد مستنداتك",
+  "renewalOpen": "تجديد المستندات",
+  "renewalBannerTitle": "انتهت صلاحية مستنداتك",
+  "renewalBannerBody": "لا يمكنك الاتصال بالإنترنت أو قبول رحلات جديدة حتى ترسل مستنداتك المجدَّدة وتتم الموافقة عليها.",
+  "renewalBannerSubmittedTitle": "التجديد قيد المراجعة",
+  "renewalBannerSubmittedBody": "مستنداتك المجدَّدة بانتظار المراجعة.",
+  "renewalIntro": "ارفع صوراً واضحة أو ملفات PDF لرخصة القيادة وترخيص المركبة والتأمين المجدَّدة، ثم أرسلها للمراجعة. الرحلات التي قبلتها سابقاً لا تتأثر.",
+  "renewalUploaded": "المستندات المرفوعة",
+  "renewalNoDocuments": "لم يتم رفع أي مستندات مجدَّدة بعد.",
+  "renewalSubmit": "إرسال للمراجعة",
+  "renewalSubmittedTitle": "بانتظار المراجعة",
+  "renewalSubmittedBody": "استلمنا مستنداتك المجدَّدة. سيتم إشعارك عندما يوافق فريق المراجعة عليها.",
+  "renewalDocumentsRequired": "ارفع مستنداً مجدَّداً واحداً على الأقل قبل الإرسال.",
+  "renewalStateConflict": "تغيّرت حالة التجديد. اسحب للتحديث وحاول مرة أخرى.",
+  "renewalLoadError": "تعذّر تحميل حالة التجديد.",
+  "renewalNothingToRenew": "مستنداتك محدّثة. لا يوجد ما يتطلب التجديد."
 }
