@@ -14,6 +14,8 @@
     "test:integration:reset-matrix": "node dist/scripts/demoResetGateIntegration.js",
     "test:integration:legacy-online": "node dist/scripts/legacyOnlineStateIntegration.js",
     "test:integration:passenger-trip-association": "node dist/scripts/passengerTripAssociationIntegration.js",
+    "admin:create": "node dist/scripts/createAdmin.js",
+    "admin:list": "node dist/scripts/listAdmins.js",
     "documents:purge": "node dist/scripts/purgeDriverDocuments.js",
     "parcels:purge-receivers": "node dist/scripts/purgePassengerParcelReceivers.js",
     "documents:expiry": "node dist/scripts/checkDriverDocumentExpiry.js",
