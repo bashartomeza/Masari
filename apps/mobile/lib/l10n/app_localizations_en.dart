@@ -2417,4 +2417,59 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ratingAlreadyRated => 'You already rated this trip.';
+
+  @override
+  String get renewalTitle => 'Renew your documents';
+
+  @override
+  String get renewalOpen => 'Renew documents';
+
+  @override
+  String get renewalBannerTitle => 'Your documents have expired';
+
+  @override
+  String get renewalBannerBody =>
+      'You cannot go online or accept new trips until you send renewed documents and they are approved.';
+
+  @override
+  String get renewalBannerSubmittedTitle => 'Renewal under review';
+
+  @override
+  String get renewalBannerSubmittedBody =>
+      'Your renewed documents are waiting for review.';
+
+  @override
+  String get renewalIntro =>
+      'Upload clear photos or PDFs of your renewed driving licence, vehicle registration and insurance, then send them for review. Trips you already accepted are not affected.';
+
+  @override
+  String get renewalUploaded => 'Uploaded documents';
+
+  @override
+  String get renewalNoDocuments => 'No renewed documents uploaded yet.';
+
+  @override
+  String get renewalSubmit => 'Send for review';
+
+  @override
+  String get renewalSubmittedTitle => 'Waiting for review';
+
+  @override
+  String get renewalSubmittedBody =>
+      'We received your renewed documents. You will be notified once the review team approves them.';
+
+  @override
+  String get renewalDocumentsRequired =>
+      'Upload at least one renewed document before sending.';
+
+  @override
+  String get renewalStateConflict =>
+      'Your renewal status changed. Pull to refresh and try again.';
+
+  @override
+  String get renewalLoadError => 'Could not load your renewal status.';
+
+  @override
+  String get renewalNothingToRenew =>
+      'Your documents are up to date. Nothing to renew.';
 }

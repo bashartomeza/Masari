@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:masari_mobile/l10n/app_localizations.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -8,6 +9,7 @@ import '../../../core/widgets/language_switch.dart';
 import '../../../core/widgets/masari_card.dart';
 import '../../../core/widgets/state_views.dart';
 import '../../driver/presentation/driver_ui.dart';
+import '../../driver_renewal/presentation/driver_renewal_banner.dart';
 import '../application/notifications_controller.dart';
 import '../data/notification_models.dart';
 
@@ -79,7 +81,13 @@ class NotificationsScreen extends ConsumerWidget {
                       return _NotificationTile(
                         key: ValueKey('notification-${item.id}'),
                         notification: item,
-                        onTap: () => controller.markRead(item),
+                        onTap: () {
+                          controller.markRead(item);
+                          // Expiry notices lead straight to the renewal page.
+                          if (opensDriverRenewal(item.type)) {
+                            GoRouter.maybeOf(context)?.push(driverRenewalPath);
+                          }
+                        },
                       );
                     },
                   ),
@@ -219,6 +227,12 @@ class _NotificationTile extends StatelessWidget {
         '${material.formatTimeOfDay(TimeOfDay.fromDateTime(local))}';
   }
 }
+
+/// Notification types whose tap opens the document renewal screen.
+bool opensDriverRenewal(String type) =>
+    type == 'driver_documents_expiring' ||
+    type == 'driver_documents_expired' ||
+    type == 'driver_documents_renewal_submitted';
 
 /// Localised wording for an inbox entry.
 ({String title, String? body}) notificationText(
