@@ -205,6 +205,12 @@ return {
       `/admin/merchant-approvals/${encodeURIComponent(userId)}/${decision}`,
       { method: "POST", token, body: reason ? { reason } : {} }
     ),
+  adminInvitations: (token: string, query: { page?: number; limit?: number } = {}) =>
+    apiRequest<InvitationPage>(withQuery("/admin/invitations", query), { token }),
+  createAdminInvitation: (token: string, body: { role: InvitationRole; phone: string; contact_email: string }) =>
+    apiRequest<{ invitation: InvitationRecord; code: string }>("/admin/invitations", { method: "POST", token, body }),
+  revokeAdminInvitation: (token: string, id: string, reason: string) =>
+    apiRequest<{ invitation: InvitationRecord }>(`/admin/invitations/${encodeURIComponent(id)}/revoke`, { method: "POST", token, body: { reason } }),
   consentReleases: (token: string) =>
     apiRequest<{ releases: ConsentRelease[] }>("/admin/consent-releases", { token }),
   currentConsentRelease: (token: string) =>
@@ -490,6 +496,18 @@ export type ConsentReleaseDocument = {
   legal_approved_at: string | null;
   legal_approved_by: string | null;
 };
+export type InvitationRole = "passenger" | "driver" | "merchant";
+export type InvitationRecord = {
+  id: string;
+  role: InvitationRole;
+  /** Already masked by the API. */
+  phone: string | null;
+  contact_email: string | null;
+  status: "unused" | "used" | "expired" | "revoked";
+  expires_at: string;
+  created_at: string;
+};
+export type InvitationPage = { invitations: InvitationRecord[]; page: number; limit: number; total: number };
 export type ConsentRelease = {
   id: string;
   version: string;
