@@ -25,7 +25,7 @@ These were found while auditing. They are not fixed here.
 - **G1 No production email delivery.** `apps/api/src/server.ts` calls `createApp(config, { logger })` with no `emailDelivery`. `EmailAuthService` returns 503 `email_auth_unavailable` in staging and production unless the delivery has `kind: "approved"`, and no approved adapter exists (the only sender is the demo Gmail script under `scripts/test-env/`). There are no SMTP environment variables in `config.ts`. Result: email sign-up, email verification and password reset do not work in production. Needs an SMTP adapter plus config (host, port, user, password, from) and wiring in `server.ts`.
 - **G2 No SMS/OTP provider.** `OTP_PROVIDER` accepts only `disabled` or `fake`, and `fake` is refused in production. `phoneVerificationProvider` is likewise never wired. Phone verification and public onboarding cannot be enabled.
 - **G3 No first-admin bootstrap.** There is no seed or CLI that creates a production admin; invitations cannot create admins (`passenger|driver|merchant` only). Section 7 gives a manual one-off SQL procedure; a small script would be safer.
-- **G4 Release APK is signed with the debug key.** `apps/mobile/android/app/build.gradle.kts` has `signingConfig = signingConfigs.getByName("debug")` with a TODO. A release signing config reading a git-ignored `key.properties` must be added before a distributable build.
+- **G4 Release APK was signed with the debug key. RESOLVED.** `apps/mobile/android/app/build.gradle.kts` now signs release builds from git-ignored `android/key.properties` or `MASARI_KEYSTORE_*` environment variables and fails the build if neither is present. CI uses an explicit debug-signing opt-in. The owner must still generate the upload keystore: see `docs/mobile/ANDROID_RELEASE.md`.
 - **G5 `.env.production.example` leaves `AUTH_ACTION_TOKEN_PEPPER` commented out**, but it is required for email actions and the preflight treats it as required. Uncomment it in the example.
 - **G6 `compose.staging.yml` is incomplete for a real deploy.** It passes only a subset of variables (no `AUTH_ACTION_TOKEN_PEPPER`, no driver-document variables or volume) and publishes `127.0.0.1:3001`, while the production doc assumes port 3000. There is no production compose file.
 - **G7 Purge command path.** `docs/operations/masari-aynur-ps-deployment.md` says `node dist/scripts/purgeDriverDocuments.js`; inside the runtime image the file is `apps/api/dist/scripts/purgeDriverDocuments.js` (working dir `/app`). Use the path in section 9.
@@ -230,17 +230,13 @@ Provisional targets from the existing doc: RPO 15 minutes, RTO 2 hours, 30 day r
 
 ## 13. Android release build
 
-Gap G4: the Gradle release config currently uses the debug key. Before building for distribution add a release signing config (owner task) reading a git-ignored `apps/mobile/android/key.properties` with `storeFile`, `storePassword`, `keyAlias`, `keyPassword`; keep the keystore and passwords out of the repository and out of CI logs. Generate the keystore once, on a trusted machine, and back it up in at least two places (losing it prevents updates):
-
-```sh
-keytool -genkeypair -v -keystore masari-release.jks -alias masari -keyalg RSA -keysize 2048 -validity 10000
-```
+Gap G4 is resolved in code: release builds are signed from git-ignored `apps/mobile/android/key.properties` (or `MASARI_KEYSTORE_*` environment variables) and fail without it. Generating and backing up the keystore remains an owner task; follow `docs/mobile/ANDROID_RELEASE.md` (keytool commands, Play App Signing, checklist, optional manual `release-android.yml` workflow that needs owner-added GitHub secrets).
 
 Build (points the app at the production API; the app appends `/api/v1` itself and refuses non-HTTPS in production):
 
 ```sh
 cd apps/mobile
-flutter build apk --release --dart-define=APP_ENV=production --dart-define=ENABLE_DEMO_FEATURES=false --dart-define=API_BASE_URL=https://masari.aynur.ps
+flutter build apk --release --build-number=<N> --dart-define=APP_ENV=production --dart-define=ENABLE_DEMO_FEATURES=false --dart-define=API_BASE_URL=https://masari.aynur.ps
 ```
 
 The same keys are in `apps/mobile/config/production.example.json` (`--dart-define-from-file`). The application id is `ps.masari.mobile`. Output: `apps/mobile/build/app/outputs/flutter-apk/app-release.apk`. Check `apksigner verify --print-certs` shows the release certificate, not "Android Debug".
